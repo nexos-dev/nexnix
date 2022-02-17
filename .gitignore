@@ -3,10 +3,7 @@
 *.img
 Doxygen
 /patch-*
-/external/programs/*
-/external/libraries/*
+source/external/*
 fakeinc
 *.code-workspace
-sdk
-sdktemp
-libraries
+.gitmodules

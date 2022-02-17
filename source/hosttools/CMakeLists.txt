@@ -27,14 +27,13 @@ if(${TOOLS_ENABLE_TESTS})
 endif()
 
 # Get the NexNix SDK
-find_package(NexNixSdk REQUIRED)
 find_package(LibNex REQUIRED)
 
 include(GNUInstallDirs)
-include(NexTest)
+#include(NexTest)
 
 if(${TOOLS_ENABLE_TESTS})
-    nextest_enable_tests()
+    #nextest_enable_tests()
 endif()
 
 add_subdirectory(confparse)

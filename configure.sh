@@ -399,9 +399,9 @@ Run $0 -l to see supported targets"
     fi
 
     # Download libchardet
-    if [ ! -f $output/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET" = "1" ]
+    if [ ! -f $olddir/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET" = "1" ]
     then
-        rm -rf $output/source/external/libraries/libchardet
+        rm -rf $olddir/source/external/libraries/libchardet
         chardetver=1.0.7
         # Check if we sould download bleeding edge or not
         if [ "$NNTOOLS_BLEEDING_EDGE" != "1" ]
@@ -409,51 +409,28 @@ Run $0 -l to see supported targets"
             gitargs="-b $chardetver"
         fi
         git clone https://github.com/nexos-dev/libchardet.git \
-                  $output/source/external/libraries/libchardet $gitargs
-        touch $output/source/external/libraries/libchardet_done
+                  $olddir/source/external/libraries/libchardet $gitargs
+        touch $olddir/source/external/libraries/libchardet_done
     fi
     # Build libchardet
     if [ ! -f $output/tools/lib/libchardet.a ] || [ "$NNTOOLS_REBUILD_CHARDET" = "1" ]
     then
         chardetbuild="$output/build/tools/chardet-build"
         mkdir -p $chardetbuild && cd $chardetbuild
-        $output/source/external/libraries/libchardet/configure --prefix="$output/tools"
+        $olddir/source/external/libraries/libchardet/configure --prefix="$output/tools"
         checkerr $? "unable to configure libchardet" $0
         gmake -j $jobcount
         checkerr $? "unable to build libchardet" $0
         gmake install -j $jobcount
         checkerr $? "unable to build libchardet" $0
     fi
-
-    # Download the SDK
-    if [ ! -f $output/source/sdk_done ] || [ "$NNTOOLS_REGET" = "1" ]
-    then
-        rm -rf $output/source/sdk
-        git clone https://github.com/nexos-dev/NexNixSdk.git \
-                  $output/source/sdk
-        touch $output/source/sdk_done
-    fi
-    # Build SDK
-    if [ ! -d $output/tools/share/NexNixSdk ] || [ "$NNTOOLS_REBUILD_SDK" = "1" ]
-    then
-        sdkbuilddir="$output/build/tools/sdk-build"
-        mkdir -p $sdkbuilddir/$cmakegen
-        cd $sdkbuilddir/$cmakegen
-        cmake $output/source/sdk -DCMAKE_INSTALL_PREFIX="$output/tools" $cmakeargs
-        checkerr $? "unable to configure NexNix SDK" $0
-        $cmakegen -j $jobcount $makeargs
-        checkerr $? "unable to build NexNix SDK" $0
-        $cmakegen -j $jobcount $makeargs install
-        checkerr $? "unable to install NexNix SDK" $0
-    fi
-
     # Download the libnex
-    if [ ! -f $output/source/libraries/libnex_done ] || [ "$NNTOOLS_REGET" = "1" ]
+    if [ ! -f $olddir/source/external/libraries/libnex_done ] || [ "$NNTOOLS_REGET" = "1" ]
     then
-        rm -rf $output/source/libraries/libnex
+        rm -rf $olddir/external/source/libraries/libnex
         git clone https://github.com/nexos-dev/libnex.git \
-                  $output/source/libraries/libnex
-        touch $output/source/libraries/libnex_done
+                  $olddir/source/external/libraries/libnex
+        touch $olddir/source/external/libraries/libnex_done
     fi
     # Build libnex
     if [ ! -f $output/tools/lib/libnex.a ] || [ "$NNTOOLS_REBUILD_LIBNEX" = "1" ]
@@ -467,7 +444,7 @@ Run $0 -l to see supported targets"
         libnex_builddir="$output/build/tools/libnex-build"
         mkdir -p $libnex_builddir/$cmakegen
         cd $libnex_builddir/$cmakegen
-        cmake $output/source/libraries/libnex -DCMAKE_INSTALL_PREFIX="$output/tools" $libnex_cmakeargs
+        cmake $olddir/source/external/libraries/libnex -DCMAKE_INSTALL_PREFIX="$output/tools" $libnex_cmakeargs
         checkerr $? "unable to configure libnex" $0
         $cmakegen -j $jobcount $makeargs
         checkerr $? "unable to build libnex" $0
@@ -493,7 +470,7 @@ Run $0 -l to see supported targets"
         builddir=$output/build/tools/tools-build
         mkdir -p $builddir/$cmakegen
         cd $builddir/$cmakegen
-        cmake $olddir/tools -DCMAKE_INSTALL_PREFIX="$output/tools" $tools_cmakeargs
+        cmake $olddir/source/hosttools -DCMAKE_INSTALL_PREFIX="$output/tools" $tools_cmakeargs
         checkerr $? "unable to build host tools" $0
         $cmakegen -j$jobcount $makeargs
         checkerr $? "unable to build host tools" $0
@@ -526,8 +503,8 @@ Run $0 -l to see supported targets"
         echo "export NNJOBCOUNT=\"$jobcount\"" >> nexnix-conf.sh
         echo "export NNCONFROOT=\"$output/conf/$target/$conf\"" >> nexnix-conf.sh
         echo "export NNPROJECTROOT=\"$olddir\"" >> nexnix-conf.sh
-        echo "export NNSOURCEROOT=\"$output/source\"" >> nexnix-conf.sh
-        echo "export NNEXTSOURCEROOT=\"$output/source/external\"" >> nexnix-conf.sh
+        echo "export NNSOURCEROOT=\"$olddir/source\"" >> nexnix-conf.sh
+        echo "export NNEXTSOURCEROOT=\"$olddir/source/external\"" >> nexnix-conf.sh
         echo "export NNOBJDIR=\"$output/build/${target}-${conf}_objdir\"" >> nexnix-conf.sh
         echo "export NNTOOLCHAIN=\"$compiler\"" >> nexnix-conf.sh
         echo "export NNDEBUG=\"$debug\"" >> nexnix-conf.sh
