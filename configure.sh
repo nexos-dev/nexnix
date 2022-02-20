@@ -367,17 +367,16 @@ Run $0 -l to see supported targets"
     if [ $useninja -eq 1  ]
     then
         findprog "ninja"
+    else
+        findprog "gmake"
     fi
     findprog "wget"
     findprog "tar"
     findprog "git"
-    findprog "dd"
-    findprog "kpartx"
-    findprog "parted"
-    findprog "mkfs.ext2"
-    findprog "mkfs.vfat"
-    findprog "rsync"
-    findprog "gmake"
+    if [ "$toolchain" = "gnu" ]
+    then
+        findprog "gmake"
+    fi
 
     # Check if the check succeeded
     if [ $depcheckfail -eq 1 ]
@@ -399,17 +398,11 @@ Run $0 -l to see supported targets"
     fi
 
     # Download libchardet
-    if [ ! -f $olddir/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET" = "1" ]
+    if [ ! -f $olddir/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET_CHARDET" = "1" ]
     then
         rm -rf $olddir/source/external/libraries/libchardet
-        chardetver=1.0.7
-        # Check if we sould download bleeding edge or not
-        if [ "$NNTOOLS_BLEEDING_EDGE" != "1" ]
-        then
-            gitargs="-b $chardetver"
-        fi
         git clone https://github.com/nexos-dev/libchardet.git \
-                  $olddir/source/external/libraries/libchardet $gitargs
+                  $olddir/source/external/libraries/libchardet
         touch $olddir/source/external/libraries/libchardet_done
     fi
     # Build libchardet
@@ -417,15 +410,15 @@ Run $0 -l to see supported targets"
     then
         chardetbuild="$output/build/tools/chardet-build"
         mkdir -p $chardetbuild && cd $chardetbuild
-        $olddir/source/external/libraries/libchardet/configure --prefix="$output/tools"
+        cmake $olddir/source/external/libraries/libchardet -DCMAKE_INSTALL_PREFIX="$output/tools" $cmakeargs
         checkerr $? "unable to configure libchardet" $0
-        gmake -j $jobcount
+        $cmakegen -j $jobcount
         checkerr $? "unable to build libchardet" $0
-        gmake install -j $jobcount
+        $cmakegen install -j $jobcount
         checkerr $? "unable to build libchardet" $0
     fi
     # Download the libnex
-    if [ ! -f $olddir/source/external/libraries/libnex_done ] || [ "$NNTOOLS_REGET" = "1" ]
+    if [ ! -f $olddir/source/external/libraries/libnex_done ] || [ "$NNTOOLS_REGET_LIBNEX" = "1" ]
     then
         rm -rf $olddir/external/source/libraries/libnex
         git clone https://github.com/nexos-dev/libnex.git \
