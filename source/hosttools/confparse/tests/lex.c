@@ -1,5 +1,5 @@
 /*
-    parse.c - contains recursive descent parser for confparse
+    lex.c - contains lexer test case
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,13 +15,21 @@
     limitations under the License.
 */
 
-/// @file parse.c
+/// @file lex.c
 
-#include "internal.h"
-#include <conf.h>
-#include <stdlib.h>
+#include "../internal.h"
+#include <locale.h>
+#include <stdio.h>
+#define NEXTEST_NAME "lex"
+#include <libnex/progname.h>
+#include <nextest.h>
 
-ConfBlock_t* _confParse (const char* file)
+int main()
 {
-    return NULL;
+    setlocale (LC_ALL, "");
+    setprogname ("lex");
+    _confLexInit ("testLex.cfg");
+    _confLex();
+    _confLexDestroy();
+    return 0;
 }

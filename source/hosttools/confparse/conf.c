@@ -17,7 +17,9 @@
 
 /// @file conf.c
 
+#include "internal.h"
 #include <conf.h>
+#include <libnex/libnex_config.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,32 +28,17 @@
 // The name of the file being read
 static char* fileName = NULL;
 
-/**
- * @brief Initializes parse
- *
- * Takes a file name and parses the file, return the configuration tree
- * @param file the file to read configuration from
- * @return The root of the parse tree
- */
-ConfBlock_t* ConfInit (char* file)
+PUBLIC ConfBlock_t* ConfInit (char* file)
 {
     fileName = file;
-    return confParse (file);
+    return _confParse (file);
 }
 
-/**
- * @brief Gets the name of the file being worked on
- *
- * @return The file name
- */
-char* ConfGetFileName (void)
+PUBLIC char* ConfGetFileName (void)
 {
     return fileName;
 }
 
-/**
- * Frees all memory associated with parse tree
- */
-void ConfFreeParseTree()
+PUBLIC void ConfFreeParseTree()
 {
 }

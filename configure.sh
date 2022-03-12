@@ -394,7 +394,7 @@ Run $0 -l to see supported targets"
         cmakegen=ninja
     else
         cmakegen=gmake
-        makeargs="--no-print-directory -Otarget"
+        makeargs="--no-print-directory"
     fi
 
     # Download libchardet
@@ -408,7 +408,7 @@ Run $0 -l to see supported targets"
     # Build libchardet
     if [ ! -f $output/tools/lib/libchardet.a ] || [ "$NNTOOLS_REBUILD_CHARDET" = "1" ]
     then
-        chardetbuild="$output/build/tools/chardet-build"
+        chardetbuild="$output/build/tools/chardet-build/$cmakegen"
         mkdir -p $chardetbuild && cd $chardetbuild
         cmake $olddir/source/external/libraries/libchardet -DCMAKE_INSTALL_PREFIX="$output/tools" $cmakeargs
         checkerr $? "unable to configure libchardet" $0
@@ -447,7 +447,7 @@ Run $0 -l to see supported targets"
         if [ "$NNTESTS_ENABLE" = "1" ]
         then
             ctest
-            checkerr $? "test suite failed"
+            checkerr $? "test suite failed" $0
         fi
     fi
 
@@ -473,7 +473,7 @@ Run $0 -l to see supported targets"
         if [ "$NNTESTS_ENABLE" = "1" ]
         then
             ctest
-            checkerr $? "test suite failed"
+            checkerr $? "test suite failed" $0
         fi
     fi
 

@@ -20,26 +20,31 @@ project(hosttools)
 
 # Options
 option(TOOLS_ENABLE_TESTS "Specifies if the test suite should be built" OFF)
+option(BUILD_SHARED_LIBS "Specifies if shared libraries should be built" OFF)
 
 # Enable testing
-if(${TOOLS_ENABLE_TESTS})
+if(${TOOLS_ENABLE_TESTS} AND NOT ${CMAKE_CROSSCOMPILING})
     enable_testing()
 endif()
 
-# Get the NexNix SDK
+# Check if we should use the SDK or not
+if(CMAKE_SYSTEM_NAME STREQUAL "NexNix")
+    find_package(NexNixSdk REQUIRED)
+else()
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+    include_directories(cmake)
+endif()
+
 find_package(LibNex REQUIRED)
 
 include(GNUInstallDirs)
-#include(NexTest)
+include(NexTest)
 
 if(${TOOLS_ENABLE_TESTS})
-    #nextest_enable_tests()
+    nextest_enable_tests()
 endif()
 
-add_subdirectory(confparse)
+# Ensure include gets included
+include_directories(include)
 
-# Install header files
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/include"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/.."
-        FILES_MATCHING
-        PATTERN "*.h")
+add_subdirectory(confparse)

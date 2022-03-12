@@ -16,16 +16,39 @@
 ]]
 
 cmake_minimum_required(VERSION 3.00)
-project(confparse)
+project(confparse VERSION 0.0.1)
+enable_language(C)
+
+# Link with libchardet
+find_package(LibChardet REQUIRED)
 
 # Create the library
-add_library(conf conf.c)
+add_library(conf 
+            conf.c lex.c
+            parse.c)
 
-# Include header stuff
-list(APPEND CONF_INCLUDES ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}
-            ${CMAKE_SOURCE_DIR}/include)
+# Set SOName
+set_target_properties(conf PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
-target_include_directories(conf PRIVATE ${CONF_INCLUDES})
+# Include extra directories
+list(APPEND CONF_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(conf PRIVATE "${CONF_INCLUDE_DIRS}")
+
+# Link with libnex
+target_link_libraries(conf PUBLIC LibNex::nex LibChardet::chardet)
 
 # Install it
 install(TARGETS conf)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../include/conf.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+# Setup test cases
+list(APPEND CONF_TESTS lex)
+
+foreach(test ${CONF_TESTS})
+    nextest_add_library_test(NAME ${test}
+                             SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/tests/${test}.c
+                             LIBS conf
+                             INCLUDES ${CONF_INCLUDE_DIRS}
+                             WORKDIR ${CMAKE_CURRENT_SOURCE_DIR}/tests
+                             LINK_LANG CXX)
+endforeach()
