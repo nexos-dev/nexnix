@@ -17,7 +17,7 @@
 
 /// @file lex.c
 
-#include "../internal.h"
+#include "../include/internal.h"
 #include <locale.h>
 #include <stdio.h>
 #define NEXTEST_NAME "lex"
@@ -26,9 +26,14 @@
 
 int main()
 {
+    // Set up locale stuff
     setlocale (LC_ALL, "");
     setprogname ("lex");
-    _confLexInit ("testLex.cfg");
+    bindtextdomain ("nexnix_tools", TOOLS_LOCALE_BASE);
+    textdomain ("nexnix_tools");
+
+    ConfInit ("testLex.testxt");
+    _confLexInit ("testLex.testxt");
     _confLex();
     _confLexDestroy();
     return 0;

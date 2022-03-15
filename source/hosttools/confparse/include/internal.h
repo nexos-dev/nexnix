@@ -21,12 +21,23 @@
 #define _INTERNAL_H
 
 #include <conf.h>
+#include <config.h>
+#include <libintl.h>
+
+#ifdef TOOLS_ENABLE_NLS
+#define _(str)  gettext (str)
+#define N_(str) (str)
+#else
+#define _(str)  (str)
+#define N_(str) (str)
+#endif
 
 /// Specifies a token that was parsed by the lexer
 typedef struct _confToken
 {
     int type;        ///< The type of token that was parsed
     char* semVal;    ///< Semantic value of the token
+    int line;        ///< The line that this token is on
 } _confToken_t;
 
 /**
@@ -62,5 +73,11 @@ _confToken_t* _confLex (void);
  * @return The token. NULL if an error ocurred
  */
 _confToken_t* _confLexPeek (void);
+
+// Valid token numbers
+#define LEX_TOKEN_NONE          0    ///< No token found
+#define LEX_TOKEN_POUND_COMMENT 1    ///< A comment (never returned to users)
+#define LEX_TOKEN_SLASH_COMMENT 2
+#define LEX_TOKEN_BLOCK_COMMENT 3
 
 #endif

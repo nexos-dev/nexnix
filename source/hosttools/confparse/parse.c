@@ -17,7 +17,7 @@
 
 /// @file parse.c
 
-#include "internal.h"
+#include "include/internal.h"
 #include <conf.h>
 #include <stdlib.h>
 

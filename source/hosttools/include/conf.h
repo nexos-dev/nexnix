@@ -20,7 +20,7 @@
 #ifndef CONF_H
 #define CONF_H
 
-#include <libnex/libnex_config.h>
+#include <config.h>
 
 #define MAX_PROPVAR 64    // The maximum amount of values in a property
 

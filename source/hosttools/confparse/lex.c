@@ -17,31 +17,56 @@
 
 /// @file lex.c
 
-#include "internal.h"
+#include "include/internal.h"
 #include <assert.h>
 #include <chardet/chardet.h>
 #include <errno.h>
 #include <libnex/error.h>
+#include <libnex/object.h>
+#include <libnex/progname.h>
 #include <libnex/safemalloc.h>
 #include <libnex/textstream.h>
 #include <stdlib.h>
 
 #define LEX_FRAME_SZ 2048    // Size of lexing staging buffer
 
-// Valid states for lexer
-#define LEX_STATE_ACCEPT 1
+// Valid error state for lexer
+#define LEX_ERROR_NONE             0
+#define LEX_ERROR_UNEXPECTED_TOKEN 1
+#define LEX_ERROR_UNKNOWN_TOKEN    2
+#define LEX_ERROR_UNEXPECTED_EOF   3
+
+// Helper function macros
+#define CHECK_NEWLINE               \
+    if (curChar == '\n')            \
+    {                               \
+        ++state.line;               \
+        tok->type = LEX_TOKEN_NONE; \
+        break;                      \
+    }                               \
+    else if (curChar == '\r')       \
+    {                               \
+        if (_lexPeekChar() == '\n') \
+            _lexSkipChar();         \
+        ++state.line;               \
+        tok->type = LEX_TOKEN_NONE; \
+        break;                      \
+    }
 
 // The state of the lexer
 typedef struct _lexState
 {
     TextStream_t* stream;    // Text stream object
-    char32_t* buf;           // The staging buffer. Holds the current frame
-    size_t bufSize;          // Size of staging buffer
-    int framePos;            // Current position in current frame
-    int prevFramePos;        // Frame position at start of lexing. Used for peeking
-    size_t oldFilePos;       // Old file pointer when we starting lexing. Used for peeking
-    int state;               // Current state of lexer
-    _confToken_t tok;        // Current token
+    // Base state of lexer
+    bool isEof;          // Is the lexer at the end of the file?
+    bool isAccepted;     // Is the current token accepted?
+    _confToken_t tok;    // Current token
+    // Diagnostic data
+    int line;            // Line number in lexer
+    char32_t curChar;    // Current character
+    // Peek releated information
+    char32_t nextChar;    // Contains the next character. If the read functions find this set, then they use this
+                          // instead
 } lexState_t;
 
 lexState_t state = {0};
@@ -63,64 +88,244 @@ void _confLexInit (const char* file)
     res = TextOpen (file, &state.stream, TEXT_MODE_READ, enc, obj->bom, order);
     if (res != TEXT_SUCCESS)
         error ("%s", TextError (res));
+    // Set up state
+    state.line = 1;
+    // Free stuff we're done with
     detect_obj_free (&obj);
-    // Allocate staging buffer
-    state.bufSize = LEX_FRAME_SZ / sizeof (char32_t);
-    state.buf = malloc_s (state.bufSize * sizeof (char32_t));
-    // Set positions
-    state.framePos = 0;
-    state.oldFilePos = 0;
-    // Set state related info
-    state.state = 0;
 }
 
 void _confLexDestroy()
 {
     assert (state.stream);
     TextClose (state.stream);
-    free (state.buf);
 }
 
-// Reads in a new buffer
-static void _confLexReadBuf()
+// Gets the name of a token
+char* _confLexGetTokenName (_confToken_t* tok)
 {
-    assert ((state.framePos == state.bufSize) || (state.framePos == 0));
-    state.framePos = 0;
-    size_t charsRead = 0;
-    short res = 0;
-    // Read it in
-    if ((res = TextRead (state.stream, state.buf, state.bufSize, &charsRead)) != TEXT_SUCCESS)
-        error ("%s", TextError (res));
-    state.bufSize = charsRead;
-}
-
-// Reads a character from the current buffer
-static char32_t _confLexReadChar()
-{
-    assert (state.stream);
-    if (state.framePos == state.bufSize || state.framePos == 0)
+    switch (tok->type)
     {
-        // Read a new buffer
-        _confLexReadBuf();
-        // Check if we reached the end
-        if (state.bufSize == 0)
-            return 0;
+        case LEX_TOKEN_POUND_COMMENT:
+            return "'#'";
+        case LEX_TOKEN_SLASH_COMMENT:
+            return "'//'";
+        case LEX_TOKEN_BLOCK_COMMENT:
+            return "'/* ... */";
+        case LEX_TOKEN_NONE:
+        default:
+            return "";
     }
-    // Read a character
-    char32_t c = state.buf[state.framePos];
-    ++state.framePos;
+}
+
+// Prints out an error condition
+static inline void _lexError (int err)
+{
+    mbstate_t mbState;
+    memset (&mbState, 0, sizeof (mbstate_t));
+    size_t mbBytesWritten = 0;
+
+    char extraBuf[5];
+    char bufData[1024];
+
+    char* obuf = bufData;
+    char* buf = bufData;
+
+    buf += snprintf (buf, 1024 - (buf - obuf), _ ("error: %s:"), ConfGetFileName());
+    buf += snprintf (buf, 1024 - (buf - obuf), "%d: ", state.line);
+    // Decide how to handle the error
+    switch (err)
+    {
+        case LEX_ERROR_UNEXPECTED_TOKEN:
+            // Print out error string
+            buf += snprintf (buf, 1024 - (buf - obuf), _ ("Unexpected token "));
+            buf += snprintf (buf, 1024 - (buf - obuf), "%s", _confLexGetTokenName (&state.tok));
+            break;
+        case LEX_ERROR_UNKNOWN_TOKEN:
+            // Convert current char to a char
+            mbBytesWritten = c32rtomb (extraBuf, state.curChar, &mbState);
+            if (mbBytesWritten == -1)
+                error (_ ("internal error: %s"), strerror (errno));
+            extraBuf[mbBytesWritten] = '\0';
+            // Add everything
+            buf += snprintf (buf, 1024 - (buf - obuf), _ ("Unknown token '%s'"), extraBuf);
+            break;
+        case LEX_ERROR_UNEXPECTED_EOF:
+            // Print out string
+            buf += snprintf (buf, 1024 - (buf - obuf), _ ("Unexpected EOF"));
+            break;
+    }
+    error (obuf);
+}
+
+// Reads a character from the file
+static inline char32_t _lexReadChar()
+{
+    char32_t c = 0;
+    short res = 0;
+    // Check if state.nextChar is set
+    if (state.nextChar)
+    {
+        c = state.nextChar;
+        // Reset it so we know to advance
+        state.nextChar = 0;
+    }
+    else
+    {
+        // Read in the character
+        if ((res = TextReadChar (state.stream, &c)) != TEXT_SUCCESS)
+            error (_ ("internal error: %s"), TextError (res));
+        // Check for end of file
+        if (TextIsEof (state.stream))
+            return '\0';
+    }
+    state.curChar = c;
     return c;
 }
 
-_confToken_t* _confLex()
+// Peek at the next character in the file
+static inline char32_t _lexPeekChar()
 {
-    char32_t curChar = _confLexReadChar();
-    while (state.state != LEX_STATE_ACCEPT)
+    char32_t c = 0;
+    short res = 0;
+    // Check if nextChar is set
+    if (state.nextChar)
+        c = state.nextChar;
+    else
     {
-        printf ("%lc\n", curChar);
-        curChar = _confLexReadChar();
-        if (curChar == 0)
-            return NULL;
+        // Read in a character, setting nextChar
+        if ((res = TextReadChar (state.stream, &c)) != TEXT_SUCCESS)
+            error (_ ("internal error: %s"), TextError (res));
+        // Check for end of file
+        if (TextIsEof (state.stream))
+            return '\0';
+        state.nextChar = c;
+    }
+    return c;
+}
+
+// Skips over a character that was peeked at
+#define _lexSkipChar() (state.nextChar = 0)
+
+// Internal lexer. VERY performance critical, please try to keep additions to a minimum
+_confToken_t* _lexInternal()
+{
+    assert (state.stream);
+    // If we're at the end of the file, report it
+    if (state.isEof)
+        return NULL;
+    _confToken_t* tok = &state.tok;
+    int prevType = 0;
+    // Reset token state
+    tok->type = LEX_TOKEN_NONE;
+    state.isAccepted = false;
+    while (!state.isAccepted)
+    {
+        // Read in a character
+        char32_t curChar = _lexReadChar();
+        // Decide what to do with this character
+        switch (curChar)
+        {
+            case '\0':
+                // Unconditionally accept on EOF
+                state.isAccepted = true;
+                break;
+            case ' ':
+            case '\v':
+            case '\f':
+            case '\t':
+                // A seperator. Seperators mark the acceptance of a token, as long as there is a token to accept
+                if (tok->type != LEX_TOKEN_NONE)
+                    state.isAccepted = true;
+                break;
+            case '\r':
+                // Carriage return. Can be Mac style (CR alone) or DOS style (CR followed by LF)
+                // Look for an LF in case this is DOS style
+                if (_lexPeekChar() == '\n')
+                    _lexSkipChar();
+            // fall through
+            case '\n':
+                // Line feed. Increment current line and accept current token.
+                ++state.line;
+                // Accept if there is a token to accept
+                if (tok->type != LEX_TOKEN_NONE)
+                    state.isAccepted = true;
+                break;
+            case '#':
+                // Comment starting with a pound
+                prevType = tok->type;
+                tok->type = LEX_TOKEN_POUND_COMMENT;
+                goto lexComment;
+            case '/':
+                // Check for a single line comment
+                if (_lexPeekChar() == '/')
+                {
+                    _lexSkipChar();
+                    prevType = tok->type;
+                    tok->type = LEX_TOKEN_SLASH_COMMENT;
+                    goto lexComment;
+                }
+                // Maybe a block comment?
+                else if (_lexPeekChar() == '*')
+                {
+                    _lexSkipChar();
+                    prevType = tok->type;
+                    tok->type = LEX_TOKEN_BLOCK_COMMENT;
+                    // Ensure this is in a valid spot
+                    if (prevType != LEX_TOKEN_NONE)
+                        _lexError (LEX_ERROR_UNEXPECTED_TOKEN);
+                // Lex it
+                lexBlockComment:
+                    curChar = _lexReadChar();
+                    if (curChar == '*')
+                    {
+                        // Look for a '/'
+                        if (_lexPeekChar() == '/')
+                        {
+                            // End of comment
+                            _lexSkipChar();
+                            break;
+                        }
+                    }
+                    else if (curChar == '\r')
+                    {
+                        // Still increment line
+                        if (_lexPeekChar() == '\n')
+                            _lexSkipChar();
+                        ++state.line;
+                    }
+                    else if (curChar == '\n')
+                        ++state.line;
+                    else if (curChar == '\0')
+                    {
+                        // Unexpected EOF
+                        _lexError (LEX_ERROR_UNEXPECTED_EOF);
+                    }
+                    goto lexBlockComment;
+                }
+                goto unkownToken;
+            // Fall through
+            lexComment:
+                // This is a comment (maybe). If this is in the middle of another token, then that's an error
+                if (prevType != LEX_TOKEN_NONE)
+                    _lexError (LEX_ERROR_UNEXPECTED_TOKEN);
+                // Iterate through the comment
+                curChar = _lexReadChar();
+                // Check for a newline
+                CHECK_NEWLINE
+                // Check for newline
+                goto lexComment;
+            unkownToken:
+            default:
+                // An error here
+                _lexError (LEX_ERROR_UNKNOWN_TOKEN);
+        }
     }
     return &state.tok;
+}
+
+// Lexer entry points
+_confToken_t* _confLex()
+{
+    // Just lex and return
+    return _lexInternal();
 }

@@ -22,17 +22,21 @@ enable_language(C)
 # Link with libchardet
 find_package(LibChardet REQUIRED)
 
+list(APPEND CONF_SOURCES conf.c lex.c parse.c)
+
 # Create the library
-add_library(conf 
-            conf.c lex.c
-            parse.c)
+add_library(conf ${CONF_SOURCES})
+
+# Create the PO file lists
+if(TOOLS_ENABLE_NLS)
+    gettext_files(DOMAIN nexnix_tools
+                  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/po" 
+                  LANGS "${TOOLS_ENABLED_LOCALES}"
+                  SOURCES "${CONF_SOURCES}")
+endif()
 
 # Set SOName
 set_target_properties(conf PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-
-# Include extra directories
-list(APPEND CONF_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(conf PRIVATE "${CONF_INCLUDE_DIRS}")
 
 # Link with libnex
 target_link_libraries(conf PUBLIC LibNex::nex LibChardet::chardet)

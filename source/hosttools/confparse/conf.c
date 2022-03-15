@@ -17,9 +17,8 @@
 
 /// @file conf.c
 
-#include "internal.h"
+#include "include/internal.h"
 #include <conf.h>
-#include <libnex/libnex_config.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

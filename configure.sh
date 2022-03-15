@@ -434,6 +434,10 @@ Run $0 -l to see supported targets"
         else
             libnex_cmakeargs="$cmakeargs"
         fi
+        if [ "$NNTOOLS_DISABLE_NLS" = "1" ]
+        then
+            libnex_cmakeargs="$libnex_cmakeargs -DLIBNEX_ENABLE_NLS=OFF"
+        fi
         libnex_builddir="$output/build/tools/libnex-build"
         mkdir -p $libnex_builddir/$cmakegen
         cd $libnex_builddir/$cmakegen
@@ -459,6 +463,10 @@ Run $0 -l to see supported targets"
             tools_cmakeargs="$cmakeargs -DTOOLS_ENABLE_TESTS=ON"
         else
             tools_cmakeargs="$cmakeargs"
+        fi
+        if [ "$NNTOOLS_DISABLE_NLS" = "1" ]
+        then
+            tools_cmakeargs="$tools_cmakeargs -DTOOLS_ENABLE_NLS=OFF"
         fi
         builddir=$output/build/tools/tools-build
         mkdir -p $builddir/$cmakegen
