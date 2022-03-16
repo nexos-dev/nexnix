@@ -34,7 +34,25 @@ int main()
 
     ConfInit ("testLex.testxt");
     _confLexInit ("testLex.testxt");
-    _confLex();
+    _confToken_t* tok = NULL;
+    do
+    {
+        tok = _confLex();
+        if (tok)
+        {
+            printf ("%d ", tok->type);
+            printf ("%d ", tok->line);
+            if (tok->type == LEX_TOKEN_ID)
+                printf ("%s ", tok->semVal);
+            else if (tok->type == LEX_TOKEN_NUM)
+            {
+                printf ("%d ", tok->base);
+                printf ("%d ", tok->num);
+                printf ("%s ", tok->semVal);
+            }
+            printf ("\n");
+        }
+    } while (tok);
     _confLexDestroy();
     return 0;
 }

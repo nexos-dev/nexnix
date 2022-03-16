@@ -23,6 +23,7 @@
 #include <conf.h>
 #include <config.h>
 #include <libintl.h>
+#include <stdint.h>
 
 #ifdef TOOLS_ENABLE_NLS
 #define _(str)  gettext (str)
@@ -35,9 +36,12 @@
 /// Specifies a token that was parsed by the lexer
 typedef struct _confToken
 {
-    int type;        ///< The type of token that was parsed
-    char* semVal;    ///< Semantic value of the token
-    int line;        ///< The line that this token is on
+    int type;             ///< The type of token that was parsed
+    int line;             ///< The line that this token is on
+    void* data;           ///< Pointer to some data for the token
+    char semVal[1024];    ///< Semantic value of token
+    int64_t num;          ///< Numeric value of token
+    uint16_t base;        ///< Base of token
 } _confToken_t;
 
 /**
@@ -74,10 +78,23 @@ _confToken_t* _confLex (void);
  */
 _confToken_t* _confLexPeek (void);
 
+/**
+ * @brief Gets the symbolic name of tok
+ * @param tok the token to get the name of
+ * @return the name of the token
+ */
+const char* _confLexGetTokenName (_confToken_t* tok);
+
 // Valid token numbers
 #define LEX_TOKEN_NONE          0    ///< No token found
 #define LEX_TOKEN_POUND_COMMENT 1    ///< A comment (never returned to users)
 #define LEX_TOKEN_SLASH_COMMENT 2
 #define LEX_TOKEN_BLOCK_COMMENT 3
+#define LEX_TOKEN_OBRACE        4    ///< A left curly brace ({)
+#define LEX_TOKEN_EBRACE        5    ///< A right brace (})
+#define LEX_TOKEN_COLON         6    ///< Colon token
+#define LEX_TOKEN_SEMICOLON     7    ///< Smeicolon token
+#define LEX_TOKEN_ID            8    ///< An identifier
+#define LEX_TOKEN_NUM           9    ///< A number
 
 #endif

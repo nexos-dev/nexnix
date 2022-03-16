@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-14 22:07-0400\n"
+"POT-Creation-Date: 2022-03-15 21:59-0400\n"
 "PO-Revision-Date: 2022-03-13 18:34-0400\n"
 "Last-Translator: nexos <wej22007@outlook.com>\n"
 "Language-Team: Language  es\n"
@@ -16,27 +16,27 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lex.c:133
+#: lex.c:103
 #, fuzzy, c-format
 msgid "error: %s:"
 msgstr "error: %s"
 
-#: lex.c:140
+#: lex.c:110
 #, fuzzy, c-format
 msgid "Unexpected token "
-msgstr "Inesperado final de archivo "
+msgstr "Inesperado token "
 
-#: lex.c:147 lex.c:176 lex.c:197
+#: lex.c:117 lex.c:127
 #, fuzzy, c-format
 msgid "internal error: %s"
 msgstr "error interno: %s"
 
-#: lex.c:150
+#: lex.c:120
 #, fuzzy, c-format
 msgid "Unknown token '%s'"
-msgstr "alrededor de token %s"
+msgstr "alrededor de token '%s'"
 
-#: lex.c:154
+#: lex.c:124
 #, fuzzy, c-format
 msgid "Unexpected EOF"
-msgstr "Inesperado final de archivo "
+msgstr "Inesperado final de archivo"

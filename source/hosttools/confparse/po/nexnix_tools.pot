@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-14 22:08-0400\n"
+"POT-Creation-Date: 2022-03-15 22:09-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,27 +17,27 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lex.c:133
+#: lex.c:103
 #, c-format
 msgid "error: %s:"
 msgstr ""
 
-#: lex.c:140
+#: lex.c:110
 #, c-format
 msgid "Unexpected token "
 msgstr ""
 
-#: lex.c:147 lex.c:176 lex.c:197
+#: lex.c:117 lex.c:127
 #, c-format
 msgid "internal error: %s"
 msgstr ""
 
-#: lex.c:150
+#: lex.c:120
 #, c-format
 msgid "Unknown token '%s'"
 msgstr ""
 
-#: lex.c:154
+#: lex.c:124
 #, c-format
 msgid "Unexpected EOF"
 msgstr ""
