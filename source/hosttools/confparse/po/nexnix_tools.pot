@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-15 22:09-0400\n"
+"POT-Creation-Date: 2022-03-17 15:52-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,27 +17,47 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lex.c:103
+#: lex.c:119
 #, c-format
 msgid "error: %s:"
 msgstr ""
 
-#: lex.c:110
+#: lex.c:126
 #, c-format
 msgid "Unexpected token "
 msgstr ""
 
-#: lex.c:117 lex.c:127
+#: lex.c:133 lex.c:156
 #, c-format
 msgid "internal error: %s"
 msgstr ""
 
-#: lex.c:120
+#: lex.c:136
 #, c-format
 msgid "Unknown token '%s'"
 msgstr ""
 
-#: lex.c:124
+#: lex.c:140
 #, c-format
 msgid "Unexpected EOF"
+msgstr ""
+
+#: lex.c:141
+#, c-format
+msgid " on token %s"
+msgstr ""
+
+#: lex.c:144
+#, c-format
+msgid "Invalid numeric value"
+msgstr ""
+
+#: lex.c:149
+#, c-format
+msgid "Name too long on token %s"
+msgstr ""
+
+#: lex.c:153
+#, c-format
+msgid "Invalid character in variable"
 msgstr ""

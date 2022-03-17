@@ -20,6 +20,7 @@
 #include "../include/internal.h"
 #include <locale.h>
 #include <stdio.h>
+#include <string.h>
 #define NEXTEST_NAME "lex"
 #include <libnex/progname.h>
 #include <nextest.h>
@@ -35,24 +36,44 @@ int main()
     ConfInit ("testLex.testxt");
     _confLexInit ("testLex.testxt");
     _confToken_t* tok = NULL;
-    do
-    {
-        tok = _confLex();
-        if (tok)
-        {
-            printf ("%d ", tok->type);
-            printf ("%d ", tok->line);
-            if (tok->type == LEX_TOKEN_ID)
-                printf ("%s ", tok->semVal);
-            else if (tok->type == LEX_TOKEN_NUM)
-            {
-                printf ("%d ", tok->base);
-                printf ("%d ", tok->num);
-                printf ("%s ", tok->semVal);
-            }
-            printf ("\n");
-        }
-    } while (tok);
+
+    tok = _confLex();
+    TEST_ANON (tok->type, 4);
+    TEST_ANON (tok->line, 10);
+    tok = _confLex();
+    TEST_ANON (tok->type, 5);
+    tok = _confLex();
+    TEST_ANON (tok->type, 7);
+    tok = _confLex();
+    TEST_ANON (tok->type, 6);
+    tok = _confLex();
+    TEST_ANON (tok->type, 9);
+    TEST_ANON (tok->num, 25);
+    TEST_ANON (tok->line, 12);
+    tok = _confLex();
+    TEST_ANON (tok->type, 9);
+    TEST_ANON (tok->num, 0x340);
+    TEST_ANON (tok->line, 14);
+    tok = _confLex();
+    TEST_ANON (tok->type, 9);
+    TEST_ANON (tok->num, -34);
+    TEST_ANON (tok->line, 16);
+    tok = _confLex();
+    TEST_ANON (tok->type, 8);
+    TEST_ANON (tok->line, 18);
+    TEST_BOOL_ANON (!strcmp (tok->semVal, "test2-test3_"));
+    tok = _confLex();
+    TEST_ANON (tok->type, 8);
+    TEST_ANON (tok->line, 20);
+    TEST_BOOL_ANON (!strcmp (tok->semVal, "23test"));
+    tok = _confLex();
+    TEST_ANON (tok->type, 10);
+    TEST_ANON (tok->line, 22);
+    TEST_BOOL_ANON (!c32cmp (tok->strVal, U"test t \\ '"));
+    tok = _confLex();
+    TEST_ANON (tok->type, 11);
+    TEST_ANON (tok->line, 24);
+    TEST_BOOL_ANON (!c32cmp (tok->strVal, U"test string en_US.UTF-8 $ \" \ntest"));
     _confLexDestroy();
     return 0;
 }

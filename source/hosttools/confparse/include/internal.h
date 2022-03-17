@@ -23,6 +23,7 @@
 #include <conf.h>
 #include <config.h>
 #include <libintl.h>
+#include <libnex/char32.h>
 #include <stdint.h>
 
 #ifdef TOOLS_ENABLE_NLS
@@ -33,15 +34,21 @@
 #define N_(str) (str)
 #endif
 
+#define TOK_SEM_SIZE 2048
+
 /// Specifies a token that was parsed by the lexer
 typedef struct _confToken
 {
-    int type;             ///< The type of token that was parsed
-    int line;             ///< The line that this token is on
-    void* data;           ///< Pointer to some data for the token
-    char semVal[1024];    ///< Semantic value of token
-    int64_t num;          ///< Numeric value of token
-    uint16_t base;        ///< Base of token
+    int type;      ///< The type of token that was parsed
+    int line;      ///< The line that this token is on
+    void* data;    ///< Pointer to some data for the token
+    union
+    {
+        char semVal[TOK_SEM_SIZE];        ///< Semantic value of token
+        char32_t strVal[TOK_SEM_SIZE];    ///< Size of string used to strings
+    };
+    int64_t num;      ///< Numeric value of token
+    uint16_t base;    ///< Base of token
 } _confToken_t;
 
 /**
@@ -90,11 +97,13 @@ const char* _confLexGetTokenName (_confToken_t* tok);
 #define LEX_TOKEN_POUND_COMMENT 1    ///< A comment (never returned to users)
 #define LEX_TOKEN_SLASH_COMMENT 2
 #define LEX_TOKEN_BLOCK_COMMENT 3
-#define LEX_TOKEN_OBRACE        4    ///< A left curly brace ({)
-#define LEX_TOKEN_EBRACE        5    ///< A right brace (})
-#define LEX_TOKEN_COLON         6    ///< Colon token
-#define LEX_TOKEN_SEMICOLON     7    ///< Smeicolon token
-#define LEX_TOKEN_ID            8    ///< An identifier
-#define LEX_TOKEN_NUM           9    ///< A number
+#define LEX_TOKEN_OBRACE        4     ///< A left curly brace ({)
+#define LEX_TOKEN_EBRACE        5     ///< A right brace (})
+#define LEX_TOKEN_COLON         6     ///< Colon token
+#define LEX_TOKEN_SEMICOLON     7     ///< Smeicolon token
+#define LEX_TOKEN_ID            8     ///< An identifier
+#define LEX_TOKEN_NUM           9     ///< A number
+#define LEX_TOKEN_STR_LITERAL   10    ///< A string literal
+#define LEX_TOKEN_STR           11    ///< A non-literal string
 
 #endif
