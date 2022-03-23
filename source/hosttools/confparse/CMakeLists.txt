@@ -46,7 +46,7 @@ install(TARGETS conf)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../include/conf.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # Setup test cases
-list(APPEND CONF_TESTS lex)
+list(APPEND CONF_TESTS lex parse)
 
 foreach(test ${CONF_TESTS})
     nextest_add_library_test(NAME ${test}

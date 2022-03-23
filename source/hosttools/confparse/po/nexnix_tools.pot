@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-17 15:52-0400\n"
+"POT-Creation-Date: 2022-03-23 14:46-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,47 +17,76 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lex.c:119
+#: lex.c:108 parse.c:56
 #, c-format
 msgid "error: %s:"
 msgstr ""
 
-#: lex.c:126
+#: lex.c:118
 #, c-format
 msgid "Unexpected token "
 msgstr ""
 
-#: lex.c:133 lex.c:156
+#: lex.c:125 lex.c:148 parse.c:89
 #, c-format
 msgid "internal error: %s"
 msgstr ""
 
-#: lex.c:136
+#: lex.c:128
 #, c-format
 msgid "Unknown token '%s'"
 msgstr ""
 
-#: lex.c:140
+#: lex.c:132
 #, c-format
 msgid "Unexpected EOF"
 msgstr ""
 
-#: lex.c:141
+#: lex.c:133
 #, c-format
 msgid " on token %s"
 msgstr ""
 
-#: lex.c:144
+#: lex.c:136
 #, c-format
 msgid "Invalid numeric value"
 msgstr ""
 
-#: lex.c:149
+#: lex.c:141
 #, c-format
 msgid "Name too long on token %s"
 msgstr ""
 
-#: lex.c:153
+#: lex.c:145
 #, c-format
 msgid "Invalid character in variable"
+msgstr ""
+
+#: lex.c:169
+msgid "unable to detect character set"
+msgstr ""
+
+#: parse.c:66
+#, c-format
+msgid "unexpected token %s after token %s"
+msgstr ""
+
+#: parse.c:71
+#, c-format
+msgid "unexpected token %s"
+msgstr ""
+
+#: parse.c:77
+#, c-format
+msgid " (expected %s)"
+msgstr ""
+
+#: parse.c:83
+#, c-format
+msgid "string too long on token %s"
+msgstr ""
+
+#: parse.c:86
+#, c-format
+msgid "too many properties on property '%s'"
 msgstr ""

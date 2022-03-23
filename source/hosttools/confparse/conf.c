@@ -25,17 +25,22 @@
 #include <string.h>
 
 // The name of the file being read
-static char* fileName = NULL;
+static const char* fileName = NULL;
 
-PUBLIC ConfBlock_t* ConfInit (char* file)
+PUBLIC ListHead_t* ConfInit (const char* file)
 {
     fileName = file;
     return _confParse (file);
 }
 
-PUBLIC char* ConfGetFileName (void)
+PUBLIC const char* ConfGetFileName (void)
 {
     return fileName;
+}
+
+PUBLIC void _confSetFileName (const char* file)
+{
+    fileName = file;
 }
 
 PUBLIC void ConfFreeParseTree()

@@ -1,0 +1,22 @@
+/*
+    a block comment
+    test *
+*/
+
+include 'testInclude.testxt'
+
+package test
+{
+    test: "test", 3, one;
+    prop: propVal;
+    prop: "string";
+    prop: 0x20;
+}
+
+block test
+{
+    test: "test", 3, one;
+    prop: propVal;
+    prop: "string";
+    prop: 0x20;
+}

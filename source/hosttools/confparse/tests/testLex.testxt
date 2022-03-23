@@ -7,11 +7,11 @@
     test *
 */
 
-{};:
+{};:,
 
 25
 
-0x340
+0xAD8B2
 
 -34
 
@@ -22,4 +22,4 @@ test2-test3_
 'test \   t \\ \''
 
 "test string $LANG$ \$ \" \
-      \ntest"
+      \ntest"include

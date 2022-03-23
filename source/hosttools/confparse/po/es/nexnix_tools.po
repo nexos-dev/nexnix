@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-17 14:12-0400\n"
+"POT-Creation-Date: 2022-03-23 14:46-0400\n"
 "PO-Revision-Date: 2022-03-13 18:34-0400\n"
 "Last-Translator: nexos <wej22007@outlook.com>\n"
 "Language-Team: Language  es\n"
@@ -16,47 +16,76 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lex.c:119
+#: lex.c:108 parse.c:56
 #, fuzzy, c-format
 msgid "error: %s:"
 msgstr "error: %s"
 
-#: lex.c:126
+#: lex.c:118
 #, fuzzy, c-format
 msgid "Unexpected token "
-msgstr "Inesperado simbólico "
+msgstr "Inesperado símbolo "
 
-#: lex.c:133 lex.c:156
+#: lex.c:125 lex.c:148 parse.c:89
 #, fuzzy, c-format
 msgid "internal error: %s"
 msgstr "error interno: %s"
 
-#: lex.c:136
+#: lex.c:128
 #, fuzzy, c-format
 msgid "Unknown token '%s'"
-msgstr "alrededor de simbólico '%s'"
+msgstr "símbolo '%s' desconocido"
 
-#: lex.c:140
+#: lex.c:132
 #, fuzzy, c-format
 msgid "Unexpected EOF"
 msgstr "Inesperado final de archivo"
 
-#: lex.c:141
+#: lex.c:133
 #, fuzzy, c-format
 msgid " on token %s"
-msgstr " alrededor de simbólico %s"
+msgstr " alrededor de símbolo %s"
 
-#: lex.c:144
+#: lex.c:136
 #, c-format
 msgid "Invalid numeric value"
 msgstr "Valor numérico inválido"
 
-#: lex.c:149
+#: lex.c:141
 #, fuzzy, c-format
 msgid "Name too long on token %s"
-msgstr "Nombre demasiado larga en simbólico '%s'"
+msgstr "Nombre demasiado larga en símbolo %s"
 
-#: lex.c:153
+#: lex.c:145
 #, fuzzy, c-format
 msgid "Invalid character in variable"
-msgstr "Carácter en variable es inválido"
+msgstr "Carácter en el variable es inválido"
+
+#: lex.c:169
+msgid "unable to detect character set"
+msgstr "incapaz de detectar un conjunto de caracteres"
+
+#: parse.c:66
+#, fuzzy, c-format
+msgid "unexpected token %s after token %s"
+msgstr "Inesperado simbólico %s después de simbólo %s"
+
+#: parse.c:71
+#, fuzzy, c-format
+msgid "unexpected token %s"
+msgstr "Inesperado simbólico %s"
+
+#: parse.c:77
+#, fuzzy, c-format
+msgid " (expected %s)"
+msgstr "(esperado %s)"
+
+#: parse.c:83
+#, fuzzy, c-format
+msgid "string too long on token %s"
+msgstr "cuerda demasiado larga en símbolo %s"
+
+#: parse.c:86
+#, c-format
+msgid "too many properties on property '%s'"
+msgstr "demasiadas propiedades en la propiedad '%s'"

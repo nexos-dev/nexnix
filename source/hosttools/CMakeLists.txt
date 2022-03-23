@@ -88,6 +88,8 @@ include_directories(${CMAKE_BINARY_DIR})
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/include/config.in.h)
 
+add_compile_options(-O0 -g)
+
 # Enable tests if needed
 if(${TOOLS_ENABLE_TESTS})
     nextest_enable_tests()

@@ -21,12 +21,16 @@
 #define CONF_H
 
 #include <config.h>
+#include <libnex/char32.h>
+#include <libnex/list.h>
 
 #define MAX_PROPVAR 64    // The maximum amount of values in a property
 
-#define DATATYPE_STRING 0    ///< Value of property is a string
-#define DATATYPE_QUOTE  1    ///< Value of property is a literal string
-#define DATATYPE_NUMBER 2    ///< Value of property is a number
+#define DATATYPE_IDENTIFIER 0    ///< Value of property is a identifier
+#define DATATYPE_STRING     1    ///< Value of property is a string
+#define DATATYPE_NUMBER     2    ///< Value of property is a number
+
+#define BLOCK_BUFSZ 512
 
 ///< The value of a property
 typedef struct tagPropertyValue
@@ -34,20 +38,20 @@ typedef struct tagPropertyValue
     int lineNo;    ///< The line number of this property value
     union          ///< The value of this property
     {
-        char* val;     ///< A string
-        int numVal;    ///< ... or a number
+        char id[BLOCK_BUFSZ];         ///< An identifier
+        char32_t str[BLOCK_BUFSZ];    /// ... or a string
+        int64_t numVal;               ///< ... or a number
     };
-    int type;    ///< 0 = string, 1 = quoted, 2 = numeric
+    int type;    ///< 0 = identifier, 1 = string, 2 = numeric
 } ConfPropVal_t;
 
 /// A property. Properties are what define characteristics of what is being configured
 typedef struct tagProperty
 {
     int lineNo;                         ///< The line number of this property declaration
-    char* name;                         ///< The property represented here
+    char name[BLOCK_BUFSZ];             ///< The property represented here
     ConfPropVal_t vals[MAX_PROPVAR];    ///< 64 comma seperated values
     int nextVal;                        ///< The next value to work with
-    struct tagProperty* next;
 } ConfProperty_t;
 
 /**
@@ -55,29 +59,28 @@ typedef struct tagProperty
  *
  * A block is the top level data structure in confparse. It contains information about individual keys
  */
+
 typedef struct tagBlock
 {
-    int lineNo;                 ///< The line number of this block declaration in the source file
-    char* blockType;            ///< What this block covers
-    char* blockName;            ///< The name of this block
-    ConfProperty_t* props;      ///< The list of properties associated with this block
-    ConfProperty_t* curProp;    ///< The current property that is being worked on
-    struct tagBlock* next;      ///< Pointer to next block
+    int lineNo;                     ///< The line number of this block declaration in the source file
+    char blockType[BLOCK_BUFSZ];    ///< What this block specifies
+    char blockName[BLOCK_BUFSZ];    ///< The name of this block
+    ListHead_t* props;              ///< The list of properties associated with this block
 } ConfBlock_t;
 
 /**
  * @brief Gets the name of the file being worked on
  * @return The file name
  */
-PUBLIC char* ConfGetFileName (void);
+PUBLIC const char* ConfGetFileName (void);
 
 /**
  * @brief Initializes configuration context
- * Takes a file name and parses the file, and returns the parse tree
+ * Takes a file name and parses the file, and returns the parse list
  * @param file the file to read configuration from
- * @return The root of the parse tree
+ * @return The list of blocks
  */
-PUBLIC ConfBlock_t* ConfInit (char* file);
+PUBLIC ListHead_t* ConfInit (const char* file);
 
 /**
  * @brief Frees all memory associated with parse tree
