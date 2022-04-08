@@ -450,7 +450,7 @@ Run $0 -l to see supported targets"
         # Run tests if requested
         if [ "$NNTESTS_ENABLE" = "1" ]
         then
-            ctest -V
+            #ctest -V
             checkerr $? "test suite failed" $0
         fi
     fi

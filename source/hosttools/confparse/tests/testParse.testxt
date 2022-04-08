@@ -14,7 +14,7 @@ package test
 }
 
 block test
-{
+
     test: "test", 3, one;
     prop: propVal;
     prop: "string";

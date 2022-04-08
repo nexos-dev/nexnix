@@ -33,8 +33,9 @@ int main()
     // Set up locale stuff
     setlocale (LC_ALL, "");
     setprogname ("lex");
-    bindtextdomain ("nexnix_tools", TOOLS_LOCALE_BASE);
-    textdomain ("nexnix_tools");
+#ifdef TOOLS_ENABLE_NLS
+    bindtextdomain ("conf", TOOLS_LOCALE_BASE);
+#endif
 
     _confSetFileName ("testLex.testxt");
     lexState_t* state = _confLexInit ("testLex.testxt");

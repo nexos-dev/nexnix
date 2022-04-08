@@ -30,7 +30,7 @@
 #include <stdint.h>
 
 #ifdef TOOLS_ENABLE_NLS
-#define _(str)  gettext (str)
+#define _(str)  dgettext ("conf", str)
 #define N_(str) (str)
 #else
 #define _(str)  (str)

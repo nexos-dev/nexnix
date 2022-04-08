@@ -134,6 +134,6 @@ function(gettext_files)
     endforeach()
     
     # Create target
-    add_custom_target(translate ALL
+    add_custom_target(translate_${__GETTEXT_ARG_DOMAIN} ALL
                       DEPENDS ${__GETTEXT_DEPENDS})
 endfunction()

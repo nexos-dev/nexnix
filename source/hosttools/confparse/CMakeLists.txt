@@ -24,16 +24,16 @@ find_package(LibChardet REQUIRED)
 
 list(APPEND CONF_SOURCES conf.c lex.c parse.c)
 
-# Create the library
-add_library(conf ${CONF_SOURCES})
-
 # Create the PO file lists
 if(TOOLS_ENABLE_NLS)
-    gettext_files(DOMAIN nexnix_tools
+    gettext_files(DOMAIN conf
                   OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/po" 
                   LANGS "${TOOLS_ENABLED_LOCALES}"
                   SOURCES "${CONF_SOURCES}")
 endif()
+
+# Create the library
+add_library(conf ${CONF_SOURCES})
 
 # Set SOName
 set_target_properties(conf PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
