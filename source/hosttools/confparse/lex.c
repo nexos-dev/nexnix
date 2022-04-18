@@ -105,7 +105,9 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
     char* obuf = bufData;
     char* buf = bufData;
 
-    buf += snprintf (buf, 2048 - (buf - obuf), _ ("error: %s:"), ConfGetFileName());
+    if (err != LEX_ERROR_INTERNAL)
+        buf += snprintf (buf, 2048 - (buf - obuf), _ ("error: %s:"), ConfGetFileName());
+
     if (state)
         buf += snprintf (buf, 2048 - (buf - obuf), "%d: ", state->line);
     else

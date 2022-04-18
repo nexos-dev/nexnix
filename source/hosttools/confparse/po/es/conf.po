@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-24 19:50-0400\n"
+"POT-Creation-Date: 2022-04-08 16:36-0400\n"
 "PO-Revision-Date: 2022-03-24 19:50-0400\n"
 "Last-Translator: nexos <wej22007@outlook.com>\n"
 "Language-Team: Language  es\n"
@@ -16,52 +16,52 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: lex.c:108 parse.c:56
+#: lex.c:109 parse.c:56
 #, c-format
 msgid "error: %s:"
 msgstr "error: %s:"
 
-#: lex.c:118
+#: lex.c:120
 #, c-format
 msgid "Unexpected token "
 msgstr "Inesperado símbolo "
 
-#: lex.c:125 lex.c:148 parse.c:89
+#: lex.c:127 lex.c:150 parse.c:89
 #, c-format
 msgid "internal error: %s"
 msgstr "error interno: %s"
 
-#: lex.c:128
+#: lex.c:130
 #, c-format
 msgid "Unknown token '%s'"
 msgstr "símbolo '%s' desconocido"
 
-#: lex.c:132
+#: lex.c:134
 #, c-format
 msgid "Unexpected EOF"
 msgstr "Inesperado final de archivo"
 
-#: lex.c:133
+#: lex.c:135
 #, c-format
 msgid " on token %s"
 msgstr " alrededor de símbolo %s"
 
-#: lex.c:136
+#: lex.c:138
 #, c-format
 msgid "Invalid numeric value"
 msgstr "Valor numérico es inválido"
 
-#: lex.c:141
+#: lex.c:143
 #, c-format
 msgid "Name too long on token %s"
 msgstr "Nombre es demasiado larga en símbolo %s"
 
-#: lex.c:145
+#: lex.c:147
 #, c-format
 msgid "Invalid character in variable"
 msgstr "Carácter en el variable es inválido"
 
-#: lex.c:169
+#: lex.c:171
 msgid "unable to detect character set"
 msgstr "incapaz de detectar un conjunto de caracteres"
 

@@ -29,6 +29,10 @@ static const char* fileName = NULL;
 
 PUBLIC ListHead_t* ConfInit (const char* file)
 {
+    // Set text domain
+#ifdef TOOLS_ENABLE_NLS
+    bindtextdomain ("conf", TOOLS_LOCALE_BASE);
+#endif
     fileName = file;
     return _confParse (file);
 }
@@ -43,6 +47,18 @@ PUBLIC void _confSetFileName (const char* file)
     fileName = file;
 }
 
-PUBLIC void ConfFreeParseTree()
+PUBLIC void ConfFreeParseTree (ListHead_t* list)
 {
+    // Destroy each property list
+    ListEntry_t* entry = ListFront (list);
+    while (entry)
+    {
+        ListRef (entry);
+        ListDestroy ((ListHead_t*) ((ConfBlock_t*) ListEntryData (entry))->props);
+        ListEntry_t* oldEntry = entry;
+        entry = ListIterate (entry);
+        ListDeRef (oldEntry);
+    }
+    // Destroy the list
+    ListDestroy (list);
 }

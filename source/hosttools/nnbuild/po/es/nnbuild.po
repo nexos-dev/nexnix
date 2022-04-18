@@ -1,0 +1,123 @@
+# Language  es translations for PACKAGE package.
+# Copyright (C) 2022 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# nexos <wej22007@outlook.com>, 2022.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-04-18 15:58-0400\n"
+"PO-Revision-Date: 2022-04-08 13:45-0400\n"
+"Last-Translator: nexos <wej22007@outlook.com>\n"
+"Language-Team: Language  es\n"
+"Language:  es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: main.c:43
+msgid "g:p:hf:"
+msgstr "g:p:fa:"
+
+#: main.c:52
+#, c-format
+msgid ""
+"%s - manages the build process of NexNix\n"
+"Usage: %s [-h] [-g PACKAGE_GROUP] [-p PACKAGE] [-f FILE] ACTION\n"
+"Valid Arguments:\n"
+"  -h\n"
+"             prints help and then exits\n"
+"  -g GROUP\n"
+"             builds the specified package group\n"
+"  -p PACKAGE\n"
+"             builds the specified package\n"
+"  -f FILE\n"
+"             reads configuration from the specified file\n"
+"\n"
+"ACTION can be either clean, download, configure, all, build, confbuild,\n"
+"or install.  The configuration gets read from the file nnbuild.conf in the\n"
+"current directory if a file isn't specified on the command line\n"
+msgstr ""
+"%s - gestiona el proceso de compilación de NexNix\n"
+"Uso: %s [-f] [-g GRUPO_DE_PAQUETES] [-p PAQUETE] [-a ARCHIVO] ACCIÓN\n"
+"Argumentos válidos:\n"
+"  -f\n"
+"             imprime ayuda y sale\n"
+"  -g GRUPO\n"
+"             construye el grupo de paquetes\n"
+"  -p PAQUETE\n"
+"             contruye el paquete\n"
+"  -a ARCHIVO\n"
+"             lee el configuración desde el archivo especificado\n"
+"\n"
+"ACCIÓN puede ser limpiar, descargar, configurar, todo, compilar, "
+"configurar,\n"
+"o instalar. La configuración se lee desde el archivo nnbuild.conf en el\n"
+"directorio actual si no se especifica un archivo en la línea de comando\n"
+
+#: main.c:99 main.c:105
+msgid "all"
+msgstr "todo"
+
+#: main.c:101
+msgid "package and group specification are mutually exclusive"
+msgstr "paquete y grupo especificación son mutuamente excluyentes"
+
+#: main.c:110 main.c:117
+msgid "action not specified"
+msgstr "acción no aprobada"
+
+#: package.c:197 package.c:202 package.c:207 package.c:212 package.c:217
+#, c-format
+msgid "%s:%d: string overflow"
+msgstr ""
+
+#: package.c:229
+msgid "package list unexpected"
+msgstr ""
+
+#: package.c:236 package.c:256
+#, c-format
+msgid "%s:%d: package \"%s\" undeclared"
+msgstr ""
+
+#: package.c:275
+#, c-format
+msgid "%s:%d: package group \"%s\" undeclared"
+msgstr ""
+
+#: package.c:305
+#, c-format
+msgid "%s:%d: property \"dependencies\" requires a string value"
+msgstr ""
+
+#: package.c:317
+#, c-format
+msgid "%s:%d: property \"bindinstall\" requires a numeric value"
+msgstr ""
+
+#: package.c:337
+#, c-format
+msgid "%s:%d: property \"package\" requires a string value"
+msgstr ""
+
+#: package.c:349
+#, c-format
+msgid "%s:%d: property \"subgroups\" requires a string value"
+msgstr ""
+
+#: package.c:360
+#, c-format
+msgid "%s:%d: invalid property %s"
+msgstr ""
+
+#: package.c:377
+#, c-format
+msgid "package group %s doesn't exist"
+msgstr ""
+
+#: package.c:401
+#, c-format
+msgid "package %s doesn't exist"
+msgstr ""

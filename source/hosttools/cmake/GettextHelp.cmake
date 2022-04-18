@@ -119,17 +119,17 @@ function(gettext_files)
                            "${__GETTEXT_ARG_OUTPUT}/${__GETTEXT_ARG_DOMAIN}.pot"
                            DEPENDS "${__GETTEXT_ARG_OUTPUT}/${__GETTEXT_ARG_DOMAIN}.pot")
         # And finally the MO file
-        add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/CMakeFiles/translate.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo"
+        add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/translate_${__GETTEXT_ARG_DOMAIN}.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo"
                            COMMAND "${CMAKE_COMMAND}" "-E"
-                           "make_directory" "${CMAKE_BINARY_DIR}/CMakeFiles/translate.dir/${__lang}" "&&"
+                           "make_directory" "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/translate_${__GETTEXT_ARG_DOMAIN}.dir/${__lang}" "&&"
                            "${GETTEXT_MSGFMT_PROGRAM}"
-                           "-o${CMAKE_BINARY_DIR}/CMakeFiles/translate.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo"
+                           "-o${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/translate_${__GETTEXT_ARG_DOMAIN}.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo"
                            "${__GETTEXT_ARG_OUTPUT}/${__lang}/${__GETTEXT_ARG_DOMAIN}.po"
                            DEPENDS "${__GETTEXT_ARG_OUTPUT}/${__lang}/${__GETTEXT_ARG_DOMAIN}.po")
         list(APPEND __GETTEXT_DEPENDS 
-                    "${CMAKE_BINARY_DIR}/CMakeFiles/translate.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo")
+                    "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/translate_${__GETTEXT_ARG_DOMAIN}.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo")
         # Setup the installation
-        install(FILES "${CMAKE_BINARY_DIR}/CMakeFiles/translate.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo"
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/translate_${__GETTEXT_ARG_DOMAIN}.dir/${__lang}/${__GETTEXT_ARG_DOMAIN}.mo"
                 DESTINATION "${__GETTEXT_ARG_INSTALL_DEST}/${__lang}/LC_MESSAGES")
     endforeach()
     

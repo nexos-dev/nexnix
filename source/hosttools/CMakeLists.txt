@@ -100,3 +100,4 @@ include_directories(include)
 
 # Build all subprojects
 add_subdirectory(confparse)
+add_subdirectory(nnbuild)

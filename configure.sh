@@ -450,13 +450,13 @@ Run $0 -l to see supported targets"
         # Run tests if requested
         if [ "$NNTESTS_ENABLE" = "1" ]
         then
-            #ctest -V
+            ctest -V
             checkerr $? "test suite failed" $0
         fi
     fi
 
     # Build nnbuild
-    if [ ! -f "$output/tools/bin/nnbuild" ] || [ "$NNTOOLS_REBUILD_NNBUILD" = "1" ]
+    if [ ! -f "$output/tools/bin/nnbuild" ] || [ "$NNTOOLS_REBUILD_TOOLS" = "1" ]
     then
         if [ "$NNTESTS_ENABLE" = "1" ]
         then

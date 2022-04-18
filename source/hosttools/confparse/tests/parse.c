@@ -30,9 +30,6 @@ int main()
     // Set up locale stuff
     setlocale (LC_ALL, "");
     setprogname ("parse");
-#ifdef TOOLS_ENABLE_NLS
-    bindtextdomain ("conf", TOOLS_LOCALE_BASE);
-#endif
     ListHead_t* list = ConfInit ("testParse.testxt");
     ListEntry_t* entry = NULL;
     ConfBlock_t* block = NULL;

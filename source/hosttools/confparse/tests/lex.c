@@ -33,10 +33,6 @@ int main()
     // Set up locale stuff
     setlocale (LC_ALL, "");
     setprogname ("lex");
-#ifdef TOOLS_ENABLE_NLS
-    bindtextdomain ("conf", TOOLS_LOCALE_BASE);
-#endif
-
     _confSetFileName ("testLex.testxt");
     lexState_t* state = _confLexInit ("testLex.testxt");
     _confToken_t* tok = NULL;

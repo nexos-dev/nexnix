@@ -85,6 +85,6 @@ PUBLIC ListHead_t* ConfInit (const char* file);
 /**
  * @brief Frees all memory associated with parse tree
  */
-PUBLIC void ConfFreeParseTree();
+PUBLIC void ConfFreeParseTree (ListHead_t* list);
 
 #endif
