@@ -29,14 +29,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef TOOLS_ENABLE_NLS
-#define _(str)  dgettext ("conf", str)
-#define N_(str) (str)
-#else
-#define _(str)  (str)
-#define N_(str) (str)
-#endif
-
 #define TOK_SEM_SIZE 2048
 
 /// Specifies a token that was parsed by the lexer
@@ -130,5 +122,6 @@ const char* _confLexGetTokenNameType (int type);
 #define LEX_TOKEN_INCLUDE       12    ///< Keyword include
 #define LEX_TOKEN_EOF           13    ///< End of file
 #define LEX_TOKEN_COMMA         14    ///< A comma
+#define LEX_TOKEN_ERROR         15    ///< Error condition
 
 #endif

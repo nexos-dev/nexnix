@@ -41,45 +41,6 @@ find_package(LibNex REQUIRED)
 include(GNUInstallDirs)
 include(NexTest)
 include(SdkCompilerTest)
-include(GettextHelp)
-
-# Find libintl
-find_package(Intl)
-if(NOT Intl_FOUND)
-    message(WARNING "libintl not found, compiling without NLS (multilingual) support")
-    set(TOOLS_ENABLE_NLS OFF)
-endif()
-
-# Find GNU gettext
-gettext_check(GETTEXT_FOUND)
-if(NOT GETTEXT_FOUND)
-    message(WARNING "GNU gettext not found, compiling without NLS")
-    set(TOOLS_ENABLE_NLS OFF)
-else()
-    message(STATUS "Found GNU gettext")
-endif()
-
-if(TOOLS_ENABLE_NLS)
-    # Find the locale directory base
-    set(TOOLS_LOCALE_BASE "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/locale/")
-    # Check which locales should be enabled
-    set(TOOLS_SUPPORTED_LOCALES "en;es" CACHE STRING "Languages supported by host tools")
-    if(NOT TOOLS_ENABLED_LOCALES)
-        set(TOOLS_ENABLED_LOCALES "${TOOLS_SUPPORTED_LOCALES}" CACHE STRING "Languages to use in host tools")
-    endif()
-    # Validate locales
-    foreach(locale ${TOOLS_ENABLED_LOCALES})
-        # Strip en from list. en_US is the locale that the message IDs are in, meaning that we
-        # don't need a l10n for that
-        if("${locale}" STREQUAL "en")
-            list(REMOVE_ITEM TOOLS_ENABLED_LOCALES "en")
-        endif()
-        list(FIND TOOLS_SUPPORTED_LOCALES ${locale} locale_supported)
-        if("${locale_supported}" STREQUAL "-1")
-            message(FATAL_ERROR "Locale ${locale} not supported")
-        endif()
-    endforeach()
-endif()
 
 # Configure system dependent stuff
 check_library_visibility(HAVE_DECLSPEC_EXPORT HAVE_VISIBILITY)
@@ -101,3 +62,4 @@ include_directories(include)
 # Build all subprojects
 add_subdirectory(confparse)
 add_subdirectory(nnbuild)
+add_subdirectory(nnimage)

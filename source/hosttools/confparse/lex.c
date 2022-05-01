@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <chardet/chardet.h>
 #include <errno.h>
+#include <libnex/base.h>
 #include <libnex/error.h>
 #include <libnex/object.h>
 #include <libnex/progname.h>
@@ -88,9 +89,12 @@
         break;                    \
     }
 
-#define EXPECT_NO_EOF(c) \
-    if ((c) == '\0')     \
-        _lexError (state, LEX_ERROR_UNEXPECTED_EOF, NULL);
+#define EXPECT_NO_EOF(c)                                   \
+    if ((c) == '\0')                                       \
+    {                                                      \
+        _lexError (state, LEX_ERROR_UNEXPECTED_EOF, NULL); \
+        goto _internalError;                               \
+    }
 
 // Prints out an error condition
 static inline void _lexError (lexState_t* state, int err, const char* extra)
@@ -106,7 +110,7 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
     char* buf = bufData;
 
     if (err != LEX_ERROR_INTERNAL)
-        buf += snprintf (buf, 2048 - (buf - obuf), _ ("error: %s:"), ConfGetFileName());
+        buf += snprintf (buf, 2048 - (buf - obuf), "error: %s:", ConfGetFileName());
 
     if (state)
         buf += snprintf (buf, 2048 - (buf - obuf), "%d: ", state->line);
@@ -117,37 +121,40 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
     {
         case LEX_ERROR_UNEXPECTED_TOKEN:
             // Print out error string
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("Unexpected token "));
+            buf += snprintf (buf, 2048 - (buf - obuf), "Unexpected token ");
             buf += snprintf (buf, 2048 - (buf - obuf), "%s", _confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_UNKNOWN_TOKEN:
             // Convert current char to a char
             mbBytesWritten = c32rtomb (extraBuf, state->curChar, &mbState);
             if (mbBytesWritten == -1)
-                error (_ ("internal error: %s"), strerror (errno));
-            extraBuf[mbBytesWritten] = '\0';
-            // Add everything
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("Unknown token '%s'"), extraBuf);
+                error ("internal error: %s", strerror (errno));
+            else
+            {
+                extraBuf[mbBytesWritten] = '\0';
+                // Add everything
+                buf += snprintf (buf, 2048 - (buf - obuf), "Unknown token '%s'", extraBuf);
+            }
             break;
         case LEX_ERROR_UNEXPECTED_EOF:
             // Print out string
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("Unexpected EOF"));
-            buf += snprintf (buf, 2048 - (buf - obuf), _ (" on token %s"), _confLexGetTokenName (state->tok));
+            buf += snprintf (buf, 2048 - (buf - obuf), "Unexpected EOF");
+            buf += snprintf (buf, 2048 - (buf - obuf), " on token %s", _confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_INVALID_NUMBER:
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("Invalid numeric value"));
+            buf += snprintf (buf, 2048 - (buf - obuf), "Invalid numeric value");
             break;
         case LEX_ERROR_BUFFER_OVERFLOW:
             buf += snprintf (buf,
                              2048 - (buf - obuf),
-                             _ ("Name too long on token %s"),
+                             "Name too long on token %s",
                              _confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_INVALID_VAR_ID:
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("Invalid character in variable"));
+            buf += snprintf (buf, 2048 - (buf - obuf), "Invalid character in variable");
             break;
         case LEX_ERROR_INTERNAL:
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("internal error: %s"), extra);
+            buf += snprintf (buf, 2048 - (buf - obuf), "internal error: %s", extra);
             break;
     }
     // Silence clang-tidy warnings about buf being unused
@@ -160,22 +167,39 @@ lexState_t* _confLexInit (const char* file)
     assert (file);
     // Create state
     lexState_t* state = (lexState_t*) calloc_s (sizeof (lexState_t));
+    if (!state)
+        return NULL;
     // Detect character set
     DetectObj* obj = detect_obj_init();
     short res = 0;
     if ((res = detect_file (file, 8192, &obj)) != CHARDET_SUCCESS)
     {
         if (res == CHARDET_IO_ERROR)
+        {
+            free (state);
+            detect_obj_free (&obj);
             _lexError (NULL, LEX_ERROR_INTERNAL, strerror (errno));
+            return NULL;
+        }
         else
-            _lexError (NULL, LEX_ERROR_INTERNAL, _ ("unable to detect character set"));
+        {
+            free (state);
+            detect_obj_free (&obj);
+            _lexError (NULL, LEX_ERROR_INTERNAL, "unable to detect character set");
+            return NULL;
+        }
     }
     char enc = 0, order = 0;
     TextGetEncId (obj->encoding, &enc, &order);
     // Open up the text stream
     res = TextOpen (file, &state->stream, TEXT_MODE_READ, enc, obj->bom, order);
     if (res != TEXT_SUCCESS)
+    {
+        free (state);
+        detect_obj_free (&obj);
         _lexError (NULL, LEX_ERROR_INTERNAL, TextError (res));
+        return NULL;
+    }
     // Set up state
     state->line = 1;
     // Free stuff we're done with
@@ -205,8 +229,7 @@ static inline char32_t _lexReadChar (lexState_t* state)
     else
     {
         // Read in the character
-        if ((res = TextReadChar (state->stream, &c)) != TEXT_SUCCESS)
-            _lexError (state, LEX_ERROR_INTERNAL, TextError (res));
+        TextReadChar (state->stream, &c);
         // Check for end of file
         if (TextIsEof (state->stream))
         {
@@ -229,8 +252,7 @@ static inline char32_t _lexPeekChar (lexState_t* state)
     else
     {
         // Read in a character, setting nextChar
-        if ((res = TextReadChar (state->stream, &c)) != TEXT_SUCCESS)
-            _lexError (state, LEX_ERROR_INTERNAL, TextError (res));
+        TextReadChar (state->stream, &c);
         // Check for end of file
         if (TextIsEof (state->stream))
         {
@@ -383,6 +405,8 @@ _confToken_t* _lexInternal (lexState_t* state)
     int res = 0;
     // Allocate token
     _confToken_t* tok = (_confToken_t*) malloc_s (sizeof (_confToken_t));
+    if (!tok)
+        goto _internalError;
     state->tok = tok;
     tok->type = LEX_TOKEN_NONE;
     // If we're at the end of the file, report it
@@ -569,7 +593,10 @@ _confToken_t* _lexInternal (lexState_t* state)
                 while (_lexIsIdChar (curChar))
                 {
                     if (bufPos >= TOK_SEM_SIZE)
+                    {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        goto _internalError;
+                    }
                     tok->semVal[bufPos] = (char) curChar;
                     ++bufPos;
                     curChar = _lexReadChar (state);
@@ -623,7 +650,10 @@ _confToken_t* _lexInternal (lexState_t* state)
                 while (_lexIsNumeric (curChar, tok->base) || (bufPos == 0 && curChar == '-'))
                 {
                     if (bufPos >= TOK_SEM_SIZE)
+                    {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        goto _internalError;
+                    }
                     tok->semVal[bufPos] = (char) curChar;
                     ++bufPos;
                     curChar = _lexReadChar (state);
@@ -631,7 +661,10 @@ _confToken_t* _lexInternal (lexState_t* state)
                 }
                 // Ensure the user didn't just pass '-'
                 if (bufPos <= 1 && tok->semVal[0] == '-')
+                {
                     _lexError (state, LEX_ERROR_INVALID_NUMBER, NULL);
+                    goto _internalError;
+                }
                 // Check if the first invalid character really is a valid ID character
                 if (_lexIsIdChar (curChar))
                 {
@@ -645,7 +678,10 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Convert the string to numeric
                 tok->num = strtoll (tok->semVal, NULL, tok->base);
                 if (tok->num == LONG_MIN || tok->num == LONG_MAX)
+                {
                     _lexError (state, LEX_ERROR_INTERNAL, strerror (errno));
+                    goto _internalError;
+                }
                 // Accept it
                 state->isAccepted = true;
                 break;
@@ -701,7 +737,10 @@ _confToken_t* _lexInternal (lexState_t* state)
                         }
                     }
                     if (bufPos >= TOK_SEM_SIZE)
+                    {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        goto _internalError;
+                    }
                     tok->strVal[bufPos] = curChar;
                     ++bufPos;
                     curChar = _lexReadChar (state);
@@ -787,12 +826,18 @@ _confToken_t* _lexInternal (lexState_t* state)
                         {
                             // Check validity
                             if (!_lexIsIdChar (curChar))
+                            {
                                 _lexError (state, LEX_ERROR_INVALID_VAR_ID, NULL);
+                                goto _internalError;
+                            }
                             // Add to buffer
                             varName[varBufPos] = (char) curChar;
                             ++varBufPos;
                             if (varBufPos >= VARNAME_SIZE)
+                            {
                                 _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                                goto _internalError;
+                            }
                             // Get next char
                             curChar = _lexReadChar (state);
                         }
@@ -807,14 +852,18 @@ _confToken_t* _lexInternal (lexState_t* state)
                             memset (&mbstate, 0, sizeof (mbstate_t));
                             if (mbstoc32s (var32, var, varLen, varLen / sizeof (char32_t), &mbstate) == -1)
                             {
+                                free (var32);
                                 _lexError (state, LEX_ERROR_INTERNAL, strerror (errno));
+                                goto _internalError;
                             }
                             tok->strVal[bufPos] = 0;
                             // Concatenate variable name
                             if (c32lcat (tok->strVal, var32, TOK_SEM_SIZE * sizeof (char32_t)) >=
                                 (TOK_SEM_SIZE * sizeof (char32_t)))
                             {
+                                free (var32);
                                 _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                                goto _internalError;
                             }
                             bufPos += (varLen / sizeof (char32_t));
                             free (var32);
@@ -822,7 +871,10 @@ _confToken_t* _lexInternal (lexState_t* state)
                         goto strEnd;
                     }
                     if (bufPos >= TOK_SEM_SIZE)
+                    {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        goto _internalError;
+                    }
                     tok->strVal[bufPos] = curChar;
                     ++bufPos;
                 strEnd:
@@ -836,9 +888,13 @@ _confToken_t* _lexInternal (lexState_t* state)
             default:
                 // An error here
                 _lexError (state, LEX_ERROR_UNKNOWN_TOKEN, NULL);
+                goto _internalError;
         }
     }
 end:
+    return state->tok;
+_internalError:
+    state->tok->type = LEX_TOKEN_ERROR;
     return state->tok;
 }
 

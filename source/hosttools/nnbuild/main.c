@@ -40,7 +40,7 @@ static char* confName = "nnbuild.conf";
 static int parseArgs (int argc, char** argv)
 {
 // The list of arguments that are valid
-#define VALIDOPTS _ ("g:p:hf:")
+#define VALIDOPTS "g:p:hf:"
     int arg = 0;
     const char* progName = getprogname();
     while ((arg = getopt (argc, argv, VALIDOPTS)) != -1)
@@ -49,7 +49,7 @@ static int parseArgs (int argc, char** argv)
         switch (arg)
         {
             case 'h':
-                printf (_ ("\
+                printf ("\
 %s - manages the build process of NexNix\n\
 Usage: %s [-h] [-g PACKAGE_GROUP] [-p PACKAGE] [-f FILE] ACTION\n\
 Valid Arguments:\n\
@@ -64,7 +64,7 @@ Valid Arguments:\n\
 \n\
 ACTION can be either clean, download, configure, all, build, confbuild,\n\
 or install.  The configuration gets read from the file nnbuild.conf in the\n\
-current directory if a file isn't specified on the command line\n"),
+current directory if a file isn't specified on the command line\n",
                         progName,
                         progName);
                 return 0;
@@ -87,10 +87,6 @@ current directory if a file isn't specified on the command line\n"),
 int main (int argc, char** argv)
 {
     setprogname (argv[0]);
-#ifdef TOOLS_ENABLE_NLS
-    setlocale (LC_ALL, "");
-    bindtextdomain ("nnbuild", TOOLS_LOCALE_BASE);
-#endif
     // Parse the arguments
     if (!parseArgs (argc, argv))
         return 1;
@@ -98,7 +94,7 @@ int main (int argc, char** argv)
     // Check only one of package or package group was specified
     if (pkg && (strcmp (pkgGroup, _ ("all")) != 0))
     {
-        error (_ ("package and group specification are mutually exclusive"));
+        error ("package and group specification are mutually exclusive");
         return 1;
     }
     // Check if package group should be null
@@ -107,19 +103,25 @@ int main (int argc, char** argv)
     // Check the action
     if (argc == optind)
     {
-        error (_ ("action not specified"));
+        error ("action not specified");
         return 1;
     }
     // Grab the action
     action = argv[optind];
     if (!action)
     {
-        error (_ ("action not specified"));
+        error ("action not specified");
         return 1;
     }
     // Parse the file
     ListHead_t* confBlocks = ConfInit (confName);
-    buildPackageTree (confBlocks);
+    if (!confBlocks)
+        return 1;
+    if (!buildPackageTree (confBlocks))
+    {
+        ConfFreeParseTree (confBlocks);
+        return 1;
+    }
     // Build the packages
     int res = 0;
     if (pkgGroup)

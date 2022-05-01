@@ -29,10 +29,6 @@ static const char* fileName = NULL;
 
 PUBLIC ListHead_t* ConfInit (const char* file)
 {
-    // Set text domain
-#ifdef TOOLS_ENABLE_NLS
-    bindtextdomain ("conf", TOOLS_LOCALE_BASE);
-#endif
     fileName = file;
     return _confParse (file);
 }

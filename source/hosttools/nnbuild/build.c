@@ -75,7 +75,7 @@ static int runShell (char* cmd, char* action)
 static int doDownload (package_t* package)
 {
     // Run the command
-    if (package->downloadAction)
+    if (package->downloadAction[0])
         return runShell (package->downloadAction, "download");
     else
         warn ("package %s doesn't support action download", package->name);
@@ -85,7 +85,7 @@ static int doDownload (package_t* package)
 static int doConfigure (package_t* package)
 {
     // Run the command
-    if (package->configureAction)
+    if (package->configureAction[0])
         return runShell (package->configureAction, "configure");
     else
         warn ("package %s doesn't support action configure", package->name);
@@ -94,7 +94,7 @@ static int doConfigure (package_t* package)
 
 static int doConfHelp (package_t* package)
 {
-    if (package->confHelpAction)
+    if (package->confHelpAction[0])
         return runShell (package->confHelpAction, "confhelp");
     else
         warn ("package %s doesn't support action confhelp", package->name);
@@ -104,7 +104,7 @@ static int doConfHelp (package_t* package)
 static int doInstall (package_t* package)
 {
     // Run the command
-    if (package->installAction)
+    if (package->installAction[0])
     {
         if (package->isInstalled)
             return 1;
@@ -119,7 +119,7 @@ static int doInstall (package_t* package)
 static int doBuild (package_t* package)
 {
     // Run the command
-    if (package->buildAction)
+    if (package->buildAction[0])
     {
         if (!runShell (package->buildAction, "build"))
             return 0;
@@ -135,7 +135,7 @@ static int doBuild (package_t* package)
 static int doClean (package_t* package)
 {
     // Run the command
-    if (package->cleanAction)
+    if (package->cleanAction[0])
         return runShell (package->cleanAction, "clean");
     else
         warn ("package %s doesn't support action clean", package->name);

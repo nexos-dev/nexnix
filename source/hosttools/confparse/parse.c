@@ -53,7 +53,7 @@ static void _parseError (parseState_t* parser, _confToken_t* tok, int err, void*
 
     char* obuf = bufData;
     char* buf = bufData;
-    buf += snprintf (buf, 2048 - (buf - obuf), _ ("error: %s:"), ConfGetFileName());
+    buf += snprintf (buf, 2048 - (buf - obuf), "error: %s:", ConfGetFileName());
     buf += snprintf (buf, 2048 - (buf - obuf), "%d: ", tok->line);
     // Decide how to handle the error
     switch (err)
@@ -63,30 +63,29 @@ static void _parseError (parseState_t* parser, _confToken_t* tok, int err, void*
             {
                 buf += snprintf (buf,
                                  2048 - (buf - obuf),
-                                 _ ("unexpected token %s after token %s"),
+                                 "unexpected token %s after token %s",
                                  _confLexGetTokenName (tok),
                                  _confLexGetTokenName (parser->lastToken));
             }
             else
-                buf += snprintf (buf, 2048 - (buf - obuf), _ ("unexpected token %s"), _confLexGetTokenName (tok));
+                buf += snprintf (buf, 2048 - (buf - obuf), "unexpected token %s", _confLexGetTokenName (tok));
             // Add some context
             if (extra)
             {
                 buf += snprintf (buf,
                                  2048 - (buf - obuf),
-                                 _ (" (expected %s)"),
+                                 " (expected %s)",
                                  _confLexGetTokenNameType (*((int*) extra)));
             }
             break;
         case PARSE_ERROR_OVERFLOW:
-            buf +=
-                snprintf (buf, 2048 - (buf - obuf), _ ("string too long on token %s"), _confLexGetTokenName (tok));
+            buf += snprintf (buf, 2048 - (buf - obuf), "string too long on token %s", _confLexGetTokenName (tok));
             break;
         case PARSE_ERROR_TOO_MANY_PROPS:
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("too many properties on property '%s'"), (char*) extra);
+            buf += snprintf (buf, 2048 - (buf - obuf), "too many properties on property '%s'", (char*) extra);
             break;
         case PARSE_ERROR_INTERNAL:
-            buf += snprintf (buf, 2048 - (buf - obuf), _ ("internal error: %s"), (char*) extra);
+            buf += snprintf (buf, 2048 - (buf - obuf), "internal error: %s", (char*) extra);
             break;
     }
     // Silence clang-tidy warnings about buf being unused
@@ -101,7 +100,10 @@ _confToken_t* _parseToken (parseState_t* state, _confToken_t* lastTok)
     if (state->lastToken)
         free (state->lastToken);
     state->lastToken = lastTok;
-    return _confLex (state->lex);
+    _confToken_t* tok = _confLex (state->lex);
+    if (tok->type == LEX_TOKEN_ERROR)
+        return NULL;
+    return tok;
 }
 
 // Expects a specified token to exist
@@ -109,8 +111,13 @@ _confToken_t* _parseExpect (parseState_t* state, _confToken_t* lastTok, int tokT
 {
     _confToken_t* tok = _parseToken (state, lastTok);
     // Ensure this token is the one expected
-    if (tok->type != tokType)
+    if (!tok)
+        return NULL;
+    else if (tok->type != tokType)
+    {
         _parseError (state, tok, PARSE_ERROR_UNEXPECTED_TOKEN, &tokType);
+        return NULL;
+    }
     return tok;
 }
 
@@ -119,32 +126,50 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
 {
     // Create a new block and add it to list
     ConfBlock_t* block = (ConfBlock_t*) malloc_s (sizeof (ConfBlock_t));
-    ListAddBack (state->head, block, 0);
+    if (!block)
+        return NULL;
+    if (!ListAddBack (state->head, block, 0))
+        return NULL;
     // Initialize it
     block->lineNo = tok->line;
     block->props = ListCreate ("ConfProperty");
     // Set type of block
     if (strlcpy (block->blockType, tok->semVal, 256) >= 256)
+    {
         _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
+        return NULL;
+    }
     // Check if block has a name
     tok = _parseToken (state, tok);
+    if (!tok)
+        return NULL;
     if (tok->type == LEX_TOKEN_ID)
     {
         // Set name of block
         if (strlcpy (block->blockName, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+        {
             _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
+            return NULL;
+        }
         // Get a opening brace
         tok = _parseExpect (state, tok, LEX_TOKEN_OBRACE);
+        if (!tok)
+            return NULL;
     }
     else if (tok->type == LEX_TOKEN_OBRACE)
         block->blockName[0] = 0;
     else
+    {
         _parseError (state, tok, PARSE_ERROR_UNEXPECTED_TOKEN, NULL);
+        return NULL;
+    }
 
     // Begin reading in tokens for properties
     while (1)
     {
         tok = _parseToken (state, tok);
+        if (!tok)
+            return NULL;
         // Is this the end of the block?
         if (tok->type == LEX_TOKEN_EBRACE)
             break;
@@ -153,17 +178,26 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
         {
             // Create a new property
             ConfProperty_t* prop = (ConfProperty_t*) malloc_s (sizeof (ConfProperty_t));
+            if (!prop)
+                return NULL;
             ListAddBack (block->props, prop, 0);
             prop->lineNo = tok->line;
             if (strlcpy (prop->name, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+            {
                 _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
+                return NULL;
+            }
             prop->nextVal = 0;
             // Expect a colon
             tok = _parseExpect (state, tok, LEX_TOKEN_COLON);
+            if (!tok)
+                return NULL;
             // Now parse all the values
             while (1)
             {
                 tok = _parseToken (state, tok);
+                if (!tok)
+                    return NULL;
                 // It this a string?
                 if (tok->type == LEX_TOKEN_STR)
                 {
@@ -173,10 +207,16 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].type = DATATYPE_STRING;
                     // Copy string value
                     if (c32lcpy (prop->vals[valLoc].str, tok->strVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+                    {
                         _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
+                        return NULL;
+                    }
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
+                    {
                         _parseError (state, tok, PARSE_ERROR_TOO_MANY_PROPS, prop->name);
+                        return NULL;
+                    }
                 }
                 // .. or an identifier?
                 else if (tok->type == LEX_TOKEN_ID)
@@ -187,10 +227,16 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].type = DATATYPE_IDENTIFIER;
                     // Copy string value
                     if (strlcpy (prop->vals[valLoc].id, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+                    {
                         _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
+                        return NULL;
+                    }
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
+                    {
                         _parseError (state, tok, PARSE_ERROR_TOO_MANY_PROPS, prop->name);
+                        return NULL;
+                    }
                 }
                 // ... or a number?
                 else if (tok->type == LEX_TOKEN_NUM)
@@ -201,13 +247,21 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].numVal = tok->num;
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
+                    {
                         _parseError (state, tok, PARSE_ERROR_TOO_MANY_PROPS, prop->name);
+                        return NULL;
+                    }
                 }
                 else
+                {
                     _parseError (state, tok, PARSE_ERROR_UNEXPECTED_TOKEN, NULL);
+                    return NULL;
+                }
 
                 // Check if there is another property
                 tok = _parseToken (state, tok);
+                if (!tok)
+                    return NULL;
                 // Should we continue?
                 if (tok->type == LEX_TOKEN_COMMA)
                     continue;
@@ -215,57 +269,94 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                 else if (tok->type == LEX_TOKEN_SEMICOLON)
                     break;
                 else
+                {
                     _parseError (state, tok, PARSE_ERROR_UNEXPECTED_TOKEN, NULL);
+                    return NULL;
+                }
             }
         }
     }
     return tok;
 }
 
+#define ERROR_OUT_MAYBE \
+    if (!tok)           \
+    {                   \
+        res = false;    \
+        goto end;       \
+    }
+
 // Internal parser. Performance critical
-static void _parseInternal (parseState_t* parser)
+static bool _parseInternal (parseState_t* parser)
 {
+    bool res = true;
     // Start parsing
     _confToken_t* tok = _parseToken (parser, NULL);
+    if (!tok)
+    {
+        res = false;
+        goto end;
+    }
     while (tok->type != LEX_TOKEN_NONE)
     {
         // Is it an include statement?
         if (tok->type == LEX_TOKEN_INCLUDE)
+        {
             tok = _parseInclude (parser, tok);
+            ERROR_OUT_MAYBE
+        }
         // ... or it has to be a block
         else if (tok->type == LEX_TOKEN_ID)
+        {
             tok = _parseBlock (parser, tok);
+            ERROR_OUT_MAYBE
+        }
         else
+        {
             _parseError (parser, tok, PARSE_ERROR_UNEXPECTED_TOKEN, NULL);
+            res = false;
+            goto end;
+        }
         tok = _parseToken (parser, tok);
+        ERROR_OUT_MAYBE
     }
     // Destroy the lexer
     _confLexDestroy (parser->lex);
-    // Free up unfreed tokens
+// Free up unfreed tokens
+end:
     free (parser->lastToken);
     free (tok);
+    return res;
 }
 
 // Includes another file to parse
 static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* tok)
 {
     _confToken_t* pathTok = _parseExpect (state, tok, LEX_TOKEN_STR);
+    if (!pathTok)
+        return NULL;
     // Convert string value to multibyte
     size_t len = c32len (pathTok->strVal);
     char* mbPath = malloc_s (len);
     mbstate_t mbState;
     if (c32stombs (mbPath, pathTok->strVal, len, &mbState) < 0)
+    {
         _parseError (state, pathTok, PARSE_ERROR_INTERNAL, strerror (errno));
+        return NULL;
+    }
     // Set file name
     const char* oldFile = ConfGetFileName();
     _confSetFileName (mbPath);
     // Create a new parser context
     parseState_t newState;
     newState.lex = _confLexInit (mbPath);
+    if (!newState.lex)
+        return NULL;
     newState.lastToken = NULL;
     newState.head = state->head;
     // Start parsing the include
-    _parseInternal (&newState);
+    if (!_parseInternal (&newState))
+        return NULL;
     _confSetFileName (oldFile);
     return pathTok;
 }
@@ -274,11 +365,17 @@ ListHead_t* _confParse (const char* file)
 {
     // Initialize the lexer
     lexState_t* lexState = _confLexInit (file);
+    if (!lexState)
+        return NULL;
     // Start parsing
     ConfBlock_t* block = NULL;
     parseState_t state = {0};
     state.lex = lexState;
     state.head = ListCreate ("ConfBlock");
-    _parseInternal (&state);
+    if (!_parseInternal (&state))
+    {
+        ConfFreeParseTree (state.head);
+        return NULL;
+    }
     return state.head;
 }

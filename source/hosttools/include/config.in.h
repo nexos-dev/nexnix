@@ -21,10 +21,6 @@
 
 #cmakedefine HAVE_VISIBILITY
 #cmakedefine HAVE_DECLSPEC_EXPORT
-#cmakedefine TOOLS_ENABLE_NLS
-#ifdef TOOLS_ENABLE_NLS
-#define TOOLS_LOCALE_BASE "@TOOLS_LOCALE_BASE@"
-#endif
 
 // Get visibility stuff right
 #ifdef HAVE_VISIBILITY

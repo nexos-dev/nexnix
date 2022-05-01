@@ -1,5 +1,5 @@
 #[[
-    CMakeLists.txt - contains build system for nnbuild
+    CMakeLists.txt - contains build system for nnimage
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,20 +16,20 @@
 ]]
 
 cmake_minimum_required(VERSION 3.00)
-project(nnbuild VERSION 0.0.1)
+project(nnimage VERSION 0.0.1)
 enable_language(C)
 
 # Add sources
-list(APPEND NNBUILD_SOURCES main.c package.c build.c)
+list(APPEND NNIMAGE_SOURCES main.c imageList.c)
 
 # Create program
-add_executable(nnbuild ${NNBUILD_SOURCES})
+add_executable(nnimage ${NNIMAGE_SOURCES})
 
 # Set link language to C++ because we indirectly link with libchardet
-set_target_properties(nnbuild PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(nnimage PROPERTIES LINKER_LANGUAGE CXX)
 
 # Link with libconf
-target_link_libraries(nnbuild PRIVATE conf)
+target_link_libraries(nnimage PRIVATE conf)
 
 # Install it
-install(TARGETS nnbuild)
+install(TARGETS nnimage)
