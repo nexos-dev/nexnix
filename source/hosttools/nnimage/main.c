@@ -17,6 +17,7 @@
 
 /// @file main.c
 
+#include "nnimage.h"
 #include <conf.h>
 #include <libnex.h>
 #include <locale.h>
@@ -102,6 +103,11 @@ int main (int argc, char** argv)
     if (!confBlocks)
         return 1;
     // Create the image list
-    createImageList (confBlocks);
+    if (!createImageList (confBlocks))
+    {
+        ConfFreeParseTree (confBlocks);
+        return 1;
+    }
+    ConfFreeParseTree (confBlocks);
     return 0;
 }

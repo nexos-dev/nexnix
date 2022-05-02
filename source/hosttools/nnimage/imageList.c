@@ -17,6 +17,7 @@
 
 /// @file imageList.c
 
+#include "nnimage.h"
 #include <conf.h>
 #include <libnex.h>
 #include <locale.h>
@@ -26,13 +27,29 @@
 // List of created images
 static ListHead_t* images = NULL;
 
+// The current partition that is being operated on
+static Partition_t* curPart = NULL;
+
 // Current line number for diagnostics
 static int lineNo = 0;
+
+// Creates an image object
+static bool addImage (const char* name)
+{
+    // Allocate it
+    Image_t* img = (Image_t*) calloc_s (sizeof (Image_t));
+    if (!img)
+        return false;
+    img->name = name;
+    // Add it to the list
+    ListAddBack (images, img, 0);
+    return true;
+}
 
 ListHead_t* createImageList (ListHead_t* confBlocks)
 {
     // Create list
-    images = ListCreate ("Image_t");
+    images = ListCreate ("Image_t", false, 0);
     // Iterate through the configuration blocks
     ListEntry_t* confEntry = ListFront (confBlocks);
     while (confEntry)
@@ -46,7 +63,7 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
             if (block->blockName[0] == 0)
             {
                 error ("%s:%d: image declaration requires name", ConfGetFileName(), lineNo);
-                return 0;
+                return NULL;
             }
         }
         else if (!strcmp (block->blockType, "partition"))
@@ -55,14 +72,14 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
             if (block->blockName[0] != 0)
             {
                 error ("%s:%d: partition declaration doesn't accept a name", ConfGetFileName(), lineNo);
-                return 0;
+                return NULL;
             }
         }
         else
         {
             // Invalid block
             error ("%s:%d: invalid block type specified", ConfGetFileName(), lineNo);
-            return 0;
+            return NULL;
         }
         confEntry = ListIterate (confEntry);
     }

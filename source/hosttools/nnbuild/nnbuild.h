@@ -28,33 +28,19 @@
 
 #define ACTION_BUFSIZE 1524
 
-#ifdef TOOLS_ENABLE_NLS
-#define _(str)  dgettext ("nnbuild", str)
-#define N_(str) (str)
-#else
-#define _(str)  (str)
-#define N_(str) (str)
-#endif
-
 /// A package group
 typedef struct _pkggroup
 {
-    char* name;
-    struct _dependency* packages;    ///< The packages contained within
-    struct _depgroup* subGroups;     ///< Sub groups of this group
-    struct _pkggroup* next;          ///< The next package group
+    Object_t obj;             ///< The object underlying this package group
+    char* name;               ///< Name of this package group
+    ListHead_t* packages;     ///< The packages contained within
+    ListHead_t* subGroups;    ///< Sub groups of this group
 } packageGroup_t;
-
-/// A dependency package group
-typedef struct _depgroup
-{
-    packageGroup_t* group;     ///< The group being wrapped
-    struct _depgroup* next;    ///< The next dependency group
-} dependencyGroup_t;
 
 /// A package
 typedef struct _package
 {
+    Object_t obj;                            ///< The object underlying this package
     char* name;                              ///< The name of this package
     char downloadAction[ACTION_BUFSIZE];     ///< The action when downloading
     char configureAction[ACTION_BUFSIZE];    ///< Same, but for configuring
@@ -62,19 +48,11 @@ typedef struct _package
     char installAction[ACTION_BUFSIZE];
     char cleanAction[ACTION_BUFSIZE];
     char confHelpAction[ACTION_BUFSIZE];
-    struct _dependency* depends;    //< Dependencies of this package
-    struct _package* next;          ///< Next package in list
-    bool isBuilt;                   ///< If this package has been buit or not
-    bool isInstalled;               ///< If this package has been built yet
-    bool bindInstall;               ///< If installation and building should be one step
+    ListHead_t* depends;    //< Dependencies of this package
+    bool isBuilt;           ///< If this package has been buit or not
+    bool isInstalled;       ///< If this package has been built yet
+    bool bindInstall;       ///< If installation and building should be one step
 } package_t;
-
-/// A dependency
-typedef struct _dependency
-{
-    package_t* package;          ///< The package represented by this dependency
-    struct _dependency* next;    ///< The next dependency
-} dependency_t;
 
 /// Converts the parse tree into the package tree
 int buildPackageTree (ListHead_t* head);
@@ -90,5 +68,8 @@ int buildGroup (packageGroup_t* group, char* action);
 
 /// Builds one package
 int buildPackage (package_t* package, char* action);
+
+// Deletes package tree
+void freePackageTree();
 
 #endif

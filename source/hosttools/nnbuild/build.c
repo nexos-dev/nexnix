@@ -152,13 +152,12 @@ int buildPackage (package_t* package, char* action)
     if (package->isBuilt)
         return 1;
     // Go through all dependent packages
-    dependency_t* depIter = package->depends;
-    while (depIter)
+    ListEntry_t* curDepEntry = ListFront (package->depends);
+    while (curDepEntry)
     {
-        // Build the package recursivly
-        if (!buildPackage (depIter->package, action))
+        if (!buildPackage (ListEntryData (curDepEntry), action))
             return 0;
-        depIter = depIter->next;
+        curDepEntry = ListIterate (curDepEntry);
     }
     // Do the build, based on the action
     if (!strcmp (action, "download"))
@@ -218,22 +217,20 @@ int buildPackage (package_t* package, char* action)
 int buildGroup (packageGroup_t* group, char* action)
 {
     // Build all sub groups first
-    dependencyGroup_t* grpIter = group->subGroups;
-    while (grpIter)
+    ListEntry_t* curGroupEntry = ListFront (group->subGroups);
+    while (curGroupEntry)
     {
-        // Recursivly build it
-        if (!buildGroup (grpIter->group, action))
+        if (!buildGroup (ListEntryData (curGroupEntry), action))
             return 0;
-        grpIter = grpIter->next;
+        curGroupEntry = ListIterate (curGroupEntry);
     }
-    // Build packages now
-    dependency_t* pkgIter = group->packages;
-    while (pkgIter)
+    // Build all packages
+    ListEntry_t* curPkgEntry = ListFront (group->packages);
+    while (curPkgEntry)
     {
-        // Build it
-        if (!buildPackage (pkgIter->package, action))
+        if (!buildPackage (ListEntryData (curPkgEntry), action))
             return 0;
-        pkgIter = pkgIter->next;
+        curPkgEntry = ListIterate (curPkgEntry);
     }
     return 1;
 }

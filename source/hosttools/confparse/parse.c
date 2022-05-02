@@ -132,7 +132,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
         return NULL;
     // Initialize it
     block->lineNo = tok->line;
-    block->props = ListCreate ("ConfProperty");
+    block->props = ListCreate ("ConfProperty", false, 0);
     // Set type of block
     if (strlcpy (block->blockType, tok->semVal, 256) >= 256)
     {
@@ -371,7 +371,7 @@ ListHead_t* _confParse (const char* file)
     ConfBlock_t* block = NULL;
     parseState_t state = {0};
     state.lex = lexState;
-    state.head = ListCreate ("ConfBlock");
+    state.head = ListCreate ("ConfBlock", false, 9);
     if (!_parseInternal (&state))
     {
         ConfFreeParseTree (state.head);

@@ -31,9 +31,10 @@
 /// An image in the list
 typedef struct _image
 {
+    const char* name;         ///< The name of this image
     uint32_t sz;              ///< Size of the image
     uint16_t mul;             ///< Multiplier of size
-    char* file;               ///< File to read from
+    const char* file;         ///< File to read from
     short format;             ///< Format of image
     ListHead_t* partsList;    ///< List of partitions
 } Image_t;
@@ -47,12 +48,12 @@ typedef struct _image
 /// A partition
 typedef struct _part
 {
-    char* id;          ///< Identifier of image
-    char* name;        ///< Name of partition
-    uint32_t sz;       ///< Size of partition
-    uint32_t start;    ///< Start location of partition
-    short format;      ///< Filesystem of partition
-    char* prefix;      ///< Prefix directory on host of partition
+    const char* id;      ///< Identifier of image
+    const char* name;    ///< Name of partition
+    uint32_t sz;         ///< Size of partition
+    uint32_t start;      ///< Start location of partition
+    short format;        ///< Filesystem of partition
+    char* prefix;        ///< Prefix directory on host of partition
 } Partition_t;
 
 /// Creates list if images and their respective partitions

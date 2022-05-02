@@ -92,13 +92,13 @@ int main (int argc, char** argv)
         return 1;
 
     // Check only one of package or package group was specified
-    if (pkg && (strcmp (pkgGroup, _ ("all")) != 0))
+    if (pkg && (strcmp (pkgGroup, "all") != 0))
     {
         error ("package and group specification are mutually exclusive");
         return 1;
     }
     // Check if package group should be null
-    pkgGroup = (!strcmp (pkgGroup, _ ("all")) && pkg) ? NULL : pkgGroup;
+    pkgGroup = (!strcmp (pkgGroup, "all") && pkg) ? NULL : pkgGroup;
 
     // Check the action
     if (argc == optind)
@@ -129,5 +129,6 @@ int main (int argc, char** argv)
     else if (pkg)
         res = buildPackages (1, pkg, action);
     ConfFreeParseTree (confBlocks);
+    freePackageTree();
     return res;
 }
