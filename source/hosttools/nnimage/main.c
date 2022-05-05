@@ -103,11 +103,15 @@ int main (int argc, char** argv)
     if (!confBlocks)
         return 1;
     // Create the image list
-    if (!createImageList (confBlocks))
+    ListHead_t* images = createImageList (confBlocks);
+    if (!images)
     {
+        if (getImages())
+            ListDestroy (getImages());
         ConfFreeParseTree (confBlocks);
         return 1;
     }
+    ListDestroy (images);
     ConfFreeParseTree (confBlocks);
     return 0;
 }

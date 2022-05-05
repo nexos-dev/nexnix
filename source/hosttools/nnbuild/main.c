@@ -119,6 +119,7 @@ int main (int argc, char** argv)
         return 1;
     if (!buildPackageTree (confBlocks))
     {
+        freePackageTree();
         ConfFreeParseTree (confBlocks);
         return 1;
     }
@@ -128,7 +129,7 @@ int main (int argc, char** argv)
         res = buildPackages (0, pkgGroup, action);
     else if (pkg)
         res = buildPackages (1, pkg, action);
-    ConfFreeParseTree (confBlocks);
     freePackageTree();
+    ConfFreeParseTree (confBlocks);
     return res;
 }

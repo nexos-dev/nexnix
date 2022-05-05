@@ -33,30 +33,32 @@ typedef struct _image
 {
     const char* name;         ///< The name of this image
     uint32_t sz;              ///< Size of the image
-    uint16_t mul;             ///< Multiplier of size
-    const char* file;         ///< File to read from
+    uint32_t mul;             ///< Multiplier of size
+    char* file;               ///< File to read from
     short format;             ///< Format of image
     ListHead_t* partsList;    ///< List of partitions
 } Image_t;
 
-/// Valid partition formats
-#define IMG_FORMAT_FAT32 0
-#define IMG_FORMAT_FAT12 1
-#define IMG_FORMAT_EXT2  2
-#define IMG_FORMAT_UDF   3
+/// Valid filesystems
+#define IMG_FILESYS_FAT32 0
+#define IMG_FILESYS_FAT12 1
+#define IMG_FILESYS_EXT2  2
+#define IMG_FILESYS_UDF   3
 
 /// A partition
 typedef struct _part
 {
-    const char* id;      ///< Identifier of image
     const char* name;    ///< Name of partition
     uint32_t sz;         ///< Size of partition
     uint32_t start;      ///< Start location of partition
-    short format;        ///< Filesystem of partition
-    char* prefix;        ///< Prefix directory on host of partition
+    short filesys;       ///< Filesystem of partition
+    char* prefix;        ///< Prefix directory of partition
 } Partition_t;
 
 /// Creates list if images and their respective partitions
 ListHead_t* createImageList (ListHead_t* confBlocks);
+
+/// Returns image list
+ListHead_t* getImages();
 
 #endif

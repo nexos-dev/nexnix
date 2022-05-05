@@ -75,31 +75,30 @@ packageGroup_t* findGroup (char* groupName);
 // Deletes package tree
 void freePackageTree()
 {
-    // Free every package group
-    ListEntry_t* curEntry = ListFront (pkgGroups);
-    while (curEntry)
+    if (pkgGroups)
+        ListDestroy (pkgGroups);
+    if (packages)
+        ListDestroy (packages);
+}
+
+// Destroys a packages
+void pkgDestroy (void* data)
+{
+    if (!ObjDestroy (&((package_t*) data)->obj))
     {
-        packageGroup_t* curGrp = ListEntryData (curEntry);
-        // Free every dependency
-        ListDestroy (curGrp->packages);
-        // Free subrgroups
-        ListDestroy (curGrp->subGroups);
-        // Free current entry and move to next
-        ListEntry_t* oldEntry = curEntry;
-        curEntry = ListIterate (curEntry);
-        ListDestroyEntryAll (pkgGroups, oldEntry);
+        ListDestroy (((package_t*) data)->depends);
+        free (data);
     }
-    // Free every package and dependency
-    ListEntry_t* curPkgEntry = ListFront (packages);
-    while (curPkgEntry)
+}
+
+// Destroys a package group
+void pkgGrpDestroy (void* data)
+{
+    if (!ObjDestroy (&((packageGroup_t*) data)->obj))
     {
-        package_t* curPkg = ListEntryData (curPkgEntry);
-        // Free the dependency list
-        ListDestroy (curPkg->depends);
-        // Free current entry and move to next
-        ListEntry_t* oldEntry = curPkgEntry;
-        curPkgEntry = ListIterate (curPkgEntry);
-        ListDestroyEntryAll (packages, oldEntry);
+        ListDestroy (((packageGroup_t*) data)->packages);
+        ListDestroy (((packageGroup_t*) data)->subGroups);
+        free (data);
     }
 }
 
@@ -117,6 +116,7 @@ int addPackage (char* name)
     expecting = EXPECTING_PACKAGE;
     // Create depencencies list
     newPkg->depends = ListCreate ("package_t", true, offsetof (package_t, obj));
+    ListSetDestroy (newPkg->depends, pkgDestroy);
     return 1;
 }
 
@@ -133,7 +133,9 @@ int addGroup (char* name)
     newGrp->name = name;
     expecting = EXPECTING_GROUP;
     newGrp->packages = ListCreate ("package_t", true, offsetof (package_t, obj));
+    ListSetDestroy (newGrp->packages, pkgDestroy);
     newGrp->subGroups = ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
+    ListSetDestroy (newGrp->subGroups, pkgGrpDestroy);
     return 1;
 }
 
@@ -275,7 +277,6 @@ int addGroupToGroup (char* groupName)
 // Adds a property
 int addProperty (char* newProp, union val* val, int isStart, int dataType)
 {
-    package_t* curPackage = getCurPackage();
     // Check if the name needs to be reset
     if (isStart)
     {
@@ -285,6 +286,7 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
     // Figure what this is
     if (expecting == EXPECTING_PACKAGE)
     {
+        package_t* curPackage = getCurPackage();
         // Check if this is a dependency
         if (!strcmp (prop, "dependencies"))
         {
@@ -403,9 +405,15 @@ int buildPackageTree (ListHead_t* head)
 {
     // Initialize package and package group lists
     packages = ListCreate ("package_t", true, offsetof (package_t, obj));
+    if (!packages)
+        return 0;
     pkgGroups = ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
+    if (!pkgGroups)
+        return 0;
     ListSetFindBy (packages, pkgFindByPredicate);
+    ListSetDestroy (packages, pkgDestroy);
     ListSetFindBy (pkgGroups, pkgGrpFindByPredicate);
+    ListSetDestroy (pkgGroups, pkgGrpDestroy);
     // Iterate through the parse tree
     ListEntry_t* iter = ListFront (head);
     while (iter)
