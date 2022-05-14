@@ -15,12 +15,22 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
+cmake_minimum_required(VERSION 3.10)
 project(nnimage VERSION 0.0.1)
 enable_language(C)
 
 # Add sources
-list(APPEND NNIMAGE_SOURCES main.c imageList.c)
+list(APPEND NNIMAGE_SOURCES 
+     main.c
+     image.c
+     imageList.c
+     mbr.c
+     gpt.c
+     fat.c)
+
+# Inclide libuuid
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBUUID REQUIRED IMPORTED_TARGET uuid)
 
 # Create program
 add_executable(nnimage ${NNIMAGE_SOURCES})
@@ -29,7 +39,7 @@ add_executable(nnimage ${NNIMAGE_SOURCES})
 set_target_properties(nnimage PROPERTIES LINKER_LANGUAGE CXX)
 
 # Link with libconf
-target_link_libraries(nnimage PRIVATE conf)
+target_link_libraries(nnimage PRIVATE conf PkgConfig::LIBUUID)
 
 # Install it
 install(TARGETS nnimage)

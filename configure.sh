@@ -397,6 +397,8 @@ Run $0 -l to see supported targets"
         makeargs="--no-print-directory"
     fi
 
+    uuidver=1.0.3
+
     # Download libchardet
     if [ ! -f $olddir/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET_CHARDET" = "1" ]
     then
@@ -417,7 +419,7 @@ Run $0 -l to see supported targets"
         $cmakegen install -j $jobcount
         checkerr $? "unable to build libchardet" $0
     fi
-    # Download the libnex
+    # Download libnex
     if [ ! -f $olddir/source/external/libraries/libnex_done ] || [ "$NNTOOLS_REGET_LIBNEX" = "1" ]
     then
         rm -rf $olddir/external/source/libraries/libnex
@@ -433,10 +435,6 @@ Run $0 -l to see supported targets"
             libnex_cmakeargs="$cmakeargs -DLIBNEX_ENABLE_TESTS=ON"
         else
             libnex_cmakeargs="$cmakeargs"
-        fi
-        if [ "$NNTOOLS_DISABLE_NLS" = "1" ]
-        then
-            libnex_cmakeargs="$libnex_cmakeargs -DLIBNEX_ENABLE_NLS=OFF"
         fi
         libnex_builddir="$output/build/tools/libnex-build"
         mkdir -p $libnex_builddir/$cmakegen
@@ -454,9 +452,35 @@ Run $0 -l to see supported targets"
             checkerr $? "test suite failed" $0
         fi
     fi
+    # Download libuuid
+    if [ ! -f $olddir/source/external/libraries/libuuid_done ] || [ "$NNTOOLS_REGET_UUID" = "1" ]
+    then
+        cd $olddir/source/external/libraries
+        rm -rf $olddir/source/external/libraries/libuuid-$uuidver
+        mkdir -p tarballs
+        wget https://sourceforge.net/projects/libuuid/files/libuuid-$uuidver.tar.gz/download \
+             -O tarballs/libuuid-$uuidver.tar.gz
+        checkerr $? "unable to download libuuid" $0
+        tar xf tarballs/libuuid-$uuidver.tar.gz
+        touch $olddir/source/external/libraries/libuuid_done
+    fi
+    # Build libuuid
+    if [ ! -f $output/tools/lib/libuuid.a ] || [ "$NNTOOLS_REBUILD_UUID" = "1" ]
+    then
+        uuid_builddir="$output/build/tools/uuid-build"
+        mkdir -p $uuid_builddir && cd $uuid_builddir
+        # Configure it
+        $olddir/source/external/libraries/libuuid-$uuidver/configure --disable-shared --prefix="$output/tools"
+        checkerr $? "unable to build libuuid" $0
+        # Build it
+        make -j $jobcount
+        checkerr $? "unable to build libuuid"
+        make install -j $jobcount
+        checkerr $? "unable to install libuuid"
+    fi
 
-    # Build nnbuild
-    if [ ! -f "$output/tools/bin/nnbuild" ] || [ "$NNTOOLS_REBUILD_TOOLS" = "1" ]
+    # Build host tools
+    if [ ! -f "$output/tools/bin/nnimage" ] || [ "$NNTOOLS_REBUILD_TOOLS" = "1" ]
     then
         if [ "$NNTESTS_ENABLE" = "1" ]
         then
@@ -464,13 +488,11 @@ Run $0 -l to see supported targets"
         else
             tools_cmakeargs="$cmakeargs"
         fi
-        if [ "$NNTOOLS_DISABLE_NLS" = "1" ]
-        then
-            tools_cmakeargs="$tools_cmakeargs -DTOOLS_ENABLE_NLS=OFF"
-        fi
         builddir=$output/build/tools/tools-build
         mkdir -p $builddir/$cmakegen
         cd $builddir/$cmakegen
+        # So libuuid is found
+        export PKG_CONFIG_PATH="$output/tools/lib/pkgconfig"
         cmake $olddir/source/hosttools -DCMAKE_INSTALL_PREFIX="$output/tools" $tools_cmakeargs
         checkerr $? "unable to build host tools" $0
         $cmakegen -j$jobcount $makeargs

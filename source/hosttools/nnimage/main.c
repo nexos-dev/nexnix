@@ -30,17 +30,20 @@ static char* progName = NULL;
 // The file that is being read from
 static char* confName = "nnimage.conf";
 
-// The file that is being output
-static char* outputName = "nndisk.img";
-
 // The action that is being performed
 static char* action = NULL;
+
+// The file that is being output
+static char* outputName = NULL;
+
+// If the image file should be overtwritten
+static bool overwrite = false;
 
 // Read the arguments passed
 static int parseArgs (int argc, char** argv)
 {
 // The list of options that are valid
-#define ARGS_VALIDARGS "f:o:hd:"
+#define ARGS_VALIDARGS "f:o:hd:w"
     int arg = 0;
     while ((arg = getopt (argc, argv, ARGS_VALIDARGS)) != -1)
     {
@@ -59,6 +62,10 @@ Valid arguments:\n\
               outputs the image specfied in OUTPUT\n\
   -d DIRECTORY\n\
               directory where image data is\n\
+  -w\n\
+              specifies that if the image file specified in nnimage.conf\n\
+              already exists, it should be overwitten without the user's\n\
+              consent\n\
 \n\
 ACTION can be create, partition, update, or all. By default,\n\
 configuration is read from nnimage.conf in the current directory\n",
@@ -71,6 +78,9 @@ configuration is read from nnimage.conf in the current directory\n",
                 break;
             case 'o':
                 outputName = optarg;
+                break;
+            case 'w':
+                overwrite = true;
                 break;
             case '?':
                 return 0;
@@ -111,7 +121,9 @@ int main (int argc, char** argv)
         ConfFreeParseTree (confBlocks);
         return 1;
     }
+    // Create the image
+    bool res = createImages (images, action, overwrite, outputName);
     ListDestroy (images);
     ConfFreeParseTree (confBlocks);
-    return 0;
+    return !res;
 }

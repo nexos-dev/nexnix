@@ -60,7 +60,16 @@ ListHead_t* getImages()
 // Function to destroy an image
 void imageDestroy (void* data)
 {
+    free (((Image_t*) data)->file);
     ListDestroy (((Image_t*) data)->partsList);
+    free (data);
+}
+
+// Destroys a partition
+void partDestroy (void* data)
+{
+    free (((Partition_t*) data)->prefix);
+    free (data);
 }
 
 // Predicate for finding an image
@@ -92,6 +101,7 @@ static bool addImage (const char* name)
     img->name = name;
     img->partsList = ListCreate ("Partition_t", false, 0);
     ListSetFindBy (img->partsList, partitionFindByPredicate);
+    ListSetDestroy (img->partsList, partDestroy);
     // Add it to the list
     ListAddFront (images, img, 0);
     return true;
@@ -126,7 +136,8 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 error ("%s:%d: property \"defaultFile\" requires a string value", ConfGetFileName(), lineNo);
                 return false;
             }
-            img->file = val->strVal;
+            img->file = (char*) malloc_s (strlen (val->strVal));
+            strcpy (img->file, val->strVal);
         }
         else if (!strcmp (prop, "sizeMul"))
         {
@@ -138,16 +149,10 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
             // Check the size of the multiplier
             if (!strcmp (val->strVal, "KiB"))
                 img->mul = 1024;
-            else if (!strcmp (val->strVal, "KB"))
-                img->mul = 1000;
             else if (!strcmp (val->strVal, "MiB"))
                 img->mul = 1024 * 1024;
-            else if (!strcmp (val->strVal, "MB"))
-                img->mul = 1000 * 1000;
             else if (!strcmp (val->strVal, "GiB"))
                 img->mul = 1024 * 1024 * 1024;
-            else if (!strcmp (val->strVal, "GB"))
-                img->mul = 1000 * 1000 * 1000;
             else
             {
                 error ("%s:%d: size multiplier \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
@@ -162,6 +167,21 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 return false;
             }
             img->sz = val->numVal;
+        }
+        else if (!strcmp (prop, "sectorSize"))
+        {
+            if (dataType != DATATYPE_NUMBER)
+            {
+                error ("%s:%d: property \"sectorSize\" requires a numeric value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            // Check validity of sector size
+            if (!(val->numVal && !(val->numVal % 512)))
+            {
+                error ("%s:%d: sector size must be a multiple of 512", ConfGetFileName(), lineNo);
+                return false;
+            }
+            img->sectSz = val->numVal;
         }
         else if (!strcmp (prop, "format"))
         {
@@ -183,6 +203,20 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 error ("%s:%d: image format \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
                 return false;
             }
+        }
+        else if (!strcmp (prop, "bootMode"))
+        {
+            if (dataType != DATATYPE_IDENTIFIER)
+            {
+                error ("%s:%d: property \"bootMode\" requires an identifier value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            if (!strcmp (val->strVal, "bios"))
+                img->bootMode = IMG_BOOTMODE_BIOS;
+            else if (!strcmp (val->strVal, "efi"))
+                img->bootMode = IMG_BOOTMODE_EFI;
+            else if (!strcmp (val->strVal, "hybrid"))
+                img->bootMode = IMG_BOOTMODE_HYBRID;
         }
         else
         {
@@ -220,15 +254,35 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
             // Check format specified
             if (!strcmp (val->strVal, "fat32"))
                 curPart->filesys = IMG_FILESYS_FAT32;
+            else if (!strcmp (val->strVal, "fat16"))
+                curPart->filesys = IMG_FILESYS_FAT16;
             else if (!strcmp (val->strVal, "fat12"))
                 curPart->filesys = IMG_FILESYS_FAT12;
             else if (!strcmp (val->strVal, "ext2"))
                 curPart->filesys = IMG_FILESYS_EXT2;
-            else if (!strcmp (val->strVal, "udf"))
-                curPart->filesys = IMG_FILESYS_UDF;
+            else if (!strcmp (val->strVal, "iso9660"))
+                curPart->filesys = IMG_FILESYS_ISO9660;
             else
             {
                 error ("%s:%d: filesystem \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
+                return false;
+            }
+        }
+        else if (!strcmp (prop, "boot"))
+        {
+            if (dataType != DATATYPE_IDENTIFIER)
+            {
+                error ("%s:%d: property \"boot\" requires an identifier value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            // Check property value
+            if (!strcmp (val->strVal, "true"))
+                curPart->isBootPart = true;
+            else if (!strcmp (val->strVal, "false"))
+                curPart->isBootPart = false;
+            else
+            {
+                error ("%s:%d: property \"boot\" requires a boolean value", ConfGetFileName(), lineNo);
                 return false;
             }
         }
@@ -239,7 +293,8 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 error ("%s:%d: property \"prefix\" requires a string value", ConfGetFileName(), lineNo);
                 return false;
             }
-            curPart->prefix = val->strVal;
+            curPart->prefix = malloc_s (strlen (val->strVal));
+            strcpy (curPart->prefix, val->strVal);
         }
         else if (!strcmp (prop, "image"))
         {
@@ -256,7 +311,8 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 return false;
             }
             // Add partititon to image
-            ListAddFront (((Image_t*) ListEntryData (imgEntry))->partsList, curPart, 0);
+            ListAddBack (((Image_t*) ListEntryData (imgEntry))->partsList, curPart, 0);
+            ((Image_t*) ListEntryData (imgEntry))->partCount++;
             wasPartLinked = true;
         }
         else
