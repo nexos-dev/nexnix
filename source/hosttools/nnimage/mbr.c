@@ -111,6 +111,12 @@ bool createMbr (Image_t* img)
         return true;
 }
 
+void mountMbrPartition (Image_t* img, Partition_t* part)
+{
+    part->internal.lbaStart = MBR_SZTOSECTOR (part->start, img->mul, img->sectSz);
+    part->internal.lbaSz = MBR_SZTOSECTOR (part->sz, img->mul, img->sectSz);
+}
+
 bool addMbrPartition (Image_t* img, Partition_t* part)
 {
     return addMbrPartitionAt (img, part, &nextSector);
@@ -186,6 +192,9 @@ bool addMbrPartitionAt (Image_t* img, Partition_t* part, uint32_t* _nextSector)
         return false;
     }
     curMbr->parts[mbrIdx].type = mbrTypesTable[part->filesys];
+    // Set partition internal info
+    part->internal.lbaStart = MBR_SZTOSECTOR (part->start, img->mul, img->sectSz);
+    part->internal.lbaSz = MBR_SZTOSECTOR (part->sz, img->mul, img->sectSz);
     ++mbrIdx;
     --partsLeft;
     *_nextSector += MBR_SZTOSECTOR (part->sz, img->mul, img->sectSz);

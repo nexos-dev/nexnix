@@ -430,7 +430,7 @@ Run $0 -l to see supported targets"
     # Build libnex
     if [ ! -f $output/tools/lib/libnex.a ] || [ "$NNTOOLS_REBUILD_LIBNEX" = "1" ]
     then
-        if [ "$NNTESTS_ENABLE" = "1" ]
+        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
         then
             libnex_cmakeargs="$cmakeargs -DLIBNEX_ENABLE_TESTS=ON"
         else
@@ -446,7 +446,7 @@ Run $0 -l to see supported targets"
         $cmakegen -j $jobcount $makeargs install
         checkerr $? "unable to install libnex" $0
         # Run tests if requested
-        if [ "$NNTESTS_ENABLE" = "1" ]
+        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
         then
             ctest -V
             checkerr $? "test suite failed" $0
@@ -482,7 +482,7 @@ Run $0 -l to see supported targets"
     # Build host tools
     if [ ! -f "$output/tools/bin/nnimage" ] || [ "$NNTOOLS_REBUILD_TOOLS" = "1" ]
     then
-        if [ "$NNTESTS_ENABLE" = "1" ]
+        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
         then
             tools_cmakeargs="$cmakeargs -DTOOLS_ENABLE_TESTS=ON"
         else
@@ -500,7 +500,7 @@ Run $0 -l to see supported targets"
         $cmakegen install -j$jobcount $makeargs
         checkerr $? "unable to build host tools" $0
         # Run tests if requested
-        if [ "$NNTESTS_ENABLE" = "1" ]
+        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
         then
             ctest -V
             checkerr $? "test suite failed" $0

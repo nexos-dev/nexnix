@@ -148,7 +148,10 @@ bool createGpt (Image_t* img)
     if (!createMbr (img))
         return false;
     if (!addMbrProtectivePartition (img))
+    {
+        cleanupMbr (img);
         return false;
+    }
     // Initialize main header and backup header
     gptHeader_t hdr;
     memset (&hdr, 0, sizeof (gptHeader_t));
@@ -180,7 +183,10 @@ bool createGpt (Image_t* img)
     // Copy this to primary header
     mainHeader = malloc_s (img->sectSz);
     if (!mainHeader)
+    {
+        cleanupMbr (img);
         return false;
+    }
     // Copy contents over
     memcpy (mainHeader, &hdr, sizeof (gptHeader_t));
     // Prepare backup header by editing a couple fields
@@ -195,14 +201,27 @@ bool createGpt (Image_t* img)
     if (!backupHeader)
     {
         free (mainHeader);
+        cleanupMbr (img);
         return false;
     }
     memcpy (backupHeader, &hdr, sizeof (gptHeader_t));
     // Initialize partition array
     parts = calloc_s (hdr.numParts * sizeof (gptPartition_t));
     if (!parts)
+    {
+        free (mainHeader);
+        free (backupHeader);
+        cleanupMbr (img);
         return false;
+    }
     return true;
+}
+
+void mountGptPartition (Image_t* img, Partition_t* part)
+{
+    // Could be better...
+    part->internal.lbaStart = GPT_SZTOSECTOR (part->start, img->mul, img->sectSz);
+    part->internal.lbaSz = GPT_SZTOSECTOR (part->sz, img->mul, img->sectSz);
 }
 
 bool addGptPartition (Image_t* img, Partition_t* part)
@@ -229,11 +248,10 @@ bool addGptPartition (Image_t* img, Partition_t* part)
         memcpy (parts[curPart].typeGuid, dataGuid, sizeof (uuid_t));
     // Convert name specified to UTF-16
     const char* partName = part->name;
-    int i = 0;
+    size_t i = 0;
     while (i < 36 && *partName)
     {
-        UnicodeEncode16 (&parts[curPart].name[i], *partName, ENDIAN_LITTLE);
-        ++i;
+        i += UnicodeEncode16 (&parts[curPart].name[i], *partName, ENDIAN_LITTLE);
         ++partName;
     }
     // Check bounds of LBA first
@@ -250,7 +268,10 @@ bool addGptPartition (Image_t* img, Partition_t* part)
     // Set LBA values
     parts[curPart].startLba = EndianChange64 (GPT_SZTOSECTOR (part->start, img->mul, img->sectSz), ENDIAN_LITTLE);
     parts[curPart].endLba =
-        EndianChange64 (GPT_SZTOSECTOR (part->start + part->sz, img->mul, img->sectSz) - 1, ENDIAN_LITTLE);
+        EndianChange64 (GPT_SZTOSECTOR (part->start + part->sz, img->mul, img->sectSz), ENDIAN_LITTLE);
+    // Set internal partition data
+    part->internal.lbaStart = GPT_SZTOSECTOR (part->start, img->mul, img->sectSz);
+    part->internal.lbaSz = GPT_SZTOSECTOR (part->sz, img->mul, img->sectSz);
     ++curPart;
     return true;
 }

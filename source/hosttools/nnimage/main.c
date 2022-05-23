@@ -83,6 +83,7 @@ configuration is read from nnimage.conf in the current directory\n",
                 overwrite = true;
                 break;
             case '?':
+                error ("unknown argument '%c'", optopt);
                 return 0;
         }
     }
