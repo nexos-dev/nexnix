@@ -112,7 +112,7 @@ output="$PWD/output"
 tarearly=i386-pc
 dodebug=1
 jobcount=1
-compiler=gnu
+compiler=llvm
 debug=0
 conf=
 genconf=1
@@ -154,15 +154,14 @@ Valid arguments:
                         Build the system for the specified target. 
                         Specify -l to list architectures
   -toolchain toolchain
-                        Specifies if the LLVM or GNU toolchain should be used
-                        Default: GNU
+                        Specifies if the "llvm" or "gnu" toolchain should be used
+                        Default: llvm
   -buildconf conf
-                        Specifies a special directory to put built files in
+                        Specifies a name for the build configuration
   -jobs jobcount
                         Specifies job count to use
   -output destdir
-                        Specfies directory to output host tools and 
-                        source goes
+                        Specfies directory to output build files to
   -prefix prefix
                         Specifies prefix directory
   -imgformat imagetype
@@ -377,6 +376,7 @@ Run $0 -l to see supported targets"
     then
         findprog "gmake"
     fi
+    findprog "pkg-config"
 
     # Check if the check succeeded
     if [ $depcheckfail -eq 1 ]

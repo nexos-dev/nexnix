@@ -148,6 +148,9 @@ static uint32_t clusterCount = 0;
 // Path component last parsed
 static const char* curPath = NULL;
 
+// Partition base address
+static uint64_t partBase = 0;
+
 // Converts boot sector to little endian
 static bool constructEndianBpb (Image_t* img)
 {
@@ -333,6 +336,66 @@ static bool writeFatEntry (uint32_t clusterIdx, uint32_t val)
     return true;
 }
 
+// Reads a FAT entry
+static uint32_t readFatEntry (uint32_t clusterIdx)
+{
+    if (clusterIdx > (clusterCount + 1))
+    {
+        error ("cluster number out of range");
+        return 0xFFFFFFFF;
+    }
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else if (fatType == IMG_FILESYS_FAT16)
+    {
+        // Return FAT entry
+        uint16_t* fat = (uint16_t*) fatTable;
+        return fat[clusterIdx];
+    }
+    else if (fatType == IMG_FILESYS_FAT12)
+    {
+        // Get index into FAT. We need to address 16 bit value that contains
+        // all 12 bits of the cluster number
+        uint16_t idx = clusterIdx + (clusterIdx / 2);
+        // Get 16 bit containing all 12 bits of our wanted FAT entry so we can work on it easily
+        uint16_t fatVal = fatTable[idx] | (fatTable[idx + 1] << 8);
+        // If entry is even, clear top 4 bits, else, left shift by 4
+        if (clusterIdx & 1)
+            fatVal >>= 4;
+        else
+            fatVal &= 0x0FFF;
+        // Return that value
+        return fatVal;
+    }
+    return 0xFFFFFFFF;
+}
+
+// Reads a FAT cluster
+bool readCluster (Image_t* img, void* buf, uint32_t cluster)
+{
+    // Get start sector of this cluster
+    uint32_t dataSect = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        dataSect = FAT_DATASECTOR (bootSect, bootSect->bpb.fatSize16);
+    uint64_t sector = (cluster - 2) + dataSect + partBase;
+    // Get sectors per cluster
+    uint8_t secPerClus = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
+    // Read in all the sectors
+    for (int i = 0; i < secPerClus; ++i)
+    {
+        // Read in this sector
+        if (!readSector (img, buf, sector + i))
+            return false;
+    }
+    return true;
+}
+
 bool formatFat16 (Image_t* img, Partition_t* part)
 {
     return true;
@@ -345,6 +408,7 @@ bool formatFatFloppy (Image_t* img, Partition_t* part)
     img->sectSz = 512;
     // Prepare internal partition
     part->internal.lbaStart = 0;
+    partBase = 0;
     if (img->sz == 720)
         part->internal.lbaSz = 1440;
     else if (img->sz == 1440)
@@ -445,6 +509,7 @@ bool mountFat (Image_t* img, Partition_t* part)
         else if (img->sz == 2880)
             part->internal.lbaSz = 5760;
     }
+    partBase = part->internal.lbaStart;
     // Read in boot sector
     endianSect = (bootSector_t*) calloc_s (img->sectSz);
     if (!endianSect)
@@ -468,6 +533,8 @@ bool mountFat (Image_t* img, Partition_t* part)
     // Compute cluster count
     clusterCount = (bootSect->bpb.sectorCount16 - FAT_DATASECTOR (bootSect, bootSect->bpb.fatSize16)) /
                    bootSect->bpb.sectorPerClus;
+    // Set FAT type
+    fatType = part->filesys;
     // Read in FAT and root directory
     fatTable = malloc_s (bootSect->bpb.fatSize16 * (size_t) bootSect->bpb.bytesPerSector);
     if (!fatTable)
@@ -511,7 +578,7 @@ bool mountFat (Image_t* img, Partition_t* part)
             return false;
         }
     }
-    copyFileFatFloppy ("Makefile", "test/test2/Make.txt");
+    copyFileFatFloppy (img, "Makefile", "test/test2/Make.txt");
     return true;
 }
 
@@ -521,7 +588,7 @@ static bool toDosName (char* name, char* buf)
     size_t nameLen = strlen (name);
     char* obuf = buf;
     // Convert name from UTF8 to UTF32
-    char32_t* _name = (char32_t*) malloc_s (nameLen * sizeof (char32_t));
+    char32_t* _name = (char32_t*) calloc_s ((nameLen + 1) * sizeof (char32_t));
     if (!_name)
         return false;
     char32_t* oname = _name;
@@ -536,6 +603,7 @@ static bool toDosName (char* name, char* buf)
     if (*_name == '.')
     {
         error ("DOS file names cannot start with extension marker");
+        free (oname);
         return false;
     }
     // Set buf to spaces
@@ -546,7 +614,7 @@ static bool toDosName (char* name, char* buf)
     {
         char32_t c = *_name;
         // Validate c
-        if (c < 0x20 || c > 0xFF || !fatValidChars[c])
+        if (c < 0x20 || c > 0x80 || !fatValidChars[c])
             c = 95;    // Underscore
         // Add to buf
         buf[i] = (char) toupper ((char) c);
@@ -558,8 +626,11 @@ static bool toDosName (char* name, char* buf)
     // Advance to last period in _name.
     char32_t* perPtr = c32rchr (oname, '.');
     if (!perPtr)
+    {
+        free (oname);
         return true;    // If there is no extension, we are done
-    ++perPtr;           // Go passed period
+    }
+    ++perPtr;    // Go passed period
     // Now copy
     i = 0;
     while (*perPtr && i < 3)
@@ -573,6 +644,7 @@ static bool toDosName (char* name, char* buf)
         ++perPtr;
         ++i;
     }
+    free (oname);
     return true;
 }
 
@@ -604,21 +676,61 @@ static inline bool isLastPathComp()
     return *curPath == 0;
 }
 
+// EOF values for different FAT types
+static uint32_t fatEofStart[] = {0, 0x0FFFFFF8, 0xFFF8, 0x0FF8, 0, 0};
+
+// Maximum directory entries in a directory
+#define MAX_DIR_ENTRY 512
+
+// Reads in a subdirectory of another directory
+dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
+{
+    // Grab inital cluster of parent
+    uint32_t curClusterVal = parent->cluster;
+    if (fatType == IMG_FILESYS_FAT32)
+        curClusterVal |= (parent->clusterHigh << 16);
+    // Allocate space for directory
+    dirEntry_t* odir = malloc_s (MAX_DIR_ENTRY * sizeof (dirEntry_t));
+    dirEntry_t* dir = odir;
+    if (!dir)
+        return NULL;
+    *numEnt = MAX_DIR_ENTRY;
+    // We keep reading clusters until either we reach EOF, or the last entry is zeroed
+    while (!(curClusterVal > fatEofStart[fatType]))
+    {
+        // Read in current cluster
+        if (!readCluster (img, dir, curClusterVal))
+            return NULL;
+        // Read next FAT entry
+        curClusterVal = readFatEntry (curClusterVal);
+        if (curClusterVal == 0xFFFFFFFF)
+            return NULL;
+        // Move tp next directory entries
+        dir += MAX_DIR_ENTRY;
+        // Bounds check it
+        if (((uintptr_t) dir) > (uintptr_t) (odir + MAX_DIR_ENTRY))
+            return NULL;
+    }
+    return odir;
+}
+
 // Finds a file
-static dirEntry_t* findFile (const char* path, bool* isError)
+static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError, dirEntry_t** dirBase)
 {
     // Path stuff
     curPath = path;
     char dosName[12];
     // The current directory being operated on
     dirEntry_t* curDir = rootDir;
-    size_t numEntries = (rootDirSz * 512) / 32;
+    size_t numEntries = (rootDirSz * img->sectSz) / sizeof (dirEntry_t);
+    dirEntry_t* dirbase = NULL;
     while (1)
     {
         // Get current path component
         if (!parsePath (dosName))
         {
             *isError = true;
+            free (dirbase);
             return NULL;
         }
         // Parse directory contents, looking for dosName
@@ -649,30 +761,56 @@ static dirEntry_t* findFile (const char* path, bool* isError)
             if ((isLastPathComp() && (curDir->attr & DIRENT_ATTR_DIRECTORY) == DIRENT_ATTR_DIRECTORY) ||
                 (!isLastPathComp() && (curDir->attr & DIRENT_ATTR_DIRECTORY) != DIRENT_ATTR_DIRECTORY))
             {
-                //  We expected a file, but got a directory (or the inverse). Not an error, but
-                //  it indicates that the file doesn't exist
+                // We expected a file, but got a directory (or the inverse). Not an error, but
+                // it indicates that the file doesn't exist
                 *isError = false;
+                free (dirbase);
                 return NULL;
+            }
+            // Read in next directory if needed
+            if (!isLastPathComp())
+            {
+                curDir = readSubDir (img, curDir, &numEntries);
+                free (dirbase);
+                dirbase = curDir;
+                if (!curDir)
+                {
+                    *isError = false;
+                    free (dirbase);
+                    return NULL;
+                }
+            }
+            else
+            {
+                // We are finished
+                *isError = false;
+                *dirBase = dirbase;
+                return curDir;
             }
         }
         else
-            ;
-        // If we reached here, and this is the last component, then the file doesn't exist
-        if (isLastPathComp())
         {
+            // File doesn't exist
             *isError = false;
+            free (dirbase);
             return NULL;
         }
     }
+    free (dirbase);
+    *isError = false;
     return NULL;
 }
 
 // Copies a file to a FAT floppy (FAT12)
-bool copyFileFatFloppy (const char* src, const char* dest)
+bool copyFileFatFloppy (Image_t* img, const char* src, const char* dest)
 {
     // Find dest in the disk
     bool isError = false;
-    findFile (dest, &isError);
+    dirEntry_t* dirBase = NULL;
+    dirEntry_t* fileEnt = findFile (img, dest, &isError, &dirBase);
+    if (isError)
+        return false;
+    free (dirBase);
     return true;
 }
 

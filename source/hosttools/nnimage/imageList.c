@@ -136,7 +136,7 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 error ("%s:%d: property \"defaultFile\" requires a string value", ConfGetFileName(), lineNo);
                 return false;
             }
-            img->file = (char*) malloc_s (strlen (val->strVal));
+            img->file = (char*) malloc_s (strlen (val->strVal) + 1);
             strcpy (img->file, val->strVal);
         }
         else if (!strcmp (prop, "sizeMul"))
@@ -293,7 +293,7 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 error ("%s:%d: property \"prefix\" requires a string value", ConfGetFileName(), lineNo);
                 return false;
             }
-            curPart->prefix = malloc_s (strlen (val->strVal));
+            curPart->prefix = malloc_s (strlen (val->strVal) + 1);
             strcpy (curPart->prefix, val->strVal);
         }
         else if (!strcmp (prop, "image"))

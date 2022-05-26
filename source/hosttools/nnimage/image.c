@@ -330,6 +330,8 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
                 if (!cleanPartition (action, img, part))
                     return false;
             }
+            else if (!strcmp (action, "create"))
+                ;
             else
             {
                 close (img->fileNo);
