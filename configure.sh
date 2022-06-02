@@ -428,7 +428,8 @@ Run $0 -l to see supported targets"
         touch $olddir/source/external/libraries/libnex_done
     fi
     # Build libnex
-    if [ ! -f $output/tools/lib/libnex.a ] || [ "$NNTOOLS_REBUILD_LIBNEX" = "1" ]
+    if [ ! -f $output/tools/lib/libnex.a -a ! -f $output/tools/lib64/libnex.a ] || 
+       [ "$NNTOOLS_REBUILD_LIBNEX" = "1" ]
     then
         if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
         then

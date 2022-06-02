@@ -337,8 +337,8 @@ static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* to
         return NULL;
     // Convert string value to multibyte
     size_t len = c32len (pathTok->strVal);
-    char* mbPath = malloc_s (len);
-    mbstate_t mbState;
+    char* mbPath = malloc_s ((len * MB_CUR_MAX) + 1);
+    mbstate_t mbState = {0};
     if (c32stombs (mbPath, pathTok->strVal, len, &mbState) < 0)
     {
         _parseError (state, pathTok, PARSE_ERROR_INTERNAL, strerror (errno));

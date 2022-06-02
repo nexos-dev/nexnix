@@ -21,9 +21,11 @@
 #include "nnimage.h"
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <libnex.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 // Standard BIOS parameter block
@@ -106,7 +108,17 @@ typedef struct _dirEntry
     uint16_t writeDate;       // Last write
     uint16_t cluster;         // First cluster on FAT12 and FAT16, and 16 low bits thereof FAT32
     uint32_t size;            // Size of file in bytes
-} dirEntry_t;
+} __attribute__ ((packed)) dirEntry_t;
+
+// A directory cache entry
+typedef struct _dirCache
+{
+    Image_t* img;           // Image of this cache entry
+    dirEntry_t* dirBase;    // Base of this directory
+    dirEntry_t* parent;     // Parent directory, which is the key
+    uint32_t cluster;       // Cluster number to write directory to
+    bool needsWrite;        // Wheter this entry needs to be flushed
+} dirCacheEnt_t;
 
 // Pointer to boot sector (FAT12 or FAT16)
 static bootSector_t* bootSect = NULL;
@@ -150,6 +162,12 @@ static const char* curPath = NULL;
 
 // Partition base address
 static uint64_t partBase = 0;
+
+// List of directories that have been written
+static ListHead_t* dirsList = NULL;
+
+// Free cluster hint
+static uint32_t clusterHint = 0xFFFFFFFF;
 
 // Converts boot sector to little endian
 static bool constructEndianBpb (Image_t* img)
@@ -313,7 +331,7 @@ static bool writeFatEntry (uint32_t clusterIdx, uint32_t val)
         uint16_t curVal = fatTable[fatIdx] | (fatTable[fatIdx + 1] << 8);
         // If cluster index is even, then we must set low 12 bits of curVal to val and preserve the top 4 bits
         // Else, set the top 12 bits to val and preserve the bottom 4
-        if (curVal & 1)
+        if (clusterIdx & 1)
         {
             // Zero out top 12 bits
             curVal &= 0x000F;
@@ -328,8 +346,8 @@ static bool writeFatEntry (uint32_t clusterIdx, uint32_t val)
         // OR val into curVal
         curVal |= val;
         // Split curVal into low and high bytes so we can set the entries in the FAT table
-        uint8_t low = curVal & 0x00FF;
-        uint8_t high = (curVal >> 8) & 0x00FF;
+        uint8_t low = curVal;
+        uint8_t high = curVal >> 8;
         fatTable[fatIdx] = low;
         fatTable[fatIdx + 1] = high;
     }
@@ -371,7 +389,7 @@ static uint32_t readFatEntry (uint32_t clusterIdx)
 }
 
 // Reads a FAT cluster
-bool readCluster (Image_t* img, void* buf, uint32_t cluster)
+static bool readCluster (Image_t* img, void* buf, uint32_t cluster)
 {
     // Get start sector of this cluster
     uint32_t dataSect = 0;
@@ -396,6 +414,66 @@ bool readCluster (Image_t* img, void* buf, uint32_t cluster)
     return true;
 }
 
+// Writes a FAT cluster
+static bool writeCluster (Image_t* img, void* buf, uint32_t cluster)
+{
+    // Get start sector of this cluster
+    uint32_t dataSect = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        dataSect = FAT_DATASECTOR (bootSect, bootSect->bpb.fatSize16);
+    uint64_t sector = (cluster - 2) + dataSect + partBase;
+    // Get sectors per cluster
+    uint8_t secPerClus = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
+    // Write out all the sectors
+    for (int i = 0; i < secPerClus; ++i)
+    {
+        // Read in this sector
+        if (!writeSector (img, buf, sector + i))
+            return false;
+    }
+    return true;
+}
+
+// Allocates a FAT cluster
+static uint32_t allocCluster (uint32_t* allocBase)
+{
+    // Look at hint
+    if (clusterHint != 0xFFFFFFFF)
+    {
+        uint32_t clus = clusterHint;
+        ++clusterHint;
+        // Check if we have reached the top
+        if (clusterHint == (clusterCount + 1))
+            clusterHint = 0xFFFFFFFF;
+        return clus;
+    }
+    else
+    {
+        if (!(*allocBase))
+            *allocBase = 2;
+        // Loop through clusters in FAT, checking if each is free
+        for (uint32_t i = *allocBase; i < (clusterCount + 1); ++i)
+        {
+            // Is this entry free?
+            if (readFatEntry (i) == 0)
+            {
+                // We found it!
+                *allocBase = i + 1;
+                return i;
+            }
+        }
+        // No free entries. Report it
+        error ("no free clusters");
+        return 0xFFFFFFFF;
+    }
+}
+
 bool formatFat16 (Image_t* img, Partition_t* part)
 {
     return true;
@@ -418,7 +496,6 @@ bool formatFatFloppy (Image_t* img, Partition_t* part)
     // Prepare basic boot sector components
     if (!initBootSect (img, part))
         return false;
-    // Set media type
     // Set geometry. This depends on the floppy type
     if (img->sz == 720)
     {
@@ -490,6 +567,8 @@ bool formatFatFloppy (Image_t* img, Partition_t* part)
     mediaVal |= bootSect->bpb.media;
     writeFatEntry (0, mediaVal);
     writeFatEntry (1, 0x0FFF);
+    // Initialize cluster hint
+    clusterHint = 2;
     return true;
 }
 
@@ -533,7 +612,7 @@ bool mountFat (Image_t* img, Partition_t* part)
     // Compute cluster count
     clusterCount = (bootSect->bpb.sectorCount16 - FAT_DATASECTOR (bootSect, bootSect->bpb.fatSize16)) /
                    bootSect->bpb.sectorPerClus;
-    // Set FAT type
+    //  Set FAT type
     fatType = part->filesys;
     // Read in FAT and root directory
     fatTable = malloc_s (bootSect->bpb.fatSize16 * (size_t) bootSect->bpb.bytesPerSector);
@@ -578,7 +657,23 @@ bool mountFat (Image_t* img, Partition_t* part)
             return false;
         }
     }
-    copyFileFatFloppy (img, "Makefile", "test/test2/Make.txt");
+    // Compute free cluster hint by starting from top
+    uint32_t lastCluster = clusterCount + 1;
+    uint32_t olastClus = lastCluster;
+    for (uint32_t i = lastCluster; i >= 2; --i)
+    {
+        // Check if cluster is free. If not, we reached hint
+        if (readFatEntry (i) != 0 || i == 2)
+        {
+            lastCluster = i + 1;
+            break;
+        }
+    }
+    // If original last cluster and found last cluster are equal, no cluster hint is ued
+    if (lastCluster != olastClus)
+        clusterHint = lastCluster;
+    copyFileFatFloppy (img, "Makefile", "test3/test4/Make.txt");
+    copyFileFatFloppy (img, "Makefile", "test3/test5/Make.txt");
     return true;
 }
 
@@ -601,11 +696,7 @@ static bool toDosName (char* name, char* buf)
     _name = oname;
     // Ensure first character isn't extension marker
     if (*_name == '.')
-    {
-        error ("DOS file names cannot start with extension marker");
-        free (oname);
-        return false;
-    }
+        *_name = '_';
     // Set buf to spaces
     memset (buf, ' ', 11);
     // Copy up to 8 characters from name to buf, converting to upper case
@@ -676,61 +767,94 @@ static inline bool isLastPathComp()
     return *curPath == 0;
 }
 
+// Find by function for dirEntry_t cache
+static bool dirsFindBy (ListEntry_t* entry, void* data)
+{
+    dirCacheEnt_t* cacheEnt = ListEntryData (entry);
+    return cacheEnt->parent == (dirEntry_t*) data;
+}
+
+// Destroys a directory cache entry
+static void dirsDestroyEnt (void* data)
+{
+    dirCacheEnt_t* cacheEnt = data;
+    // Write out this entry if needed
+    if (cacheEnt->needsWrite)
+        writeCluster (cacheEnt->img, (void*) cacheEnt->dirBase, cacheEnt->cluster);
+    free (cacheEnt->dirBase);
+    free (data);
+}
+
 // EOF values for different FAT types
 static uint32_t fatEofStart[] = {0, 0x0FFFFFF8, 0xFFF8, 0x0FF8, 0, 0};
 
-// Maximum directory entries in a directory
-#define MAX_DIR_ENTRY 512
-
 // Reads in a subdirectory of another directory
-dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
+static dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
 {
-    // Grab inital cluster of parent
-    uint32_t curClusterVal = parent->cluster;
+    uint8_t secPerClus = 0;
     if (fatType == IMG_FILESYS_FAT32)
-        curClusterVal |= (parent->clusterHigh << 16);
-    // Allocate space for directory
-    dirEntry_t* odir = malloc_s (MAX_DIR_ENTRY * sizeof (dirEntry_t));
-    dirEntry_t* dir = odir;
-    if (!dir)
-        return NULL;
-    *numEnt = MAX_DIR_ENTRY;
-    // We keep reading clusters until either we reach EOF, or the last entry is zeroed
-    while (!(curClusterVal > fatEofStart[fatType]))
+        secPerClus = 1;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
+    *numEnt = (img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
+    // Allocate directory list if needed
+    if (!dirsList)
     {
-        // Read in current cluster
-        if (!readCluster (img, dir, curClusterVal))
-            return NULL;
-        // Read next FAT entry
-        curClusterVal = readFatEntry (curClusterVal);
-        if (curClusterVal == 0xFFFFFFFF)
-            return NULL;
-        // Move tp next directory entries
-        dir += MAX_DIR_ENTRY;
-        // Bounds check it
-        if (((uintptr_t) dir) > (uintptr_t) (odir + MAX_DIR_ENTRY))
-            return NULL;
+        dirsList = ListCreate ("dirEntry_t", false, 0);
+        ListSetFindBy (dirsList, dirsFindBy);
+        ListSetDestroy (dirsList, dirsDestroyEnt);
     }
-    return odir;
+    // Find the directory
+    ListEntry_t* ent = ListFindEntryBy (dirsList, parent);
+    if (ent)
+    {
+        // We found it! Return this base
+        return ((dirCacheEnt_t*) ListEntryData (ent))->dirBase;
+    }
+    // Grab cluster of directory
+    uint32_t cluster = parent->cluster;
+    if (fatType == IMG_FILESYS_FAT32)
+        cluster |= (parent->clusterHigh << 16);
+    // Allocate space for directory
+    dirEntry_t* dir = calloc_s (*numEnt * sizeof (dirEntry_t));
+    // Read in current cluster
+    if (!readCluster (img, dir, cluster))
+    {
+        free (dir);
+        return NULL;
+    }
+    // Ensure EOF is next
+    uint32_t eofEnt = readFatEntry (cluster);
+    if (eofEnt == 0xFFFFFFFF || !(eofEnt >= fatEofStart[fatType]))
+    {
+        free (dir);
+        return NULL;
+    }
+    // Cache it
+    dirCacheEnt_t* cacheEnt = calloc_s (sizeof (dirCacheEnt_t));
+    cacheEnt->dirBase = dir;
+    cacheEnt->parent = parent;
+    cacheEnt->img = img;
+    cacheEnt->cluster = cluster;
+    ListAddFront (dirsList, cacheEnt, 0);
+    return dir;
 }
 
 // Finds a file
-static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError, dirEntry_t** dirBase)
+static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError)
 {
     // Path stuff
     curPath = path;
     char dosName[12];
     // The current directory being operated on
     dirEntry_t* curDir = rootDir;
-    size_t numEntries = (rootDirSz * img->sectSz) / sizeof (dirEntry_t);
-    dirEntry_t* dirbase = NULL;
+    size_t numEntries = (rootDirSz * (size_t) img->sectSz) / sizeof (dirEntry_t);
     while (1)
     {
         // Get current path component
         if (!parsePath (dosName))
         {
             *isError = true;
-            free (dirbase);
             return NULL;
         }
         // Parse directory contents, looking for dosName
@@ -764,19 +888,15 @@ static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError, dirE
                 // We expected a file, but got a directory (or the inverse). Not an error, but
                 // it indicates that the file doesn't exist
                 *isError = false;
-                free (dirbase);
                 return NULL;
             }
             // Read in next directory if needed
             if (!isLastPathComp())
             {
                 curDir = readSubDir (img, curDir, &numEntries);
-                free (dirbase);
-                dirbase = curDir;
                 if (!curDir)
                 {
                     *isError = false;
-                    free (dirbase);
                     return NULL;
                 }
             }
@@ -784,7 +904,6 @@ static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError, dirE
             {
                 // We are finished
                 *isError = false;
-                *dirBase = dirbase;
                 return curDir;
             }
         }
@@ -792,13 +911,234 @@ static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError, dirE
         {
             // File doesn't exist
             *isError = false;
-            free (dirbase);
             return NULL;
         }
     }
-    free (dirbase);
     *isError = false;
     return NULL;
+}
+
+// Create a DOS date
+static void createDosDate (uint16_t* date, uint16_t* tm, uint16_t* ms)
+{
+    // Get Unix UTC time
+    time_t unixTime = time (NULL);
+    struct tm* dateTime = gmtime (&unixTime);
+    // Set up date
+    *date = 0;
+    *date |= (dateTime->tm_year - 80) << 9;
+    *date |= (dateTime->tm_mon + 1) << 5;
+    *date |= dateTime->tm_mday;
+    // Set up time
+    *tm |= dateTime->tm_hour << 11;
+    *tm |= dateTime->tm_min << 5;
+    *tm |= dateTime->tm_sec / 2;
+    // Set milliseconds. We set it to 0 for now
+    *ms = 0;
+}
+
+// Creates a directory entry
+static dirEntry_t* createFatDirs (Image_t* img, const char* path)
+{
+    // Path variables
+    char dosName[12];
+    curPath = path;
+    // Set up current directory
+    dirEntry_t* curDir = rootDir;
+    dirEntry_t* parent = NULL;
+    size_t numDirEntries = (rootDirSz * (size_t) img->sectSz) / sizeof (dirEntry_t);
+    // Start looping through paths
+    while (1)
+    {
+        if (!parsePath (dosName))
+            return NULL;
+
+        if (isLastPathComp())
+            return curDir;
+
+        // Attempt to find this directory entry.
+        // Note that we also look for the first free entry in this search
+        dirEntry_t* firstFreeEnt = curDir;
+        bool foundEnt = false;
+        bool foundFreeEnt = false;
+        for (int i = 0; i < numDirEntries; ++i)
+        {
+            // Check if this entry is free
+            if (curDir[i].shortName[0] == 0xE5 || curDir[i].shortName[0] == 0x05)
+            {
+                foundFreeEnt = true;
+                firstFreeEnt = &curDir[i];
+            }
+            // If entry is zeroed, then go ahead and stop searching
+            if (curDir[i].shortName[0] == 0)
+            {
+                firstFreeEnt = &curDir[i];
+                foundFreeEnt = true;
+                break;
+            }
+            // Check if this entry is pertinent
+            if (curDir[i].attr & DIRENT_ATTR_VOLID)
+                continue;
+            // Check if it matches
+            if (!memcmp (curDir[i].shortName, dosName, 11))
+            {
+                // We found the entry. There is no need to create a new directory entry
+                foundEnt = true;
+                curDir = &curDir[i];
+                break;
+            }
+        }
+        // Check if the entry was found
+        if (foundEnt)
+        {
+            // Descend into next subdirectory
+            parent = curDir;
+            curDir = readSubDir (img, curDir, &numDirEntries);
+            if (!curDir)
+                return NULL;
+        }
+        else if (foundFreeEnt)
+        {
+            // Invalidate directory
+            if (parent)
+            {
+                ListEntry_t* ent = ListFindEntryBy (dirsList, parent);
+                if (ent)
+                {
+                    dirCacheEnt_t* dirEnt = ListEntryData (ent);
+                    dirEnt->needsWrite = true;
+                }
+            }
+            // Create new directory
+            memset (firstFreeEnt, 0, sizeof (dirEntry_t));
+            memcpy (firstFreeEnt->shortName, dosName, 11);
+            firstFreeEnt->attr |= DIRENT_ATTR_DIRECTORY;
+            // Set dates and times
+            uint16_t date = 0, time = 0, ms = 0;
+            createDosDate (&date, &time, &ms);
+            firstFreeEnt->accessTime = time;
+            firstFreeEnt->writeDate = date;
+            firstFreeEnt->writeTime = time;
+            firstFreeEnt->creationDate = date;
+            firstFreeEnt->creationTime = time;
+            firstFreeEnt->creationMs = ms;
+            // Compute size of directory
+            uint8_t secPerClus = 0;
+            if (fatType == IMG_FILESYS_FAT32)
+                ;
+            else
+                secPerClus = bootSect->bpb.sectorPerClus;
+            numDirEntries = (img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
+            // Allocate directory table
+            dirEntry_t* dirBase = (dirEntry_t*) calloc_s (numDirEntries * sizeof (dirEntry_t));
+            if (!dirBase)
+                return NULL;
+            // Add . and .. to new directory
+            memcpy (dirBase[0].shortName, ".          ", 11);
+            dirBase[0].attr = DIRENT_ATTR_DIRECTORY;
+            dirBase[0].size = 0;
+            dirBase[0].accessTime = time;
+            dirBase[0].creationDate = date;
+            dirBase[0].creationTime = time;
+            dirBase[0].creationMs = ms;
+            dirBase[0].writeDate = date;
+            dirBase[0].writeTime = time;
+            // Add ..
+            memcpy (dirBase[1].shortName, "..         ", 11);
+            dirBase[1].attr = DIRENT_ATTR_DIRECTORY;
+            dirBase[1].size = 0;
+            dirBase[1].accessTime = time;
+            dirBase[1].creationDate = date;
+            dirBase[1].creationTime = time;
+            dirBase[1].creationMs = ms;
+            dirBase[1].writeDate = date;
+            dirBase[1].writeTime = time;
+            if (parent)
+            {
+                dirBase[1].cluster = parent->cluster;
+                dirBase[1].clusterHigh = parent->clusterHigh;
+            }
+            // Cache this directory entry
+            // Allocate directory list if needed
+            if (!dirsList)
+            {
+                dirsList = ListCreate ("dirEntry_t", false, 0);
+                ListSetFindBy (dirsList, dirsFindBy);
+                ListSetDestroy (dirsList, dirsDestroyEnt);
+            }
+            dirCacheEnt_t* cacheEnt = malloc_s (sizeof (dirCacheEnt_t));
+            if (!cacheEnt)
+                return NULL;
+            cacheEnt->dirBase = dirBase;
+            cacheEnt->parent = firstFreeEnt;
+            cacheEnt->img = img;
+            cacheEnt->needsWrite = true;
+            ListEntry_t* lent = ListAddFront (dirsList, cacheEnt, 0);
+            if (!lent)
+            {
+                free (dirBase);
+                free (cacheEnt);
+                return NULL;
+            }
+            // Allocate cluster
+            uint32_t clusterBase = 0;
+            cacheEnt->cluster = allocCluster (&clusterBase);
+            if (cacheEnt->cluster == 0xFFFFFFFF)
+            {
+                // No good. Disk is full
+                ListRemove (dirsList, lent);
+                free (dirBase);
+                free (cacheEnt);
+                return NULL;
+            }
+            // Set initial cluster
+            firstFreeEnt->cluster = cacheEnt->cluster & 0xFFFF;
+            if (fatType == IMG_FILESYS_FAT32)
+                firstFreeEnt->clusterHigh = cacheEnt->cluster >> 16;
+            // Set .'s cluster
+            dirBase[0].cluster = firstFreeEnt->cluster;
+            dirBase[0].clusterHigh = firstFreeEnt->clusterHigh;
+            // Write EOF to FAT
+            writeFatEntry (cacheEnt->cluster, fatEofStart[fatType]);
+            curDir = dirBase;
+            parent = firstFreeEnt;
+        }
+        else
+        {
+            // Report error
+            error ("%s: No free directory entries", dosName);
+            return NULL;
+        }
+    }
+    return NULL;
+}
+
+// Overwrites FAT chain in a file
+static bool overwriteFileFat (Image_t* img, dirEntry_t* entry)
+{
+    // Check if file has any data
+    if (!entry->size)
+        return true;    // Nothing to do
+    // Zero out size of entry
+    entry->size = 0;
+    // Grab first cluster of file
+    uint32_t initClusterVal = entry->cluster;
+    if (fatType == IMG_FILESYS_FAT32)
+        initClusterVal |= (entry->clusterHigh << 16);
+    // Grab next cluster so we can mark initial as EOF
+    uint32_t nextCluster = readFatEntry (initClusterVal);
+    writeFatEntry (initClusterVal, fatEofStart[fatType]);
+    //  Iterate through cluster chain
+    while (!(nextCluster >= fatEofStart[fatType]))
+    {
+        // Grab next cluster
+        uint32_t oldCluster = nextCluster;
+        nextCluster = readFatEntry (nextCluster);
+        writeFatEntry (oldCluster, 0);
+    }
+    entry->cluster = 0;
+    entry->clusterHigh = 0;
+    return true;
 }
 
 // Copies a file to a FAT floppy (FAT12)
@@ -806,16 +1146,63 @@ bool copyFileFatFloppy (Image_t* img, const char* src, const char* dest)
 {
     // Find dest in the disk
     bool isError = false;
-    dirEntry_t* dirBase = NULL;
-    dirEntry_t* fileEnt = findFile (img, dest, &isError, &dirBase);
+    dirEntry_t* fileEnt = findFile (img, dest, &isError);
     if (isError)
         return false;
-    free (dirBase);
+    // So, if the file exists, we must check if it needs to be updated.
+    // Let's do that next
+    if (fileEnt)
+    {
+        // Convert last modification time stamp of file entry to Unix time
+        int32_t year = (fileEnt->writeDate >> 9) + 1980;
+        int32_t month = BitClearRangeNew ((fileEnt->writeDate >> 5), 4, 12);
+        int32_t day = BitClearRangeNew (fileEnt->writeDate, 5, 11);
+        int32_t hour = fileEnt->writeTime >> 11;
+        int32_t minute = BitClearRangeNew ((fileEnt->writeTime >> 5), 6, 10);
+        int32_t second = BitClearRangeNew (fileEnt->writeTime, 5, 11) * 2;
+        // Convert to Unix time
+        struct tm time = {0};
+        time.tm_year = year - 1900;
+        time.tm_mon = month - 1;
+        time.tm_mday = day;
+        time.tm_hour = hour;
+        time.tm_min = minute;
+        time.tm_sec = second;
+        time_t destTime = timegm (&time);
+        // Stat source to get modification timestamp
+        struct stat st;
+        if (stat (src, &st) == -1)
+        {
+            error ("%s:%s", src, strerror (errno));
+            return false;
+        }
+        time_t srcTime = st.st_mtim.tv_sec;
+        if (srcTime > destTime)
+        {
+            // Overwrite file
+            overwriteFileFat (img, fileEnt);
+        }
+        else
+        {
+            // Nothing to do, file is up to date
+            return true;
+        }
+    }
+    else
+    {
+        // Create directory entry
+        fileEnt = createFatDirs (img, dest);
+        if (!fileEnt)
+            return false;
+    }
     return true;
 }
 
 bool cleanupFat (Image_t* img, Partition_t* part)
 {
+    // Cleanup directory list
+    if (dirsList)
+        ListDestroy (dirsList);
     // Write out the BPB
     if (!writeSector (img, endianSect, part->internal.lbaStart))
     {
