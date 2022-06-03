@@ -18,15 +18,17 @@
 /// @file fat.c
 
 #include "fatName.h"
-#include "nnimage.h"
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <libnex.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <unistd.h>
+
+#include "nnimage.h"
 
 // Standard BIOS parameter block
 typedef struct _bpb
@@ -672,8 +674,8 @@ bool mountFat (Image_t* img, Partition_t* part)
     // If original last cluster and found last cluster are equal, no cluster hint is ued
     if (lastCluster != olastClus)
         clusterHint = lastCluster;
-    copyFileFatFloppy (img, "Makefile", "test3/test4/Make.txt");
-    copyFileFatFloppy (img, "Makefile", "test3/test5/Make.txt");
+    copyFileFat (img, "Makefile", "test3/test4/Make.txt");
+    copyFileFat (img, "Makefile", "test3/test5/Make.txt");
     return true;
 }
 
@@ -841,7 +843,7 @@ static dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
 }
 
 // Finds a file
-static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError)
+static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError, dirEntry_t** parentEnt)
 {
     // Path stuff
     curPath = path;
@@ -893,6 +895,7 @@ static dirEntry_t* findFile (Image_t* img, const char* path, bool* isError)
             // Read in next directory if needed
             if (!isLastPathComp())
             {
+                *parentEnt = curDir;
                 curDir = readSubDir (img, curDir, &numEntries);
                 if (!curDir)
                 {
@@ -930,6 +933,7 @@ static void createDosDate (uint16_t* date, uint16_t* tm, uint16_t* ms)
     *date |= (dateTime->tm_mon + 1) << 5;
     *date |= dateTime->tm_mday;
     // Set up time
+    *tm = 0;
     *tm |= dateTime->tm_hour << 11;
     *tm |= dateTime->tm_min << 5;
     *tm |= dateTime->tm_sec / 2;
@@ -937,7 +941,7 @@ static void createDosDate (uint16_t* date, uint16_t* tm, uint16_t* ms)
     *ms = 0;
 }
 
-// Creates a directory entry
+// Creates a directory entry and parent directories
 static dirEntry_t* createFatDirs (Image_t* img, const char* path)
 {
     // Path variables
@@ -952,10 +956,6 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
     {
         if (!parsePath (dosName))
             return NULL;
-
-        if (isLastPathComp())
-            return curDir;
-
         // Attempt to find this directory entry.
         // Note that we also look for the first free entry in this search
         dirEntry_t* firstFreeEnt = curDir;
@@ -991,11 +991,16 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
         // Check if the entry was found
         if (foundEnt)
         {
-            // Descend into next subdirectory
-            parent = curDir;
-            curDir = readSubDir (img, curDir, &numDirEntries);
-            if (!curDir)
-                return NULL;
+            if (!isLastPathComp())
+            {
+                // Descend into next subdirectory
+                parent = curDir;
+                curDir = readSubDir (img, curDir, &numDirEntries);
+                if (!curDir)
+                    return NULL;
+            }
+            else
+                return curDir;
         }
         else if (foundFreeEnt)
         {
@@ -1009,10 +1014,9 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
                     dirEnt->needsWrite = true;
                 }
             }
-            // Create new directory
+            // Create new directory entry
             memset (firstFreeEnt, 0, sizeof (dirEntry_t));
             memcpy (firstFreeEnt->shortName, dosName, 11);
-            firstFreeEnt->attr |= DIRENT_ATTR_DIRECTORY;
             // Set dates and times
             uint16_t date = 0, time = 0, ms = 0;
             createDosDate (&date, &time, &ms);
@@ -1028,80 +1032,90 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
                 ;
             else
                 secPerClus = bootSect->bpb.sectorPerClus;
-            numDirEntries = (img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
-            // Allocate directory table
-            dirEntry_t* dirBase = (dirEntry_t*) calloc_s (numDirEntries * sizeof (dirEntry_t));
-            if (!dirBase)
-                return NULL;
-            // Add . and .. to new directory
-            memcpy (dirBase[0].shortName, ".          ", 11);
-            dirBase[0].attr = DIRENT_ATTR_DIRECTORY;
-            dirBase[0].size = 0;
-            dirBase[0].accessTime = time;
-            dirBase[0].creationDate = date;
-            dirBase[0].creationTime = time;
-            dirBase[0].creationMs = ms;
-            dirBase[0].writeDate = date;
-            dirBase[0].writeTime = time;
-            // Add ..
-            memcpy (dirBase[1].shortName, "..         ", 11);
-            dirBase[1].attr = DIRENT_ATTR_DIRECTORY;
-            dirBase[1].size = 0;
-            dirBase[1].accessTime = time;
-            dirBase[1].creationDate = date;
-            dirBase[1].creationTime = time;
-            dirBase[1].creationMs = ms;
-            dirBase[1].writeDate = date;
-            dirBase[1].writeTime = time;
-            if (parent)
+            // We diverge here based on wheter a directory or file is being created
+            if (!isLastPathComp())
             {
-                dirBase[1].cluster = parent->cluster;
-                dirBase[1].clusterHigh = parent->clusterHigh;
+                firstFreeEnt->attr |= DIRENT_ATTR_DIRECTORY;
+                numDirEntries = (img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
+                // Allocate directory table
+                dirEntry_t* dirBase = (dirEntry_t*) calloc_s (numDirEntries * sizeof (dirEntry_t));
+                if (!dirBase)
+                    return NULL;
+                // Add . and .. to new directory
+                memcpy (dirBase[0].shortName, ".          ", 11);
+                dirBase[0].attr = DIRENT_ATTR_DIRECTORY;
+                dirBase[0].size = 0;
+                dirBase[0].accessTime = time;
+                dirBase[0].creationDate = date;
+                dirBase[0].creationTime = time;
+                dirBase[0].creationMs = ms;
+                dirBase[0].writeDate = date;
+                dirBase[0].writeTime = time;
+                // Add ..
+                memcpy (dirBase[1].shortName, "..         ", 11);
+                dirBase[1].attr = DIRENT_ATTR_DIRECTORY;
+                dirBase[1].size = 0;
+                dirBase[1].accessTime = time;
+                dirBase[1].creationDate = date;
+                dirBase[1].creationTime = time;
+                dirBase[1].creationMs = ms;
+                dirBase[1].writeDate = date;
+                dirBase[1].writeTime = time;
+                if (parent)
+                {
+                    dirBase[1].cluster = parent->cluster;
+                    dirBase[1].clusterHigh = parent->clusterHigh;
+                }
+                // Cache this directory entry
+                // Allocate directory list if needed
+                if (!dirsList)
+                {
+                    dirsList = ListCreate ("dirEntry_t", false, 0);
+                    ListSetFindBy (dirsList, dirsFindBy);
+                    ListSetDestroy (dirsList, dirsDestroyEnt);
+                }
+                dirCacheEnt_t* cacheEnt = malloc_s (sizeof (dirCacheEnt_t));
+                if (!cacheEnt)
+                    return NULL;
+                cacheEnt->dirBase = dirBase;
+                cacheEnt->parent = firstFreeEnt;
+                cacheEnt->img = img;
+                cacheEnt->needsWrite = true;
+                ListEntry_t* lent = ListAddFront (dirsList, cacheEnt, 0);
+                if (!lent)
+                {
+                    free (dirBase);
+                    free (cacheEnt);
+                    return NULL;
+                }
+                // Allocate cluster
+                uint32_t clusterBase = 0;
+                cacheEnt->cluster = allocCluster (&clusterBase);
+                if (cacheEnt->cluster == 0xFFFFFFFF)
+                {
+                    // No good. Disk is full
+                    ListRemove (dirsList, lent);
+                    free (dirBase);
+                    free (cacheEnt);
+                    return NULL;
+                }
+                // Set initial cluster
+                firstFreeEnt->cluster = cacheEnt->cluster & 0xFFFF;
+                if (fatType == IMG_FILESYS_FAT32)
+                    firstFreeEnt->clusterHigh = cacheEnt->cluster >> 16;
+                // Set .'s cluster
+                dirBase[0].cluster = firstFreeEnt->cluster;
+                dirBase[0].clusterHigh = firstFreeEnt->clusterHigh;
+                // Write EOF to FAT
+                writeFatEntry (cacheEnt->cluster, fatEofStart[fatType]);
+                curDir = dirBase;
+                parent = firstFreeEnt;
             }
-            // Cache this directory entry
-            // Allocate directory list if needed
-            if (!dirsList)
+            else
             {
-                dirsList = ListCreate ("dirEntry_t", false, 0);
-                ListSetFindBy (dirsList, dirsFindBy);
-                ListSetDestroy (dirsList, dirsDestroyEnt);
+                // We won't set size or cluster start until later
+                return firstFreeEnt;
             }
-            dirCacheEnt_t* cacheEnt = malloc_s (sizeof (dirCacheEnt_t));
-            if (!cacheEnt)
-                return NULL;
-            cacheEnt->dirBase = dirBase;
-            cacheEnt->parent = firstFreeEnt;
-            cacheEnt->img = img;
-            cacheEnt->needsWrite = true;
-            ListEntry_t* lent = ListAddFront (dirsList, cacheEnt, 0);
-            if (!lent)
-            {
-                free (dirBase);
-                free (cacheEnt);
-                return NULL;
-            }
-            // Allocate cluster
-            uint32_t clusterBase = 0;
-            cacheEnt->cluster = allocCluster (&clusterBase);
-            if (cacheEnt->cluster == 0xFFFFFFFF)
-            {
-                // No good. Disk is full
-                ListRemove (dirsList, lent);
-                free (dirBase);
-                free (cacheEnt);
-                return NULL;
-            }
-            // Set initial cluster
-            firstFreeEnt->cluster = cacheEnt->cluster & 0xFFFF;
-            if (fatType == IMG_FILESYS_FAT32)
-                firstFreeEnt->clusterHigh = cacheEnt->cluster >> 16;
-            // Set .'s cluster
-            dirBase[0].cluster = firstFreeEnt->cluster;
-            dirBase[0].clusterHigh = firstFreeEnt->clusterHigh;
-            // Write EOF to FAT
-            writeFatEntry (cacheEnt->cluster, fatEofStart[fatType]);
-            curDir = dirBase;
-            parent = firstFreeEnt;
         }
         else
         {
@@ -1127,7 +1141,7 @@ static bool overwriteFileFat (Image_t* img, dirEntry_t* entry)
         initClusterVal |= (entry->clusterHigh << 16);
     // Grab next cluster so we can mark initial as EOF
     uint32_t nextCluster = readFatEntry (initClusterVal);
-    writeFatEntry (initClusterVal, fatEofStart[fatType]);
+    writeFatEntry (initClusterVal, 0);
     //  Iterate through cluster chain
     while (!(nextCluster >= fatEofStart[fatType]))
     {
@@ -1141,46 +1155,162 @@ static bool overwriteFileFat (Image_t* img, dirEntry_t* entry)
     return true;
 }
 
-// Copies a file to a FAT floppy (FAT12)
-bool copyFileFatFloppy (Image_t* img, const char* src, const char* dest)
+// Compares times of two files. Returns true if dest is out-of-date
+static bool compareFileTimes (const char* src, dirEntry_t* fileEnt)
+{
+    // Convert last modification time stamp of file entry to Unix time
+    int32_t year = (fileEnt->writeDate >> 9) + 1980;
+    int32_t month = BitClearRangeNew ((fileEnt->writeDate >> 5), 4, 12);
+    int32_t day = BitClearRangeNew (fileEnt->writeDate, 5, 11);
+    int32_t hour = fileEnt->writeTime >> 11;
+    int32_t minute = BitClearRangeNew ((fileEnt->writeTime >> 5), 6, 10);
+    int32_t second = BitClearRangeNew (fileEnt->writeTime, 5, 11) * 2;
+    // Convert to Unix time
+    struct tm time = {0};
+    time.tm_year = year - 1900;
+    time.tm_mon = month - 1;
+    time.tm_mday = day;
+    time.tm_hour = hour;
+    time.tm_min = minute;
+    time.tm_sec = second;
+    time_t destTime = timegm (&time);
+    // Stat source to get modification timestamp
+    struct stat st;
+    if (stat (src, &st) == -1)
+    {
+        error ("%s:%s", src, strerror (errno));
+        return false;
+    }
+    time_t srcTime = st.st_mtim.tv_sec;
+    if (srcTime > destTime)
+        return true;
+    else
+        return false;
+}
+
+// Writes out a file to created directory entry
+bool writeFatFile (Image_t* img, dirEntry_t* dest, const char* src)
+{
+    // stat src
+    struct stat st;
+    if (stat (src, &st) == -1)
+    {
+        error ("%s:%s", src, strerror (errno));
+        return false;
+    }
+    // Open it
+    int srcFd = open (src, O_RDONLY);
+    if (srcFd == -1)
+    {
+        error ("%s:%s", src, strerror (errno));
+        return false;
+    }
+    // Get size of a cluster
+    uint8_t secPerClus = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
+    uint32_t clusterSz = secPerClus * img->sectSz;
+    // Get number of clusters in file (rounded up!)
+    size_t fileSz = st.st_size;
+    uint32_t numClusters = (fileSz + (clusterSz - 1)) / clusterSz;
+    // Copy out each cluster, adding it to the FAT as well
+    uint8_t* clusterBuf = malloc_s (clusterSz);
+    if (!clusterBuf)
+    {
+        close (srcFd);
+        return false;
+    }
+    uint32_t clusterBase = 0;
+    uint32_t lastCluster = 0;
+    uint32_t newCluster = 0;
+    for (int i = 0; i < numClusters; ++i)
+    {
+        // Allocate cluster on disk
+        newCluster = allocCluster (&clusterBase);
+        printf ("%u\n", newCluster);
+        if (newCluster == 0xFFFFFFFF)
+        {
+            // Terminate cluster chain
+            if (lastCluster)
+                writeFatEntry (lastCluster, fatEofStart[fatType]);
+            free (clusterBuf);
+            close (srcFd);
+            dest->size = i * clusterSz;
+            return false;
+        }
+        // If this is first run, add cluster to root directory. Else, add to FAT
+        if (!lastCluster)
+        {
+            dest->cluster = newCluster & 0xFFFF;
+            if (fatType == IMG_FILESYS_FAT32)
+                dest->clusterHigh = newCluster >> 16;
+        }
+        else
+        {
+            // Add to FAT
+            writeFatEntry (lastCluster, newCluster);
+        }
+        // Finally, read in cluster from source and write it to dest
+        if (read (srcFd, clusterBuf, clusterSz) == -1)
+        {
+            // Terminate cluster chain
+            if (lastCluster)
+                writeFatEntry (lastCluster, fatEofStart[fatType]);
+            free (clusterBuf);
+            close (srcFd);
+            dest->size = i * clusterSz;
+            return false;
+        }
+        // Write it out
+        if (!writeCluster (img, clusterBuf, newCluster))
+        {
+            // Terminate cluster chain
+            if (lastCluster)
+                writeFatEntry (lastCluster, fatEofStart[fatType]);
+            free (clusterBuf);
+            close (srcFd);
+            dest->size = i * clusterSz;
+            return false;
+        }
+        // Set last cluster now
+        lastCluster = newCluster;
+    }
+    // Write EOF
+    writeFatEntry (newCluster, fatEofStart[fatType]);
+    dest->size = fileSz;
+    return true;
+}
+
+// Copies a file to a FAT FS
+bool copyFileFat (Image_t* img, const char* src, const char* dest)
 {
     // Find dest in the disk
     bool isError = false;
-    dirEntry_t* fileEnt = findFile (img, dest, &isError);
+    dirEntry_t* parentDirEnt = NULL;
+    dirEntry_t* fileEnt = findFile (img, dest, &isError, &parentDirEnt);
     if (isError)
         return false;
     // So, if the file exists, we must check if it needs to be updated.
     // Let's do that next
     if (fileEnt)
     {
-        // Convert last modification time stamp of file entry to Unix time
-        int32_t year = (fileEnt->writeDate >> 9) + 1980;
-        int32_t month = BitClearRangeNew ((fileEnt->writeDate >> 5), 4, 12);
-        int32_t day = BitClearRangeNew (fileEnt->writeDate, 5, 11);
-        int32_t hour = fileEnt->writeTime >> 11;
-        int32_t minute = BitClearRangeNew ((fileEnt->writeTime >> 5), 6, 10);
-        int32_t second = BitClearRangeNew (fileEnt->writeTime, 5, 11) * 2;
-        // Convert to Unix time
-        struct tm time = {0};
-        time.tm_year = year - 1900;
-        time.tm_mon = month - 1;
-        time.tm_mday = day;
-        time.tm_hour = hour;
-        time.tm_min = minute;
-        time.tm_sec = second;
-        time_t destTime = timegm (&time);
-        // Stat source to get modification timestamp
-        struct stat st;
-        if (stat (src, &st) == -1)
-        {
-            error ("%s:%s", src, strerror (errno));
-            return false;
-        }
-        time_t srcTime = st.st_mtim.tv_sec;
-        if (srcTime > destTime)
+        if (compareFileTimes (src, fileEnt))
         {
             // Overwrite file
             overwriteFileFat (img, fileEnt);
+            // Update timestamps
+            uint16_t date, time, ms = 0;
+            createDosDate (&date, &time, &ms);
+            fileEnt->writeDate = date;
+            fileEnt->writeTime = time;
+            // Invalidate parent directory
+            ListEntry_t* cacheLEnt = ListFindEntryBy (dirsList, parentDirEnt);
+            if (!cacheLEnt)
+                return false;
+            dirCacheEnt_t* cacheEnt = ListEntryData (cacheLEnt);
+            cacheEnt->needsWrite = true;
         }
         else
         {
@@ -1190,11 +1320,14 @@ bool copyFileFatFloppy (Image_t* img, const char* src, const char* dest)
     }
     else
     {
-        // Create directory entry
+        // Create directories and directory entry
         fileEnt = createFatDirs (img, dest);
         if (!fileEnt)
             return false;
     }
+    // Write out file contents
+    if (!writeFatFile (img, fileEnt, src))
+        return false;
     return true;
 }
 

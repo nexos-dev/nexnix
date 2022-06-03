@@ -137,7 +137,7 @@ bool formatFat16 (Image_t* img, Partition_t* part);
 /// Mounts a FAT 12 or 16 file system
 bool mountFat (Image_t* img, Partition_t* part);
 
-/// Copies a file to a FAT12 file system
-bool copyFileFatFloppy (Image_t* img, const char* src, const char* dest);
+/// Copies a file to a FAT FS
+bool copyFileFat (Image_t* img, const char* src, const char* dest);
 
 #endif
