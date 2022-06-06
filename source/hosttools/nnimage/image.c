@@ -71,7 +71,7 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
             if (strcmp (action, "create") != 0)
             {
                 // Check size of file to see if its has already been created
-                if (st.st_size == (img->mul * img->sz))
+                if (st.st_size == (img->mul * (long) img->sz))
                     goto openImg;
             }
             // Check if we need to ask the user if we should overwrite the file
@@ -205,6 +205,22 @@ static bool mountPartition (Image_t* img, Partition_t* part)
     return true;
 }
 
+// Formats a partition
+static bool formatPartition (Image_t* img, Partition_t* part)
+{
+    if (part->filesys == IMG_FILESYS_FAT12)
+    {
+        if (!formatFatFloppy (img, part))
+            return false;
+    }
+    else if (part->filesys == IMG_FILESYS_FAT16)
+    {
+        if (!formatFat16 (img, part))
+            return false;
+    }
+    return true;
+}
+
 bool createImages (ListHead_t* images, const char* action, bool overwrite, const char* file)
 {
     // Loop through every image
@@ -232,6 +248,8 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
             error ("image size not set on image %s", img->name);
             return false;
         }
+        if (!img->sectSz)
+            img->sectSz = 512;
         // Set default multiplier. KiB on floppies, MiB elsewhere
         if (!img->mul)
         {
@@ -309,15 +327,21 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
                         error ("floppy image %s doesn't have a size of either 720, 1440, or 2880", img->name);
                         return false;
                     }
-                    // Format it
-                    if (!formatFatFloppy (img, part))
-                        return false;
                 }
-                // Clean up partitionn file system data
-                if (!cleanPartition (action, img, part))
+                // Format partition
+                if (!formatPartition (img, part))
                 {
                     cleanPartLayer (action, img);
                     return false;
+                }
+                // Clean up partition file system data
+                if (strcmp (action, "all") != 0)
+                {
+                    if (!cleanPartition (action, img, part))
+                    {
+                        cleanPartLayer (action, img);
+                        return false;
+                    }
                 }
             }
             else if (!strcmp (action, "update"))
@@ -352,7 +376,7 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
 
 bool writeSector (Image_t* img, void* data, uint32_t sector)
 {
-    lseek (img->fileNo, (sector * img->sectSz), SEEK_SET);
+    lseek (img->fileNo, sector * (off_t) img->sectSz, SEEK_SET);
     if (write (img->fileNo, data, img->sectSz) == -1)
     {
         error ("%s", strerror (errno));
@@ -363,7 +387,7 @@ bool writeSector (Image_t* img, void* data, uint32_t sector)
 
 bool readSector (Image_t* img, void* buf, uint32_t sector)
 {
-    lseek (img->fileNo, (sector * img->sectSz), SEEK_SET);
+    lseek (img->fileNo, (sector * (off_t) img->sectSz), SEEK_SET);
     if (read (img->fileNo, buf, img->sectSz) == -1)
     {
         error ("%s\n", strerror (errno));
