@@ -115,11 +115,12 @@ typedef struct _dirEntry
 // A directory cache entry
 typedef struct _dirCache
 {
-    Image_t* img;           // Image of this cache entry
-    dirEntry_t* dirBase;    // Base of this directory
-    dirEntry_t* parent;     // Parent directory, which is the key
-    uint32_t cluster;       // Cluster number to write directory to
-    bool needsWrite;        // Wheter this entry needs to be flushed
+    Image_t* img;             // Image of this cache entry
+    dirEntry_t* dirBase;      // Base of this directory
+    dirEntry_t* parent;       // Parent directory, which is the key
+    uint32_t clusters[64];    // Clusters to write directory to
+    uint8_t numClusters;      // The number of clusters to write
+    bool needsWrite;          // Wheter this entry needs to be flushed
 } dirCacheEnt_t;
 
 // Pointer to boot sector (FAT12 or FAT16)
@@ -779,10 +780,25 @@ static bool dirsFindBy (ListEntry_t* entry, void* data)
 // Destroys a directory cache entry
 static void dirsDestroyEnt (void* data)
 {
+    // Set sectors per cluster
+    uint8_t secPerClus = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
     dirCacheEnt_t* cacheEnt = data;
     // Write out this entry if needed
     if (cacheEnt->needsWrite)
-        writeCluster (cacheEnt->img, (void*) cacheEnt->dirBase, cacheEnt->cluster);
+    {
+        for (int i = 0; i < cacheEnt->numClusters; ++i)
+        {
+            // Write out this cluster
+            writeCluster (cacheEnt->img,
+                          cacheEnt->dirBase +
+                              ((i * (size_t) cacheEnt->img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t)),
+                          cacheEnt->clusters[i]);
+        }
+    }
     free (cacheEnt->dirBase);
     free (data);
 }
@@ -798,7 +814,6 @@ static dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
         secPerClus = 1;
     else
         secPerClus = bootSect->bpb.sectorPerClus;
-    *numEnt = (img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
     // Allocate directory list if needed
     if (!dirsList)
     {
@@ -817,27 +832,38 @@ static dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
     uint32_t cluster = parent->cluster;
     if (fatType == IMG_FILESYS_FAT32)
         cluster |= (parent->clusterHigh << 16);
+    // Prepare cache entry
+    dirCacheEnt_t* cacheEnt = calloc_s (sizeof (dirCacheEnt_t));
+    // Set cached clusters
+    int i = 0;
+    while (!(cluster >= fatEofStart[fatType]))
+    {
+        // Cache this cluster
+        cacheEnt->clusters[i] = cluster;
+        cluster = readFatEntry (cluster);
+        ++i;
+        assert (i <= 64);
+    }
+    cacheEnt->numClusters = i;
+    *numEnt = (i * (size_t) img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
     // Allocate space for directory
     dirEntry_t* dir = calloc_s (*numEnt * sizeof (dirEntry_t));
-    // Read in current cluster
-    if (!readCluster (img, dir, cluster))
+    // Read in the clusters
+    for (i = 0; i < cacheEnt->numClusters; ++i)
     {
-        free (dir);
-        return NULL;
+        if (!readCluster (img,
+                          dir + ((i * (size_t) img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t)),
+                          cacheEnt->clusters[i]))
+        {
+            free (dir);
+            free (cacheEnt);
+            return NULL;
+        }
     }
-    // Ensure EOF is next
-    uint32_t eofEnt = readFatEntry (cluster);
-    if (eofEnt == 0xFFFFFFFF || !(eofEnt >= fatEofStart[fatType]))
-    {
-        free (dir);
-        return NULL;
-    }
-    // Cache it
-    dirCacheEnt_t* cacheEnt = calloc_s (sizeof (dirCacheEnt_t));
+    // Finish caching it
     cacheEnt->dirBase = dir;
     cacheEnt->parent = parent;
     cacheEnt->img = img;
-    cacheEnt->cluster = cluster;
     ListAddFront (dirsList, cacheEnt, 0);
     return dir;
 }
@@ -951,11 +977,22 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
     dirEntry_t* curDir = rootDir;
     dirEntry_t* parent = NULL;
     size_t numDirEntries = (rootDirSz * (size_t) img->sectSz) / sizeof (dirEntry_t);
+    // Get sectors in a clusters
+    uint8_t secPerClus = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        ;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
+    // If name component should be parsed on loop run
+    bool parseName = true;
     // Start looping through paths
     while (1)
     {
-        if (!parsePath (dosName))
-            return NULL;
+        if (parseName)
+        {
+            if (!parsePath (dosName))
+                return NULL;
+        }
         // Attempt to find this directory entry.
         // Note that we also look for the first free entry in this search
         dirEntry_t* firstFreeEnt = curDir;
@@ -1001,11 +1038,12 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
             }
             else
                 return curDir;
+            parseName = true;
         }
         else if (foundFreeEnt)
         {
             // Invalidate directory
-            if (parent)
+            if (parent && dirsList)
             {
                 ListEntry_t* ent = ListFindEntryBy (dirsList, parent);
                 if (ent)
@@ -1026,12 +1064,6 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
             firstFreeEnt->creationDate = date;
             firstFreeEnt->creationTime = time;
             firstFreeEnt->creationMs = ms;
-            // Compute size of directory
-            uint8_t secPerClus = 0;
-            if (fatType == IMG_FILESYS_FAT32)
-                ;
-            else
-                secPerClus = bootSect->bpb.sectorPerClus;
             // We diverge here based on wheter a directory or file is being created
             if (!isLastPathComp())
             {
@@ -1090,8 +1122,8 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
                 }
                 // Allocate cluster
                 uint32_t clusterBase = 0;
-                cacheEnt->cluster = allocCluster (&clusterBase);
-                if (cacheEnt->cluster == 0xFFFFFFFF)
+                cacheEnt->clusters[0] = allocCluster (&clusterBase);
+                if (cacheEnt->clusters[0] == 0xFFFFFFFF)
                 {
                     // No good. Disk is full
                     ListRemove (dirsList, lent);
@@ -1099,15 +1131,16 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
                     free (cacheEnt);
                     return NULL;
                 }
+                cacheEnt->numClusters = 1;
                 // Set initial cluster
-                firstFreeEnt->cluster = cacheEnt->cluster & 0xFFFF;
+                firstFreeEnt->cluster = cacheEnt->clusters[0] & 0xFFFF;
                 if (fatType == IMG_FILESYS_FAT32)
-                    firstFreeEnt->clusterHigh = cacheEnt->cluster >> 16;
+                    firstFreeEnt->clusterHigh = cacheEnt->clusters[0] >> 16;
                 // Set .'s cluster
                 dirBase[0].cluster = firstFreeEnt->cluster;
                 dirBase[0].clusterHigh = firstFreeEnt->clusterHigh;
                 // Write EOF to FAT
-                writeFatEntry (cacheEnt->cluster, fatEofStart[fatType]);
+                writeFatEntry (cacheEnt->clusters[0], fatEofStart[fatType]);
                 curDir = dirBase;
                 parent = firstFreeEnt;
             }
@@ -1116,12 +1149,54 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
                 // We won't set size or cluster start until later
                 return firstFreeEnt;
             }
+            parseName = true;
         }
         else
         {
-            // Report error
-            error ("%s: No free directory entries", dosName);
-            return NULL;
+            // Expand directory if this is not the root directory
+            if (parent)
+            {
+                // Get cluster start of directory
+                uint32_t dirStart = parent->cluster;
+                if (fatType == IMG_FILESYS_FAT32)
+                    dirStart |= (parent->clusterHigh << 16);
+                // Advance to EOF
+                uint32_t lastDirCluster = readFatEntry (dirStart);
+                uint32_t oldCluster = dirStart;
+                while (!(lastDirCluster >= fatEofStart[fatType]))
+                {
+                    oldCluster = lastDirCluster;
+                    lastDirCluster = readFatEntry (lastDirCluster);
+                }
+                lastDirCluster = oldCluster;
+                // Allocate a new cluster
+                uint32_t clusBase = 0;
+                uint32_t newCluster = allocCluster (&clusBase);
+                if (newCluster == 0xFFFFFFFF)
+                    return NULL;
+                // Write it out
+                writeFatEntry (lastDirCluster, newCluster);
+                // Write EOF
+                writeFatEntry (newCluster, fatEofStart[fatType]);
+                numDirEntries += (img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t);
+                parseName = false;
+                // Find entry in list
+                ListEntry_t* listEnt = ListFindEntryBy (dirsList, parent);
+                if (!listEnt)
+                {
+                    // Shouldn't happen
+                    assert (0);
+                }
+                dirCacheEnt_t* cacheEnt = ListEntryData (listEnt);
+                cacheEnt->clusters[cacheEnt->numClusters] = newCluster;
+                ++cacheEnt->numClusters;
+            }
+            else
+            {
+                // That's an error
+                error ("No free entries in root directory");
+                return NULL;
+            }
         }
     }
     return NULL;
@@ -1229,7 +1304,6 @@ bool writeFatFile (Image_t* img, dirEntry_t* dest, const char* src)
     {
         // Allocate cluster on disk
         newCluster = allocCluster (&clusterBase);
-        printf ("%u\n", newCluster);
         if (newCluster == 0xFFFFFFFF)
         {
             // Terminate cluster chain
@@ -1308,7 +1382,7 @@ bool copyFileFat (Image_t* img, const char* src, const char* dest)
             // Invalidate parent directory
             ListEntry_t* cacheLEnt = ListFindEntryBy (dirsList, parentDirEnt);
             if (!cacheLEnt)
-                return false;
+                assert (0);
             dirCacheEnt_t* cacheEnt = ListEntryData (cacheLEnt);
             cacheEnt->needsWrite = true;
         }
@@ -1380,8 +1454,7 @@ bool cleanupFat (Image_t* img, Partition_t* part)
                               part->internal.lbaStart + rootDirBase + i))
             {
                 free (bootSect);
-                if (part->filesys != IMG_FILESYS_FAT32)
-                    free (rootDir);
+                free (rootDir);
                 free (fatTable);
                 free (endianSect);
                 return false;
