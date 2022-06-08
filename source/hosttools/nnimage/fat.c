@@ -123,11 +123,17 @@ typedef struct _dirCache
     bool needsWrite;          // Wheter this entry needs to be flushed
 } dirCacheEnt_t;
 
-// Pointer to boot sector (FAT12 or FAT16)
-static bootSector_t* bootSect = NULL;
-
-// Pointer to boot sector that will be written to disk
-static bootSector_t* endianSect = NULL;
+// FSInfo structure
+typedef struct _fsInfo
+{
+    uint32_t leadSig;    // Contains 0x41615252
+    uint8_t resvd1[480];
+    uint32_t sig2;         // Contains 0x61417272
+    uint32_t freeCount;    // Count of free clusters, if not 0xFFFFFFFF
+    uint32_t freeHint;     // Hint to first free cluster, if not 0xFFFFFFF
+    uint8_t resvd2[12];
+    uint32_t sig3;    // Contains 0xAA550000
+} __attribute__ ((packed)) fsInfo_t;
 
 // Macro to find the number of sectors in the root directory
 #define FAT_ROOTDIRSZ(bootsect)                                                       \
@@ -139,12 +145,27 @@ static bootSector_t* endianSect = NULL;
 
 // Macro to find first data sector
 #define FAT_DATASECTOR(bootsect, fatSz) \
-    (((bootsect)->bpb.resvdSectors) + ((fatSz) * (bootsect)->bpb.fatCount) + rootDirSz)
+    (((bootsect)->bpb.resvdSectors) + ((fatSz) * (bootsect)->bpb.fatCount) + ((fatType != 1) ? rootDirSz : 0))
+
+// Pointer to boot sector (FAT12 or FAT16)
+static bootSector_t* bootSect = NULL;
+
+// Pointer to boot sector that will be written to disk
+static bootSector_t* endianSect = NULL;
+
+// Pointer to FAT32 boot sector
+static bootSector32_t* bootSect32 = NULL;
+
+// Pointer to FAT32 boot sector to be written to disk
+static bootSector32_t* endianSect32 = NULL;
+
+// FSInfo sector
+static fsInfo_t* fsInfo = NULL;
 
 // Cached root directory size
 static uint32_t rootDirSz = 0;
 
-// Cached root directory base
+// Cached root directory base (only for FAT12/16)
 static uint32_t rootDirBase = 0;
 
 // Type of FAT
@@ -154,7 +175,7 @@ static uint8_t fatType = 0;
 // Note that there are no bad sectors here, as the virtual disk doesn't have sectors underlying it
 static uint8_t* fatTable = NULL;
 
-// Pointer to root directory (only on FAT12 and FAT16)
+// Pointer to root directory
 static dirEntry_t* rootDir = NULL;
 
 // Number of clusters in volume
@@ -166,20 +187,23 @@ static const char* curPath = NULL;
 // Partition base address
 static uint64_t partBase = 0;
 
-// List of directories that have been written
+// List of directories that have been cached
 static ListHead_t* dirsList = NULL;
 
 // Free cluster hint
 static uint32_t clusterHint = 0xFFFFFFFF;
+
+// EOF values for different FAT types
+static uint32_t fatEofStart[] = {0, 0x0FFFFFF8, 0xFFF8, 0x0FF8, 0, 0};
 
 // Creates the FAT table
 static bool createFatTable (Image_t* img)
 {
     // Allocate FAT table
     if (fatType != IMG_FILESYS_FAT32)
-        fatTable = calloc_s (bootSect->bpb.fatSize16 * (uint64_t) img->sectSz);
+        fatTable = calloc_s (bootSect->bpb.fatSize16 * (size_t) img->sectSz);
     else
-        assert (!"No FAT32 (yet)");
+        fatTable = calloc_s (bootSect32->fatSize32 * (size_t) img->sectSz);
     if (!fatTable)
         return false;
     return true;
@@ -209,7 +233,9 @@ static bool writeFatEntry (uint32_t clusterIdx, uint32_t val)
     // Figure out FAT size
     if (fatType == IMG_FILESYS_FAT32)
     {
-        ;
+        // Set entry in FAT
+        uint32_t* fat = (uint32_t*) fatTable;
+        fat[clusterIdx] = EndianChange32 (val & 0x0FFFFFFF, ENDIAN_LITTLE);
     }
     else if (fatType == IMG_FILESYS_FAT16)
     {
@@ -259,7 +285,10 @@ static uint32_t readFatEntry (uint32_t clusterIdx)
         return 0xFFFFFFFF;
     }
     if (fatType == IMG_FILESYS_FAT32)
-        ;
+    {
+        uint32_t* fat = (uint32_t*) fatTable;
+        return EndianChange32 (fat[clusterIdx], ENDIAN_LITTLE) & 0x0FFFFFFF;
+    }
     else if (fatType == IMG_FILESYS_FAT16)
     {
         // Return FAT entry
@@ -291,7 +320,10 @@ static bool readCluster (Image_t* img, void* buf, uint32_t cluster)
     uint32_t dataSect = 0;
     uint8_t secPerClus = 0;
     if (fatType == IMG_FILESYS_FAT32)
-        ;
+    {
+        secPerClus = bootSect32->bpb.sectorPerClus;
+        dataSect = FAT_DATASECTOR (bootSect32, bootSect32->fatSize32);
+    }
     else
     {
         secPerClus = bootSect->bpb.sectorPerClus;
@@ -315,7 +347,10 @@ static bool writeCluster (Image_t* img, void* buf, uint32_t cluster)
     uint32_t dataSect = 0;
     uint8_t secPerClus = 0;
     if (fatType == IMG_FILESYS_FAT32)
-        ;
+    {
+        secPerClus = bootSect32->bpb.sectorPerClus;
+        dataSect = FAT_DATASECTOR (bootSect32, bootSect32->fatSize32);
+    }
     else
     {
         secPerClus = bootSect->bpb.sectorPerClus;
@@ -365,8 +400,62 @@ static uint32_t allocCluster (uint32_t* allocBase)
     }
 }
 
+// Find by function for dirEntry_t cache
+static bool dirsFindBy (ListEntry_t* entry, void* data)
+{
+    dirCacheEnt_t* cacheEnt = ListEntryData (entry);
+    return cacheEnt->parent == (dirEntry_t*) data;
+}
+
+// Destroys a directory cache entry
+static void dirsDestroyEnt (void* data)
+{
+    // Set sectors per cluster
+    uint8_t secPerClus = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+        secPerClus = bootSect32->bpb.sectorPerClus;
+    else
+        secPerClus = bootSect->bpb.sectorPerClus;
+    dirCacheEnt_t* cacheEnt = data;
+    // Write out this entry if needed
+    if (cacheEnt->needsWrite)
+    {
+        // Flip endianess of directory if needed
+        if (EndianHost() != ENDIAN_LITTLE)
+        {
+            dirEntry_t* curDir = cacheEnt->dirBase;
+            dirEntry_t* dirEnd = cacheEnt->dirBase +
+                                 ((cacheEnt->numClusters * (size_t) cacheEnt->img->sectSz * (size_t) secPerClus) /
+                                  sizeof (dirEntry_t));
+            while (curDir->shortName[0] && curDir < dirEnd)
+            {
+                curDir->accessTime = EndianSwap16 (curDir->accessTime);
+                curDir->cluster = EndianSwap16 (curDir->cluster);
+                if (fatType == IMG_FILESYS_FAT32)
+                    curDir->clusterHigh = EndianSwap16 (curDir->clusterHigh);
+                curDir->creationDate = EndianSwap16 (curDir->creationDate);
+                curDir->creationTime = EndianSwap16 (curDir->creationTime);
+                curDir->size = EndianSwap32 (curDir->size);
+                curDir->writeDate = EndianSwap16 (curDir->writeDate);
+                curDir->writeTime = EndianSwap16 (curDir->writeTime);
+                ++curDir;
+            }
+        }
+        for (int i = 0; i < cacheEnt->numClusters; ++i)
+        {
+            // Write out this cluster
+            writeCluster (cacheEnt->img,
+                          cacheEnt->dirBase +
+                              ((i * (size_t) cacheEnt->img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t)),
+                          cacheEnt->clusters[i]);
+        }
+    }
+    free (cacheEnt->dirBase);
+    free (data);
+}
+
 // Converts boot sector to little endian
-static bool constructEndianBpb (Image_t* img)
+static bool constructEndianBootSect (Image_t* img)
 {
     endianSect = (bootSector_t*) calloc_s (img->sectSz);
     if (!endianSect)
@@ -384,6 +473,30 @@ static bool constructEndianBpb (Image_t* img)
     endianSect->bpb.sectorCount16 = EndianChange16 (bootSect->bpb.sectorCount16, ENDIAN_LITTLE);
     endianSect->bpb.sectorCount32 = EndianChange32 (bootSect->bpb.sectorCount32, ENDIAN_LITTLE);
     endianSect->bpb.sectorsPerTrack = EndianChange16 (bootSect->bpb.sectorsPerTrack, ENDIAN_LITTLE);
+    return true;
+}
+
+// Converts boot sector to little endian (FAT32)
+static bool constructEndianBootSect32 (Image_t* img)
+{
+    endianSect32 = (bootSector32_t*) calloc_s (img->sectSz);
+    if (!endianSect32)
+        return false;
+    memcpy (endianSect32, bootSect32, sizeof (bootSector_t));
+    // Chnage endian of multi byte values
+    endianSect32->bootSig = EndianChange16 (bootSect32->bootSig, ENDIAN_LITTLE);
+    endianSect32->volId = EndianChange32 (bootSect32->volId, ENDIAN_LITTLE);
+    endianSect32->backupBootSect = EndianChange16 (bootSect32->backupBootSect, ENDIAN_LITTLE);
+    endianSect32->extFlags = EndianChange16 (bootSect32->extFlags, ENDIAN_LITTLE);
+    endianSect32->fatSize32 = EndianChange32 (bootSect32->fatSize32, ENDIAN_LITTLE);
+    endianSect32->fsInfoSector = EndianChange16 (bootSect32->fsInfoSector, ENDIAN_LITTLE);
+    endianSect32->rootCluster = EndianChange32 (bootSect32->rootCluster, ENDIAN_LITTLE);
+    endianSect32->bpb.bytesPerSector = EndianChange16 (bootSect32->bpb.bytesPerSector, ENDIAN_LITTLE);
+    endianSect32->bpb.hiddenSectors = EndianChange32 (bootSect32->bpb.hiddenSectors, ENDIAN_LITTLE);
+    endianSect32->bpb.numHeads = EndianChange16 (bootSect32->bpb.numHeads, ENDIAN_LITTLE);
+    endianSect32->bpb.resvdSectors = EndianChange16 (bootSect32->bpb.resvdSectors, ENDIAN_LITTLE);
+    endianSect32->bpb.sectorCount32 = EndianChange32 (bootSect32->bpb.sectorCount32, ENDIAN_LITTLE);
+    endianSect32->bpb.sectorsPerTrack = EndianChange16 (bootSect32->bpb.sectorsPerTrack, ENDIAN_LITTLE);
     return true;
 }
 
@@ -405,7 +518,31 @@ static bool constructHostBootSect (Image_t* img)
     bootSect->bpb.rootDirEntries = EndianChange16 (endianSect->bpb.rootDirEntries, EndianHost());
     bootSect->bpb.sectorCount16 = EndianChange16 (endianSect->bpb.sectorCount16, EndianHost());
     bootSect->bpb.sectorCount32 = EndianChange32 (endianSect->bpb.sectorCount32, EndianHost());
-    bootSect->bpb.sectorsPerTrack = EndianChange16 (bootSect->bpb.sectorsPerTrack, EndianHost());
+    bootSect->bpb.sectorsPerTrack = EndianChange16 (endianSect->bpb.sectorsPerTrack, EndianHost());
+    return true;
+}
+
+// Converts little endian boot sector to host order (FAT32)
+static bool constructHostBootSect32 (Image_t* img)
+{
+    bootSect32 = (bootSector32_t*) calloc_s (img->sectSz);
+    if (!bootSect32)
+        return false;
+    memcpy (bootSect32, endianSect32, sizeof (bootSector_t));
+    // Chnage endian of multi byte values
+    bootSect32->bootSig = EndianChange16 (endianSect32->bootSig, EndianHost());
+    bootSect32->volId = EndianChange32 (endianSect32->volId, EndianHost());
+    bootSect32->backupBootSect = EndianChange16 (endianSect32->backupBootSect, EndianHost());
+    bootSect32->extFlags = EndianChange16 (endianSect32->extFlags, EndianHost());
+    bootSect32->fatSize32 = EndianChange32 (endianSect32->fatSize32, EndianHost());
+    bootSect32->fsInfoSector = EndianChange16 (endianSect32->fsInfoSector, EndianHost());
+    bootSect32->rootCluster = EndianChange32 (endianSect32->rootCluster, EndianHost());
+    bootSect32->bpb.bytesPerSector = EndianChange16 (endianSect32->bpb.bytesPerSector, EndianHost());
+    bootSect32->bpb.hiddenSectors = EndianChange32 (endianSect32->bpb.hiddenSectors, EndianHost());
+    bootSect32->bpb.numHeads = EndianChange16 (endianSect32->bpb.numHeads, EndianHost());
+    bootSect32->bpb.resvdSectors = EndianChange16 (endianSect32->bpb.resvdSectors, EndianHost());
+    bootSect32->bpb.sectorCount32 = EndianChange32 (endianSect32->bpb.sectorCount32, EndianHost());
+    bootSect32->bpb.sectorsPerTrack = EndianChange16 (endianSect32->bpb.sectorsPerTrack, EndianHost());
     return true;
 }
 
@@ -425,8 +562,6 @@ static bool initBootSect (Image_t* img, Partition_t* part)
         memcpy (bootSect->fileSys, "FAT12   ", 8);
     else if (part->filesys == IMG_FILESYS_FAT16)
         memcpy (bootSect->fileSys, "FAT16   ", 8);
-    else
-        assert (!"initBootSect() requires a FAT12 or FAT16 partition");
     // Initialize jump to 0xEB 0x3C 0x90
     bootSect->bpb.jmp[0] = 0xEB;
     bootSect->bpb.jmp[1] = 0x3C;
@@ -452,8 +587,6 @@ static bool initBootSect (Image_t* img, Partition_t* part)
         bootSect->bpb.rootDirEntries = 224;
     else if (part->filesys == IMG_FILESYS_FAT16)
         bootSect->bpb.rootDirEntries = 512;
-    else
-        assert (!"Invalid file system");
     // Set sector size. If greater then 0xFFFF, use sectorCount16. Else, use sectorCount32
     if (part->internal.lbaSz > 0xFFFF)
         bootSect->bpb.sectorCount32 = (uint32_t) part->internal.lbaSz;
@@ -474,14 +607,13 @@ static bool initBootSect (Image_t* img, Partition_t* part)
 
 bool bootSectInit2 (Image_t* img, Partition_t* part)
 {
-    // Set root directory cached into
     rootDirSz = FAT_ROOTDIRSZ (bootSect);
     // Compute size of FAT using Microsoft's algorithm
     uint32_t tmp1 = part->internal.lbaSz - (bootSect->bpb.resvdSectors + rootDirSz);
     uint32_t tmp2 = (256 * bootSect->bpb.sectorPerClus) + bootSect->bpb.fatCount;
     bootSect->bpb.fatSize16 = (tmp1 + (tmp2 - 1)) / tmp2;
     // Construct endian correct BPB
-    if (!constructEndianBpb (img))
+    if (!constructEndianBootSect (img))
         return false;
     // Construct FAT table
     fatType = part->filesys;
@@ -502,6 +634,193 @@ bool bootSectInit2 (Image_t* img, Partition_t* part)
     return true;
 }
 
+bool formatFat32 (Image_t* img, Partition_t* part)
+{
+    rootDirSz = 0;
+    fatType = part->filesys;
+    // Allocate the boot sector
+    bootSect32 = calloc_s (sizeof (bootSector32_t));
+    if (!bootSect32)
+        return false;
+    // Initialize basic fields
+    bootSect32->bootSig = 0xAA55;
+    bootSect32->volId = time (0);
+    memcpy (bootSect32->label, "NexNix Disk", 11);
+    memcpy (bootSect32->fileSys, "FAT32   ", 8);
+    // Initialize jump to 0xEB 0x3C 0x90
+    bootSect32->bpb.jmp[0] = 0xEB;
+    bootSect32->bpb.jmp[1] = 0x3C;
+    bootSect32->bpb.jmp[2] = 0x90;
+    // Ensure sector size is in range
+    if (img->sectSz > 4096)
+    {
+        error ("sector size \"%d\" beyond range of 4096 for FAT volumes", img->sectSz);
+        free (bootSect32);
+        return false;
+    }
+    // OEM name
+    memcpy (bootSect32->bpb.oemName, "MSWIN4.1", 8);
+    // Sector size
+    bootSect32->bpb.bytesPerSector = img->sectSz;
+    // Reserve 4 sectors for boot code
+    bootSect32->bpb.resvdSectors = 32;
+    // FAT count is always 2
+    bootSect32->bpb.fatCount = 2;
+    // Set size in sectors
+    if (part->internal.lbaSz > 0xFFFFFFFF)
+    {
+        error ("size of partition too big for FAT filesystem");
+        free (bootSect32);
+        return false;
+    }
+    bootSect32->bpb.sectorCount32 = part->internal.lbaSz;
+    // Set hidden sectors
+    bootSect32->bpb.hiddenSectors = part->start;
+    // Set BPB signature
+    bootSect32->sig = 0x29;
+    // Set media byte
+    bootSect32->bpb.media = 0xF8;
+    // Set sectors per cluster
+    uint32_t sectorCount = part->internal.lbaSz;
+    if (sectorCount <= 66600)
+    {
+        error ("partition size of %u is too small for FAT32", part->sz);
+        free (bootSect32);
+        return false;
+    }
+    else if (sectorCount <= 532480)
+        bootSect32->bpb.sectorPerClus = 1;
+    else if (sectorCount <= 16777216)
+        bootSect32->bpb.sectorPerClus = 8;
+    else if (sectorCount <= 33554432)
+        bootSect32->bpb.sectorPerClus = 16;
+    else if (sectorCount <= 67108864)
+        bootSect32->bpb.sectorPerClus = 32;
+    else if (sectorCount <= 0xFFFFFFFF)
+        bootSect32->bpb.sectorPerClus = 64;
+    // Compute size of FAT using Microsoft's algorithm
+    uint32_t tmp1 = part->internal.lbaSz - (bootSect32->bpb.resvdSectors + rootDirSz);
+    uint32_t tmp2 = ((256 * bootSect32->bpb.sectorPerClus) + bootSect32->bpb.fatCount) / 2;
+    bootSect32->fatSize32 = (tmp1 + (tmp2 - 1)) / tmp2;
+    // Compute cluster count
+    clusterCount =
+        (sectorCount - FAT_DATASECTOR (bootSect32, bootSect32->fatSize32)) / bootSect32->bpb.sectorPerClus;
+    if (clusterCount < 65525)
+    {
+        error ("FAT32 filesystem has too few clusters");
+        free (bootSect32);
+        return false;
+    }
+    // Set sector / cluster pointers
+    bootSect32->rootCluster = 2;
+    bootSect32->fsInfoSector = 1;
+    bootSect32->backupBootSect = 6;
+    // Set fields to correct endianess
+    if (!constructEndianBootSect32 (img))
+    {
+        free (bootSect32);
+        return false;
+    }
+    // Create FAT
+    if (!createFatTable (img))
+    {
+        free (bootSect32);
+        free (endianSect32);
+        return false;
+    }
+    // Set up FAT reserved entries
+    uint32_t mediaFatEnt = 0x0FFFFFF00;
+    mediaFatEnt |= bootSect32->bpb.media;
+    writeFatEntry (0, mediaFatEnt);
+    writeFatEntry (1, 0x0FFFFFFF);
+    // Allocate and create root directory
+    // TODO: we hard code the root directory to 512 entries. Maybe that's not the best
+    dirCacheEnt_t* rootDirCache = malloc_s (sizeof (dirCacheEnt_t));
+    uint32_t numRootDirClusters =
+        (512 * (size_t) sizeof (dirEntry_t)) / (img->sectSz * (size_t) bootSect32->bpb.sectorPerClus);
+    for (int i = 0; i < numRootDirClusters; ++i)
+    {
+        rootDirCache->clusters[i] = bootSect32->rootCluster + i;
+        // Write out this entry
+        if (i == (numRootDirClusters - 1))
+            writeFatEntry (bootSect32->rootCluster + i, fatEofStart[fatType]);
+        else
+            writeFatEntry (bootSect32->rootCluster + i, bootSect32->rootCluster + i + 1);
+    }
+    // Add to list of cache entries
+    dirsList = ListCreate ("dirCacheEnt_t", false, 0);
+    if (!dirsList)
+    {
+        free (bootSect32);
+        free (endianSect32);
+        free (rootDirCache);
+        return false;
+    }
+    ListSetDestroy (dirsList, dirsDestroyEnt);
+    ListSetFindBy (dirsList, dirsFindBy);
+    ListAddFront (dirsList, rootDirCache, 0);
+    // Allocate the root directory
+    rootDir = (dirEntry_t*) calloc_s (512 * (size_t) sizeof (dirEntry_t));
+    if (!rootDir)
+    {
+        free (bootSect32);
+        free (endianSect32);
+        free (fatTable);
+        return false;
+    }
+    // Cache it
+    rootDirSz = 512 * sizeof (dirEntry_t);
+    rootDirCache->img = img;
+    rootDirCache->needsWrite = true;
+    rootDirCache->numClusters = numRootDirClusters;
+    rootDirCache->dirBase = rootDir;
+    // Set cluster hint
+    clusterHint = 2;
+    // Setup FSInfo sector
+    fsInfo = calloc_s (img->sectSz);
+    if (!fsInfo)
+    {
+        free (bootSect32);
+        free (endianSect32);
+        free (rootDir);
+        free (fatTable);
+        return false;
+    }
+    // Set the endless number of signatures
+    fsInfo->leadSig = EndianChange32 (0x41615252, ENDIAN_LITTLE);
+    fsInfo->sig2 = EndianChange32 (0x61417272, ENDIAN_LITTLE);
+    fsInfo->sig3 = EndianChange32 (0xAA550000, ENDIAN_LITTLE);
+    fsInfo->freeCount = 0xFFFFFFFF;
+    fsInfo->freeHint = 0xFFFFFFFF;
+    // Go ahead and write out FSInfo
+    if (!writeSector (img, fsInfo, part->internal.lbaStart + bootSect32->fsInfoSector))
+    {
+        free (bootSect32);
+        free (endianSect32);
+        free (rootDir);
+        free (fatTable);
+        free (fsInfo);
+        return false;
+    }
+    // Write backup FSInfo
+    if (!writeSector (img,
+                      fsInfo,
+                      part->internal.lbaStart + bootSect32->fsInfoSector + bootSect32->backupBootSect))
+    {
+        free (bootSect32);
+        free (endianSect32);
+        free (rootDir);
+        free (fatTable);
+        free (fsInfo);
+        return false;
+    }
+    free (fsInfo);
+    // Set some global state
+    partBase = part->internal.lbaStart;
+    rootDir = rootDirCache->dirBase;
+    return true;
+}
+
 bool formatFat16 (Image_t* img, Partition_t* part)
 {
     // Prepare base boot sector
@@ -514,23 +833,23 @@ bool formatFat16 (Image_t* img, Partition_t* part)
         sectorCount = bootSect->bpb.sectorCount32;
     else
         sectorCount = bootSect->bpb.sectorCount16;
-    if (sectorCount < 8400)
+    if (sectorCount <= 8400)
     {
         error ("partition size of %u is too small for FAT16", part->sz);
         free (bootSect);
         return false;
     }
-    else if (sectorCount < 32680)
+    else if (sectorCount <= 32677)
         bootSect->bpb.sectorPerClus = 2;
-    else if (sectorCount < 262144)
+    else if (sectorCount <= 262141)
         bootSect->bpb.sectorPerClus = 4;
-    else if (sectorCount < 524288)
+    else if (sectorCount <= 524285)
         bootSect->bpb.sectorPerClus = 8;
-    else if (sectorCount < 1048576)
+    else if (sectorCount <= 1048573)
         bootSect->bpb.sectorPerClus = 16;
-    else if (sectorCount < 2097152)
+    else if (sectorCount <= 2097149)
         bootSect->bpb.sectorPerClus = 32;
-    else if (sectorCount < 4194304)
+    else if (sectorCount <= 4194301)
         bootSect->bpb.sectorPerClus = 64;
     else
     {
@@ -538,12 +857,6 @@ bool formatFat16 (Image_t* img, Partition_t* part)
         free (bootSect);
         return false;
     }
-    // Set root directory cached into
-    rootDirSz = FAT_ROOTDIRSZ (bootSect);
-    // Compute size of FAT using Microsoft's algorithm
-    uint32_t tmp1 = part->internal.lbaSz - (bootSect->bpb.resvdSectors + rootDirSz);
-    uint32_t tmp2 = (256 * bootSect->bpb.sectorPerClus) + bootSect->bpb.fatCount;
-    bootSect->bpb.fatSize16 = (tmp1 + (tmp2 - 1)) / tmp2;
     if (!bootSectInit2 (img, part))
     {
         free (bootSect);
@@ -569,6 +882,7 @@ bool formatFat16 (Image_t* img, Partition_t* part)
     writeFatEntry (1, 0xFFFF);
     // Initialize cluster hint
     clusterHint = 2;
+    partBase = part->internal.lbaStart;
     return true;
 }
 
@@ -640,6 +954,26 @@ bool formatFatFloppy (Image_t* img, Partition_t* part)
     return true;
 }
 
+// Computes last free cluster
+void computeClusterHint()
+{
+    // Compute free cluster hint by starting from top
+    uint32_t lastCluster = clusterCount + 1;
+    uint32_t olastClus = lastCluster;
+    for (uint32_t i = lastCluster; i >= 2; --i)
+    {
+        // Check if cluster is free. If not, we reached hint
+        if (readFatEntry (i) != 0 || i == 2)
+        {
+            lastCluster = i + 1;
+            break;
+        }
+    }
+    // If original last cluster and found last cluster are equal, no cluster hint is ued
+    if (lastCluster != olastClus)
+        clusterHint = lastCluster;
+}
+
 bool mountFat (Image_t* img, Partition_t* part)
 {
     // Set up parameters on floppies
@@ -693,7 +1027,6 @@ bool mountFat (Image_t* img, Partition_t* part)
     {
         free (endianSect);
         free (bootSect);
-        free (fatTable);
         return false;
     }
     for (int i = 0; i < bootSect->bpb.fatSize16; ++i)
@@ -730,23 +1063,125 @@ bool mountFat (Image_t* img, Partition_t* part)
             return false;
         }
     }
-    // Compute free cluster hint by starting from top
-    uint32_t lastCluster = clusterCount + 1;
-    uint32_t olastClus = lastCluster;
-    for (uint32_t i = lastCluster; i >= 2; --i)
+    computeClusterHint();
+    return true;
+}
+
+bool mountFat32 (Image_t* img, Partition_t* part)
+{
+    // Initialize cached partition data
+    partBase = part->internal.lbaStart;
+    fatType = part->filesys;
+    // Read in boot sector
+    endianSect32 = calloc_s (img->sectSz);
+    if (!endianSect32)
+        return false;
+    if (!readSector (img, endianSect32, partBase))
     {
-        // Check if cluster is free. If not, we reached hint
-        if (readFatEntry (i) != 0 || i == 2)
+        free (endianSect32);
+        return false;
+    }
+    // Convert to host byte order
+    if (!constructHostBootSect32 (img))
+    {
+        free (endianSect32);
+        return false;
+    }
+    // Set global variables
+    fatType = part->filesys;
+    // Initialize root directory values to 0
+    rootDirSz = 0;
+    rootDirBase = 0;
+    // Compute cluster count
+    clusterCount = (bootSect32->bpb.sectorCount32 - FAT_DATASECTOR (bootSect32, bootSect32->fatSize32)) /
+                   bootSect32->bpb.sectorPerClus;
+    // Read in FAT
+    fatTable = calloc_s (bootSect32->fatSize32 * (size_t) bootSect32->bpb.bytesPerSector);
+    if (!fatTable)
+    {
+        free (endianSect32);
+        free (bootSect32);
+        return false;
+    }
+    for (int i = 0; i < bootSect32->fatSize32; ++i)
+    {
+        if (!readSector (img,
+                         fatTable + (i * (ptrdiff_t) bootSect32->bpb.bytesPerSector),
+                         part->internal.lbaStart + bootSect32->bpb.resvdSectors + i))
         {
-            lastCluster = i + 1;
-            break;
+            free (bootSect32);
+            free (fatTable);
+            free (endianSect32);
+            return false;
         }
     }
-    // If original last cluster and found last cluster are equal, no cluster hint is ued
-    if (lastCluster != olastClus)
-        clusterHint = lastCluster;
-    copyFileFat (img, "Makefile", "test3/test4/Make.txt");
-    copyFileFat (img, "Makefile", "test3/test5/Make.txt");
+    // Read in root directory
+    // On FAT32, this involves parsing a cluster chain and filling out a cache entry
+
+    // Allocate the root directory cache entry
+    dirCacheEnt_t* rootDirCache = (dirCacheEnt_t*) calloc_s (sizeof (dirCacheEnt_t));
+    if (!rootDirCache)
+    {
+        free (fatTable);
+        free (endianSect32);
+        free (bootSect32);
+        return false;
+    }
+    rootDirCache->img = img;
+    rootDirCache->needsWrite = true;
+    // Parse cluster chain
+    uint32_t curCluster = bootSect32->rootCluster;
+    while (!(curCluster >= fatEofStart[fatType]))
+    {
+        rootDirCache->clusters[rootDirCache->numClusters] = curCluster;
+        ++rootDirCache->numClusters;
+        curCluster = readFatEntry (curCluster);
+    }
+    // Allocate the actual table
+    rootDirCache->dirBase = (dirEntry_t*) calloc_s (rootDirCache->numClusters *
+                                                    (img->sectSz * (size_t) bootSect32->bpb.sectorPerClus));
+    if (!rootDirCache->dirBase)
+    {
+        free (rootDirCache);
+        free (fatTable);
+        free (endianSect32);
+        free (bootSect32);
+        return false;
+    }
+    // Read in its contents
+    for (int i = 0; i < rootDirCache->numClusters; ++i)
+    {
+        if (!readCluster (img, rootDirCache->dirBase, rootDirCache->clusters[i]))
+        {
+            free (rootDirCache->dirBase);
+            free (rootDirCache);
+            free (fatTable);
+            free (endianSect32);
+            free (bootSect32);
+            return false;
+        }
+    }
+    // Add to list of cache entries
+    dirsList = ListCreate ("dirCacheEnt_t", false, 0);
+    if (!dirsList)
+    {
+        free (bootSect32);
+        free (endianSect32);
+        free (rootDirCache->dirBase);
+        free (rootDirCache);
+        free (fatTable);
+        return false;
+    }
+    ListSetDestroy (dirsList, dirsDestroyEnt);
+    ListSetFindBy (dirsList, dirsFindBy);
+    ListAddFront (dirsList, rootDirCache, 0);
+    // Set rootDir globals
+    rootDir = rootDirCache->dirBase;
+    rootDirSz = rootDirCache->numClusters * bootSect32->bpb.sectorPerClus;
+    // Compute free cluster hint
+    computeClusterHint();
+    copyFileFat (img, "Makefile", "test1/test2/Make.txt");
+    copyFileFat (img, "Makefile", "test1/test3/Makefile");
     return true;
 }
 
@@ -841,69 +1276,12 @@ static inline bool isLastPathComp()
     return *curPath == 0;
 }
 
-// Find by function for dirEntry_t cache
-static bool dirsFindBy (ListEntry_t* entry, void* data)
-{
-    dirCacheEnt_t* cacheEnt = ListEntryData (entry);
-    return cacheEnt->parent == (dirEntry_t*) data;
-}
-
-// Destroys a directory cache entry
-static void dirsDestroyEnt (void* data)
-{
-    // Set sectors per cluster
-    uint8_t secPerClus = 0;
-    if (fatType == IMG_FILESYS_FAT32)
-        ;
-    else
-        secPerClus = bootSect->bpb.sectorPerClus;
-    dirCacheEnt_t* cacheEnt = data;
-    // Write out this entry if needed
-    if (cacheEnt->needsWrite)
-    {
-        // Flip endianess of directory if needed
-        if (EndianHost() != ENDIAN_LITTLE)
-        {
-            dirEntry_t* curDir = cacheEnt->dirBase;
-            dirEntry_t* dirEnd = cacheEnt->dirBase +
-                                 ((cacheEnt->numClusters * (size_t) cacheEnt->img->sectSz * (size_t) secPerClus) /
-                                  sizeof (dirEntry_t));
-            while (curDir->shortName[0] && curDir < dirEnd)
-            {
-                curDir->accessTime = EndianSwap16 (curDir->accessTime);
-                curDir->cluster = EndianSwap16 (curDir->cluster);
-                if (fatType == IMG_FILESYS_FAT32)
-                    curDir->clusterHigh = EndianSwap16 (curDir->clusterHigh);
-                curDir->creationDate = EndianSwap16 (curDir->creationDate);
-                curDir->creationTime = EndianSwap16 (curDir->creationTime);
-                curDir->size = EndianSwap32 (curDir->size);
-                curDir->writeDate = EndianSwap16 (curDir->writeDate);
-                curDir->writeTime = EndianSwap16 (curDir->writeTime);
-                ++curDir;
-            }
-        }
-        for (int i = 0; i < cacheEnt->numClusters; ++i)
-        {
-            // Write out this cluster
-            writeCluster (cacheEnt->img,
-                          cacheEnt->dirBase +
-                              ((i * (size_t) cacheEnt->img->sectSz * (size_t) secPerClus) / sizeof (dirEntry_t)),
-                          cacheEnt->clusters[i]);
-        }
-    }
-    free (cacheEnt->dirBase);
-    free (data);
-}
-
-// EOF values for different FAT types
-static uint32_t fatEofStart[] = {0, 0x0FFFFFF8, 0xFFF8, 0x0FF8, 0, 0};
-
 // Reads in a subdirectory of another directory
 static dirEntry_t* readSubDir (Image_t* img, dirEntry_t* parent, size_t* numEnt)
 {
     uint8_t secPerClus = 0;
     if (fatType == IMG_FILESYS_FAT32)
-        secPerClus = 1;
+        secPerClus = bootSect32->bpb.sectorPerClus;
     else
         secPerClus = bootSect->bpb.sectorPerClus;
     // Allocate directory list if needed
@@ -1072,7 +1450,7 @@ static dirEntry_t* createFatDirs (Image_t* img, const char* path)
     // Get sectors in a clusters
     uint8_t secPerClus = 0;
     if (fatType == IMG_FILESYS_FAT32)
-        ;
+        secPerClus = bootSect32->bpb.sectorPerClus;
     else
         secPerClus = bootSect->bpb.sectorPerClus;
     // If name component should be parsed on loop run
@@ -1375,7 +1753,7 @@ bool writeFatFile (Image_t* img, dirEntry_t* dest, const char* src)
     // Get size of a cluster
     uint8_t secPerClus = 0;
     if (fatType == IMG_FILESYS_FAT32)
-        ;
+        secPerClus = bootSect32->bpb.sectorPerClus;
     else
         secPerClus = bootSect->bpb.sectorPerClus;
     uint32_t clusterSz = secPerClus * img->sectSz;
@@ -1497,43 +1875,84 @@ bool copyFileFat (Image_t* img, const char* src, const char* dest)
     return true;
 }
 
+void freeBootSect()
+{
+    if (fatType == IMG_FILESYS_FAT32)
+    {
+        free (bootSect32);
+        free (endianSect32);
+    }
+    else
+    {
+        free (bootSect);
+        free (endianSect);
+    }
+}
+
 bool cleanupFat (Image_t* img, Partition_t* part)
 {
     // Cleanup directory list
     if (dirsList)
         ListDestroy (dirsList);
-    // Write out the BPB
-    if (!writeSector (img, endianSect, part->internal.lbaStart))
+    dirsList = NULL;
+    // Write out the boot sector
+    if (!writeSector (img,
+                      (void*) ((fatType == IMG_FILESYS_FAT32) ? endianSect32 : endianSect),
+                      part->internal.lbaStart))
     {
-        free (bootSect);
-        if (part->filesys != IMG_FILESYS_FAT32)
+        freeBootSect();
+        if (fatType != IMG_FILESYS_FAT32)
             free (rootDir);
         free (fatTable);
-        free (endianSect);
         return false;
     }
-    // Write out FAT
-    uint32_t fatStart = bootSect->bpb.resvdSectors;
-    for (int i = 0; i < bootSect->bpb.fatCount; ++i)
+    // Write out backup boot sector
+    if (fatType == IMG_FILESYS_FAT32)
     {
-        if (part->filesys != IMG_FILESYS_FAT32)
+        if (!writeSector (img, endianSect32, part->internal.lbaStart + bootSect32->backupBootSect))
         {
-            for (int i = 0; i < bootSect->bpb.fatSize16; ++i)
-            {
-                if (!writeSector (img,
-                                  fatTable + (i * (uint64_t) bootSect->bpb.bytesPerSector),
-                                  part->internal.lbaStart + fatStart + i))
-                {
-                    free (bootSect);
-                    if (part->filesys != IMG_FILESYS_FAT32)
-                        free (rootDir);
-                    free (fatTable);
-                    free (endianSect);
-                    return false;
-                }
-            }
-            fatStart += bootSect->bpb.fatSize16;
+            freeBootSect();
+            if (fatType != IMG_FILESYS_FAT32)
+                free (rootDir);
+            free (fatTable);
+            return false;
         }
+    }
+    // Write out FAT
+    uint32_t fatStart = 0;
+    uint32_t fatSize = 0;
+    uint16_t bytesPerSect = 0;
+    uint8_t fatCount = 0;
+    if (fatType == IMG_FILESYS_FAT32)
+    {
+        fatSize = bootSect32->fatSize32;
+        fatStart = bootSect32->bpb.resvdSectors;
+        bytesPerSect = bootSect32->bpb.bytesPerSector;
+        fatCount = bootSect32->bpb.fatCount;
+    }
+    else
+    {
+        fatSize = bootSect->bpb.fatSize16;
+        fatStart = bootSect->bpb.resvdSectors;
+        bytesPerSect = bootSect->bpb.bytesPerSector;
+        fatCount = bootSect->bpb.fatCount;
+    }
+    for (int i = 0; i < fatCount; ++i)
+    {
+        for (int i = 0; i < fatSize; ++i)
+        {
+            if (!writeSector (img,
+                              fatTable + (i * (uint64_t) bytesPerSect),
+                              part->internal.lbaStart + fatStart + i))
+            {
+                freeBootSect();
+                free (fatTable);
+                if (fatType != IMG_FILESYS_FAT32)
+                    free (rootDir);
+                return false;
+            }
+        }
+        fatStart += fatSize;
     }
     // Write out root directory
     if (part->filesys != IMG_FILESYS_FAT32)
@@ -1542,21 +1961,21 @@ bool cleanupFat (Image_t* img, Partition_t* part)
         {
             uint8_t* _rootDir = (uint8_t*) rootDir;
             if (!writeSector (img,
-                              (void*) (_rootDir + (i * (uint64_t) bootSect->bpb.bytesPerSector)),
+                              (void*) (_rootDir + (i * (uint64_t) bytesPerSect)),
                               part->internal.lbaStart + rootDirBase + i))
             {
-                free (bootSect);
-                free (rootDir);
+                freeBootSect();
+                if (fatType != IMG_FILESYS_FAT32)
+                    free (rootDir);
                 free (fatTable);
-                free (endianSect);
                 return false;
             }
         }
     }
-    free (bootSect);
-    if (part->filesys != IMG_FILESYS_FAT32)
+    freeBootSect();
+    // If file system is FAT32, ListDestroy() freed rootDir
+    if (fatType != IMG_FILESYS_FAT32)
         free (rootDir);
     free (fatTable);
-    free (endianSect);
     return true;
 }

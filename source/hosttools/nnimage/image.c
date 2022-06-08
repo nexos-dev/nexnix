@@ -106,13 +106,13 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
     }
     else
     {
-    openImg:
         // Check if image exists
         if (stat (img->file, &st) == -1)
         {
             error ("%s", strerror (errno));
             return false;
         }
+    openImg:
         fileNo = open (img->file, O_RDWR);
         if (fileNo == -1)
         {
@@ -202,6 +202,11 @@ static bool mountPartition (Image_t* img, Partition_t* part)
         if (!mountFat (img, part))
             return false;
     }
+    else if (part->filesys == IMG_FILESYS_FAT32)
+    {
+        if (!mountFat32 (img, part))
+            return false;
+    }
     return true;
 }
 
@@ -216,6 +221,11 @@ static bool formatPartition (Image_t* img, Partition_t* part)
     else if (part->filesys == IMG_FILESYS_FAT16)
     {
         if (!formatFat16 (img, part))
+            return false;
+    }
+    else if (part->filesys == IMG_FILESYS_FAT32)
+    {
+        if (!formatFat32 (img, part))
             return false;
     }
     return true;

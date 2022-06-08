@@ -408,7 +408,8 @@ Run $0 -l to see supported targets"
         touch $olddir/source/external/libraries/libchardet_done
     fi
     # Build libchardet
-    if [ ! -f $output/tools/lib/libchardet.a ] || [ "$NNTOOLS_REBUILD_CHARDET" = "1" ]
+    if ([ ! -f $output/tools/lib/libchardet.a ] && [ ! -f $output/tools/lib64/libchardet.a ]) \
+       || [ "$NNTOOLS_REBUILD_CHARDET" = "1" ]
     then
         chardetbuild="$output/build/tools/chardet-build/$cmakegen"
         mkdir -p $chardetbuild && cd $chardetbuild

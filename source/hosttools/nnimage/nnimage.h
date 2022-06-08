@@ -140,4 +140,10 @@ bool mountFat (Image_t* img, Partition_t* part);
 /// Copies a file to a FAT FS
 bool copyFileFat (Image_t* img, const char* src, const char* dest);
 
+/// Formats a partition in FAT32
+bool formatFat32 (Image_t* img, Partition_t* part);
+
+/// Mounts a FAT32 partition
+bool mountFat32 (Image_t* img, Partition_t* part);
+
 #endif
