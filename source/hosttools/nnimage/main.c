@@ -25,16 +25,19 @@
 #include <string.h>
 
 // The name of the program
-static char* progName = NULL;
+static const char* progName = NULL;
 
 // The file that is being read from
-static char* confName = "nnimage.conf";
+static const char* confName = "nnimage.conf";
 
 // The action that is being performed
-static char* action = NULL;
+static const char* action = NULL;
 
 // The file that is being output
-static char* outputName = NULL;
+static const char* outputName = NULL;
+
+// Updat list file
+static const char* listFile = NULL;
 
 // If the image file should be overtwritten
 static bool overwrite = false;
@@ -43,7 +46,7 @@ static bool overwrite = false;
 static int parseArgs (int argc, char** argv)
 {
 // The list of options that are valid
-#define ARGS_VALIDARGS "f:o:hd:w"
+#define ARGS_VALIDARGS "f:o:hd:wl:"
     int arg = 0;
     while ((arg = getopt (argc, argv, ARGS_VALIDARGS)) != -1)
     {
@@ -52,7 +55,7 @@ static int parseArgs (int argc, char** argv)
             case 'h':
                 printf ("\
 %s - image building helper\n\
-Usage: %s [-h] [-f CONFFILE] [-o OUTPUT] [-d DIRECTORY] ACTION\n\
+Usage: %s [-h] [-f CONFFILE] [-o OUTPUT] [-d DIRECTORY] [-l FILELIST] [-w] ACTION\n\
 Valid arguments:\n\
   -h\n\
               prints help and then exits\n\
@@ -62,6 +65,8 @@ Valid arguments:\n\
               outputs the image specfied in OUTPUT\n\
   -d DIRECTORY\n\
               directory where image data is\n\
+  -l FILELIST\n\
+              specifies a file containing a list of files to update\n\
   -w\n\
               specifies that if the image file specified in nnimage.conf\n\
               already exists, it should be overwitten without the user's\n\
@@ -78,6 +83,9 @@ configuration is read from nnimage.conf in the current directory\n",
                 break;
             case 'o':
                 outputName = optarg;
+                break;
+            case 'l':
+                listFile = optarg;
                 break;
             case 'w':
                 overwrite = true;
@@ -123,7 +131,7 @@ int main (int argc, char** argv)
         return 1;
     }
     // Create the image
-    bool res = createImages (images, action, overwrite, outputName);
+    bool res = createImages (images, action, overwrite, outputName, listFile);
     ListDestroy (images);
     ConfFreeParseTree (confBlocks);
     return !res;

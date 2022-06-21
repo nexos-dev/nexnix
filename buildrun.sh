@@ -123,10 +123,10 @@ run()
     # Set the image arguments
     if [ "$imgformat" = "mbr" ]
     then
-        $NNPROJECTROOT/run.sh $EMU_ARGS -disk $image $emuargs
+        $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -disk $image $emuargs
     elif [ "$imgformat" = "iso9660" ]
     then
-        $NNPROJECTROOT/run.sh $EMU_ARGS -cdrom $image -cdromboot $emuargs
+        $NNPROJECTROOT/scritps/run.sh $EMU_ARGS -cdrom $image -cdromboot $emuargs
     fi
 }
 

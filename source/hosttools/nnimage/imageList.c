@@ -148,11 +148,11 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
             }
             // Check the size of the multiplier
             if (!strcmp (val->strVal, "KiB"))
-                img->mul = 1024;
+                img->mul = IMG_MUL_KIB;
             else if (!strcmp (val->strVal, "MiB"))
-                img->mul = 1024 * 1024;
+                img->mul = IMG_MUL_MIB;
             else if (!strcmp (val->strVal, "GiB"))
-                img->mul = 1024 * 1024 * 1024;
+                img->mul = IMG_MUL_GIB;
             else
             {
                 error ("%s:%d: size multiplier \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
@@ -167,21 +167,6 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 return false;
             }
             img->sz = val->numVal;
-        }
-        else if (!strcmp (prop, "sectorSize"))
-        {
-            if (dataType != DATATYPE_NUMBER)
-            {
-                error ("%s:%d: property \"sectorSize\" requires a numeric value", ConfGetFileName(), lineNo);
-                return false;
-            }
-            // Check validity of sector size
-            if (!(val->numVal && !(val->numVal % 512)))
-            {
-                error ("%s:%d: sector size must be a multiple of 512", ConfGetFileName(), lineNo);
-                return false;
-            }
-            img->sectSz = val->numVal;
         }
         else if (!strcmp (prop, "format"))
         {
@@ -217,6 +202,24 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->bootMode = IMG_BOOTMODE_EFI;
             else if (!strcmp (val->strVal, "hybrid"))
                 img->bootMode = IMG_BOOTMODE_HYBRID;
+            else if (!strcmp (val->strVal, "isofloppy"))
+                img->bootMode = IMG_BOOTMODE_ISOFLOPPY;
+            else if (!strcmp (val->strVal, "default"))
+                img->bootMode = IMG_BOOTMODE_DEFAULT;
+        }
+        else if (!strcmp (prop, "bootEmu"))
+        {
+            if (dataType != DATATYPE_IDENTIFIER)
+            {
+                error ("%s:%d: property \"bootEmu\" requires and identifier value", ConfGetFileName());
+                return false;
+            }
+            if (!strcmp (val->strVal, "hdd"))
+                img->bootEmu = IMG_BOOTEMU_HDD;
+            else if (!strcmp (val->strVal, "fdd"))
+                img->bootEmu = IMG_BOOTEMU_FDD;
+            else if (!strcmp (val->strVal, "noemu"))
+                img->bootEmu = IMG_BOOTEMU_NONE;
         }
         else
         {

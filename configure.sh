@@ -68,14 +68,86 @@ checkerr()
     fi
 }
 
-# Finds a program in the PATH. Panic if not found, unless $2 is set to "silent"
+# Runs a program as root
+runroot()
+{
+    # Check of program should be run with su or sudo
+    if [ "$usesu" = "1" ]
+    then
+        su -c "$@"
+    else
+        sudo $@
+    fi
+}
+
+# Finds a library
+findlib()
+{
+    # Figure out include directories possible
+    # We include /usr/include, /usr/pkg/include, and /usr/local/include
+    incdirs="/usr/include /usr/pkg/include /usr/local/include"
+    printf "Checking for $1..."
+    for dir in $incdirs
+    do
+        # Figure out package
+        if [ "$1" = "uuid" ]
+        then
+            if [ -f ${dir}/uuid/uuid.h ]
+            then
+                echo "found"
+                return
+            fi
+        elif [ "$1" = "guestfs" ]
+        then
+            if [ -f ${dir}/guestfs.h ]
+            then
+                echo "found"
+                return
+            fi
+        fi
+    done
+    echo "not found"
+    if [ "$installpkgs" = "1" ]
+    then
+        if [ "$1" = "uuid" ]
+        then
+            if [ "$hostos" = "debian" ]
+            then
+                pkg=uuid-dev
+            elif [ "$hostos" = "fedora" ]
+            then
+                pkg=libuuid-devel
+            elif [ "$hostos" = "arch" ]
+            then
+                pkg=libuuid-devel
+            fi
+        elif [ "$1" = "guestfs" ]
+        then
+            if [ "$hostos" = "debian" ]
+            then
+                pkg=libguestfs-dev
+            elif [ "$hostos" = "fedora" ]
+            then
+                pkg=libguestfs-devel
+            elif [ "$hostos" = "arch" ]
+            then
+                pkg=libguestfs-dev
+            fi
+        fi
+        pkgs="$pkgs $pkg"
+    else
+        depcheckfail=1
+    fi
+}
+
+# Finds a program in the PATH. Panic if not found
 findprog()
 {
     # Save PATH, also making it able for us to loop through with for
     pathtemp=$PATH
     pathtemp=$(echo "$pathtemp" | sed 's/:/ /g')
     # Go through each directory, trying to see if the program exists
-    for prog in $1
+    for prog in $@
     do
         printf "Checking for $prog..."
         for dir in $pathtemp
@@ -88,7 +160,65 @@ findprog()
         done
         echo "not found"
     done
-    depcheckfail=1
+    # Check if it should be installed
+    if [ "$installpkgs" = "1" ]
+    then
+        if [ "$1" = "ninja" ]
+        then
+            if [ "$hostos" = "arch" ]
+            then
+                pkg=ninja
+            else
+                pkg=ninja-build
+            fi
+        elif [ "$1" = "gcc" ]
+        then
+            pkg=$1
+        elif [ "$1" = "g++" ]
+        then
+            pkg=$1
+        elif [ "$1"  = "make" ]
+        then
+            pkg=$1
+        elif [ "$1" = "cmake" ]
+        then
+            pkg=$1
+        elif [ "$1" = "pkg-config" ]
+        then
+            pkg=$1
+        elif [ "$1" = "git" ]
+        then
+            pkg=$1
+        elif [ "$1" = "tar" ]
+        then
+            pkg=$1
+        elif [ "$1" = "wget" ]
+        then
+            pkg=$1
+        fi
+        pkgs="$pkgs $pkg"
+    else
+        depcheckfail=1
+    fi
+}
+
+# Installs packages
+installpkgs()
+{
+    if [ "$installpkgs" = "0" ]
+    then
+        return
+    fi
+    if [ "$hostos" = "fedora" ]
+    then
+        runroot dnf install $pkgs
+    elif [ "$hostos" = "debian" ]
+    then
+        runroot apt install $pkgs
+    elif [ "$hostos" = "arch" ]
+    then
+        runroot pacman -S $pkgs
+    fi
 }
 
 # Finds the argument to a given option
@@ -124,6 +254,10 @@ imagetype=
 depcheckfail=0
 useninja=0
 genconf=1
+installpkgs=0
+usesu=0
+hostos=
+pkgs=
 
 # Target list
 targets="i386-pc"
@@ -141,7 +275,7 @@ do
 $(basename $0) - configures the NexNix build system
 Usage - $0 [-help] [-archs] [-debug] [-target target] [-toolchain llvm|gnu] [-jobs jobcount] 
            [-output destdir] [-buildconf conf] [-prefix prefix]
-           [-imgformat image_type] [-conf conf]
+           [-imgformat image_type] [-conf conf] [-installpkgs] [-su]
 
 Valid arguments:
   -help
@@ -173,6 +307,12 @@ Valid arguments:
                         Use the ninja build system instead of GNU make
   -nogen
                         Don't generate a configuration
+  -installpkgs
+                        Automatically install missing dependencies
+                        Note that this requires root privileges
+  -su
+                        Use su(1) to run commands as root
+                        By default, sudo(1) is used
 HELPEND
         exit 0
         ;;
@@ -271,11 +411,81 @@ HELPEND
         genconf=0
         shift
         ;;
+    -installpkgs)
+        installpkgs=1
+        shift
+        ;;
+    -su)
+        usesu=1
+        shift
+        ;;
     *)
         # Invalid option
         panic "invalid option $1" $0
     esac
 done
+
+# Detect host OS for package installation
+if [ "$installpkgs" = "1" ]
+then
+    if [ "$(uname)" = "Linux" ]
+    then
+        # Detect distro
+        # This is based off of Tilck's build system detection:
+        # https://github.com/vvaltchev/tilck/blob/9873e764402519c30a993ec5c2761e4332f76313/scripts/tc/pkgs/install_pkgs
+        if [ -f /etc/os-release ] && [ ! -z $(cat /etc/os-release | grep -i "debian") ]
+        then
+            echo "Detected OS: Debian"
+            hostos="debian"
+        elif [ ! -z $(cat /etc/*release | grep -i "fedora") ]
+        then
+            echo "Detected OS: Fedora"
+            hostos="fedora"
+        elif [ ! -z $(cat /etc/*release | grep -i "arch|manjaro") ]
+        then
+            echo "Detected OS: Arch Linux"
+            hostos="arch"
+        else
+            echo "Detected OS: Unknown"
+            installpkgs=0
+        fi
+    fi
+fi
+
+################################
+# Program check
+################################
+
+findprog "cmake"
+if [ $useninja -eq 1  ]
+then
+    findprog "ninja"
+else
+    findprog "gmake"
+fi
+findprog "wget"
+findprog "tar"
+findprog "git"
+findprog "gcc" "clang"
+findprog "g++" "clang++"
+if [ "$toolchain" = "gnu" ]
+then
+    findprog "gmake"
+fi
+findprog "pkg-config"
+findlib "uuid"
+findlib "guestfs"
+# Check if the check succeeded
+if [ $depcheckfail -eq 1 ]
+then
+    panic "missing dependency" $0
+fi
+
+# Install depndencies
+if [ ! -z $pkgs ]
+then
+    installpkgs
+fi
 
 # Check for all in target
 if [ "$tarearly" = "all" ]
@@ -357,32 +567,6 @@ Run $0 -l to see supported targets"
     then
         prefix="$output/conf/$target/$conf/sysroot"
     fi
-
-    ################################
-    # Program check
-    ################################
-
-    findprog "cmake"
-    if [ $useninja -eq 1  ]
-    then
-        findprog "ninja"
-    else
-        findprog "gmake"
-    fi
-    findprog "wget"
-    findprog "tar"
-    findprog "git"
-    if [ "$toolchain" = "gnu" ]
-    then
-        findprog "gmake"
-    fi
-    findprog "pkg-config"
-
-    # Check if the check succeeded
-    if [ $depcheckfail -eq 1 ]
-    then
-        panic "missing dependency" $0
-    fi
     
     ############################
     # nnbuild bootstraping
@@ -396,8 +580,6 @@ Run $0 -l to see supported targets"
         cmakegen=gmake
         makeargs="--no-print-directory"
     fi
-
-    uuidver=1.0.3
 
     # Download libchardet
     if [ ! -f $olddir/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET_CHARDET" = "1" ]
@@ -454,33 +636,6 @@ Run $0 -l to see supported targets"
             checkerr $? "test suite failed" $0
         fi
     fi
-    # Download libuuid
-    if [ ! -f $olddir/source/external/libraries/libuuid_done ] || [ "$NNTOOLS_REGET_UUID" = "1" ]
-    then
-        cd $olddir/source/external/libraries
-        rm -rf $olddir/source/external/libraries/libuuid-$uuidver
-        mkdir -p tarballs
-        wget https://sourceforge.net/projects/libuuid/files/libuuid-$uuidver.tar.gz/download \
-             -O tarballs/libuuid-$uuidver.tar.gz
-        checkerr $? "unable to download libuuid" $0
-        tar xf tarballs/libuuid-$uuidver.tar.gz
-        touch $olddir/source/external/libraries/libuuid_done
-    fi
-    # Build libuuid
-    if [ ! -f $output/tools/lib/libuuid.a ] || [ "$NNTOOLS_REBUILD_UUID" = "1" ]
-    then
-        uuid_builddir="$output/build/tools/uuid-build"
-        mkdir -p $uuid_builddir && cd $uuid_builddir
-        # Configure it
-        $olddir/source/external/libraries/libuuid-$uuidver/configure --disable-shared --prefix="$output/tools"
-        checkerr $? "unable to build libuuid" $0
-        # Build it
-        make -j $jobcount
-        checkerr $? "unable to build libuuid"
-        make install -j $jobcount
-        checkerr $? "unable to install libuuid"
-    fi
-
     # Build host tools
     if [ ! -f "$output/tools/bin/nnimage" ] || [ "$NNTOOLS_REBUILD_TOOLS" = "1" ]
     then
@@ -538,6 +693,8 @@ Run $0 -l to see supported targets"
         echo "export NNUEFIARCH=$buildfw" >> nexnix-conf.sh
         echo "export NNTARGETCONF=$tarconf" >> nexnix-conf.sh
         echo "export NNUSENINJA=$useninja" >> nexnix-conf.sh
+        echo "export NNSCRIPTROOT=\"$olddir/scripts\"/" >> nexnix-conf.sh
+        echo "export NNMOUNTDIR=\"$output/conf/$target/$conf/fsdir\"/" >> nexnix-conf.sh
     fi
     # Reset target configuration
     tarconf=

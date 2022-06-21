@@ -24,9 +24,7 @@ list(APPEND NNIMAGE_SOURCES
      main.c
      image.c
      imageList.c
-     mbr.c
-     gpt.c
-     fat.c)
+     update.c)
 
 # Inclide libuuid
 find_package(PkgConfig REQUIRED)

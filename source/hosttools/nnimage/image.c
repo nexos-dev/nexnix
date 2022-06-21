@@ -23,11 +23,71 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "nnimage.h"
 #include <libnex.h>
-#include <sys/stat.h>
+
+// Child process ID
+static pid_t childPid = 0;
+
+// Script dirname
+static char* scriptDirName = NULL;
+
+// End of scriptDirName
+static size_t dirNameSz = 0;
+
+// Mounting directory
+static const char* mountDir = NULL;
+
+// Host prefix
+static const char* hostPrefix = NULL;
+
+// Current partition number
+static int partNum = -1;
+
+#define MAX_SCRIPTSZ 33
+
+// Redirects signals from parent process to shell
+static void signalHandler (int signalNum)
+{
+    error ("child exiting on signal %d", signalNum);
+    // Redirect to child
+    kill (childPid, signalNum);
+}
+
+// Runs a script
+static bool runScript (char* cmd, const char* action, const char** argv)
+{
+    pid_t pid = fork();
+    if (!pid)
+    {
+        execv (cmd, (char* const*) argv);
+        // An error occured if we got here
+        _Exit (1);
+    }
+    else
+    {
+        childPid = pid;
+        // Handle signals
+        (void) signal (SIGINT, signalHandler);
+        (void) signal (SIGQUIT, signalHandler);
+        (void) signal (SIGHUP, signalHandler);
+        (void) signal (SIGTERM, signalHandler);
+        // Wait for the script to finish
+        int status = 0;
+        wait (&status);
+        // Exit if an error occured
+        if (status)
+        {
+            error ("an error occured while invoking action \"%s\"", action);
+            return false;
+        }
+    }
+    return true;
+}
 
 // Asks it the user wants to overwrite the image
 static bool askOverwrite (const char* file)
@@ -52,6 +112,9 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
         error ("%s: default image name not specified", ConfGetFileName());
         return false;
     }
+    // If this is an ISO image, bail out
+    if (img->format == IMG_FORMAT_ISO9660)
+        return true;
     int fileNo = 0;
     struct stat st;
     // If action is all, decide if we need to create a new image
@@ -71,7 +134,7 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
             if (strcmp (action, "create") != 0)
             {
                 // Check size of file to see if its has already been created
-                if (st.st_size == (img->mul * (long) img->sz))
+                if (st.st_size == (muls[img->mul] * (long) img->sz))
                     goto openImg;
             }
             // Check if we need to ask the user if we should overwrite the file
@@ -81,6 +144,7 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
             if (!overwrite)
                 return false;
         }
+        printf ("Creating image %s with size %u %s...\n", img->name, img->sz, mulNames[img->mul]);
         // Create the file
         fileNo = open (img->file, O_RDWR | O_CREAT | O_TRUNC, 0755);
         if (fileNo == -1)
@@ -89,13 +153,13 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
             return false;
         }
         // Write out as many zeroes as conf specified
-        uint8_t* buf = malloc_s (img->mul);
+        uint8_t* buf = malloc_s (muls[img->mul]);
         if (!buf)
             return false;
-        memset (buf, 0, img->mul);
+        memset (buf, 0, muls[img->mul]);
         for (int i = 0; i < img->sz; ++i)
         {
-            if (write (fileNo, buf, img->mul) == -1)
+            if (write (fileNo, buf, muls[img->mul]) == -1)
             {
                 error ("%s", strerror (errno));
                 free (buf);
@@ -127,155 +191,247 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
 // Creates partition table structure
 static bool createPartitionTable (Image_t* img, const char* action)
 {
-    if (!img->format)
+    // Check if we need to do this
+    if (!strcmp (action, "update") || !strcmp (action, "partition"))
+        return true;
+    // Check if image format has a partition table like this
+    if (img->format == IMG_FORMAT_ISO9660 || img->format == IMG_FORMAT_FLOPPY)
+        return true;
+    // Concatenate script for this part
+    if (strlcat (scriptDirName, "parttab.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
     {
-        error ("%s: partition table format not specified", ConfGetFileName());
+        scriptDirName[dirNameSz] = 0;
+        error ("buffer overflow");
         return false;
     }
-    // Check if we need to do this
-    if (!(!strcmp (action, "all") || !strcmp (action, "partition")))
-        return true;
-
-    // Decide what layer to call
-    if (img->format == IMG_FORMAT_MBR)
+    // Prepare argv for this
+    const char* argv[5];
+    argv[0] = scriptDirName;
+    argv[1] = partTypeNames[img->format];
+    argv[2] = img->file;
+    argv[3] = getprogname();
+    argv[4] = NULL;
+    // Run the script
+    if (!runScript (scriptDirName, action, argv))
     {
-        if (!createMbr (img))
-            return false;
+        scriptDirName[dirNameSz] = 0;
+        return false;
     }
-    else if (img->format == IMG_FORMAT_FLOPPY)
-        ;    // There is nothing to do
-    else if (img->format == IMG_FORMAT_GPT)
-    {
-        if (!createGpt (img))
-            return false;
-    }
-    else if (img->format == IMG_FORMAT_ISO9660)
-    {
-    }
-    return true;
-}
-
-// Clean up partition table layer
-static bool cleanPartLayer (const char* action, Image_t* img)
-{
-    if (!strcmp (action, "partition") || !strcmp (action, "all"))
-    {
-        // Cleanup partition layer
-        if (img->format == IMG_FORMAT_MBR)
-        {
-            if (!cleanupMbr (img))
-                return false;
-        }
-        else if (img->format == IMG_FORMAT_GPT)
-        {
-            if (!cleanupGpt (img))
-                return false;
-        }
-    }
+    scriptDirName[dirNameSz] = 0;
     return true;
 }
 
 // Cleans up FS stuff of one partition
 static bool cleanPartition (const char* action, Image_t* img, Partition_t* part)
 {
-    // Detect file system
-    if (part->filesys == IMG_FILESYS_FAT12 || part->filesys == IMG_FILESYS_FAT16 ||
-        part->filesys == IMG_FILESYS_FAT32)
+    if (!strcmp (action, "create") || !strcmp (action, "partition"))
+        return true;
+    // Check if this partition is an ISO9660 partition
+    if (part->filesys == IMG_FILESYS_ISO9660)
     {
-        return cleanupFat (img, part);
+        // Ensure it's on a ISO disk
+        if (img->format != IMG_FORMAT_ISO9660)
+        {
+            error ("ISO9660 partition must be on an ISO disk image");
+            return false;
+        }
     }
+    // Concatenate script for this part
+    if (strlcat (scriptDirName, "umountpart.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
+    {
+        scriptDirName[dirNameSz] = 0;
+        error ("buffer overflow");
+        return false;
+    }
+    // Setup argv
+    const char* argv[6];
+    argv[0] = scriptDirName;
+    argv[1] = getprogname();
+    argv[2] = img->file;
+    argv[3] = partTypeNames[img->format];
+    argv[4] = fsTypeNames[part->filesys];
+    argv[5] = NULL;
+    // Run the script
+    if (!runScript (scriptDirName, action, argv))
+    {
+        scriptDirName[dirNameSz] = 0;
+        return false;
+    }
+    scriptDirName[dirNameSz] = 0;
     return true;
 }
 
 // Mounts a partition
-static bool mountPartition (Image_t* img, Partition_t* part)
+static bool mountPartition (const char* action, Image_t* img, Partition_t* part)
 {
-    if (img->format == IMG_FORMAT_GPT)
-        mountGptPartition (img, part);
-    else if (img->format == IMG_FORMAT_MBR)
-        mountMbrPartition (img, part);
-
-    // Mount file system
-    if (part->filesys == IMG_FILESYS_FAT12 || part->filesys == IMG_FILESYS_FAT16 ||
-        img->format == IMG_FORMAT_FLOPPY)
+    if (!strcmp (action, "create") || !strcmp (action, "partition"))
+        return true;
+    // Concatenate script for this part
+    if (strlcat (scriptDirName, "mountpart.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
     {
-        if (!mountFat (img, part))
-            return false;
+        scriptDirName[dirNameSz] = 0;
+        error ("buffer overflow");
+        return false;
     }
-    else if (part->filesys == IMG_FILESYS_FAT32)
+    // Setup argv
+    const char* argv[7];
+    argv[0] = scriptDirName;
+    argv[1] = getprogname();
+    argv[2] = partTypeNames[img->format];
+    argv[3] = img->file;
+    // Set partition number
+    char partNumS[20];
+    (void) snprintf (partNumS, 20, "%d", partNum);
+    argv[4] = partNumS;
+    argv[5] = fsTypeNames[part->filesys];
+    argv[6] = NULL;
+    // Run the script
+    if (!runScript (scriptDirName, action, argv))
     {
-        if (!mountFat32 (img, part))
-            return false;
+        scriptDirName[dirNameSz] = 0;
+        return false;
     }
+    scriptDirName[dirNameSz] = 0;
     return true;
 }
 
 // Formats a partition
-static bool formatPartition (Image_t* img, Partition_t* part)
+static bool formatPartition (const char* action, Image_t* img, Partition_t* part)
 {
-    if (part->filesys == IMG_FILESYS_FAT12)
+    // Check if we need to do this
+    if (!strcmp (action, "update") || !strcmp (action, "create"))
+        return true;
+    // Concatenate script for this part
+    if (strlcat (scriptDirName, "createpart.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
     {
-        if (!formatFatFloppy (img, part))
-            return false;
+        scriptDirName[dirNameSz] = 0;
+        error ("buffer overflow");
+        return false;
     }
-    else if (part->filesys == IMG_FILESYS_FAT16)
+    // Prepare argv for this
+    const char* argv[15];
+    argv[0] = scriptDirName;
+    argv[1] = partTypeNames[img->format];
+    argv[2] = fsTypeNames[part->filesys];
+    argv[3] = img->file;
+    argv[4] = bootModeNames[img->bootMode];
+    argv[5] = bootEmuNames[img->bootEmu];
+    argv[6] = (part->isBootPart) ? "1" : "0";
+    argv[7] = part->name;
+    // Set partition base
+    char partStart[255];
+    (void) snprintf (partStart, 255, "%u", part->start);
+    argv[8] = partStart;
+    // Set partition size simillarly
+    char partSize[255];
+    (void) snprintf (partSize, 255, "%u", part->sz);
+    argv[9] = partSize;
+    // Set multiplier
+    argv[10] = mulNames[img->mul];
+    // Set partition number
+    char partNumS[20];
+    (void) snprintf (partNumS, 20, "%d", partNum);
+    argv[11] = partNumS;
+    argv[12] = getprogname();
+    char mulSize[20];
+    (void) snprintf (mulSize, 20, "%u", muls[img->mul]);
+    argv[13] = mulSize;
+    argv[14] = NULL;
+    // Run the script
+    if (!runScript (scriptDirName, action, argv))
     {
-        if (!formatFat16 (img, part))
-            return false;
+        scriptDirName[dirNameSz] = 0;
+        return false;
     }
-    else if (part->filesys == IMG_FILESYS_FAT32)
-    {
-        if (!formatFat32 (img, part))
-            return false;
-    }
+    scriptDirName[dirNameSz] = 0;
     return true;
 }
 
-bool createImages (ListHead_t* images, const char* action, bool overwrite, const char* file)
+bool createImages (ListHead_t* images, const char* action, bool overwrite, const char* file, const char* listFile)
 {
+    // Initialize script dirname
+    char* dirName = getenv ("NNSCRIPTROOT");
+    if (!dirName)
+    {
+        error ("variable NNSCRIPTROOT must be set");
+        return false;
+    }
+    scriptDirName = calloc_s (strlen (dirName) + MAX_SCRIPTSZ);
+    if (!scriptDirName)
+        return false;
+    // Copy over dirName
+    strcpy (scriptDirName, dirName);
+    dirNameSz = strlen (dirName);
+    // Get mount directory
+    mountDir = getenv ("NNMOUNTDIR");
+    if (!mountDir)
+    {
+        error ("variable NNMOUNTDIR must be set");
+        free (scriptDirName);
+        return false;
+    }
+    // Get host prefix
+    hostPrefix = getenv ("NNDESTDIR");
+    if (!hostPrefix)
+    {
+        error ("variable NNDESTDIR must be set");
+        free (scriptDirName);
+        return false;
+    }
     // Loop through every image
     ListEntry_t* imgEntry = ListFront (images);
     while (imgEntry)
     {
         Image_t* img = ListEntryData (imgEntry);
         // Sanity checks
-
-        // Ensure size of sector is less than or equal to size of multiplier, as this program
-        // is written to assume that
-        if (img->sectSz && (img->sectSz > img->mul))
-        {
-            error ("sector size of image %s is greater than multiplier size", img->name);
-            return false;
-        }
         // Ensure a partition format was specified
         if (!img->format)
         {
             error ("partition table format not specified on image %s", img->name);
-            return false;
+            goto nextImg;
         }
         if (!img->sz)
         {
             error ("image size not set on image %s", img->name);
-            return false;
+            goto nextImg;
         }
-        if (!img->sectSz)
-            img->sectSz = 512;
         // Set default multiplier. KiB on floppies, MiB elsewhere
         if (!img->mul)
         {
             if (img->format == IMG_FORMAT_FLOPPY)
-                img->mul = 1024;
+                img->mul = IMG_MUL_KIB;
             else
-                img->mul = 1024 * 1024;
+                img->mul = IMG_MUL_MIB;
+        }
+        // Ensure that a boot emulation was specified only on ISO9660
+        if (img->format == IMG_FORMAT_ISO9660 && !img->bootEmu)
+            img->bootEmu = IMG_BOOTEMU_NONE;
+        else if (img->format != IMG_FORMAT_ISO9660 && img->bootEmu)
+        {
+            error ("boot emulation only valid for ISO9660 images");
+            goto nextImg;
+        }
+        if (!img->bootMode)
+            img->bootMode = IMG_BOOTMODE_HYBRID;
+        // Ensure isofloppy boot mode wasn't specified on ISO9660
+        if (img->format != IMG_FORMAT_ISO9660 && img->bootMode == IMG_BOOTMODE_ISOFLOPPY)
+        {
+            error ("boot mode \"isofloppy\" only valid for ISO9660 images");
+            goto nextImg;
         }
         if (!createImage (img, action, overwrite, file))
-            return false;
+        {
+            close (img->fileNo);
+            goto nextImg;
+        }
+        close (img->fileNo);
         // Create partition table
         if (!createPartitionTable (img, action))
-            return false;
+            goto nextImg;
         ListEntry_t* partEntry = ListFront (img->partsList);
         while (partEntry)
         {
+            ++partNum;
             Partition_t* part = ListEntryData (partEntry);
             // Go through partitions
             if (!strcmp (action, "all") || !strcmp (action, "partition"))
@@ -284,124 +440,102 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
                 if (!part->prefix)
                 {
                     error ("prefix not specified on partition %s", part->name);
-                    cleanPartLayer (action, img);
-                    return false;
+                    goto nextPart;
                 }
                 if (img->format != IMG_FORMAT_FLOPPY)
                 {
                     if (!part->filesys)
                     {
                         error ("file system type not specified on partition %s", part->name);
-                        cleanPartLayer (action, img);
-                        return false;
+                        goto nextPart;
+                    }
+                    if (part->filesys == IMG_FILESYS_FAT12)
+                    {
+                        error ("FAT12 not allowed on hard disks");
+                        goto nextPart;
                     }
                     if (!part->start || !part->sz)
                     {
                         error ("bounds not specified on partition %s", part->name);
-                        cleanPartLayer (action, img);
-                        return false;
+                        goto nextPart;
                     }
                 }
-                if (img->format == IMG_FORMAT_MBR)
-                {
-                    if (!addMbrPartition (img, part))
-                    {
-                        cleanPartLayer (action, img);
-                        return false;
-                    }
-                }
-                else if (img->format == IMG_FORMAT_GPT)
-                {
-                    if (!addGptPartition (img, part))
-                    {
-                        cleanPartLayer (action, img);
-                        return false;
-                    }
-                }
-                else if (img->format == IMG_FORMAT_FLOPPY)
+                else
                 {
                     // Ensure we have only 1 partition on floppies
                     if (img->partCount != 1)
                     {
                         error ("floppy image %s has more then 1 partition specified", img->name);
-                        return false;
+                        goto nextPart;
                     }
-                    if (img->mul != 1024)
+                    if (img->mul != IMG_MUL_KIB)
                     {
                         error ("floppy image %s using multiplier other KiB", img->name);
-                        return false;
+                        goto nextPart;
                     }
                     // Check that the size is 720K, 1.44M, or 2.88M
                     if (img->sz != 720 && img->sz != 1440 && img->sz != 2880)
                     {
                         error ("floppy image %s doesn't have a size of either 720, 1440, or 2880", img->name);
-                        return false;
+                        goto nextPart;
                     }
+                    if (part->filesys && part->filesys != IMG_FILESYS_FAT12)
+                    {
+                        error ("only FAT12 is supported on floppy disks");
+                        goto nextPart;
+                    }
+                    else
+                        part->filesys = IMG_FILESYS_FAT12;
                 }
                 // Format partition
-                if (!formatPartition (img, part))
-                {
-                    cleanPartLayer (action, img);
-                    return false;
-                }
+                if (!formatPartition (action, img, part))
+                    goto nextPart;
                 // Clean up partition file system data
                 if (strcmp (action, "all") != 0)
                 {
                     if (!cleanPartition (action, img, part))
-                    {
-                        cleanPartLayer (action, img);
-                        return false;
-                    }
+                        goto nextPart;
                 }
+                else
+                    goto update;
             }
             else if (!strcmp (action, "update"))
             {
+            update:
+                // Ensure a list file was specified
+                if (!listFile)
+                {
+                    error ("list file not specified on command line");
+                    free (scriptDirName);
+                    return false;
+                }
                 // Mount the partition
-                if (!mountPartition (img, part))
-                    return false;
-
-                // Clean up partitionn file system data
+                if (!mountPartition (action, img, part))
+                    goto nextPart;
+                // Actually do the update
+                if (!updatePartition (img, part, listFile, mountDir, hostPrefix))
+                {
+                    cleanPartition (action, img, part);
+                    goto nextPart;
+                }
+                // Clean up partition file system data
                 if (!cleanPartition (action, img, part))
-                    return false;
+                    goto nextPart;
             }
             else if (!strcmp (action, "create"))
                 ;
             else
             {
-                close (img->fileNo);
                 error ("invalid action \"%s\"", action);
                 return false;
             }
+        nextPart:
             partEntry = ListIterate (partEntry);
         }
+    nextImg:
         // Cleanup and commit partition data
-        if (!cleanPartLayer (action, img))
-            return false;
-
-        close (img->fileNo);
         imgEntry = ListIterate (imgEntry);
     }
-    return true;
-}
-
-bool writeSector (Image_t* img, void* data, uint32_t sector)
-{
-    lseek (img->fileNo, sector * (off_t) img->sectSz, SEEK_SET);
-    if (write (img->fileNo, data, img->sectSz) == -1)
-    {
-        error ("%s", strerror (errno));
-        return false;
-    }
-    return true;
-}
-
-bool readSector (Image_t* img, void* buf, uint32_t sector)
-{
-    lseek (img->fileNo, (sector * (off_t) img->sectSz), SEEK_SET);
-    if (read (img->fileNo, buf, img->sectSz) == -1)
-    {
-        error ("%s\n", strerror (errno));
-        return false;
-    }
+    free (scriptDirName);
     return true;
 }
