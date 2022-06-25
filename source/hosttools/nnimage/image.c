@@ -24,70 +24,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include "nnimage.h"
 #include <libnex.h>
 
-// Child process ID
-static pid_t childPid = 0;
-
-// Script dirname
-static char* scriptDirName = NULL;
-
-// End of scriptDirName
-static size_t dirNameSz = 0;
-
-// Mounting directory
-static const char* mountDir = NULL;
-
-// Host prefix
+// Host prefix directory
 static const char* hostPrefix = NULL;
 
+// Source root
+static const char* scriptRoot = NULL;
+
 // Current partition number
-static int partNum = -1;
+static int partNum = 0;
 
-#define MAX_SCRIPTSZ 33
-
-// Redirects signals from parent process to shell
-static void signalHandler (int signalNum)
-{
-    error ("child exiting on signal %d", signalNum);
-    // Redirect to child
-    kill (childPid, signalNum);
-}
-
-// Runs a script
-static bool runScript (char* cmd, const char* action, const char** argv)
-{
-    pid_t pid = fork();
-    if (!pid)
-    {
-        execv (cmd, (char* const*) argv);
-        // An error occured if we got here
-        _Exit (1);
-    }
-    else
-    {
-        childPid = pid;
-        // Handle signals
-        (void) signal (SIGINT, signalHandler);
-        (void) signal (SIGQUIT, signalHandler);
-        (void) signal (SIGHUP, signalHandler);
-        (void) signal (SIGTERM, signalHandler);
-        // Wait for the script to finish
-        int status = 0;
-        wait (&status);
-        // Exit if an error occured
-        if (status)
-        {
-            error ("an error occured while invoking action \"%s\"", action);
-            return false;
-        }
-    }
-    return true;
-}
+// Converts multiplier value to sectors
+#define IMG_MUL_TO_SECT(mulSz) (((mulSz) * (muls[img->mul])) / 512)
 
 // Asks it the user wants to overwrite the image
 static bool askOverwrite (const char* file)
@@ -112,6 +64,10 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
         error ("%s: default image name not specified", ConfGetFileName());
         return false;
     }
+    // Create guestfs instance
+    img->guestFs = guestfs_create();
+    if (!img->guestFs)
+        return false;
     // If this is an ISO image, bail out
     if (img->format == IMG_FORMAT_ISO9660)
         return true;
@@ -188,39 +144,6 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
     return true;
 }
 
-// Creates partition table structure
-static bool createPartitionTable (Image_t* img, const char* action)
-{
-    // Check if we need to do this
-    if (!strcmp (action, "update") || !strcmp (action, "partition"))
-        return true;
-    // Check if image format has a partition table like this
-    if (img->format == IMG_FORMAT_ISO9660 || img->format == IMG_FORMAT_FLOPPY)
-        return true;
-    // Concatenate script for this part
-    if (strlcat (scriptDirName, "parttab.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
-    {
-        scriptDirName[dirNameSz] = 0;
-        error ("buffer overflow");
-        return false;
-    }
-    // Prepare argv for this
-    const char* argv[5];
-    argv[0] = scriptDirName;
-    argv[1] = partTypeNames[img->format];
-    argv[2] = img->file;
-    argv[3] = getprogname();
-    argv[4] = NULL;
-    // Run the script
-    if (!runScript (scriptDirName, action, argv))
-    {
-        scriptDirName[dirNameSz] = 0;
-        return false;
-    }
-    scriptDirName[dirNameSz] = 0;
-    return true;
-}
-
 // Cleans up FS stuff of one partition
 static bool cleanPartition (const char* action, Image_t* img, Partition_t* part)
 {
@@ -236,62 +159,15 @@ static bool cleanPartition (const char* action, Image_t* img, Partition_t* part)
             return false;
         }
     }
-    // Concatenate script for this part
-    if (strlcat (scriptDirName, "umountpart.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
-    {
-        scriptDirName[dirNameSz] = 0;
-        error ("buffer overflow");
-        return false;
-    }
-    // Setup argv
-    const char* argv[6];
-    argv[0] = scriptDirName;
-    argv[1] = getprogname();
-    argv[2] = img->file;
-    argv[3] = partTypeNames[img->format];
-    argv[4] = fsTypeNames[part->filesys];
-    argv[5] = NULL;
-    // Run the script
-    if (!runScript (scriptDirName, action, argv))
-    {
-        scriptDirName[dirNameSz] = 0;
-        return false;
-    }
-    scriptDirName[dirNameSz] = 0;
+
     return true;
 }
 
 // Mounts a partition
 static bool mountPartition (const char* action, Image_t* img, Partition_t* part)
 {
-    if (!strcmp (action, "create") || !strcmp (action, "partition"))
+    if (!strcmp (action, "create") || !strcmp (action, "partition") || part->filesys == IMG_FILESYS_ISO9660)
         return true;
-    // Concatenate script for this part
-    if (strlcat (scriptDirName, "mountpart.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
-    {
-        scriptDirName[dirNameSz] = 0;
-        error ("buffer overflow");
-        return false;
-    }
-    // Setup argv
-    const char* argv[7];
-    argv[0] = scriptDirName;
-    argv[1] = getprogname();
-    argv[2] = partTypeNames[img->format];
-    argv[3] = img->file;
-    // Set partition number
-    char partNumS[20];
-    (void) snprintf (partNumS, 20, "%d", partNum);
-    argv[4] = partNumS;
-    argv[5] = fsTypeNames[part->filesys];
-    argv[6] = NULL;
-    // Run the script
-    if (!runScript (scriptDirName, action, argv))
-    {
-        scriptDirName[dirNameSz] = 0;
-        return false;
-    }
-    scriptDirName[dirNameSz] = 0;
     return true;
 }
 
@@ -299,85 +175,135 @@ static bool mountPartition (const char* action, Image_t* img, Partition_t* part)
 static bool formatPartition (const char* action, Image_t* img, Partition_t* part)
 {
     // Check if we need to do this
-    if (!strcmp (action, "update") || !strcmp (action, "create"))
+    if (!strcmp (action, "update") || !strcmp (action, "create") || part->filesys == IMG_FILESYS_ISO9660)
         return true;
-    // Concatenate script for this part
-    if (strlcat (scriptDirName, "createpart.sh", dirNameSz + MAX_SCRIPTSZ) >= (dirNameSz + MAX_SCRIPTSZ))
+#define DEVMAX 45
+    // Device to format
+    char devToFormat[DEVMAX];
+    if (img->format != IMG_FORMAT_FLOPPY)
     {
-        scriptDirName[dirNameSz] = 0;
-        error ("buffer overflow");
-        return false;
+        // Add partition to guestfs
+        if (guestfs_part_add (img->guestFs,
+                              "/dev/sda",
+                              "p",
+                              IMG_MUL_TO_SECT (part->start),
+                              (IMG_MUL_TO_SECT (part->start + part->sz) - 1)) == -1)
+        {
+            return false;
+        }
+        // Set file system type of partition
+        if (img->format == IMG_FORMAT_MBR)
+        {
+            if (guestfs_part_set_mbr_id (img->guestFs, "/dev/sda", partNum, mbrByteIds[part->filesys]) == -1)
+                return false;
+            // Set bootable flag if need be
+            if (part->isBootPart)
+                guestfs_part_set_bootable (img->guestFs, "/dev/sda", partNum, true);
+        }
+        else if (img->format == IMG_FORMAT_GPT)
+        {
+            if (guestfs_part_set_gpt_type (img->guestFs, "/dev/sda", partNum, gptGuids[part->filesys]) == -1)
+                return false;
+            if (guestfs_part_set_name (img->guestFs, "/dev/sda", partNum, part->name) == -1)
+                return false;
+            // Handle bootable partitions
+            if (part->isBootPart)
+            {
+                if (img->bootMode == IMG_BOOTMODE_BIOS)
+                {
+                    if (guestfs_part_set_bootable (img->guestFs, "/dev/sda", partNum, true) == -1)
+                        return false;
+                    if (guestfs_part_set_gpt_type (img->guestFs,
+                                                   "/dev/sda",
+                                                   partNum,
+                                                   "21686148-6449-6E6F-744E-656564454649") == -1)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (guestfs_part_set_gpt_type (img->guestFs,
+                                                   "/dev/sda",
+                                                   partNum,
+                                                   "C12A7328-F81F-11D2-BA4B-00A0C93EC93B") == -1)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+        // Format it
+        strcpy (devToFormat, "/dev/sda");
+        // Convert number to ASCII
+        int numSize = sprintf (devToFormat + 8, "%d", partNum);
+        devToFormat[numSize + 8] = 0;
     }
-    // Prepare argv for this
-    const char* argv[15];
-    argv[0] = scriptDirName;
-    argv[1] = partTypeNames[img->format];
-    argv[2] = fsTypeNames[part->filesys];
-    argv[3] = img->file;
-    argv[4] = bootModeNames[img->bootMode];
-    argv[5] = bootEmuNames[img->bootEmu];
-    argv[6] = (part->isBootPart) ? "1" : "0";
-    argv[7] = part->name;
-    // Set partition base
-    char partStart[255];
-    (void) snprintf (partStart, 255, "%u", part->start);
-    argv[8] = partStart;
-    // Set partition size simillarly
-    char partSize[255];
-    (void) snprintf (partSize, 255, "%u", part->sz);
-    argv[9] = partSize;
-    // Set multiplier
-    argv[10] = mulNames[img->mul];
-    // Set partition number
-    char partNumS[20];
-    (void) snprintf (partNumS, 20, "%d", partNum);
-    argv[11] = partNumS;
-    argv[12] = getprogname();
-    char mulSize[20];
-    (void) snprintf (mulSize, 20, "%u", muls[img->mul]);
-    argv[13] = mulSize;
-    argv[14] = NULL;
-    // Run the script
-    if (!runScript (scriptDirName, action, argv))
+    else
+        strcpy (devToFormat, "/dev/sda");
+#define CMDMAX 256
+    // Format it
+    const char* fsType = NULL;
+    char cmd[CMDMAX];
+    if (part->filesys == IMG_FILESYS_FAT12)
     {
-        scriptDirName[dirNameSz] = 0;
-        return false;
+        // Bulid command string
+        strcpy (cmd, "mkfs -t vfat -F 12 '");
+        strcat (cmd, devToFormat);
+        strcat (cmd, "'");
     }
-    scriptDirName[dirNameSz] = 0;
+    else if (part->filesys == IMG_FILESYS_FAT16)
+    {
+        // Bulid command string
+        strcpy (cmd, "mkfs -t vfat -F 16 '");
+        strcat (cmd, devToFormat);
+        strcat (cmd, "'");
+    }
+    else if (part->filesys == IMG_FILESYS_FAT32)
+    {
+        // Bulid command string
+        strcpy (cmd, "mkfs -t vfat -F 32 '");
+        strcat (cmd, devToFormat);
+        strcat (cmd, "'");
+    }
+    else if (part->filesys == IMG_FILESYS_EXT2)
+    {
+        // Bulid command string
+        strcpy (cmd, "mkfs -t ext2 '");
+        strcat (cmd, devToFormat);
+        strcat (cmd, "'");
+    }
+    // Format it
+    if (!guestfs_sh (img->guestFs, cmd))
+        return false;
     return true;
 }
 
 bool createImages (ListHead_t* images, const char* action, bool overwrite, const char* file, const char* listFile)
 {
-    // Initialize script dirname
-    char* dirName = getenv ("NNSCRIPTROOT");
-    if (!dirName)
-    {
-        error ("variable NNSCRIPTROOT must be set");
-        return false;
-    }
-    scriptDirName = calloc_s (strlen (dirName) + MAX_SCRIPTSZ);
-    if (!scriptDirName)
-        return false;
-    // Copy over dirName
-    strcpy (scriptDirName, dirName);
-    dirNameSz = strlen (dirName);
-    // Get mount directory
-    mountDir = getenv ("NNMOUNTDIR");
-    if (!mountDir)
-    {
-        error ("variable NNMOUNTDIR must be set");
-        free (scriptDirName);
-        return false;
-    }
     // Get host prefix
     hostPrefix = getenv ("NNDESTDIR");
     if (!hostPrefix)
     {
         error ("variable NNDESTDIR must be set");
-        free (scriptDirName);
         return false;
     }
+    // Get script root
+    scriptRoot = getenv ("NNSCRIPTROOT");
+    if (!scriptRoot)
+    {
+        error ("variable NNSCRIPTROOT must be set");
+        return false;
+    }
+    // Get path of root image
+    char rootImage[256];
+    // We reserve space for file name
+    if (strlcpy (rootImage, scriptRoot, 256) >= (256 - 17))
+    {
+        error ("buffer overflow detected");
+        return false;
+    }
+    strcat (rootImage, "guestfs_root.img");
     // Loop through every image
     ListEntry_t* imgEntry = ListFront (images);
     while (imgEntry)
@@ -413,21 +339,36 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
         }
         if (!img->bootMode)
             img->bootMode = IMG_BOOTMODE_HYBRID;
-        // Ensure isofloppy boot mode wasn't specified on ISO9660
-        if (img->format != IMG_FORMAT_ISO9660 && img->bootMode == IMG_BOOTMODE_ISOFLOPPY)
+        // Ensure partition count for MBR is less than 4
+        if (img->format == IMG_FORMAT_MBR)
         {
-            error ("boot mode \"isofloppy\" only valid for ISO9660 images");
-            goto nextImg;
+            if (img->partCount > 4)
+            {
+                error ("partition count > 4 not allowed on MBR disks! ");
+                goto nextImg;
+            }
         }
         if (!createImage (img, action, overwrite, file))
-        {
-            close (img->fileNo);
             goto nextImg;
-        }
         close (img->fileNo);
-        // Create partition table
-        if (!createPartitionTable (img, action))
+        // Add image to guestfs handle
+        if (guestfs_add_drive (img->guestFs, img->file) == -1)
             goto nextImg;
+        // Add root filesystem
+        if (guestfs_add_drive (img->guestFs, rootImage) == -1)
+            goto nextImg;
+        if (guestfs_launch (img->guestFs) == -1)
+            goto nextImg;
+        // Mount root
+        if (guestfs_mount (img->guestFs, "/dev/sdb3", "/") == -1)
+            goto nextImg;
+        // CHeck if a partition table needs to be created
+        if (!strcmp (action, "partition") || !strcmp (action, "all"))
+        {
+            // Create a new partition table
+            if (guestfs_part_init (img->guestFs, "/dev/sda", partTypeNames[img->format]) == -1)
+                goto nextImg;
+        }
         ListEntry_t* partEntry = ListFront (img->partsList);
         while (partEntry)
         {
@@ -437,7 +378,7 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
             if (!strcmp (action, "all") || !strcmp (action, "partition"))
             {
                 // Check required fields
-                if (!part->prefix)
+                if (!part->prefix && !part->isRootPart)
                 {
                     error ("prefix not specified on partition %s", part->name);
                     goto nextPart;
@@ -506,18 +447,11 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
                 if (!listFile)
                 {
                     error ("list file not specified on command line");
-                    free (scriptDirName);
                     return false;
                 }
                 // Mount the partition
                 if (!mountPartition (action, img, part))
                     goto nextPart;
-                // Actually do the update
-                if (!updatePartition (img, part, listFile, mountDir, hostPrefix))
-                {
-                    cleanPartition (action, img, part);
-                    goto nextPart;
-                }
                 // Clean up partition file system data
                 if (!cleanPartition (action, img, part))
                     goto nextPart;
@@ -533,9 +467,15 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
             partEntry = ListIterate (partEntry);
         }
     nextImg:
+        // Destroy handle
+        if (img->guestFs)
+        {
+            guestfs_umount (img->guestFs, "/dev/sdb3");
+            guestfs_shutdown (img->guestFs);
+            guestfs_close (img->guestFs);
+        }
         // Cleanup and commit partition data
         imgEntry = ListIterate (imgEntry);
     }
-    free (scriptDirName);
     return true;
 }

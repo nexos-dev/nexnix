@@ -23,12 +23,11 @@ enable_language(C)
 list(APPEND NNIMAGE_SOURCES 
      main.c
      image.c
-     imageList.c
-     update.c)
+     imageList.c)
 
-# Inclide libuuid
+# Include libguestfs
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBUUID REQUIRED IMPORTED_TARGET uuid)
+pkg_check_modules(GUESTFS REQUIRED IMPORTED_TARGET libguestfs)
 
 # Create program
 add_executable(nnimage ${NNIMAGE_SOURCES})
@@ -37,7 +36,7 @@ add_executable(nnimage ${NNIMAGE_SOURCES})
 set_target_properties(nnimage PROPERTIES LINKER_LANGUAGE CXX)
 
 # Link with libconf
-target_link_libraries(nnimage PRIVATE conf PkgConfig::LIBUUID)
+target_link_libraries(nnimage PRIVATE conf PkgConfig::GUESTFS)
 
 # Install it
 install(TARGETS nnimage)

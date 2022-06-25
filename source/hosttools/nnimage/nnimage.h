@@ -20,6 +20,7 @@
 #ifndef _NNIMAGE_H
 #define _NNIMAGE_H
 
+#include <guestfs.h>
 #include <libnex.h>
 
 /// Valid image formats
@@ -29,7 +30,7 @@
 #define IMG_FORMAT_FLOPPY  4
 
 // Name table
-static const char* partTypeNames[] = {"", "MBR", "GPT", "ISO9660", "floppy"};
+static const char* partTypeNames[] = {"", "mbr", "gpt", "ISO9660", "floppy"};
 
 /// An image in the list
 typedef struct _image
@@ -43,6 +44,7 @@ typedef struct _image
     int partCount;            ///< Number of partitions on this image
     short bootMode;           ///< Boot mode of this image
     short bootEmu;            ///< Emulation mode of image (on ISO images)
+    guestfs_h* guestFs;       ///< Handle to libguestfs instance
     ListHead_t* partsList;    ///< List of partitions
 } Image_t;
 
@@ -56,6 +58,17 @@ typedef struct _image
 // Name table for file systems
 static const char* fsTypeNames[] = {"", "FAT32", "FAT16", "FAT12", "ext2", "ISO9660"};
 
+// MBR partition byte IDs
+static uint8_t mbrByteIds[] = {0, 0x0C, 0x0E, 0x01, 0x83, 0};
+
+// GPT partition GUIDs
+static const char* gptGuids[] = {"",
+                                 "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7",
+                                 "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7",
+                                 "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7",
+                                 "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7",
+                                 ""};
+
 // Valid multipliers
 #define IMG_MUL_KIB 1
 #define IMG_MUL_MIB 2
@@ -66,6 +79,9 @@ static uint32_t muls[] = {0, 1024, 1024 * 1024, 1024 * 1024 * 1024};
 
 // Multiplier names
 static const char* mulNames[] = {"", "KiB", "MiB", "GiB"};
+
+// Size of a sector
+#define IMG_SECT_SZ 512
 
 // Boot modes
 #define IMG_BOOTMODE_BIOS      1
@@ -94,6 +110,7 @@ typedef struct _part
     short filesys;       ///< Filesystem of partition
     char* prefix;        ///< Prefix directory of partition
     bool isBootPart;     ///< If this is the boot partition
+    bool isRootPart;     ///< If this is the root partition
 } Partition_t;
 
 /// Creates list if images and their respective partitions

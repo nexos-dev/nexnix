@@ -75,8 +75,10 @@ runroot()
     if [ "$usesu" = "1" ]
     then
         su -c "$@"
+        checkerr $? "unable to install package" $0
     else
         sudo $@
+        checkerr $? "unable to install package" $0
     fi
 }
 
@@ -195,6 +197,27 @@ findprog()
         elif [ "$1" = "wget" ]
         then
             pkg=$1
+        elif [ "$1" = "ld" ]
+        then
+            pkg=binutils
+        elif [ "$1" = "lld" ]
+        then
+            pkg="llvm lld"
+        elif [ "$1" = "nasm" ]
+        then
+            pkg="nasm"
+        elif [ "$1" = "xz" ]
+        then
+            if [ "$hostos" = "debain" ]
+            then
+                pkg="xz-utils"
+            elif [ "$hostos" = "fedora" ]
+            then
+                pkg="xz"
+            elif [ "$hostos" = "arch" ]
+            then
+                pkg="xz"
+            fi
         fi
         pkgs="$pkgs $pkg"
     else
@@ -425,6 +448,15 @@ HELPEND
     esac
 done
 
+# Check for grep
+printf "Checking for grep..."
+if [ -z $(command -v grep) ]
+then
+    echo "not found"
+    panic "grep not found" $0
+fi
+echo "found"
+
 # Detect host OS for package installation
 if [ "$installpkgs" = "1" ]
 then
@@ -437,11 +469,20 @@ then
         then
             echo "Detected OS: Debian"
             hostos="debian"
+            if [ "$NNTOOLS_NO_WARNING" = "0" ]
+            then
+                # Warn Ubuntu users because kernel is not world readable in Ubuntu,
+                # which makes image generation field
+                echo "WARNING Ubuntu users: ensure your kernel is world readable, else"
+                echo "image generation will fail! Please run:"
+                echo "    sudo chmod +r /boot/vmlinuz-*"
+                sleep 1
+            fi
         elif [ ! -z $(cat /etc/*release | grep -i "fedora") ]
         then
             echo "Detected OS: Fedora"
             hostos="fedora"
-        elif [ ! -z $(cat /etc/*release | grep -i "arch|manjaro") ]
+        elif [ ! -z $(cat /etc/*release | grep -Ei "arch|manjaro") ]
         then
             echo "Detected OS: Arch Linux"
             hostos="arch"
@@ -449,6 +490,13 @@ then
             echo "Detected OS: Unknown"
             installpkgs=0
         fi
+    else
+        echo "Detected OS: Unknown"
+        echo "WARNING: This system has not been tested with NexNix's build system."
+        echo "There may be errors during the build"
+        echo "Also, package autoinstallation is DISABLED"
+        sleep 1
+        installpkgs=0
     fi
 fi
 
@@ -460,20 +508,20 @@ findprog "cmake"
 if [ $useninja -eq 1  ]
 then
     findprog "ninja"
-else
-    findprog "gmake"
 fi
 findprog "wget"
 findprog "tar"
 findprog "git"
-findprog "gcc" "clang"
-findprog "g++" "clang++"
-if [ "$toolchain" = "gnu" ]
+findprog "cc" "gcc" "clang"
+findprog "c++" "g++" "clang++"
+findprog "ld" "lld"
+findprog "ar"
+findprog "pkg-config"
+if [ "$toolchain" = "gnu" ] || [ $useninja -eq 0 ]
 then
     findprog "gmake"
 fi
-findprog "pkg-config"
-findlib "uuid"
+findprog "xz"
 findlib "guestfs"
 # Check if the check succeeded
 if [ $depcheckfail -eq 1 ]
@@ -695,6 +743,12 @@ Run $0 -l to see supported targets"
         echo "export NNUSENINJA=$useninja" >> nexnix-conf.sh
         echo "export NNSCRIPTROOT=\"$olddir/scripts\"/" >> nexnix-conf.sh
         echo "export NNMOUNTDIR=\"$output/conf/$target/$conf/fsdir\"/" >> nexnix-conf.sh
+    fi
+    # Check if libguestfs image needs to be decompressed
+    if [ ! -f $olddir/scripts/guestfs_root.img ]
+    then
+        echo "Decompressing libguestfs guest image..."
+        xz -dk $olddir/scripts/guestfs_root.img.xz
     fi
     # Reset target configuration
     tarconf=

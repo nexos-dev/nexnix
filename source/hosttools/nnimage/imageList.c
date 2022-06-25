@@ -202,8 +202,6 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->bootMode = IMG_BOOTMODE_EFI;
             else if (!strcmp (val->strVal, "hybrid"))
                 img->bootMode = IMG_BOOTMODE_HYBRID;
-            else if (!strcmp (val->strVal, "isofloppy"))
-                img->bootMode = IMG_BOOTMODE_ISOFLOPPY;
             else if (!strcmp (val->strVal, "default"))
                 img->bootMode = IMG_BOOTMODE_DEFAULT;
         }
@@ -271,11 +269,11 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 return false;
             }
         }
-        else if (!strcmp (prop, "boot"))
+        else if (!strcmp (prop, "isBoot"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"boot\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"isBoot\" requires an identifier value", ConfGetFileName(), lineNo);
                 return false;
             }
             // Check property value
@@ -285,7 +283,29 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 curPart->isBootPart = false;
             else
             {
-                error ("%s:%d: property \"boot\" requires a boolean value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"isBoot\" requires a boolean identifier value",
+                       ConfGetFileName(),
+                       lineNo);
+                return false;
+            }
+        }
+        else if (!strcmp (prop, "isRoot"))
+        {
+            if (dataType != DATATYPE_IDENTIFIER)
+            {
+                error ("%s:%d: property \"isRoot\" requires an identifier value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            // Check property value
+            if (!strcmp (val->strVal, "true"))
+                curPart->isRootPart = true;
+            else if (!strcmp (val->strVal, "false"))
+                curPart->isRootPart = false;
+            else
+            {
+                error ("%s:%d: property \"isRoot\" requires a boolean identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
         }
