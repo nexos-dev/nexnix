@@ -1,0 +1,12 @@
+/output
+.VSCodeCounter
+*.img
+Doxygen
+/patch-*
+/external/programs/*
+/external/libraries/*
+fakeinc
+*.code-workspace
+sdk
+sdktemp
+libraries
