@@ -1,6 +1,6 @@
 Checks: >
     "bugprone-*",
-    "cert-*",
+    "-cert-*",
     "clang-analyzer-*",
     "performance-*",
     "-bugprone-easily-swappable-parameters",

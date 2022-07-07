@@ -40,10 +40,11 @@ typedef struct _image
     uint32_t mul;             ///< Multiplier of size
     char* file;               ///< File to read from
     short format;             ///< Format of image
-    int fileNo;               ///< Underlying file descriptor
     int partCount;            ///< Number of partitions on this image
     short bootMode;           ///< Boot mode of this image
     short bootEmu;            ///< Emulation mode of image (on ISO images)
+    bool isUniversal;         ///< Is it a universal disk image?
+    char* mbrFile;            /// Path to file used for MBR
     guestfs_h* guestFs;       ///< Handle to libguestfs instance
     ListHead_t* partsList;    ///< List of partitions
 } Image_t;
@@ -84,14 +85,13 @@ static const char* mulNames[] = {"", "KiB", "MiB", "GiB"};
 #define IMG_SECT_SZ 512
 
 // Boot modes
-#define IMG_BOOTMODE_BIOS      1
-#define IMG_BOOTMODE_EFI       2
-#define IMG_BOOTMODE_HYBRID    3
-#define IMG_BOOTMODE_ISOFLOPPY 4
-#define IMG_BOOTMODE_DEFAULT   5
+#define IMG_BOOTMODE_BIOS   1
+#define IMG_BOOTMODE_EFI    2
+#define IMG_BOOTMODE_HYBRID 3
+#define IMG_BOOTMODE_NOBOOT 4
 
 // Boot mode names
-static const char* bootModeNames[] = {"", "bios", "efi", "hybrid", "isofloppy", "default"};
+static const char* bootModeNames[] = {"", "bios", "efi", "hybrid", "noboot"};
 
 // Boot emulations
 #define IMG_BOOTEMU_FDD  1
@@ -104,13 +104,14 @@ static const char* bootEmuNames[] = {"", "fdd", "hdd", "noemu"};
 /// A partition
 typedef struct _part
 {
-    const char* name;    ///< Name of partition
-    uint32_t sz;         ///< Size of partition
-    uint32_t start;      ///< Start location of partition
-    short filesys;       ///< Filesystem of partition
-    char* prefix;        ///< Prefix directory of partition
-    bool isBootPart;     ///< If this is the boot partition
-    bool isRootPart;     ///< If this is the root partition
+    const char* name;      ///< Name of partition
+    uint32_t sz;           ///< Size of partition
+    uint32_t start;        ///< Start location of partition
+    short filesys;         ///< Filesystem of partition
+    char* prefix;          ///< Prefix directory of partition
+    char* vbrFile;         ///< Path to file used for VBR
+    bool isBootPart;       ///< If this is the boot partition
+    bool isAltBootPart;    ///< If this is the alternate boot partition
 } Partition_t;
 
 /// Creates list if images and their respective partitions
@@ -118,6 +119,12 @@ ListHead_t* createImageList (ListHead_t* confBlocks);
 
 /// Returns image list
 ListHead_t* getImages();
+
+/// Gets boot partition pointer
+Partition_t* getBootPart();
+
+/// Gets alternate boot partition pointer
+Partition_t* getAltBootPart();
 
 /// Creates images, partitions, and filesystems, and copies files
 bool createImages (ListHead_t* images, const char* action, bool overwrite, const char* file, const char* listFile);

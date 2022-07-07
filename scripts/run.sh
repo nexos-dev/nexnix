@@ -91,7 +91,6 @@ Valid arguments:
                         Only has meaning for QEMU emulator
   -cdromboot
                         Specifies if system should boot from CDROM
-                        Has no meaning for UEFI
   -floppyboot
                         Specifies if system should boot from a floppy
 HELPEND

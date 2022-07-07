@@ -23,7 +23,8 @@ enable_language(C)
 list(APPEND NNIMAGE_SOURCES 
      main.c
      image.c
-     imageList.c)
+     imageList.c
+     update.c)
 
 # Include libguestfs
 find_package(PkgConfig REQUIRED)

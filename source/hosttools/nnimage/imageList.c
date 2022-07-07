@@ -30,6 +30,12 @@ static ListHead_t* images = NULL;
 // The current partition that is being operated on
 static Partition_t* curPart = NULL;
 
+// Boot partition
+static Partition_t* bootPart = NULL;
+
+// Alternate boot partition
+static Partition_t* altBootPart = NULL;
+
 // Current line number for diagnostics
 static int lineNo = 0;
 
@@ -57,10 +63,21 @@ ListHead_t* getImages()
     return images;
 }
 
+Partition_t* getBootPart()
+{
+    return bootPart;
+}
+
+Partition_t* getAltBootPart()
+{
+    return altBootPart;
+}
+
 // Function to destroy an image
 void imageDestroy (void* data)
 {
     free (((Image_t*) data)->file);
+    free (((Image_t*) data)->mbrFile);
     ListDestroy (((Image_t*) data)->partsList);
     free (data);
 }
@@ -69,6 +86,7 @@ void imageDestroy (void* data)
 void partDestroy (void* data)
 {
     free (((Partition_t*) data)->prefix);
+    free (((Partition_t*) data)->vbrFile);
     free (data);
 }
 
@@ -202,14 +220,14 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->bootMode = IMG_BOOTMODE_EFI;
             else if (!strcmp (val->strVal, "hybrid"))
                 img->bootMode = IMG_BOOTMODE_HYBRID;
-            else if (!strcmp (val->strVal, "default"))
-                img->bootMode = IMG_BOOTMODE_DEFAULT;
+            else if (!strcmp (val->strVal, "noboot"))
+                img->bootMode = IMG_BOOTMODE_NOBOOT;
         }
         else if (!strcmp (prop, "bootEmu"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"bootEmu\" requires and identifier value", ConfGetFileName());
+                error ("%s:%d: property \"bootEmu\" requires an identifier value", ConfGetFileName(), lineNo);
                 return false;
             }
             if (!strcmp (val->strVal, "hdd"))
@@ -218,6 +236,33 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->bootEmu = IMG_BOOTEMU_FDD;
             else if (!strcmp (val->strVal, "noemu"))
                 img->bootEmu = IMG_BOOTEMU_NONE;
+        }
+        else if (!strcmp (prop, "isUniversal"))
+        {
+            if (dataType != DATATYPE_IDENTIFIER)
+            {
+                error ("%s:%d: property \"isUniversal\" requires a boolean value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            if (!strcmp (val->strVal, "true"))
+                img->isUniversal = true;
+            else if (!strcmp (val->strVal, "false"))
+                img->isUniversal = false;
+            else
+            {
+                error ("%s:%d: property \"isUniversal\" requires a boolean value", ConfGetFileName(), lineNo);
+                return false;
+            }
+        }
+        else if (!strcmp (prop, "mbrFile"))
+        {
+            if (dataType != DATATYPE_STRING)
+            {
+                error ("%s:%d: property \"mbrFile\" requires a string value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            img->mbrFile = malloc_s (strlen (val->strVal) + 1);
+            strcpy (img->mbrFile, val->strVal);
         }
         else
         {
@@ -276,6 +321,12 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 error ("%s:%d: property \"isBoot\" requires an identifier value", ConfGetFileName(), lineNo);
                 return false;
             }
+            // Make sure this isn't already an alternate boot partition
+            if (curPart->isAltBootPart)
+            {
+                error ("%s:%d: properties \"isAltBoot\" and \"isBoot\" are mutually exclusive", ConfGetFileName());
+                return false;
+            }
             // Check property value
             if (!strcmp (val->strVal, "true"))
                 curPart->isBootPart = true;
@@ -288,8 +339,37 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                        lineNo);
                 return false;
             }
+            // Set boot partition
+            bootPart = curPart;
         }
-        else if (!strcmp (prop, "isRoot"))
+        else if (!strcmp (prop, "isAltBoot"))
+        {
+            if (dataType != DATATYPE_IDENTIFIER)
+            {
+                error ("%s:%d: property \"isAltBoot\" requires an identifier value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            if (curPart->isBootPart)
+            {
+                error ("%s:%d: properties \"isAltBoot\" and \"isBoot\" are mutually exclusive", ConfGetFileName());
+                return false;
+            }
+            // Check property value
+            if (!strcmp (val->strVal, "true"))
+                curPart->isAltBootPart = true;
+            else if (!strcmp (val->strVal, "false"))
+                curPart->isAltBootPart = false;
+            else
+            {
+                error ("%s:%d: property \"isAltBoot\" requires a boolean identifier value",
+                       ConfGetFileName(),
+                       lineNo);
+                return false;
+            }
+            // Set boot partition
+            altBootPart = curPart;
+        }
+        /*else if (!strcmp (prop, "isRoot"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
@@ -308,7 +388,7 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                        lineNo);
                 return false;
             }
-        }
+        }*/
         else if (!strcmp (prop, "prefix"))
         {
             if (dataType != DATATYPE_STRING)
@@ -337,6 +417,16 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
             ListAddBack (((Image_t*) ListEntryData (imgEntry))->partsList, curPart, 0);
             ((Image_t*) ListEntryData (imgEntry))->partCount++;
             wasPartLinked = true;
+        }
+        else if (!strcmp (prop, "vbrFile"))
+        {
+            if (dataType != DATATYPE_STRING)
+            {
+                error ("%s:%d: property \"vbrFile\" requires a string value", ConfGetFileName(), lineNo);
+                return false;
+            }
+            curPart->vbrFile = malloc_s (strlen (val->strVal) + 1);
+            strcpy (curPart->vbrFile, val->strVal);
         }
         else
         {

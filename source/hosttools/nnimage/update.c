@@ -1,0 +1,555 @@
+/*
+    update.c - contains functions to update disk images
+    Copyright 2022 The NexNix Project
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
+/// @file update.c
+
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <guestfs.h>
+#include <libgen.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "nnimage.h"
+#include <libnex.h>
+
+// File descriptor of list file
+static FILE* listFileFd = 0;
+
+// File name
+static const char* listFileName = NULL;
+
+// Mount directory
+static const char* mountDir = NULL;
+
+// Prefix on host
+static const char* hostPrefix = NULL;
+
+// Partition of update state
+static Partition_t* curPart = NULL;
+
+// File entry in list file
+typedef struct _lstEntry
+{
+    const char* destFile;    // File to copy to
+    const char* srcFile;     // File to copy from
+} listFile_t;
+
+// Gets next file entry
+static listFile_t* getNextFile()
+{
+    // Begin reading in string
+    static char buf[255];
+    static char dest[255];
+    static char src[255];
+readLoop:
+    memset (buf, 0, 255);
+    if (!fgets (buf, 255, listFileFd) && ferror (listFileFd))
+    {
+        error ("%s: %s", listFileName, strerror (errno));
+        return (listFile_t*) -1;
+    }
+    else if (feof (listFileFd))
+        return NULL;
+    listFile_t* fileEnt = (listFile_t*) calloc_s (sizeof (listFile_t));
+    // Attempt to find line end
+    bool lineEndFound = false;
+    for (int i = 0; i < 255; ++i)
+    {
+        // CHeck if this is line ending
+        if (buf[i] == '\n')
+        {
+            lineEndFound = true;
+            buf[i] = 0;
+            // If previous character was carriage return, erase that as well
+            if (buf[i - 1] == '\r')
+                buf[i - 1] = 0;
+            break;
+        }
+    }
+    if (!lineEndFound)
+    {
+        // That's an error
+        error ("no line end detected");
+        return (listFile_t*) -1;
+    }
+    // Check if this pertains to this partition
+    char* prefix = curPart->prefix;
+    // Check is this is root. If the string contains only a slash, it is root
+    if (curPart->prefix[1] == 0)
+    {
+        ++prefix;
+        // If buf starts without a slash and the prefix is not root
+        // then we skip over this file
+        if (*buf == '/')
+            goto readLoop;    // Go to next file
+    }
+    else
+    {
+        // Make sure first part of string is prefix
+        if (strstr (buf, prefix) != buf)
+            goto readLoop;
+    }
+    // Strip that part
+    size_t prefixLen = strlen (prefix);
+    char* file = buf + prefixLen;
+    // Prepare source buffer
+    if (strlcpy (src, hostPrefix, 255) >= 254)
+    {
+        error ("prefix too large");
+        return NULL;
+    }
+    // Detect if a '/' is at the end
+    if (src[strlen (hostPrefix) - 1] != '/' && buf[0] != '/')
+    {
+        src[strlen (hostPrefix)] = '/';
+        src[strlen (hostPrefix) + 1] = '\0';
+    }
+    // Concatenate source file to this
+    if (strlcat (src, buf, 255) >= 255)
+    {
+        error ("prefix too large");
+        return NULL;
+    }
+    // Prepare dest
+    if (strlcpy (dest, mountDir, 255) >= 254)
+    {
+        error ("prefix too large");
+        return NULL;
+    }
+    // Detect if a '/' is at the end
+    if (dest[strlen (mountDir) - 1] != '/')
+    {
+        dest[strlen (mountDir)] = '/';
+        dest[strlen (mountDir) + 1] = '\0';
+    }
+    // Concatenate source file to this
+    if (strlcat (dest, file, 255) >= 255)
+    {
+        error ("prefix too large");
+        return NULL;
+    }
+    // Store file buffer
+    fileEnt->destFile = dest;
+    fileEnt->srcFile = src;
+    return fileEnt;
+}
+
+#define BLKSIZET (1024 * (size_t) 1024)
+#define BLKSIZE  (1024 * (off_t) 1024)
+
+// Copies a file out
+static bool copyFile (guestfs_h* guestFs, const char* src, const char* dest, off_t srcSz)
+{
+    uint8_t* buf = (uint8_t*) malloc_s (BLKSIZET);
+    // Get number of 1M blocks, rounding up
+    off_t blocks = (srcSz + (BLKSIZE - 1)) / (BLKSIZE);
+    // Open src
+    int srcFd = open (src, O_RDONLY);
+    if (srcFd == -1)
+    {
+        free (buf);
+        printf ("%s: %s\n", src, strerror (errno));
+        return false;
+    }
+    for (int i = 0; i < blocks; ++i)
+    {
+        // Read in data from src
+        ssize_t bytesRead = read (srcFd, buf, BLKSIZE);
+        if (bytesRead == -1)
+        {
+            free (buf);
+            printf ("%s: %s\n", src, strerror (errno));
+            close (srcFd);
+            return false;
+        }
+        // Write it out
+        if (guestfs_write_append (guestFs, dest, (const char*) buf, (size_t) bytesRead) == -1)
+        {
+            free (buf);
+            close (srcFd);
+            return false;
+        }
+    }
+    free (buf);
+    close (srcFd);
+    return true;
+}
+
+bool updateFile (guestfs_h* guestFs, const char* src, const char* dest);
+
+// Updates a symlink
+static bool updateSymlink (guestfs_h* guestFs, const char* src, const char* dest, struct stat* srcSt)
+{
+    // Allocate buffer for readlink
+    char* linkName = malloc_s (srcSt->st_size + 1);
+    if (!linkName)
+        return false;
+    // Read in symlink
+    if (readlink (src, linkName, srcSt->st_size + 1) < 0)
+    {
+        free (linkName);
+        return false;
+    }
+    linkName[srcSt->st_size] = 0;
+    // Ensure link target isn't absolute
+    if (linkName[0] == '/')
+    {
+        error ("target of link %s is absolute", src);
+        free (linkName);
+        return false;
+    }
+    size_t prefixLen = strlen (hostPrefix);
+    // Prepend destdir
+    char* fullLink = malloc_s (prefixLen + srcSt->st_size + 2);
+    if (!fullLink)
+    {
+        free (linkName);
+        return false;
+    }
+    strcpy (fullLink, hostPrefix);
+    // Maybe add a trailing '/'
+    if (fullLink[prefixLen - 1] != '/')
+    {
+        fullLink[prefixLen] = '/';
+        fullLink[prefixLen + 1] = 0;
+    }
+    strcat (fullLink, linkName);
+    // Prepend mountdir now
+    size_t mountLen = strlen (mountDir);
+    char* fullDest = malloc_s (prefixLen + mountLen + 2);
+    if (!fullDest)
+    {
+        free (linkName);
+        free (fullLink);
+        return false;
+    }
+    strcpy (fullDest, mountDir);
+    // Make sure we skip over prefix if not on root partition
+    if (!strcmp (curPart->prefix, "/"))
+    {
+        // Maybe add a trailing '/'
+        if (fullDest[mountLen - 1] != '/')
+        {
+            fullDest[mountLen] = '/';
+            fullDest[mountLen + 1] = 0;
+        }
+        strcat (fullDest, linkName);
+    }
+    else
+    {
+        // Drop a trailing '/'
+        if (fullDest[mountLen - 1] == '/')
+            fullDest[mountLen - 1] = 0;
+        // Concatenate, skipping partition prefix
+        strcat (fullDest, linkName + strlen (curPart->prefix));
+    }
+    // Ensure link target exists
+    char* backupFullDest = strdup (fullDest);
+    if (!updateFile (guestFs, fullLink, fullDest))
+    {
+        free (linkName);
+        free (fullDest);
+        free (fullLink);
+        free (backupFullDest);
+        return false;
+    }
+    char* backupDest = strdup (dest);
+    if (guestfs_mkdir_p (guestFs, dirname ((char*) dest)) == -1)
+    {
+        free (backupDest);
+        free (linkName);
+        free (fullDest);
+        free (fullLink);
+        free (backupFullDest);
+        return false;
+    }
+    // Create symlink
+    if (guestfs_ln_sf (guestFs, linkName, backupDest) == -1)
+    {
+        free (backupDest);
+        free (linkName);
+        free (fullDest);
+        free (fullLink);
+        free (backupFullDest);
+        return false;
+    }
+    free (linkName);
+    free (fullDest);
+    free (fullLink);
+    free (backupDest);
+    free (backupFullDest);
+    return true;
+}
+
+// Updates a regular file
+static bool updateRegFile (guestfs_h* guestFs, const char* src, const char* dest, struct stat* srcSt)
+{
+    // Check for dest, and maybe stat it
+    struct guestfs_statns* destSt = NULL;
+    bool destExist = false;
+    int doesExist = guestfs_is_file (guestFs, dest);
+    if (doesExist == -1)
+        return false;
+    else if (doesExist == 1)
+    {
+        destSt = guestfs_statns (guestFs, dest);
+        if (destSt == NULL)
+            return false;
+        destExist = true;
+    }
+
+    // Check if we need to update this file
+    if (!destExist || (srcSt->st_mtim.tv_sec > destSt->st_mtime_sec))
+    {
+        // Create directories
+        // Backup dest
+        char* backupDest = strdup (dest);
+        if (!backupDest)
+        {
+            if (destSt)
+                guestfs_free_statns (destSt);
+            return false;
+        }
+        if (guestfs_mkdir_p (guestFs, dirname ((char*) dest)) == -1)
+        {
+            if (destSt)
+                guestfs_free_statns (destSt);
+            free (backupDest);
+            return false;
+        }
+        // Create file if it doesn't exist, else truncate it
+        if (!destExist)
+        {
+            if (guestfs_touch (guestFs, backupDest) == -1)
+            {
+                if (destSt)
+                    guestfs_free_statns (destSt);
+                free (backupDest);
+                return false;
+            }
+        }
+        else
+        {
+            if (guestfs_truncate (guestFs, backupDest) == -1)
+            {
+                if (destSt)
+                    guestfs_free_statns (destSt);
+                free (backupDest);
+                return false;
+            }
+        }
+        // Copy out actual file
+        if (!copyFile (guestFs, src, backupDest, srcSt->st_size))
+        {
+            if (destSt)
+                guestfs_free_statns (destSt);
+            free (backupDest);
+            return false;
+        }
+        // Cleanup
+        if (destSt)
+            guestfs_free_statns (destSt);
+        free (backupDest);
+        return true;
+    }
+    else
+    {
+        if (destSt)
+            guestfs_free_statns (destSt);
+        return true;
+    }
+}
+
+// Copies out a whole subdirectory
+bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
+{
+    DIR* src = opendir (srcDir);
+    if (!src)
+    {
+        error ("%s: %s", srcDir, strerror (errno));
+        return false;
+    }
+    // Loop through directory
+    struct dirent* curDir = readdir (src);
+    while (curDir != NULL)
+    {
+        // Check if this is . or ..
+        if (!strcmp (curDir->d_name, ".") || !strcmp (curDir->d_name, ".."))
+            goto nextDirEnt;
+        // Create destination variable
+        char* fullDest = malloc_s (255);
+        if (!fullDest)
+        {
+            closedir (src);
+            return NULL;
+        }
+        if (strlcpy (fullDest, destDir, 255) >= 255)
+        {
+            error ("buffer overflow detected");
+            return false;
+        }
+        // Check if we need to add a trailing '/' as a seperator
+        size_t destLen = strlen (destDir);
+        if (fullDest[destLen - 1] != '/')
+        {
+            fullDest[destLen] = '/';
+            fullDest[destLen + 1] = 0;
+        }
+        if (strlcat (fullDest, curDir->d_name, 255) >= 255)
+        {
+            error ("buffer overflow detected");
+            return false;
+        }
+        // Prepend prefix to source
+        char* fullSrc = malloc_s (255);
+        if (!fullSrc)
+        {
+            closedir (src);
+            free (fullDest);
+            return false;
+        }
+        if (strlcpy (fullSrc, srcDir, 255) >= 255)
+        {
+            error ("buffer overflow detected");
+            return false;
+        }
+        // Check if we need to add a trailing '/' as a seperator
+        size_t srcLen = strlen (srcDir);
+        if (fullSrc[srcLen - 1] != '/')
+        {
+            fullSrc[srcLen] = '/';
+            fullSrc[srcLen + 1] = 0;
+        }
+        if (strlcat (fullSrc, curDir->d_name, 255) >= 255)
+        {
+            error ("buffer overflow detected");
+            return false;
+        }
+        if (!updateFile (guestFs, fullSrc, fullDest))
+        {
+            closedir (src);
+            free (fullDest);
+            free (fullSrc);
+            return false;
+        }
+        free (fullDest);
+        free (fullSrc);
+    nextDirEnt:
+        curDir = readdir (src);
+    }
+    closedir (src);
+    return true;
+}
+
+// Updates a file on disk
+bool updateFile (guestfs_h* guestFs, const char* src, const char* dest)
+{
+    // Stat source
+    struct stat srcSt;
+    if (lstat (src, &srcSt) == -1)
+    {
+        error ("%s: %s", src, strerror (errno));
+        return false;
+    }
+    if (S_ISLNK (srcSt.st_mode))
+        return updateSymlink (guestFs, src, dest, &srcSt);
+    else if (S_ISREG (srcSt.st_mode))
+        return updateRegFile (guestFs, src, dest, &srcSt);
+    else if (S_ISDIR (srcSt.st_mode))
+        return updateSubDir (guestFs, src, dest);
+    else
+    {
+        error ("%s is not regular file, symlink, or directory");
+        return false;
+    }
+}
+
+bool updatePartition (Image_t* img, Partition_t* part, const char* listFile, const char* mount, const char* host)
+{
+    printf ("Updating partition %s on prefix %s...\n", part->name, part->prefix);
+    mountDir = mount;
+    hostPrefix = host;
+    curPart = part;
+    listFileName = listFile;
+    // Open list file
+    listFileFd = fopen (listFile, "r");
+    if (!listFileFd)
+    {
+        error ("%s: %s", listFile, strerror (errno));
+        return false;
+    }
+    FILE* xorrisoList = NULL;
+    if (part->filesys == IMG_FILESYS_ISO9660)
+    {
+        // On ISO 9660 partitions, create xorriso list file
+        const char* xorrisoListFile = "xorrisolst.txt";
+        xorrisoList = fopen (xorrisoListFile, "w+");
+        if (!xorrisoList)
+        {
+            error ("%s: %s", xorrisoListFile, strerror (errno));
+            fclose (listFileFd);
+            return false;
+        }
+    }
+    listFile_t* curFile = getNextFile();
+    while (curFile)
+    {
+        if (curFile == (listFile_t*) -1)
+            return false;
+        if (part->filesys != IMG_FILESYS_ISO9660)
+        {
+            // Update file
+            if (!updateFile (img->guestFs, curFile->srcFile, curFile->destFile))
+            {
+                free (curFile);
+                fclose (listFileFd);
+                return false;
+            }
+        }
+        else
+        {
+            // Ensure this partition is root
+            if (curPart->prefix[1] != 0)
+            {
+                error ("ISO9660 partition must be root");
+                free (curFile);
+                (void) fclose (listFileFd);
+                (void) fclose (xorrisoList);
+                return false;
+            }
+            // Append path
+            fprintf (xorrisoList, "%s=%s\n", curFile->destFile + strlen (mountDir) + 1, curFile->srcFile);
+        }
+        free (curFile);
+        curFile = getNextFile();
+    }
+    if (xorrisoList)
+    {
+        // Ensure boot image is in disk image
+        if (getBootPart())
+            fprintf (xorrisoList, "%s=%s\n", basename (strdup (getenv ("NNBOOTIMG"))), getenv ("NNBOOTIMG"));
+        if (getAltBootPart())
+            fprintf (xorrisoList, "%s=%s\n", basename (strdup (getenv ("NNALTBOOTIMG"))), getenv ("NNALTBOOTIMG"));
+        fclose (xorrisoList);
+    }
+    fclose (listFileFd);
+    return true;
+}
