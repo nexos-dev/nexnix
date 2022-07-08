@@ -45,6 +45,9 @@ static const char* hostPrefix = NULL;
 // Partition of update state
 static Partition_t* curPart = NULL;
 
+// Converts multiplier value to sectors
+#define IMG_MUL_TO_SECT(mulSz) (((mulSz) * (muls[img->mul])) / 512)
+
 // File entry in list file
 typedef struct _lstEntry
 {
@@ -156,7 +159,10 @@ readLoop:
 #define BLKSIZE  (1024 * (off_t) 1024)
 
 // Copies a file out
-static bool copyFile (guestfs_h* guestFs, const char* src, const char* dest, off_t srcSz)
+static bool copyFile (guestfs_h* guestFs,
+                      const char* src,
+                      const char* dest,
+                      off_t srcSz)
 {
     uint8_t* buf = (uint8_t*) malloc_s (BLKSIZET);
     // Get number of 1M blocks, rounding up
@@ -181,7 +187,10 @@ static bool copyFile (guestfs_h* guestFs, const char* src, const char* dest, off
             return false;
         }
         // Write it out
-        if (guestfs_write_append (guestFs, dest, (const char*) buf, (size_t) bytesRead) == -1)
+        if (guestfs_write_append (guestFs,
+                                  dest,
+                                  (const char*) buf,
+                                  (size_t) bytesRead) == -1)
         {
             free (buf);
             close (srcFd);
@@ -196,7 +205,10 @@ static bool copyFile (guestfs_h* guestFs, const char* src, const char* dest, off
 bool updateFile (guestfs_h* guestFs, const char* src, const char* dest);
 
 // Updates a symlink
-static bool updateSymlink (guestfs_h* guestFs, const char* src, const char* dest, struct stat* srcSt)
+static bool updateSymlink (guestfs_h* guestFs,
+                           const char* src,
+                           const char* dest,
+                           struct stat* srcSt)
 {
     // Allocate buffer for readlink
     char* linkName = malloc_s (srcSt->st_size + 1);
@@ -300,7 +312,10 @@ static bool updateSymlink (guestfs_h* guestFs, const char* src, const char* dest
 }
 
 // Updates a regular file
-static bool updateRegFile (guestfs_h* guestFs, const char* src, const char* dest, struct stat* srcSt)
+static bool updateRegFile (guestfs_h* guestFs,
+                           const char* src,
+                           const char* dest,
+                           struct stat* srcSt)
 {
     // Check for dest, and maybe stat it
     struct guestfs_statns* destSt = NULL;
@@ -482,7 +497,11 @@ bool updateFile (guestfs_h* guestFs, const char* src, const char* dest)
     }
 }
 
-bool updatePartition (Image_t* img, Partition_t* part, const char* listFile, const char* mount, const char* host)
+bool updatePartition (Image_t* img,
+                      Partition_t* part,
+                      const char* listFile,
+                      const char* mount,
+                      const char* host)
 {
     printf ("Updating partition %s on prefix %s...\n", part->name, part->prefix);
     mountDir = mount;
@@ -536,7 +555,10 @@ bool updatePartition (Image_t* img, Partition_t* part, const char* listFile, con
                 return false;
             }
             // Append path
-            fprintf (xorrisoList, "%s=%s\n", curFile->destFile + strlen (mountDir) + 1, curFile->srcFile);
+            fprintf (xorrisoList,
+                     "%s=%s\n",
+                     curFile->destFile + strlen (mountDir) + 1,
+                     curFile->srcFile);
         }
         free (curFile);
         curFile = getNextFile();
@@ -545,11 +567,161 @@ bool updatePartition (Image_t* img, Partition_t* part, const char* listFile, con
     {
         // Ensure boot image is in disk image
         if (getBootPart())
-            fprintf (xorrisoList, "%s=%s\n", basename (strdup (getenv ("NNBOOTIMG"))), getenv ("NNBOOTIMG"));
+            fprintf (xorrisoList,
+                     "%s=%s\n",
+                     basename (strdup (getenv ("NNBOOTIMG"))),
+                     getenv ("NNBOOTIMG"));
         if (getAltBootPart())
-            fprintf (xorrisoList, "%s=%s\n", basename (strdup (getenv ("NNALTBOOTIMG"))), getenv ("NNALTBOOTIMG"));
+            fprintf (xorrisoList,
+                     "%s=%s\n",
+                     basename (strdup (getenv ("NNALTBOOTIMG"))),
+                     getenv ("NNALTBOOTIMG"));
         fclose (xorrisoList);
     }
     fclose (listFileFd);
+    return true;
+}
+
+// Updates the VBR of a partition
+bool updateVbr (Image_t* img, Partition_t* part)
+{
+    // Get start of VBR. If this is an ISO9660 boot image, skip this
+    loff_t vbrBase = 0;
+    const char* file = NULL;
+    if (img->format != IMG_FORMAT_ISO9660)
+    {
+        file = img->file;
+        vbrBase = IMG_MUL_TO_SECT (part->start) * IMG_SECT_SZ;
+    }
+    else
+        file = getenv ("NNBOOTIMG");
+    // Open up image
+    int imgFd = open (file, O_RDWR);
+    if (imgFd == -1)
+    {
+        error ("%s:%s", file, strerror (errno));
+        return false;
+    }
+    // Read in VBR
+    uint8_t vbrBuf[IMG_SECT_SZ];
+    if (pread64 (imgFd, vbrBuf, IMG_SECT_SZ, vbrBase) == -1)
+    {
+        error ("%s: %s", file, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    // Get size of VBR
+    struct stat st;
+    if (stat (part->vbrFile, &st) == -1)
+    {
+        error ("%s: %s", part->vbrFile, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    if (st.st_size > IMG_SECT_SZ)
+    {
+        error ("%s: maximum size of VBR is %d bytes", part->vbrFile, IMG_SECT_SZ);
+        close (imgFd);
+        return false;
+    }
+    // Open up VBR file
+    int vbrFd = open (part->vbrFile, O_RDONLY);
+    if (vbrFd == -1)
+    {
+        error ("%s:%s", part->vbrFile, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    // Get size of BPB
+    short bpbSize = 0;
+    if (part->filesys == IMG_FILESYS_FAT12 || part->filesys == IMG_FILESYS_FAT16)
+        bpbSize = 62;
+    else if (part->filesys == IMG_FILESYS_FAT32)
+        bpbSize = 90;
+    else
+    {
+        // Not valid
+        error ("VBR must be installed on FAT12, FAT16, or FAT32 partition");
+        close (imgFd);
+        close (vbrFd);
+        return false;
+    }
+    // Read into VBR buffer
+    if (read (vbrFd, vbrBuf + bpbSize, st.st_size) == -1)
+    {
+        error ("%s:%s", part->vbrFile, strerror (errno));
+        close (imgFd);
+        close (vbrFd);
+        return false;
+    }
+    close (vbrFd);
+    // Write out to disk
+    if (pwrite64 (imgFd, vbrBuf, IMG_SECT_SZ, vbrBase) == -1)
+    {
+        error ("%s:%s", file, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    close (imgFd);
+    return true;
+}
+
+// Updates the MBR of a partition
+bool updateMbr (Image_t* img)
+{
+    // Open up image
+    int imgFd = open (img->file, O_RDWR);
+    if (imgFd == -1)
+    {
+        error ("%s:%s", img->file, strerror (errno));
+        return false;
+    }
+    // Read in MBR
+    uint8_t mbrBuf[IMG_SECT_SZ];
+    if (pread (imgFd, mbrBuf, IMG_SECT_SZ, 0) == -1)
+    {
+        error ("%s: %s", img->file, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    // Get size of MBR
+    struct stat st;
+    if (stat (img->mbrFile, &st) == -1)
+    {
+        error ("%s: %s", img->mbrFile, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    if (st.st_size > IMG_SECT_SZ)
+    {
+        error ("%s: maximum size of MBR is %d bytes", img->mbrFile, IMG_SECT_SZ);
+        close (imgFd);
+        return false;
+    }
+    // Open up MBR file
+    int mbrFd = open (img->mbrFile, O_RDONLY);
+    if (mbrFd == -1)
+    {
+        error ("%s: %s", img->mbrFile, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    // Read into MBR buffer
+    if (read (mbrFd, mbrBuf, st.st_size) == -1)
+    {
+        error ("%s:%s", img->mbrFile, strerror (errno));
+        close (imgFd);
+        close (mbrFd);
+        return false;
+    }
+    close (mbrFd);
+    // Write out to disk
+    if (pwrite (imgFd, mbrBuf, IMG_SECT_SZ, 0) == -1)
+    {
+        error ("%s:%s", img->mbrFile, strerror (errno));
+        close (imgFd);
+        return false;
+    }
+    close (imgFd);
     return true;
 }

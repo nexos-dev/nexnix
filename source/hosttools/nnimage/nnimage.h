@@ -132,4 +132,10 @@ bool createImages (ListHead_t* images, const char* action, bool overwrite, const
 /// Update a partition's files
 bool updatePartition (Image_t* img, Partition_t* part, const char* listFile, const char* mount, const char* host);
 
+/// Updates the VBR of a partition
+bool updateVbr (Image_t* img, Partition_t* part);
+
+/// Updates the MBR of a partition
+bool updateMbr (Image_t* img);
+
 #endif
