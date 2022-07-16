@@ -16,14 +16,14 @@
 ]]
 
 cmake_minimum_required(VERSION 3.00)
-project(nnbuild VERSION 0.0.1)
+project(nnelf2efi VERSION 0.0.1)
 enable_language(C)
 
 # Add sources
 list(APPEND NNELF2EFI_SOURCES main.c)
 
 # The ELF structures are quite messy.
-# ELF32 and ELF64 have different name for each structure
+# ELF32 and ELF64 have different name sfor each structure
 # To prevent nnelf2efi from becoming too complicated, we
 # compile two version: one named "nnelf2efi32", and one named "nnelf2efi64"
 # They share a common codebase, with the only difference being that the 32-bit

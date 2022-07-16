@@ -70,7 +70,8 @@ packageGroup_t* findGroup (char* groupName);
 #define getCurPackage() (((package_t*) ListEntryData (ListFront (packages))))
 
 // Gets front package group
-#define getCurPackageGroup() (((packageGroup_t*) ListEntryData (ListFront (pkgGroups))))
+#define getCurPackageGroup() \
+    (((packageGroup_t*) ListEntryData (ListFront (pkgGroups))))
 
 // Deletes package tree
 void freePackageTree()
@@ -134,7 +135,8 @@ int addGroup (char* name)
     expecting = EXPECTING_GROUP;
     newGrp->packages = ListCreate ("package_t", true, offsetof (package_t, obj));
     ListSetDestroy (newGrp->packages, pkgDestroy);
-    newGrp->subGroups = ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
+    newGrp->subGroups =
+        ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
     ListSetDestroy (newGrp->subGroups, pkgGrpDestroy);
     return 1;
 }
@@ -178,7 +180,8 @@ int addCommand (char* action, char* command)
     // Figure out what the action is
     if (!strcmp (action, "download"))
     {
-        if ((strlcpy (curPackage->downloadAction, command, ACTION_BUFSIZE) >= ACTION_BUFSIZE))
+        if ((strlcpy (curPackage->downloadAction, command, ACTION_BUFSIZE) >=
+             ACTION_BUFSIZE))
         {
             error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
             return -1;
@@ -186,7 +189,8 @@ int addCommand (char* action, char* command)
     }
     else if (!strcmp (action, "configure"))
     {
-        if ((strlcpy (curPackage->configureAction, command, ACTION_BUFSIZE) >= ACTION_BUFSIZE))
+        if ((strlcpy (curPackage->configureAction, command, ACTION_BUFSIZE) >=
+             ACTION_BUFSIZE))
         {
             error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
             return -1;
@@ -194,7 +198,8 @@ int addCommand (char* action, char* command)
     }
     else if (!strcmp (action, "build"))
     {
-        if ((strlcpy (curPackage->buildAction, command, ACTION_BUFSIZE) >= ACTION_BUFSIZE))
+        if ((strlcpy (curPackage->buildAction, command, ACTION_BUFSIZE) >=
+             ACTION_BUFSIZE))
         {
             error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
             return -1;
@@ -202,7 +207,8 @@ int addCommand (char* action, char* command)
     }
     else if (!strcmp (action, "install"))
     {
-        if ((strlcpy (curPackage->installAction, command, ACTION_BUFSIZE) >= ACTION_BUFSIZE))
+        if ((strlcpy (curPackage->installAction, command, ACTION_BUFSIZE) >=
+             ACTION_BUFSIZE))
         {
             error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
             return -1;
@@ -210,7 +216,8 @@ int addCommand (char* action, char* command)
     }
     else if (!strcmp (action, "clean"))
     {
-        if ((strlcpy (curPackage->cleanAction, command, ACTION_BUFSIZE) >= ACTION_BUFSIZE))
+        if ((strlcpy (curPackage->cleanAction, command, ACTION_BUFSIZE) >=
+             ACTION_BUFSIZE))
         {
             error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
             return -1;
@@ -233,7 +240,10 @@ static int addPackageToGroup (char* packageName)
     package_t* package = findPackage (packageName);
     if (!package)
     {
-        error ("%s:%d: package \"%s\" undeclared", ConfGetFileName(), lineNo, packageName);
+        error ("%s:%d: package \"%s\" undeclared",
+               ConfGetFileName(),
+               lineNo,
+               packageName);
         return 0;
     }
     // Add package to list in group
@@ -249,7 +259,10 @@ static int addDependencyToPackage (char* depName)
     package_t* package = findPackage (depName);
     if (!package)
     {
-        error ("%s:%d: package \"%s\" undeclared", ConfGetFileName(), lineNo, depName);
+        error ("%s:%d: package \"%s\" undeclared",
+               ConfGetFileName(),
+               lineNo,
+               depName);
         return 0;
     }
     // Package to dependencies list
@@ -265,7 +278,10 @@ int addGroupToGroup (char* groupName)
     packageGroup_t* group = findGroup (groupName);
     if (!group)
     {
-        error ("%s:%d: package group \"%s\" undeclared", ConfGetFileName(), lineNo, groupName);
+        error ("%s:%d: package group \"%s\" undeclared",
+               ConfGetFileName(),
+               lineNo,
+               groupName);
         return 0;
     }
     // Add group to package group
@@ -290,10 +306,13 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
         // Check if this is a dependency
         if (!strcmp (prop, "dependencies"))
         {
-            //  Check data type
+            // Check data type
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"dependencies\" requires an identifier value", ConfGetFileName(), lineNo);
+                error (
+                    "%s:%d: property \"dependencies\" requires an identifier value",
+                    ConfGetFileName(),
+                    lineNo);
                 return 0;
             }
             // Check that this isn't a number
@@ -305,7 +324,9 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
         {
             if (dataType != DATATYPE_NUMBER)
             {
-                error ("%s:%d: property \"bindinstall\" requires a numeric value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"bindinstall\" requires a numeric value",
+                       ConfGetFileName(),
+                       lineNo);
                 return 0;
             }
             curPackage->bindInstall = true;
@@ -328,7 +349,9 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
             // Check data type
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"package\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"package\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return 0;
             }
             if (!addPackageToGroup (val->strVal))
@@ -340,7 +363,9 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
             // Check data type
             if (dataType != DATATYPE_STRING)
             {
-                error ("%s:%d: property \"subgroups\" requires a string value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"subgroups\" requires a string value",
+                       ConfGetFileName(),
+                       lineNo);
                 return 0;
             }
             if (!addGroupToGroup (val->strVal))
@@ -427,7 +452,9 @@ int buildPackageTree (ListHead_t* head)
             // Check that a name was given
             if (curBlock->blockName[0] == '\0')
             {
-                error ("%s:%d: package declaration requires name", ConfGetFileName(), lineNo);
+                error ("%s:%d: package declaration requires name",
+                       ConfGetFileName(),
+                       lineNo);
                 return 0;
             }
             // Add it
@@ -439,7 +466,9 @@ int buildPackageTree (ListHead_t* head)
             // Check that a name was given
             if (curBlock->blockName[0] == '\0')
             {
-                error ("%s:%d: package group declaration requires name", ConfGetFileName(), lineNo);
+                error ("%s:%d: package group declaration requires name",
+                       ConfGetFileName(),
+                       lineNo);
                 return 0;
             }
             // Add it
@@ -466,14 +495,17 @@ int buildPackageTree (ListHead_t* head)
             for (int i = 0; i < curProp->nextVal; ++i)
             {
                 lineNo = curProp->lineNo;
-                // Declare value union
+                // Obtain value
                 union val val;
                 if (curProp->vals[i].type == DATATYPE_IDENTIFIER)
                     strcpy (val.strVal, curProp->vals[i].id);
                 else if (curProp->vals[i].type == DATATYPE_STRING)
                 {
                     mbstate_t mbState = {0};
-                    c32stombs (val.strVal, curProp->vals[i].str, (size_t) BLOCK_BUFSZ * 4, &mbState);
+                    c32stombs (val.strVal,
+                               curProp->vals[i].str,
+                               (size_t) BLOCK_BUFSZ * 4,
+                               &mbState);
                 }
                 else
                     val.numVal = curProp->vals[i].numVal;

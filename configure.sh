@@ -650,14 +650,6 @@ Run $0 -l to see supported targets"
         $cmakegen install -j $jobcount
         checkerr $? "unable to build libchardet" $0
     fi
-    # Download libnex
-    if [ ! -f $olddir/source/external/libraries/libnex_done ] || [ "$NNTOOLS_REGET_LIBNEX" = "1" ]
-    then
-        rm -rf $olddir/external/source/libraries/libnex
-        git clone https://github.com/nexos-dev/libnex.git \
-                  $olddir/source/external/libraries/libnex
-        touch $olddir/source/external/libraries/libnex_done
-    fi
     # Build libnex
     if [ ! -f $output/tools/lib/libnex.a -a ! -f $output/tools/lib64/libnex.a ] || 
        [ "$NNTOOLS_REBUILD_LIBNEX" = "1" ]

@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -720,7 +719,7 @@ bool writePeSections (int outputFd)
     return true;
 }
 
-// Parse arguments
+// Parses arguments
 static bool parseArgs (int argc, char** argv)
 {
 #define VALIDOPTS "ho:"

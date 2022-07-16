@@ -6,5 +6,4 @@ Doxygen
 source/external/*
 fakeinc
 *.code-workspace
-.gitmodules
 *.po~
