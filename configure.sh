@@ -663,7 +663,7 @@ Run $0 -l to see supported targets"
         libnex_builddir="$output/build/tools/libnex-build"
         mkdir -p $libnex_builddir/$cmakegen
         cd $libnex_builddir/$cmakegen
-        cmake $olddir/source/external/libraries/libnex -DCMAKE_INSTALL_PREFIX="$output/tools" $libnex_cmakeargs
+        cmake $olddir/source/libraries/libnex -DCMAKE_INSTALL_PREFIX="$output/tools" $libnex_cmakeargs
         checkerr $? "unable to configure libnex" $0
         $cmakegen -j $jobcount $makeargs
         checkerr $? "unable to build libnex" $0
