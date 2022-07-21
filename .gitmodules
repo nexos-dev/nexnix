@@ -1,3 +1,0 @@
-[submodule "source/external/libraries/libnex"]
-	path = source/external/libraries/libnex
-	url = https://github.com/nexos-dev/libnex.git
