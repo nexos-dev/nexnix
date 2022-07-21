@@ -46,7 +46,7 @@ static int expecting = 0;
 #define EXPECTING_PARTITION 2
 
 // The current property name
-static const char* prop = NULL;
+static const char32_t* prop = NULL;
 
 // If partition was linked to image
 static bool wasPartLinked = false;
@@ -55,7 +55,7 @@ static bool wasPartLinked = false;
 union val
 {
     int64_t numVal;
-    char strVal[BLOCK_BUFSZ * 4];
+    char strVal[BLOCK_BUFSZ];
 };
 
 ListHead_t* getImages()
@@ -110,13 +110,17 @@ bool partitionFindByPredicate (ListEntry_t* entry, void* data)
 }
 
 // Creates an image object
-static bool addImage (const char* name)
+static bool addImage (const char32_t* name)
 {
     // Allocate it
     Image_t* img = (Image_t*) calloc_s (sizeof (Image_t));
     if (!img)
         return false;
-    img->name = name;
+    // Convert name to multibyte
+    mbstate_t mbState = {0};
+    char* mbName = malloc_s (c32len (name) * sizeof (char32_t));
+    c32stombs (mbName, name, c32len (name), &mbState);
+    img->name = mbName;
     img->partsList = ListCreate ("Partition_t", false, 0);
     ListSetFindBy (img->partsList, partitionFindByPredicate);
     ListSetDestroy (img->partsList, partDestroy);
@@ -126,17 +130,24 @@ static bool addImage (const char* name)
 }
 
 // Creates a partition object
-static bool addPartition (const char* name)
+static bool addPartition (const char32_t* name)
 {
     curPart = (Partition_t*) calloc_s (sizeof (Partition_t));
     if (!curPart)
         return false;
-    curPart->name = name;
+    // Convert name to multibyte
+    mbstate_t mbState = {0};
+    char* mbName = malloc_s (c32len (name) * sizeof (char32_t));
+    c32stombs (mbName, name, c32len (name), &mbState);
+    curPart->name = mbName;
     return true;
 }
 
 // Adds a property
-bool addProperty (const char* newProp, union val* val, bool isStart, int dataType)
+bool addProperty (const char32_t* newProp,
+                  union val* val,
+                  bool isStart,
+                  int dataType)
 {
     if (isStart)
     {
@@ -147,21 +158,25 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
     {
         Image_t* img = ListEntryData (ListFront (images));
         // Decide what property this is
-        if (!strcmp (prop, "defaultFile"))
+        if (!c32cmp (prop, U"defaultFile"))
         {
             if (dataType != DATATYPE_STRING)
             {
-                error ("%s:%d: property \"defaultFile\" requires a string value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"defaultFile\" requires a string value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             img->file = (char*) malloc_s (strlen (val->strVal) + 1);
             strcpy (img->file, val->strVal);
         }
-        else if (!strcmp (prop, "sizeMul"))
+        else if (!c32cmp (prop, U"sizeMul"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"sizeMul\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"sizeMul\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             // Check the size of the multiplier
@@ -173,24 +188,31 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->mul = IMG_MUL_GIB;
             else
             {
-                error ("%s:%d: size multiplier \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
+                error ("%s:%d: size multiplier \"%s\" is unsupported",
+                       ConfGetFileName(),
+                       lineNo,
+                       val->strVal);
                 return false;
             }
         }
-        else if (!strcmp (prop, "size"))
+        else if (!c32cmp (prop, U"size"))
         {
             if (dataType != DATATYPE_NUMBER)
             {
-                error ("%s:%d: property \"size\" requires a numeric value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"size\" requires a numeric value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             img->sz = val->numVal;
         }
-        else if (!strcmp (prop, "format"))
+        else if (!c32cmp (prop, U"format"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"format\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"format\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             if (!strcmp (val->strVal, "gpt"))
@@ -203,15 +225,20 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->format = IMG_FORMAT_FLOPPY;
             else
             {
-                error ("%s:%d: image format \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
+                error ("%s:%d: image format \"%s\" is unsupported",
+                       ConfGetFileName(),
+                       lineNo,
+                       val->strVal);
                 return false;
             }
         }
-        else if (!strcmp (prop, "bootMode"))
+        else if (!c32cmp (prop, U"bootMode"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"bootMode\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"bootMode\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             if (!strcmp (val->strVal, "bios"))
@@ -223,11 +250,13 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
             else if (!strcmp (val->strVal, "noboot"))
                 img->bootMode = IMG_BOOTMODE_NOBOOT;
         }
-        else if (!strcmp (prop, "bootEmu"))
+        else if (!c32cmp (prop, U"bootEmu"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"bootEmu\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"bootEmu\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             if (!strcmp (val->strVal, "hdd"))
@@ -237,11 +266,13 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
             else if (!strcmp (val->strVal, "noemu"))
                 img->bootEmu = IMG_BOOTEMU_NONE;
         }
-        else if (!strcmp (prop, "isUniversal"))
+        else if (!c32cmp (prop, U"isUniversal"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"isUniversal\" requires a boolean value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"isUniversal\" requires a boolean value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             if (!strcmp (val->strVal, "true"))
@@ -250,15 +281,19 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 img->isUniversal = false;
             else
             {
-                error ("%s:%d: property \"isUniversal\" requires a boolean value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"isUniversal\" requires a boolean value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
         }
-        else if (!strcmp (prop, "mbrFile"))
+        else if (!c32cmp (prop, U"mbrFile"))
         {
             if (dataType != DATATYPE_STRING)
             {
-                error ("%s:%d: property \"mbrFile\" requires a string value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"mbrFile\" requires a string value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             img->mbrFile = malloc_s (strlen (val->strVal) + 1);
@@ -266,35 +301,44 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
         }
         else
         {
-            error ("%s:%d: property \"%s\" is unsupported", ConfGetFileName(), lineNo, prop);
+            error ("%s:%d: property \"%s\" is unsupported",
+                   ConfGetFileName(),
+                   lineNo,
+                   prop);
             return false;
         }
     }
     else if (expecting == EXPECTING_PARTITION)
     {
-        if (!strcmp (prop, "start"))
+        if (!c32cmp (prop, U"start"))
         {
             if (dataType != DATATYPE_NUMBER)
             {
-                error ("%s:%d: property \"start\" requires a numeric value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"start\" requires a numeric value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             curPart->start = val->numVal;
         }
-        else if (!strcmp (prop, "size"))
+        else if (!c32cmp (prop, U"size"))
         {
             if (dataType != DATATYPE_NUMBER)
             {
-                error ("%s:%d: property \"size\" requires a numeric value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"size\" requires a numeric value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             curPart->sz = val->numVal;
         }
-        else if (!strcmp (prop, "format"))
+        else if (!c32cmp (prop, U"format"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"format\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"format\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             // Check format specified
@@ -310,21 +354,28 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 curPart->filesys = IMG_FILESYS_ISO9660;
             else
             {
-                error ("%s:%d: filesystem \"%s\" is unsupported", ConfGetFileName(), lineNo, val->strVal);
+                error ("%s:%d: filesystem \"%s\" is unsupported",
+                       ConfGetFileName(),
+                       lineNo,
+                       val->strVal);
                 return false;
             }
         }
-        else if (!strcmp (prop, "isBoot"))
+        else if (!c32cmp (prop, U"isBoot"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"isBoot\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"isBoot\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             // Make sure this isn't already an alternate boot partition
             if (curPart->isAltBootPart)
             {
-                error ("%s:%d: properties \"isAltBoot\" and \"isBoot\" are mutually exclusive", ConfGetFileName());
+                error ("%s:%d: properties \"isAltBoot\" and \"isBoot\" are mutually "
+                       "exclusive",
+                       ConfGetFileName());
                 return false;
             }
             // Check property value
@@ -334,24 +385,29 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 curPart->isBootPart = false;
             else
             {
-                error ("%s:%d: property \"isBoot\" requires a boolean identifier value",
-                       ConfGetFileName(),
-                       lineNo);
+                error (
+                    "%s:%d: property \"isBoot\" requires a boolean identifier value",
+                    ConfGetFileName(),
+                    lineNo);
                 return false;
             }
             // Set boot partition
             bootPart = curPart;
         }
-        else if (!strcmp (prop, "isAltBoot"))
+        else if (!c32cmp (prop, U"isAltBoot"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"isAltBoot\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"isAltBoot\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             if (curPart->isBootPart)
             {
-                error ("%s:%d: properties \"isAltBoot\" and \"isBoot\" are mutually exclusive", ConfGetFileName());
+                error ("%s:%d: properties \"isAltBoot\" and \"isBoot\" are mutually "
+                       "exclusive",
+                       ConfGetFileName());
                 return false;
             }
             // Check property value
@@ -361,7 +417,8 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 curPart->isAltBootPart = false;
             else
             {
-                error ("%s:%d: property \"isAltBoot\" requires a boolean identifier value",
+                error ("%s:%d: property \"isAltBoot\" requires a boolean identifier "
+                       "value",
                        ConfGetFileName(),
                        lineNo);
                 return false;
@@ -373,8 +430,8 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"isRoot\" requires an identifier value", ConfGetFileName(), lineNo);
-                return false;
+                error ("%s:%d: property \"isRoot\" requires an identifier value",
+        ConfGetFileName(), lineNo); return false;
             }
             // Check property value
             if (!strcmp (val->strVal, "true"))
@@ -383,46 +440,55 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
                 curPart->isRootPart = false;
             else
             {
-                error ("%s:%d: property \"isRoot\" requires a boolean identifier value",
-                       ConfGetFileName(),
-                       lineNo);
-                return false;
+                error ("%s:%d: property \"isRoot\" requires a boolean identifier
+        value", ConfGetFileName(), lineNo); return false;
             }
         }*/
-        else if (!strcmp (prop, "prefix"))
+        else if (!c32cmp (prop, U"prefix"))
         {
             if (dataType != DATATYPE_STRING)
             {
-                error ("%s:%d: property \"prefix\" requires a string value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"prefix\" requires a string value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             curPart->prefix = malloc_s (strlen (val->strVal) + 1);
             strcpy (curPart->prefix, val->strVal);
         }
-        else if (!strcmp (prop, "image"))
+        else if (!c32cmp (prop, U"image"))
         {
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error ("%s:%d: property \"image\" requires an identifier value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"image\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             // Find the specified image
             ListEntry_t* imgEntry = ListFindEntryBy (images, val->strVal);
             if (!imgEntry)
             {
-                error ("%s:%d: image \"%s\" not found", ConfGetFileName(), lineNo, val->strVal);
+                error ("%s:%d: image \"%s\" not found",
+                       ConfGetFileName(),
+                       lineNo,
+                       val->strVal);
                 return false;
             }
             // Add partititon to image
-            ListAddBack (((Image_t*) ListEntryData (imgEntry))->partsList, curPart, 0);
+            ListAddBack (((Image_t*) ListEntryData (imgEntry))->partsList,
+                         curPart,
+                         0);
             ((Image_t*) ListEntryData (imgEntry))->partCount++;
             wasPartLinked = true;
         }
-        else if (!strcmp (prop, "vbrFile"))
+        else if (!c32cmp (prop, U"vbrFile"))
         {
             if (dataType != DATATYPE_STRING)
             {
-                error ("%s:%d: property \"vbrFile\" requires a string value", ConfGetFileName(), lineNo);
+                error ("%s:%d: property \"vbrFile\" requires a string value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
             curPart->vbrFile = malloc_s (strlen (val->strVal) + 1);
@@ -430,7 +496,10 @@ bool addProperty (const char* newProp, union val* val, bool isStart, int dataTyp
         }
         else
         {
-            error ("%s:%d: property \"%s\" is unsupported", ConfGetFileName(), lineNo, prop);
+            error ("%s:%d: property \"%s\" is unsupported",
+                   ConfGetFileName(),
+                   lineNo,
+                   prop);
             return false;
         }
     }
@@ -452,12 +521,14 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
         ConfBlock_t* block = ListEntryData (confEntry);
         lineNo = block->lineNo;
         // Figure out what this block is
-        if (!strcmp (block->blockType, "image"))
+        if (!c32cmp (block->blockType, U"image"))
         {
             // Ensure a block name was given
             if (block->blockName[0] == 0)
             {
-                error ("%s:%d: image declaration requires name", ConfGetFileName(), lineNo);
+                error ("%s:%d: image declaration requires name",
+                       ConfGetFileName(),
+                       lineNo);
                 return NULL;
             }
             // Add the image
@@ -465,12 +536,14 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
                 return NULL;
             expecting = EXPECTING_IMAGE;
         }
-        else if (!strcmp (block->blockType, "partition"))
+        else if (!c32cmp (block->blockType, U"partition"))
         {
             // Ensure a block name was given
             if (block->blockName[0] == 0)
             {
-                error ("%s:%d: partition declaration requires name", ConfGetFileName(), lineNo);
+                error ("%s:%d: partition declaration requires name",
+                       ConfGetFileName(),
+                       lineNo);
                 return NULL;
             }
             if (!addPartition (block->blockName))
@@ -495,12 +568,14 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
                 lineNo = curProp->lineNo;
                 // Declare value union
                 union val val;
-                if (curProp->vals[i].type == DATATYPE_IDENTIFIER)
-                    strcpy (val.strVal, curProp->vals[i].id);
-                else if (curProp->vals[i].type == DATATYPE_STRING)
+                if (curProp->vals[i].type == DATATYPE_STRING ||
+                    curProp->vals[i].type == DATATYPE_IDENTIFIER)
                 {
                     mbstate_t mbState = {0};
-                    c32stombs (val.strVal, curProp->vals[i].str, (size_t) BLOCK_BUFSZ * 4, &mbState);
+                    c32stombs (val.strVal,
+                               curProp->vals[i].str,
+                               (size_t) BLOCK_BUFSZ * 4,
+                               &mbState);
                 }
                 else
                     val.numVal = curProp->vals[i].numVal;
@@ -514,7 +589,10 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
             // Make sure partition was linked to an image
             if (!wasPartLinked)
             {
-                error ("%s:%d: partition \"%s\" not linked to image", ConfGetFileName(), lineNo, curPart->name);
+                error ("%s:%d: partition \"%s\" not linked to image",
+                       ConfGetFileName(),
+                       lineNo,
+                       curPart->name);
                 return NULL;
             }
             curPart = NULL;

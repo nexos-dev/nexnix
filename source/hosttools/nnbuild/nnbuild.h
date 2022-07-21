@@ -32,7 +32,7 @@
 typedef struct _pkggroup
 {
     Object_t obj;             ///< The object underlying this package group
-    char* name;               ///< Name of this package group
+    char32_t* name;           ///< Name of this package group
     ListHead_t* packages;     ///< The packages contained within
     ListHead_t* subGroups;    ///< Sub groups of this group
 } packageGroup_t;
@@ -41,7 +41,7 @@ typedef struct _pkggroup
 typedef struct _package
 {
     Object_t obj;                            ///< The object underlying this package
-    char* name;                              ///< The name of this package
+    char32_t* name;                          ///< The name of this package
     char downloadAction[ACTION_BUFSIZE];     ///< The action when downloading
     char configureAction[ACTION_BUFSIZE];    ///< Same, but for configuring
     char buildAction[ACTION_BUFSIZE];        ///< ... and so on
@@ -58,7 +58,7 @@ typedef struct _package
 int buildPackageTree (ListHead_t* head);
 
 /// Finds a package in the list
-package_t* findPackage (char* pkg);
+package_t* findPackage (char32_t* pkg);
 
 /// Handles the build process
 int buildPackages (int groupOrPkg, char* name, char* action);

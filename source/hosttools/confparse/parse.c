@@ -46,7 +46,10 @@ void _confSetFileName (const char* file);
 static inline _confToken_t* _parseInclude (parseState_t*, _confToken_t*);
 
 // Reports a diagnostic message
-static void _parseError (parseState_t* parser, _confToken_t* tok, int err, void* extra)
+static void _parseError (parseState_t* parser,
+                         _confToken_t* tok,
+                         int err,
+                         void* extra)
 {
     // Prepare error buffer
     char bufData[2048];
@@ -68,7 +71,10 @@ static void _parseError (parseState_t* parser, _confToken_t* tok, int err, void*
                                  _confLexGetTokenName (parser->lastToken));
             }
             else
-                buf += snprintf (buf, 2048 - (buf - obuf), "unexpected token %s", _confLexGetTokenName (tok));
+                buf += snprintf (buf,
+                                 2048 - (buf - obuf),
+                                 "unexpected token %s",
+                                 _confLexGetTokenName (tok));
             // Add some context
             if (extra)
             {
@@ -79,13 +85,22 @@ static void _parseError (parseState_t* parser, _confToken_t* tok, int err, void*
             }
             break;
         case PARSE_ERROR_OVERFLOW:
-            buf += snprintf (buf, 2048 - (buf - obuf), "string too long on token %s", _confLexGetTokenName (tok));
+            buf += snprintf (buf,
+                             2048 - (buf - obuf),
+                             "string too long on token %s",
+                             _confLexGetTokenName (tok));
             break;
         case PARSE_ERROR_TOO_MANY_PROPS:
-            buf += snprintf (buf, 2048 - (buf - obuf), "too many properties on property '%s'", (char*) extra);
+            buf += snprintf (buf,
+                             2048 - (buf - obuf),
+                             "too many properties on property '%s'",
+                             (char*) extra);
             break;
         case PARSE_ERROR_INTERNAL:
-            buf += snprintf (buf, 2048 - (buf - obuf), "internal error: %s", (char*) extra);
+            buf += snprintf (buf,
+                             2048 - (buf - obuf),
+                             "internal error: %s",
+                             (char*) extra);
             break;
     }
     // Silence clang-tidy warnings about buf being unused
@@ -134,7 +149,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
     block->lineNo = tok->line;
     block->props = ListCreate ("ConfProperty", false, 0);
     // Set type of block
-    if (strlcpy (block->blockType, tok->semVal, 256) >= 256)
+    if (c32lcpy (block->blockType, tok->semVal, 256) >= 256)
     {
         _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
         return NULL;
@@ -146,7 +161,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
     if (tok->type == LEX_TOKEN_ID)
     {
         // Set name of block
-        if (strlcpy (block->blockName, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+        if (c32lcpy (block->blockName, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
         {
             _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
             return NULL;
@@ -177,12 +192,13 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
         if (tok->type == LEX_TOKEN_ID)
         {
             // Create a new property
-            ConfProperty_t* prop = (ConfProperty_t*) malloc_s (sizeof (ConfProperty_t));
+            ConfProperty_t* prop =
+                (ConfProperty_t*) malloc_s (sizeof (ConfProperty_t));
             if (!prop)
                 return NULL;
             ListAddBack (block->props, prop, 0);
             prop->lineNo = tok->line;
-            if (strlcpy (prop->name, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+            if (c32lcpy (prop->name, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
             {
                 _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
                 return NULL;
@@ -206,7 +222,8 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].lineNo = tok->line;
                     prop->vals[valLoc].type = DATATYPE_STRING;
                     // Copy string value
-                    if (c32lcpy (prop->vals[valLoc].str, tok->strVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+                    if (c32lcpy (prop->vals[valLoc].str, tok->semVal, BLOCK_BUFSZ) >=
+                        BLOCK_BUFSZ)
                     {
                         _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
                         return NULL;
@@ -214,7 +231,10 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
                     {
-                        _parseError (state, tok, PARSE_ERROR_TOO_MANY_PROPS, prop->name);
+                        _parseError (state,
+                                     tok,
+                                     PARSE_ERROR_TOO_MANY_PROPS,
+                                     prop->name);
                         return NULL;
                     }
                 }
@@ -226,7 +246,8 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].lineNo = tok->line;
                     prop->vals[valLoc].type = DATATYPE_IDENTIFIER;
                     // Copy string value
-                    if (strlcpy (prop->vals[valLoc].id, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
+                    if (c32lcpy (prop->vals[valLoc].id, tok->semVal, BLOCK_BUFSZ) >=
+                        BLOCK_BUFSZ)
                     {
                         _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
                         return NULL;
@@ -234,7 +255,10 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
                     {
-                        _parseError (state, tok, PARSE_ERROR_TOO_MANY_PROPS, prop->name);
+                        _parseError (state,
+                                     tok,
+                                     PARSE_ERROR_TOO_MANY_PROPS,
+                                     prop->name);
                         return NULL;
                     }
                 }
@@ -248,7 +272,10 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
                     {
-                        _parseError (state, tok, PARSE_ERROR_TOO_MANY_PROPS, prop->name);
+                        _parseError (state,
+                                     tok,
+                                     PARSE_ERROR_TOO_MANY_PROPS,
+                                     prop->name);
                         return NULL;
                     }
                 }
@@ -336,10 +363,10 @@ static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* to
     if (!pathTok)
         return NULL;
     // Convert string value to multibyte
-    size_t len = c32len (pathTok->strVal);
+    size_t len = c32len (pathTok->semVal);
     char* mbPath = malloc_s ((len * MB_CUR_MAX) + 1);
     mbstate_t mbState = {0};
-    if (c32stombs (mbPath, pathTok->strVal, len, &mbState) < 0)
+    if (c32stombs (mbPath, pathTok->semVal, len, &mbState) < 0)
     {
         _parseError (state, pathTok, PARSE_ERROR_INTERNAL, strerror (errno));
         return NULL;

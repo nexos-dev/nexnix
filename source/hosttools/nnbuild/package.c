@@ -19,6 +19,7 @@
 
 #include "nnbuild.h"
 #include <conf.h>
+#include <errno.h>
 #include <libnex.h>
 #include <libnex/object.h>
 #include <stdio.h>
@@ -36,7 +37,7 @@ static int expecting = 0;
 #define EXPECTING_GROUP   2
 
 // The current property name
-static char* prop = NULL;
+static char32_t* prop = NULL;
 
 // The current line number
 static int lineNo = 0;
@@ -45,26 +46,26 @@ static int lineNo = 0;
 union val
 {
     int64_t numVal;
-    char strVal[BLOCK_BUFSZ * 4];
+    char32_t strVal[BLOCK_BUFSZ * 4];
 };
 
 // Adds a property to the current block
-int addProperty (char* prop, union val* val, int isStart, int dataType);
+int addProperty (char32_t* prop, union val* val, int isStart, int dataType);
 
 // Adds a package to the package list
-int addPackage (char* name);
+int addPackage (char32_t* name);
 
 // Adds a package group to the list
-int addGroup (char* name);
+int addGroup (char32_t* name);
 
 // Adds a command to a package spec
-int addCommand (char* action, char* command);
+int addCommand (char32_t* action, char32_t* command);
 
 // Finds a package in the list
-package_t* findPackage (char* pkg);
+package_t* findPackage (char32_t* pkg);
 
 // Finds a package group
-packageGroup_t* findGroup (char* groupName);
+packageGroup_t* findGroup (char32_t* groupName);
 
 // Gets front package
 #define getCurPackage() (((package_t*) ListEntryData (ListFront (packages))))
@@ -104,7 +105,7 @@ void pkgGrpDestroy (void* data)
 }
 
 // Adds a package to the list
-int addPackage (char* name)
+int addPackage (char32_t* name)
 {
     // Create the package
     package_t* newPkg = (package_t*) calloc_s (sizeof (package_t));
@@ -122,7 +123,7 @@ int addPackage (char* name)
 }
 
 // Adds a group to the list
-int addGroup (char* name)
+int addGroup (char32_t* name)
 {
     // Create the new group
     packageGroup_t* newGrp = (packageGroup_t*) calloc_s (sizeof (packageGroup_t));
@@ -145,8 +146,8 @@ int addGroup (char* name)
 bool pkgFindByPredicate (ListEntry_t* entry, void* data)
 {
     // Data is package name
-    char* s = data;
-    if (!strcmp (s, ((package_t*) ListEntryData (entry))->name))
+    char32_t* s = data;
+    if (!c32cmp (s, ((package_t*) ListEntryData (entry))->name))
         return true;
     return false;
 }
@@ -155,71 +156,72 @@ bool pkgFindByPredicate (ListEntry_t* entry, void* data)
 bool pkgGrpFindByPredicate (ListEntry_t* entry, void* data)
 {
     // Data is package name
-    char* s = data;
-    if (!strcmp (s, ((packageGroup_t*) ListEntryData (entry))->name))
+    char32_t* s = data;
+    if (!c32cmp (s, ((packageGroup_t*) ListEntryData (entry))->name))
         return true;
     return false;
 }
 
 // Finds a package in the list
-package_t* findPackage (char* pkg)
+package_t* findPackage (char32_t* pkg)
 {
     return (package_t*) ListEntryData (ListFindEntryBy (packages, pkg));
 }
 
 // Finds a package group
-packageGroup_t* findGroup (char* groupName)
+packageGroup_t* findGroup (char32_t* groupName)
 {
     return (packageGroup_t*) ListEntryData (ListFindEntryBy (pkgGroups, groupName));
 }
 
 // Adds a command to a package
-int addCommand (char* action, char* command)
+int addCommand (char32_t* action, char32_t* command)
 {
     package_t* curPackage = getCurPackage();
+    mbstate_t state = {0};
     // Figure out what the action is
-    if (!strcmp (action, "download"))
+    if (!c32cmp (action, U"download"))
     {
-        if ((strlcpy (curPackage->downloadAction, command, ACTION_BUFSIZE) >=
-             ACTION_BUFSIZE))
+        if (c32stombs (curPackage->downloadAction, command, ACTION_BUFSIZE, &state) <
+            0)
         {
-            error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
+            error ("%s: %s", strerror (errno));
             return -1;
         }
     }
-    else if (!strcmp (action, "configure"))
+    else if (!c32cmp (action, U"configure"))
     {
-        if ((strlcpy (curPackage->configureAction, command, ACTION_BUFSIZE) >=
-             ACTION_BUFSIZE))
+        if (c32stombs (curPackage->configureAction,
+                       command,
+                       ACTION_BUFSIZE,
+                       &state) < 0)
         {
-            error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
+            error ("%s: %s", strerror (errno));
             return -1;
         }
     }
-    else if (!strcmp (action, "build"))
+    else if (!c32cmp (action, U"build"))
     {
-        if ((strlcpy (curPackage->buildAction, command, ACTION_BUFSIZE) >=
-             ACTION_BUFSIZE))
+        if (c32stombs (curPackage->buildAction, command, ACTION_BUFSIZE, &state) < 0)
         {
-            error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
+            error ("%s: %s", strerror (errno));
             return -1;
         }
     }
-    else if (!strcmp (action, "install"))
+    else if (!c32cmp (action, U"install"))
     {
-        if ((strlcpy (curPackage->installAction, command, ACTION_BUFSIZE) >=
-             ACTION_BUFSIZE))
+        if (c32stombs (curPackage->installAction, command, ACTION_BUFSIZE, &state) <
+            0)
         {
-            error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
+            error ("%s: %s", strerror (errno));
             return -1;
         }
     }
-    else if (!strcmp (action, "clean"))
+    else if (!c32cmp (action, U"clean"))
     {
-        if ((strlcpy (curPackage->cleanAction, command, ACTION_BUFSIZE) >=
-             ACTION_BUFSIZE))
+        if (c32stombs (curPackage->cleanAction, command, ACTION_BUFSIZE, &state) < 0)
         {
-            error ("%s:%d: string overflow", ConfGetFileName(), lineNo);
+            error ("%s: %s", strerror (errno));
             return -1;
         }
     }
@@ -229,7 +231,7 @@ int addCommand (char* action, char* command)
 }
 
 // Adds a package to a package group
-static int addPackageToGroup (char* packageName)
+static int addPackageToGroup (char32_t* packageName)
 {
     if (expecting != EXPECTING_GROUP)
     {
@@ -253,7 +255,7 @@ static int addPackageToGroup (char* packageName)
 }
 
 // Adds a dependency to a package
-static int addDependencyToPackage (char* depName)
+static int addDependencyToPackage (char32_t* depName)
 {
     // Find the package
     package_t* package = findPackage (depName);
@@ -272,7 +274,7 @@ static int addDependencyToPackage (char* depName)
 }
 
 // Adds a package group dependency to a package group
-int addGroupToGroup (char* groupName)
+int addGroupToGroup (char32_t* groupName)
 {
     // Find the group to be added
     packageGroup_t* group = findGroup (groupName);
@@ -291,7 +293,7 @@ int addGroupToGroup (char* groupName)
 }
 
 // Adds a property
-int addProperty (char* newProp, union val* val, int isStart, int dataType)
+int addProperty (char32_t* newProp, union val* val, int isStart, int dataType)
 {
     // Check if the name needs to be reset
     if (isStart)
@@ -304,7 +306,7 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
     {
         package_t* curPackage = getCurPackage();
         // Check if this is a dependency
-        if (!strcmp (prop, "dependencies"))
+        if (!c32cmp (prop, U"dependencies"))
         {
             // Check data type
             if (dataType != DATATYPE_IDENTIFIER)
@@ -320,7 +322,7 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
                 return 0;
         }
         // Check if this is a bindinstall prop
-        else if (!strcmp (prop, "bindinstall"))
+        else if (!c32cmp (prop, U"bindinstall"))
         {
             if (dataType != DATATYPE_NUMBER)
             {
@@ -344,7 +346,7 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
     else if (expecting == EXPECTING_GROUP)
     {
         // Check if this is a list of packages in the group
-        if (!strcmp (prop, "packages"))
+        if (!c32cmp (prop, U"packages"))
         {
             // Check data type
             if (dataType != DATATYPE_IDENTIFIER)
@@ -358,7 +360,7 @@ int addProperty (char* newProp, union val* val, int isStart, int dataType)
                 return 0;
         }
         // Check if this is a sub group
-        else if (!strcmp (prop, "subgroups"))
+        else if (!c32cmp (prop, U"subgroups"))
         {
             // Check data type
             if (dataType != DATATYPE_STRING)
@@ -383,6 +385,11 @@ invalidProp:
 // Handles the build process
 int buildPackages (int groupOrPkg, char* name, char* action)
 {
+    // Convert name to UTF-32
+    size_t u32len = (strlen (name) + 1) * sizeof (char32_t);
+    mbstate_t state = {0};
+    char32_t* u32Name = malloc_s ((strlen (name) + 1) * sizeof (char32_t));
+    mbstoc32s (u32Name, name, u32len, strlen (name) + 1, &state);
     // Check if we need to build a group or a package
     if (!groupOrPkg)
     {
@@ -390,7 +397,7 @@ int buildPackages (int groupOrPkg, char* name, char* action)
         if (strcmp (name, "all") != 0)
         {
             // Find the group and build itJ
-            packageGroup_t* group = findGroup (name);
+            packageGroup_t* group = findGroup (u32Name);
             if (!group)
             {
                 error ("package group %s doesn't exist", name);
@@ -415,7 +422,7 @@ int buildPackages (int groupOrPkg, char* name, char* action)
     else
     {
         // Build one package
-        package_t* pkg = findPackage (name);
+        package_t* pkg = findPackage (u32Name);
         if (!pkg)
         {
             error ("package %s doesn't exist", name);
@@ -447,7 +454,7 @@ int buildPackageTree (ListHead_t* head)
         // Set diagnostic line number
         lineNo = curBlock->lineNo;
         // Figure out what to do here
-        if (!strcmp (curBlock->blockType, "package"))
+        if (!c32cmp (curBlock->blockType, U"package"))
         {
             // Check that a name was given
             if (curBlock->blockName[0] == '\0')
@@ -461,7 +468,7 @@ int buildPackageTree (ListHead_t* head)
             if (!addPackage (curBlock->blockName))
                 return 0;
         }
-        else if (!strcmp (curBlock->blockType, "group"))
+        else if (!c32cmp (curBlock->blockType, U"group"))
         {
             // Check that a name was given
             if (curBlock->blockName[0] == '\0')
@@ -497,16 +504,9 @@ int buildPackageTree (ListHead_t* head)
                 lineNo = curProp->lineNo;
                 // Obtain value
                 union val val;
-                if (curProp->vals[i].type == DATATYPE_IDENTIFIER)
-                    strcpy (val.strVal, curProp->vals[i].id);
-                else if (curProp->vals[i].type == DATATYPE_STRING)
-                {
-                    mbstate_t mbState = {0};
-                    c32stombs (val.strVal,
-                               curProp->vals[i].str,
-                               (size_t) BLOCK_BUFSZ * 4,
-                               &mbState);
-                }
+                if (curProp->vals[i].type == DATATYPE_IDENTIFIER ||
+                    curProp->vals[i].type == DATATYPE_STRING)
+                    c32lcpy (val.strVal, curProp->vals[i].id, BLOCK_BUFSZ);
                 else
                     val.numVal = curProp->vals[i].numVal;
                 if (!addProperty (NULL, &val, 0, curProp->vals[i].type))

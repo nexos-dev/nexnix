@@ -34,16 +34,12 @@
 /// Specifies a token that was parsed by the lexer
 typedef struct _confToken
 {
-    int type;      ///< The type of token that was parsed
-    int line;      ///< The line that this token is on
-    void* data;    ///< Pointer to some data for the token
-    union
-    {
-        char semVal[TOK_SEM_SIZE];        ///< Semantic value of token
-        char32_t strVal[TOK_SEM_SIZE];    ///< Size of string used to store strings
-    };
-    int64_t num;      ///< Numeric value of token
-    uint16_t base;    ///< Base of token
+    int type;                         ///< The type of token that was parsed
+    int line;                         ///< The line that this token is on
+    void* data;                       ///< Pointer to some data for the token
+    char32_t semVal[TOK_SEM_SIZE];    ///< Semantic value of token
+    int64_t num;                      ///< Numeric value of token
+    uint16_t base;                    ///< Base of token
 } _confToken_t;
 
 /// The state of the lexer
@@ -58,7 +54,8 @@ typedef struct _lexState
     int line;            ///< Line number in lexer
     char32_t curChar;    ///< Current character
     // Peek releated information
-    char32_t nextChar;    ///< Contains the next character. If the read functions find this set, then they use this
+    char32_t nextChar;    ///< Contains the next character. If the read functions
+                          ///< find this set, then they use this
                           /// instead
     int loc;              ///< Location in states table
 } lexState_t;
@@ -66,7 +63,8 @@ typedef struct _lexState
 /**
  * @brief Internal parser function
  *
- * _confParse reads the results from _confLex, and then creates a parse tree based on the tokens
+ * _confParse reads the results from _confLex, and then creates a parse tree
+ * based on the tokens
  *
  * @param[in] file the file to parse
  * @return The list of blocks in the file
