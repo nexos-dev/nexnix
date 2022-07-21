@@ -4,6 +4,7 @@
 Doxygen
 /patch-*
 source/external/*
+!source/external/libraries/libnex/*
 fakeinc
 *.code-workspace
 *.po~
