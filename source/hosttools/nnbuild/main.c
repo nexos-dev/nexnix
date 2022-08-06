@@ -18,7 +18,7 @@
 /// @file main.c
 
 #include "nnbuild.h"
-#include <conf.h>
+#include <libconf/libconf.h>
 #include <libnex.h>
 #include <stdio.h>
 #include <string.h>
@@ -130,5 +130,5 @@ int main (int argc, char** argv)
         res = buildPackages (1, pkg, action);
     freePackageTree();
     ConfFreeParseTree (confBlocks);
-    return res;
+    return !res;
 }

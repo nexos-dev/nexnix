@@ -19,7 +19,7 @@
 #include <unistd.h>
 // clang-format on
 #include "nnbuild.h"
-#include <conf.h>
+#include <libconf/libconf.h>
 #include <libgen.h>
 #include <libnex/error.h>
 #include <stdio.h>
@@ -43,10 +43,7 @@ static int runShell (char* cmd, char* action)
     pid_t pid = fork();
     if (!pid)
     {
-        // Set the shell
-        char* shell = getenv ("SHELL");
-        if (!shell)
-            shell = "/bin/sh";
+        char* shell = "/bin/sh";
         execl (shell, shell, "-ec", cmd, NULL);
         // An error occured if we got here
         _Exit (1);
@@ -74,71 +71,75 @@ static int runShell (char* cmd, char* action)
 
 static int doDownload (package_t* package)
 {
+    // Check if we should set up template
+    if (package->useBuildPkg)
+    {
+        sprintf (package->downloadAction,
+                 "$NNSCRIPTROOT/buildpkg.sh download %s",
+                 UnicodeToHost (package->name));
+    }
     // Run the command
     if (package->downloadAction[0])
         return runShell (package->downloadAction, "download");
-    else
-        warn ("package %s doesn't support action download", package->name);
     return 1;
 }
 
 static int doConfigure (package_t* package)
 {
+    // Check if we should set up template
+    if (package->useBuildPkg)
+    {
+        sprintf (package->configureAction,
+                 "$NNSCRIPTROOT/buildpkg.sh configure %s",
+                 UnicodeToHost (package->name));
+    }
     // Run the command
     if (package->configureAction[0])
         return runShell (package->configureAction, "configure");
-    else
-        warn ("package %s doesn't support action configure", package->name);
     return 1;
 }
 
 static int doConfHelp (package_t* package)
 {
+    // Check if we should set up template
+    if (package->useBuildPkg)
+    {
+        sprintf (package->confHelpAction,
+                 "$NNSCRIPTROOT/buildpkg.sh confhelp %s",
+                 UnicodeToHost (package->name));
+    }
     if (package->confHelpAction[0])
         return runShell (package->confHelpAction, "confhelp");
-    else
-        warn ("package %s doesn't support action confhelp", package->name);
-    return 1;
-}
-
-static int doInstall (package_t* package)
-{
-    // Run the command
-    if (package->installAction[0])
-    {
-        if (package->isInstalled)
-            return 1;
-        package->isInstalled = true;
-        return runShell (package->installAction, "install");
-    }
-    else
-        warn ("package %s doesn't support action install", package->name);
     return 1;
 }
 
 static int doBuild (package_t* package)
 {
+    // Check if we should set up template
+    if (package->useBuildPkg)
+    {
+        sprintf (package->buildAction,
+                 "$NNSCRIPTROOT/buildpkg.sh build %s",
+                 UnicodeToHost (package->name));
+    }
     // Run the command
     if (package->buildAction[0])
-    {
-        if (!runShell (package->buildAction, "build"))
-            return 0;
-        // Check if installation is bound to building
-        if (package->bindInstall)
-            return doInstall (package);
-    }
-    else
-        warn ("package %s doesn't support action build", package->name);
+        return runShell (package->buildAction, "build");
     return 1;
 }
 
 static int doClean (package_t* package)
 {
+    // Check if we should set up template
+    if (package->useBuildPkg)
+    {
+        sprintf (package->cleanAction,
+                 "$NNSCRIPTROOT/buildpkg.sh clean %s",
+                 UnicodeToHost (package->name));
+    }
     // Run the command
     if (package->cleanAction[0])
         return runShell (package->cleanAction, "clean");
-    else
-        warn ("package %s doesn't support action clean", package->name);
     return 1;
 }
 
@@ -183,11 +184,6 @@ int buildPackage (package_t* package, char* action)
         package->isBuilt = 1;
         return doBuild (package);
     }
-    else if (!strcmp (action, "install"))
-    {
-        package->isBuilt = 1;
-        return doInstall (package);
-    }
     else if (!strcmp (action, "clean"))
     {
         package->isBuilt = 1;
@@ -201,8 +197,6 @@ int buildPackage (package_t* package, char* action)
         if (!doConfigure (package))
             return 0;
         if (!doBuild (package))
-            return 0;
-        if (!doInstall (package))
             return 0;
     }
     else

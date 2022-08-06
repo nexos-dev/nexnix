@@ -45,13 +45,13 @@ typedef struct _package
     char downloadAction[ACTION_BUFSIZE];     ///< The action when downloading
     char configureAction[ACTION_BUFSIZE];    ///< Same, but for configuring
     char buildAction[ACTION_BUFSIZE];        ///< ... and so on
-    char installAction[ACTION_BUFSIZE];
     char cleanAction[ACTION_BUFSIZE];
     char confHelpAction[ACTION_BUFSIZE];
     ListHead_t* depends;    //< Dependencies of this package
     bool isBuilt;           ///< If this package has been buit or not
     bool isInstalled;       ///< If this package has been built yet
     bool bindInstall;       ///< If installation and building should be one step
+    bool useBuildPkg;       ///< If we should use the default template for building
 } package_t;
 
 /// Converts the parse tree into the package tree

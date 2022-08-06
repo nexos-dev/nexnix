@@ -288,9 +288,9 @@ static inline uint32_t peAlignMem (uint32_t val)
                                       : val;
 }
 
-static void destroyEntry (void* data)
+static void destroyEntry (const void* data)
 {
-    free (data);
+    free ((void*) data);
 }
 
 // Reads a string from an ELF file

@@ -15,7 +15,7 @@
     limitations under the License.
 ]]
 
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-nostdlib -ffreestanding")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-nostdlib -ffreestanding -lclang_rt.builtins-${NEXNIX_ARCH}")
 set(CMAKE_C_FLAGS "-ffreestanding")
 set(CMAKE_ASM_FLAGS "-ffreestanding")
-set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD 11)

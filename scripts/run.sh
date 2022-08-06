@@ -186,37 +186,76 @@ HELPEND
 done
 
 [ -z $emulator ] && emulator=qemu
-[ -z "$diskpath" ] && diskpath="nndisk.img"
-[ -z "$cdrompath" ] && cdrompath="nncdrom.iso"
-[ -z "$usbpath" ] && usbpath="nnusbstick.img"
-[ -z "$floppypath" ] && floppypath="nnflp1.img"
+[ -z "$diskpath" ] && diskpath=""
+[ -z "$cdrompath" ] && cdrompath=""
+[ -z "$usbpath" ] && usbpath=""
+[ -z "$floppypath" ] && floppypath=""
 
 if [ "$emulator" = "qemu" ]
 then
     QEMUARGS="${QEMUARGS} -serial stdio"
     [ "$EMU_DEBUG" = "1" ] && QEMUARGS="${QEMUARGS} -S -s"
     [ "$EMU_KVM" = "1" ] && QEMUARGS="${QEMUARGS} -enable-kvm"
-    if [ "$NNTARGETCONF" = "acpi" ]
+    if [ "$NNTARGETCONF" = "acpi-up" ]
     then
         # Prepare defaults
-        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
-        [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
-        [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="sata"
-        EMU_BUSTYPE="pcie"
-        [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
-        [ -z "$EMU_NETDEV" ] && EMU_NETDEV="e1000"
+        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
+        [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="ata"
+        EMU_BUSTYPE="pci"
+        [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
+        [ -z "$EMU_NETDEV" ] && EMU_NETDEV="ne2k"
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="bochs"
-        [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
-        [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="uefi"
-        [ -z "$EMU_CPU" ] && EMU_CPU="max"
-        [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="q35"
+        [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
+        [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
+        [ -z "$EMU_CPU" ] && EMU_CPU="athlon"
+        [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="pc"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
         [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
-        EMU_SMP=1
+        EMU_SMP=0
         EMU_CDROMBOOT=0
-    elif [ "$NNTARGETCONF" = "isa" ]
+    elif [ "$NNTARGETCONF" = "acpi" ]
+    then
+        # Prepare defaults
+        if [ "$NNARCH" = "x86_64" ]
+        then
+            [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=3072
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
+            [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="sata"
+            EMU_BUSTYPE="pcie"
+            [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
+            [ -z "$EMU_NETDEV" ] && EMU_NETDEV="e1000"
+            [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+            [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="bochs"
+            [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
+            [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="uefi"
+            [ -z "$EMU_CPU" ] && EMU_CPU="max"
+            [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="q35"
+            [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+            [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+            [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
+        elif [ "$NNARCH" ="i386" ]
+        then
+            [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=2
+            [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="ata"
+            EMU_BUSTYPE="pci"
+            [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
+            [ -z "$EMU_NETDEV" ] && EMU_NETDEV="ne2k"
+            [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+            [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="bochs"
+            [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
+            [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
+            [ -z "$EMU_CPU" ] && EMU_CPU="athlon"
+            [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="pc"
+            [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+            [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+            [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
+        fi
+        EMU_SMP=1
+        [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
+    elif [ "$NNTARGETCONF" = "pnp" ]
     then
         # Prepare defaults
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=512
@@ -229,13 +268,13 @@ then
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="sb16"
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
-        [ -z "$EMU_CPU" ] && EMU_CPU="486"
+        [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
         EMU_MACHINETYPE="isapc"
-        EMU_CDROM=0
+        [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         EMU_FLOPPY=1
         EMU_USBDRIVE=0
         EMU_SMP=0
-        EMU_CDROMBOOT=0
+        [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
         QEMUARGS="${QEMUARGS} -no-acpi"
     elif [ "$NNTARGETCONF" = "mp" ]
     then
@@ -251,9 +290,9 @@ then
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
         [ -z "$EMU_CPU" ] && EMU_CPU="pentium2"
         EMU_MACHINETYPE="pc"
-        EMU_CDROM=0
+        [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         EMU_USBDRIVE=0
-        EMU_CDROMBOOT=0
+        [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
         EMU_SMP=1
         QEMUARGS="${QEMUARGS} -no-acpi"
     elif [ "$NNTARGETCONF" = "qemu" ]
@@ -277,7 +316,7 @@ then
     fi
     # Build command line
     QEMUARGS="${QEMUARGS} -m ${EMU_MEMCOUNT}M -M ${EMU_MACHINETYPE} -cpu $EMU_CPU"
-    if [ $EMU_SMP -eq 1 ]
+    if [ "$EMU_SMP" = "1" ]
     then
         QEMUARGS="${QEMUARGS} -smp ${EMU_CPUCOUNT}"
     fi
@@ -287,11 +326,9 @@ then
         QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
     elif [ "$EMU_DRIVETYPE" = "ata" ]
     then
-        if [ "$NNTARGETCONF" = "isa" ]
+        if [ "$NNTARGETCONF" = "pnp" ]
         then
             QEMUARGS="${QEMUARGS} -device isa-ide"
-        else
-            QEMUARGS="${QEMUARGS} -device piix4-ide"
         fi
         QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
     elif [ "$EMU_DRIVETYPE" = "nvme" ]
@@ -342,10 +379,9 @@ then
     fi
     if [ $EMU_FLOPPY -eq 1 ]
     then
-        QEMUARGS="${QEMUARGS} -device isa-fd"
         if [ ! -z "$floppypath" ]
         then
-            QEMUARGS="${QEMUARGS} -drive file=$floppypath,format=raw,id=fd0-device floppy,drive=fd0"
+            QEMUARGS="${QEMUARGS} -drive file=$floppypath,format=raw,id=fd0 -device floppy,drive=fd0"
         fi
     fi
 
@@ -393,10 +429,10 @@ then
     then
         if [ "$EMU_BUSTYPE" = "isa" ]
         then
-            QEMUARGS="${QEMUARGS} -device ne2kisa,netdev=net0,mac=DA:45:FC:31:AA:09 -netdev user,id=net0"
+            QEMUARGS="${QEMUARGS} -device ne2k_isa,netdev=net0,mac=DA:45:FC:31:AA:09 -netdev user,id=net0"
         elif [ "$EMU_BUSTYPE" = "pci" ]
         then
-            QEMUARGS="${QEMUARGS} -device ne2k-pci,netdev=net0,mac=DA:45:FC:31:AA:09 -netdev user,id=net0"
+            QEMUARGS="${QEMUARGS} -device ne2k_pci,netdev=net0,mac=DA:45:FC:31:AA:09 -netdev user,id=net0"
         fi
     else
         echo "$0: invalid network controller \"$EMU_NETDEV\""
@@ -427,13 +463,13 @@ then
     # Set the sound device
     if [ "$EMU_SOUNDDEV" = "hda" ]
     then
-        QEMUARGS="${QEMUARGS} -device ich9-intel-hda -audiodev id=pa,driver=pa -device hda-duplex,audiodev=pa"
+        QEMUARGS="${QEMUARGS} -device ich9-intel-hda -audiodev id=alsa,driver=alsa -device hda-duplex,audiodev=als"
     elif [ "$EMU_SOUNDDEV" = "ac97" ]
     then
-        QEMUARGS="${QEMUARGS} -device ac97,audiodev=pa -audiodev id=pa,driver=pa"
+        QEMUARGS="${QEMUARGS} -device ac97,audiodev=alsa -audiodev id=alsa,driver=alsa"
     elif [ "$EMU_SOUNDDEV" = "sb16" ]
     then
-        QEMUARGS="${QEMUARGS} -device sb16,audiodev=pa -audiodev id=pa,driver=pa"
+        QEMUARGS="${QEMUARGS} -device sb16,audiodev=alsa -audiodev id=alsa,driver=alsa"
     else
         echo "$0: invalid sound device \"$EMU_SOUNDDEV\""
         exit 1
@@ -460,12 +496,7 @@ then
         QEMUARGS="${QEMUARGS} -device ati-vga"
     elif [ "$EMU_DISPLAYTYPE" = "vga" ]
     then
-        if [ "$EMU_BUSTYPE" = "isa" ]
-        then
-            QEMUARGS="${QEMUARGS} -device isa-vga"
-        else
-            QEMUARGS="${QEMUARGS} -device VGA"
-        fi
+        QEMUARGS="${QEMUARGS} -device VGA"
     fi
 
     # Set the firmware images
@@ -507,12 +538,15 @@ then
     fi
     # Begin writing out the configuration file
     echo "log: bochslog.txt" > bochsrc.txt
+    echo "config_interface: textconfig" >> bochsrc.txt
+    echo "display_library: x" >> bochsrc.txt
     echo "com1: enabled=1, mode=term, dev=$(tty)" >> bochsrc.txt
     [ "$EMU_DEBUG" = "1" ] && \
         echo "gdbstub: enabled=1, port=1234, ext_base=0, data_base=0, bss_base=0" \
                 >> bochsrc.txt
     echo "magic_break: enabled=1" >> bochsrc.txt
-    if [ "$NNTARGETCONF" = "acpi" ] || [ "$NNTARGETCONF" = "mp" ]
+    if [ "$NNTARGETCONF" = "acpi" ] || [ "$NNTARGETCONF" = "mp" ] || \
+       [ "$NNTARGETCONF" = "acpi-up" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
         [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
@@ -528,10 +562,15 @@ then
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
-        EMU_SMP=1
+        if [ "$NNTARGETCONF" = "acpi-up" ]
+        then
+            EMU_SMP=0
+        else
+            EMU_SMP=1
+        fi
         # Write out BIOS line
         echo 'romimage: file=$BXSHARE/BIOS-bochs-latest' >> bochsrc.txt
-    elif [ "$NNTARGETCONF" = "isa" ]
+    elif [ "$NNTARGETCONF" = "pnp" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=512
         [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=1
@@ -540,6 +579,7 @@ then
         [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         EMU_SMP=0
         # Write out BIOS line
         echo 'romimage: file=$BXSHARE/BIOS-bochs-legacy' >> bochsrc.txt
@@ -556,27 +596,29 @@ then
     # Configure hard disk
     echo "ata0-master: type=disk, path=$diskpath, mode=flat, translation=auto" \
         >> bochsrc.txt
-    if [ $EMU_CDROM -eq 1 ]
+    if [ "$EMU_CDROM" = "1" ]
     then
         echo "ata0-slave: type=cdrom, path=$cdrompath, status=inserted" >> bochsrc.txt
     fi
-    if [ $EMU_FLOPPY -eq 1 ]
+    if [ "$EMU_FLOPPY" = "1" ]
     then
         echo "floppya: 1_44=$floppypath, status=inserted" >> bochsrc.txt
     fi
-    echo "mouse: enabled=0,toggle=ctrl+f10"
+    echo "mouse: enabled=0,toggle=ctrl+f10" >> bochsrc.txt
 
     # Start working on PCI stuff
-    if [ "$NNTARGETCONF" = "acpi" ]
+    if [ "$NNTARGETCONF" = "acpi" ] || [ "$NNTARGETCONF" = "acpi-up" ]
     then
         pciopt="pci: enabled=1, chipset=i440x"
     elif [ "$NNTARGETCONF" = "mp" ]
     then
         pciopt="pci: enabled=1, chipset=i440x, advopts=\"noacpi,nohpet\""
-    elif [ "$NNTARGETCONF" = "isa" ]
+    elif [ "$NNTARGETCONF" = "pnp" ]
     then
         pciopt="pci: enabled=0"
     fi
+
+    echo "$pciopt" >> bochsrc.txt
 
     # Check if USB input is desired
     if [ "$EMU_INPUTDEV" = "usb" ]
@@ -615,33 +657,55 @@ then
         VBoxManage createvm --name "NexNix" --register
     fi
     # Setup default settings
-    if [ "$NNTARGETCONF" = "acpi" ]
+    if [ "$NNTARGETCONF" = "acpi" ] || [ "$NNTARGETCONF" = "acpi-up" ]
     then
         # Prepare defaults
-        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
-        [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
-        [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="sata"
-        [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
-        [ -z "$EMU_NETDEV" ] && EMU_NETDEV="pcnet"
-        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
-        [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vmware"
-        [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
-        [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="uefi"
-        [ -z "$EMU_CDROM" ] && EMU_CDROM=0
-        [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
-        EMU_SMP=1
+        if [ "$NNARCH" = "i386" ]
+        then
+            [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=2
+            [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="ata"
+            [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
+            [ -z "$EMU_NETDEV" ] && EMU_NETDEV="pcnet"
+            [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+            [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vmware"
+            [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
+            [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
+            [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+            [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+        elif [ "$NNARCH" = "x86_64" ]
+        then
+            [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=3072
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
+            [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="sata"
+            [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
+            [ -z "$EMU_NETDEV" ] && EMU_NETDEV="pcnet"
+            [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+            [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vmware"
+            [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
+            [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
+            [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+            [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+        fi
+        if [ "$NNTARGETCONF" = "acpi" ]
+        then
+            EMU_SMP=1
+        else
+            EMP_SMP=0
+        fi
         EMU_CDROMBOOT=0
         # Set base settings for this board
         if [ "$NNARCH" = "x86_64" ]
         then
             VBoxManage modifyvm "NexNix" --ostype Other_64
+            VBoxManage modifyvm "NexNix" --acpi on --hpet on \
+                 --apic on --pae on --x2apic on --largepages on \
+                 --biosapic x2apic
         elif [ "$NNARCH" = "i386" ]
         then
             VBoxManage modifyvm "NexNix" --ostype Other
+            VBoxManage modifyvm "NexNix" --acpi on --apic on --pae on
         fi
-        VBoxManage modifyvm "NexNix" --acpi on --hpet on \
-                 --apic on --pae on --x2apic on --largepages on \
-                 --biosapic x2apic
     elif [ "$NNTARGETCONF" = "mp" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
@@ -711,10 +775,10 @@ then
         VBoxManage modifyvm "NexNix" --usbxhci on
     elif [ "$EMU_USBTYPE" = "ehci" ]
     then
-        VBoxManage modifyvm "NexNix" --usbehci --usb on
+        VBoxManage modifyvm "NexNix" --usbehci on
     elif [ "$EMU_USBTYPE" = "ohci" ]
     then
-        VBoxManage modifyvm "NexNix" --usb on
+        VBoxManage modifyvm "NexNix" --usbohci on
     else
         echo "$0: invalid USB HCI $EMU_USBTYPE"
         exit 1

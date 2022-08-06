@@ -591,7 +591,7 @@ bool updateVbr (Image_t* img, Partition_t* part)
     if (img->format != IMG_FORMAT_ISO9660)
     {
         file = img->file;
-        vbrBase = IMG_MUL_TO_SECT (part->start) * IMG_SECT_SZ;
+        vbrBase = IMG_MUL_TO_SECT (part->start) * (loff_t) IMG_SECT_SZ;
     }
     else
         file = getenv ("NNBOOTIMG");

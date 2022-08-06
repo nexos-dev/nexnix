@@ -16,7 +16,7 @@
 
 package=
 group=
-target=i386-pc
+target=
 conf=
 debug=0
 imgformat=mbr
@@ -24,10 +24,13 @@ toolchain=gnu
 useninja=0
 output="$PWD/output"
 action=
-imgaction=update
+imgaction=all
+imgactiondef=1
 jobcount=1
 image=
 buildconf=
+confopts=
+buildonly=0
 
 actions="all configure build image run dumpconf"
 
@@ -63,20 +66,9 @@ getoptarg()
 # Action handlers
 configure()
 {
-    # Set options
-    if [ "$debug" = "1" ]
-    then
-        confargs="$confargs -debug"
-    fi
-
-    if [ "$useninja" = "1" ]
-    then
-        confargs="$confargs -ninja"
-    fi
-
+    echo $confopts
     # Run the configure script
-    ./configure.sh $confargs -output $output -target $target -toolchain $toolchain \
-                   -conf $conf -imgformat $imgformat -jobs $jobcount -buildconf $buildconf
+    ./configure.sh -installpkgs $confopts
     checkerr $? "unable to configure NexNix"
 }
 
@@ -98,17 +90,33 @@ build()
     # Build it
     if [ ! -z $package ]
     then
-        nnbuild -p $package all
-        checkerr $? "unable to build NexNix"
+        if [ "$buildonly" = "0" ]
+        then
+            nnbuild -p $package all
+            checkerr $? "unable to build NexNix"
+        else
+            nnbuild -p $package build
+            checkerr $? "unable to build NexNix"
+        fi
     else
-        nnbuild -g $group all
-        checkerr $? "unable to build NexNix"
+        if [ "$buildonly" = "0" ]
+        then
+            nnbuild -g $group all
+            checkerr $? "unable to build NexNix"
+        else
+            nnbuild -g $group build
+            checkerr $? "unable to build NexNix"
+        fi
     fi
     cd $olddir
 }
 
 image()
 {
+    if [ "$imgactiondef" = "1" ] && [ "$action" = "buildrun" ]
+    then
+        imgaction="update"
+    fi
     # Run the configuration script
     olddir=$(pwd)
     cd $output/conf/$target/$buildconf && . $PWD/nexnix-conf.sh
@@ -140,6 +148,22 @@ dumpconf()
     echo $output/conf/$target/$buildconf/nexnix-conf.sh
 }
 
+# Get action
+if [ "$1" = "" ]
+then
+    panic "action not specified"
+fi
+isdash=$(echo "$1" | awk '/^-/')
+if [ ! -z "$isdash" ] && [ "$1" != "-help" ]
+then
+    panic "invalid action \"$1\"" 
+fi
+if [ "$1" != "-help" ]
+then
+    action=$1
+    shift
+fi
+
 # Start by parsing arguments
 while [ $# -gt 0 ]
 do
@@ -147,10 +171,8 @@ do
     -help)
         cat <<HELPEND
 $0 - wrapper script to configure, build, and run NexNix (or a subset)
-Usage: $0 [-help] [-pkg package] [-group pkggroup] [-target target]
-          [-conf conf] [-debug] [-imgformat format] [-toolchain toolchain]
-          [-ninja] [-jobs jobs] [-imgaction action] [-image img]
-          [-emulator-args args] [-buildconf conf] action
+Usage: $0 action [-help] [-pkg package] [-group pkggroup] [-imgaction action] 
+                 [-image img] [-emulator-args args]
 
 Valid arguments:
   -help
@@ -161,51 +183,30 @@ Valid arguments:
   -group group
                         The package group to build
                         Mutually exclusdive with -pkg
-  -target target
-                        The target to build for
-                        Run './configure.sh -archs' to see valid targets
-                        Default: i386-pc
-  -conf conf
-                        The target configuration to build
-                        Run './configure.sh -archs' to see valid configurations 
-                        and defaults
-  -debug
-                        Build with debugging info and no optimizations
-  -imgformat format
-                        Specifies the image format
-                        Valid arguments include "mbr" and "iso9660"
-                        Run './configure.sh -archs' to see defaults
-  -toolchain toolchain
-                        Specifies the toolchain
-                        Valid arguments include "llvm" and "gnu"
-                        Default: "gnu"
-  -ninja
-                        Use the ninja build system
-  -jobs jobs
-                        Specifies the number of jobs that should be used 
-                        to build NexNix
-                        Default: 1
   -imgaction action
                         Specifies the aciton for nnimage to run
                         Valid arguments include "all", "create", "partition", 
                         and "update"
-                        Default: "update"
+                        Default: "all" for most actions, "update" for buildrun
   -image img
                         Specifies the image file to output
                         Default: configuration directory/nndisk.img 
                         (or nncdrom.iso in the case of ISO images)
+  -buildonly
+                        Skip nnbuild configure step
+                        This option is useful for incremental builds
   -emulator-args args
                         Specifies extra arguments to pass to run.sh
                         Ensure such arguments are quoted properly
                         By default, image path and appropiate boot device
                         are selected
-  -buildconf conf
-                        The configuration name for the build.
-                        Defaults to the target configuration
-
+Run './configure.sh -help' to see additional options.
+Any option passable to configure.sh is passable to buildrun.sh
+Note that -installpkgs is always passed to configure.sh
 Valid arguments for action include "all", "configure", "build", 
 "image", "dumpconf", and "run". Default is "all"
 HELPEND
+        exit 0
         ;;
     -pkg)
         package=$(getoptarg "$2" "$1")
@@ -215,63 +216,39 @@ HELPEND
         group=$(getoptarg "$2" "$1")
         shift 2
         ;;
-    -target)
-        target=$(getoptarg "$2" "$1")
-        shift 2
-        ;;
-    -conf)
-        conf=$(getoptarg "$2" "$1")
-        shift 2
-        ;;
-    -debug)
-        debug=1
-        shift
-        ;;
-    -imgformat)
-        imgformat=$(getoptarg "$2" "$1")
-        shift 2
-        ;;
-    -toolchain)
-        toolchain=$(getoptarg "$2" "$1")
-        shift 2
-        ;;
-    -ninja)
-        useninja=1
-        shift
-        ;;
-    -output)
-        output=$(getoptarg "$2" "$1")
-        shift 2
-        ;;
     -imgaction)
         imgaction=$(getoptarg "$2" "$1")
+        imgactiondef=0
         shift 2
-        ;;
-    -jobs)
-        jobcount=$(getoptarg "$2" "$1")
-        shift 2
-        # Check if it is numeric
-        isnum=$(echo $jobcount | awk '/[0-9]*/')
-        if [ -z $isnum ]
-        then
-            panic "job count must be numeric"
-        fi
         ;;
     -emulator-args)
         emuargs=$(getoptarg "$2" "$1")
         shift 2
         ;;
-    -buildconf)
-        buildconf=$(getoptarg "$2" "$1")
+    -buildonly)
+        buildonly=1
+        shift 1
+        ;;
+    -target)
+        # Hook into -target option
+        target=$(getoptarg "$2" "$1")
+        confopts="$confopts $1 $2"
         shift 2
         ;;
-    *)
-        isdash=$(echo "$1" | awk '/^-/')
-        if [ ! -z "$isdash" ]
-        then
-            panic "invalid argument $1" 
-        fi
-        action=$1
+    -conf)
+        # Hook into -conf option
+        conf=$(getoptarg "$2" "$1")
+        confopts="$confopts $1 $2"
+        shift 2
+        ;;
+    -buildconf)
+        # Hook into -buildconf option
+        buildconf=$(getoptarg "$2" "$1")
+        confopts="$confopts $1 $2"
+        shift 2
+        ;;
+   *)
+        confopts="$confopts $1"
         shift
         ;;
     esac
@@ -283,10 +260,26 @@ then
     panic "package and group specification are mutually exclusive"
 fi
 
+# Try to get target and conf from environment
+if [ -z "$target" ]
+then
+    target=$NNTARGET
+fi
+
+if [ -z "$conf" ]
+then
+    conf=$NNTARGETCONF
+fi
+
 # If no configuration was specified, then figure out the default
 if [ -z "$conf" ]
 then
     conf=$(./configure.sh -archs | awk -v target=$target '$2 == "configuration" && $4 == target { print $6 }')
+fi
+
+if [ -z "$target" ]
+then
+    target=i386-pc
 fi
 
 # Set buildconf, if need be
@@ -303,6 +296,9 @@ elif [ "$imgformat" = "iso9660" ]
 then
     image=$output/conf/$target/$buildconf/nncdrom.iso
 fi
+
+# Export buildonly value for buildpkg
+export NNBUILDONLY=$buildonly
 
 # Set action, if need be
 if [ -z "$action" ]

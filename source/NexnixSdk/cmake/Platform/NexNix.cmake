@@ -15,4 +15,22 @@
     limitations under the License.
 ]]
 
+if(NEXNIX)
+    return()
+endif()
+
+set(NEXNIX 1)
+
+list(APPEND CMAKE_SYSTEM_PREFIX_PATH 
+            /Programs /System 
+            /Programs/Index)
+
+list(APPEND CMAKE_SYSTEM_INCLUDE_PATH /Programs/Index/include)
+list(APPEND CMAKE_SYSTEM_LIBRARY_PATH /Programs/Index/lib)
+list(APPEND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES /Programs/Index/lib /Programs/Index/lib64)
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "/Programs/${PROJECT_NAME}/${PROJECT_VERSION}")
+endif()
+
 include(Platform/UnixPaths)

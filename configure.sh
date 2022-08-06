@@ -206,6 +206,9 @@ findprog()
         elif [ "$1" = "nasm" ]
         then
             pkg="nasm"
+        elif [ "$1" = "tex" ]
+        then
+            pkg="texlive-binaries texlive-latex-extra"
         elif [ "$1" = "xz" ]
         then
             if [ "$hostos" = "debain" ]
@@ -218,6 +221,15 @@ findprog()
             then
                 pkg="xz"
             fi
+        elif [ "$1" = "python" ]
+        then
+            pkg=$1
+        elif [ "$1" = "bash" ]
+        then
+            pkg=$1
+        elif [ "$1" = "iasl" ]
+        then
+            pkg="acpica-tools"
         fi
         pkgs="$pkgs $pkg"
     else
@@ -237,7 +249,7 @@ installpkgs()
         runroot dnf install $pkgs
     elif [ "$hostos" = "debian" ]
     then
-        runroot apt install $pkgs
+        runroot apt install -y $pkgs
     elif [ "$hostos" = "arch" ]
     then
         runroot pacman -S $pkgs
@@ -274,6 +286,9 @@ commonarch=
 arch=
 board=
 imagetype=
+imgbootemu=
+imgbootmode=
+imguniversal=0
 depcheckfail=0
 useninja=0
 genconf=1
@@ -281,13 +296,18 @@ installpkgs=0
 usesu=0
 hostos=
 pkgs=
+fwtype=
+
+# Target specific features
+targetismp=
+commonarch=
 
 # Target list
 targets="i386-pc"
 # Valid image types
-imagetypes="mbr iso9660"
+imagetypes="mbr gpt iso9660"
 # Target configuration list
-confs_i386_pc="isa"
+confs_i386_pc="pnp mp acpi-up acpi"
 
 # Loop through every argument
 while [ $# -gt 0 ]
@@ -323,7 +343,19 @@ Valid arguments:
                         Specifies prefix directory
   -imgformat imagetype
                         Specifies the type of the disk image
-                        Valid arguments include  "mbr" and "iso9660"
+                        Valid arguments include  "mbr", "gpt", and "iso9660"
+  -imgbootmode bootmode
+                        Specifies the boot mode to use on the image
+                        Valid arguments include "none", "bios", "efi", and "hybrid"
+  -imgbootemu bootemu
+                        Specifies boot emulation on iso9660 bios or hybrid images
+                        Valid arguments include "hdd", "fdd", or "none"
+  -imguniversal
+                        Specifies that image can be booted as a hard disk for
+                        iso9660 images
+  -fwtype type
+                        Specifies firmware type
+                        Can be "bios" or "efi"
   -conf conf
                         Specifies the configuration for the target
   -ninja
@@ -345,7 +377,7 @@ HELPEND
         echo $targets
         echo "Valid configurations for i386-pc:"
         echo $confs_i386_pc
-        echo "Default configuration for i386-pc is: isa"
+        echo "Default configuration for i386-pc is: acpi"
         echo "Default image type for i386-pc is: mbr"
         exit 0
         ;;
@@ -378,6 +410,61 @@ HELPEND
             panic "image type \"$imagetype\" invalid" $0
         fi
         ;;
+    -imgbootemu)
+        imgbootemu=$(getoptarg "$2" "$1")
+        shift 2
+        bootemufound=0
+        for bootemu in "hdd fdd none"
+        do
+            if [ "$imgbootemu" = "$bootemu" ]
+            then
+                bootemufound=1
+                break
+            fi
+        done
+        if [ $bootemufound -eq 0 ]
+        then
+            panic "boot emulation \"$imgbootemu\" invalid" $0
+        fi
+        ;;
+    -imgbootmode)
+        imgbootmode=$(getoptarg "$2" "$1")
+        shift 2
+        bootmodefound=0
+        for bootmode in "bios none efi hybrid"
+        do
+            if [ "$imgbootmode" = "$bootmode" ]
+            then
+                boomodefound=1
+                break
+            fi
+        done
+        if [ $bootmodefound -eq 0 ]
+        then
+            panic "boot mode \"$imgbootmode\" is invalid" $0
+        fi
+        ;;
+    -imguniversal)
+        imguniversal=1
+        shift
+        ;;
+    -fwtype)
+        fwtype=$(getoptarg "$2" "$1")
+        shift 2
+        fwfound=0
+        for fw in "bios efi"
+        do
+            if [ "$fwtype" = "$fw" ]
+            then
+                fwfound=1
+                break
+            fi
+        done
+        if [ $fwfound -eq 0 ]
+        then
+            panic "firmware type \"$fwtype\" is invalid" $0
+        fi
+        ;;
     -target)
         # Find the argument
         tarearly=$(getoptarg "$2" "$1")
@@ -389,7 +476,7 @@ HELPEND
         compiler=$(getoptarg "$2" "$1")
         # Shift accordingly
         shift 2
-    ;;
+        ;;
     -jobs)
         # Find the argument
         jobcount=$(getoptarg "$2" "$1")
@@ -469,7 +556,7 @@ then
         then
             echo "Detected OS: Debian"
             hostos="debian"
-            if [ "$NNTOOLS_NO_WARNING" = "0" ]
+            if [ "$NNTOOLS_NO_WARNING" != "1" ]
             then
                 # Warn Ubuntu users because kernel is not world readable in Ubuntu,
                 # which makes image generation field
@@ -522,7 +609,12 @@ then
     findprog "gmake"
 fi
 findprog "xz"
+findprog "tex"
+findprog "python"
+findprog "iasl"
+findprog "bash"
 findlib "guestfs"
+findlib "uuid"
 # Check if the check succeeded
 if [ $depcheckfail -eq 1 ]
 then
@@ -530,7 +622,7 @@ then
 fi
 
 # Install depndencies
-if [ ! -z $pkgs ]
+if [ ! -z "$pkgs" ]
 then
     installpkgs
 fi
@@ -578,7 +670,7 @@ Run $0 -l to see supported targets"
         commonarch="x86"
         if [ -z "$tarconf" ]
         then
-            tarconf="isa"
+            tarconf="acpi"
         else
             conffound=0
             for tconf in $confs_i386_pc
@@ -596,12 +688,30 @@ Run $0 -l to see supported targets"
         fi
 
         # Set the parameters of this configuration
-        if [ "$tarconf" = "isa" ]
+        if [ "$tarconf" = "acpi" ] || [ "$tarconf" = "mp" ]
         then
-            if [ -z "$imagetype" ]
+            # Ensure environment is valid
+            if [ "$imgbootmode" = "none" ]
             then
-                imagetype=mbr
+                panic "boot mode \"none\" not valid for i386-pc configuration acpi"
             fi
+            [ -z "$imagetype" ] && imagetype="mbr"
+            [ -z "$imgbootmode" ] && imgbootmode="bios"
+            [ -z "$imgbootemu" ] && imgbootemu="fdd"
+            [ -z "$fwtype" ] && fwtype="bios"
+            targetismp=1
+        elif [ "$tarconf" = "acpi-up" ] || [ "$tarconf" = "pnp" ]
+        then
+            # Ensure environment is valid
+            if [ "$imgbootmode" = "none" ]
+            then
+                panic "boot mode \"none\" not valid for i386-pc configuration acpi-up"
+            fi
+            [ -z "$imagetype" ] && imagetype="mbr"
+            [ -z "$imgbootmode" ] && imgbootmode="bios"
+            [ -z "$imgbootemu" ] && imgbootemu="fdd"
+            [ -z "$fwtype" ] && fwtype="bios"
+            targetismp=0
         fi
     fi
     # Setup build configuration name
@@ -616,93 +726,18 @@ Run $0 -l to see supported targets"
         prefix="$output/conf/$target/$conf/sysroot"
     fi
     
-    ############################
-    # nnbuild bootstraping
-    ############################
-
-    if [ $useninja -eq 1 ]
-    then
-        cmakeargs="-G Ninja"
-        cmakegen=ninja
-    else
-        cmakegen=gmake
-        makeargs="--no-print-directory"
-    fi
-
-    # Download libchardet
-    if [ ! -f $olddir/source/external/libraries/libchardet_done ] || [ "$NNTOOLS_REGET_CHARDET" = "1" ]
-    then
-        rm -rf $olddir/source/external/libraries/libchardet
-        git clone https://github.com/nexos-dev/libchardet.git \
-                  $olddir/source/external/libraries/libchardet
-        touch $olddir/source/external/libraries/libchardet_done
-    fi
-    # Build libchardet
-    if ([ ! -f $output/tools/lib/libchardet.a ] && [ ! -f $output/tools/lib64/libchardet.a ]) \
-       || [ "$NNTOOLS_REBUILD_CHARDET" = "1" ]
-    then
-        chardetbuild="$output/build/tools/chardet-build/$cmakegen"
-        mkdir -p $chardetbuild && cd $chardetbuild
-        cmake $olddir/source/external/libraries/libchardet -DCMAKE_INSTALL_PREFIX="$output/tools" $cmakeargs
-        checkerr $? "unable to configure libchardet" $0
-        $cmakegen -j $jobcount
-        checkerr $? "unable to build libchardet" $0
-        $cmakegen install -j $jobcount
-        checkerr $? "unable to build libchardet" $0
-    fi
-    # Build libnex
-    if [ ! -f $output/tools/lib/libnex.a -a ! -f $output/tools/lib64/libnex.a ] || 
-       [ "$NNTOOLS_REBUILD_LIBNEX" = "1" ]
-    then
-        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
-        then
-            libnex_cmakeargs="$cmakeargs -DLIBNEX_ENABLE_TESTS=ON"
-        else
-            libnex_cmakeargs="$cmakeargs"
-        fi
-        libnex_builddir="$output/build/tools/libnex-build"
-        mkdir -p $libnex_builddir/$cmakegen
-        cd $libnex_builddir/$cmakegen
-        cmake $olddir/source/libraries/libnex -DCMAKE_INSTALL_PREFIX="$output/tools" $libnex_cmakeargs
-        checkerr $? "unable to configure libnex" $0
-        $cmakegen -j $jobcount $makeargs
-        checkerr $? "unable to build libnex" $0
-        $cmakegen -j $jobcount $makeargs install
-        checkerr $? "unable to install libnex" $0
-        # Run tests if requested
-        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
-        then
-            ctest -V
-            checkerr $? "test suite failed" $0
-        fi
-    fi
-    # Build host tools
-    if [ ! -f "$output/tools/bin/nnimage" ] || [ "$NNTOOLS_REBUILD_TOOLS" = "1" ]
-    then
-        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
-        then
-            tools_cmakeargs="$cmakeargs -DTOOLS_ENABLE_TESTS=ON"
-        else
-            tools_cmakeargs="$cmakeargs"
-        fi
-        builddir=$output/build/tools/tools-build
-        mkdir -p $builddir/$cmakegen
-        cd $builddir/$cmakegen
-        # So libuuid is found
-        export PKG_CONFIG_PATH="$output/tools/lib/pkgconfig"
-        cmake $olddir/source/hosttools -DCMAKE_INSTALL_PREFIX="$output/tools" $tools_cmakeargs
-        checkerr $? "unable to build host tools" $0
-        $cmakegen -j$jobcount $makeargs
-        checkerr $? "unable to build host tools" $0
-        $cmakegen install -j$jobcount $makeargs
-        checkerr $? "unable to build host tools" $0
-        # Run tests if requested
-        if [ "$NNTOOLS_ENABLE_TESTS" = "1" ]
-        then
-            ctest -V
-            checkerr $? "test suite failed" $0
-        fi
-    fi
+    #############################
+    # Host tools bootstraping
+    #############################
+    export NNSOURCEROOT=$olddir/source
+    export NNBUILDROOT=$output
+    export NNJOBCOUNT=$jobcount
+    export NNUSENINJA=$useninja
+    echo "Building host tools..."
+    $olddir/scripts/hostbootstrap.sh hostlibs
+    checkerr $? "unable to bootstrap host tools" $0
+    $olddir/scripts/hostbootstrap.sh hosttools
+    checkerr $? "unable to bootstrap host tools" $0
 
     #############################
     # Build system configuration
@@ -730,11 +765,15 @@ Run $0 -l to see supported targets"
         echo "export NNDEBUG=\"$debug\"" >> nexnix-conf.sh
         echo "export NNTOOLCHAINPATH=\"$output/tools/$compiler/bin\"" >> nexnix-conf.sh
         echo "export NNCOMMONARCH=\"$commonarch\"" >> nexnix-conf.sh
-        echo "export NNUEFIARCH=$buildfw" >> nexnix-conf.sh
         echo "export NNTARGETCONF=$tarconf" >> nexnix-conf.sh
         echo "export NNUSENINJA=$useninja" >> nexnix-conf.sh
         echo "export NNSCRIPTROOT=\"$olddir/scripts\"/" >> nexnix-conf.sh
         echo "export NNMOUNTDIR=\"$output/conf/$target/$conf/fsdir\"/" >> nexnix-conf.sh
+        echo "export NNTARGETISMP=$targetismp" >> nexnix-conf.sh
+        echo "export NNFIRMWARE=\"$fwtype\"" >> nexnix-conf.sh
+        echo "export NNPKGROOT=\"$olddir/scripts/packages\"" >> nexnix-conf.sh
+        # Link nnbuild.conf to configuration directory
+        ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi
     # Check if libguestfs image needs to be decompressed
     if [ ! -f $olddir/scripts/guestfs_root.img ]
@@ -744,6 +783,7 @@ Run $0 -l to see supported targets"
     fi
     # Reset target configuration
     tarconf=
+    echo "Output target configuration $conf"
 done
 
 cd $olddir

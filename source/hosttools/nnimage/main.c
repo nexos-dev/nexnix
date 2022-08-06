@@ -18,7 +18,7 @@
 /// @file main.c
 
 #include "nnimage.h"
-#include <conf.h>
+#include <libconf/libconf.h>
 #include <libnex.h>
 #include <locale.h>
 #include <stdio.h>

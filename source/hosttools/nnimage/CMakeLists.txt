@@ -32,12 +32,13 @@ pkg_check_modules(GUESTFS REQUIRED IMPORTED_TARGET libguestfs)
 
 # Create program
 add_executable(nnimage ${NNIMAGE_SOURCES})
+target_link_libraries(nnimage PUBLIC LibConf::conf)
 
 # Set link language to C++ because we indirectly link with libchardet
 set_target_properties(nnimage PROPERTIES LINKER_LANGUAGE CXX)
 
-# Link with libconf
-target_link_libraries(nnimage PRIVATE conf PkgConfig::GUESTFS)
+# Link with libguestfs
+target_link_libraries(nnimage PRIVATE PkgConfig::GUESTFS)
 
 # Install it
 install(TARGETS nnimage)

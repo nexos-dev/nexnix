@@ -37,6 +37,8 @@ else()
 endif()
 
 find_package(LibNex REQUIRED)
+find_package(LibChardet REQUIRED)
+find_package(LibConf REQUIRED)
 
 include(GNUInstallDirs)
 include(NexTest)
@@ -60,7 +62,6 @@ endif()
 include_directories(include)
 
 # Build all subprojects
-add_subdirectory(confparse)
 add_subdirectory(nnbuild)
 add_subdirectory(nnimage)
 add_subdirectory(nnelf2efi)

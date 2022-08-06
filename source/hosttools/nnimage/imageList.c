@@ -18,7 +18,7 @@
 /// @file imageList.c
 
 #include "nnimage.h"
-#include <conf.h>
+#include <libconf/libconf.h>
 #include <libnex.h>
 #include <locale.h>
 #include <stdio.h>
@@ -55,7 +55,7 @@ static bool wasPartLinked = false;
 union val
 {
     int64_t numVal;
-    char strVal[BLOCK_BUFSZ];
+    char strVal[256];
 };
 
 ListHead_t* getImages()
@@ -74,36 +74,36 @@ Partition_t* getAltBootPart()
 }
 
 // Function to destroy an image
-void imageDestroy (void* data)
+void imageDestroy (const void* data)
 {
     free (((Image_t*) data)->file);
     free (((Image_t*) data)->mbrFile);
     ListDestroy (((Image_t*) data)->partsList);
-    free (data);
+    free ((void*) data);
 }
 
 // Destroys a partition
-void partDestroy (void* data)
+void partDestroy (const void* data)
 {
     free (((Partition_t*) data)->prefix);
     free (((Partition_t*) data)->vbrFile);
-    free (data);
+    free ((void*) data);
 }
 
 // Predicate for finding an image
-bool imageFindByPredicate (ListEntry_t* entry, void* data)
+bool imageFindByPredicate (const ListEntry_t* entry, const void* data)
 {
     // Data is image name
-    char* s = data;
+    const char* s = data;
     if (!strcmp (s, ((Image_t*) ListEntryData (entry))->name))
         return true;
     return false;
 }
 
 // Predicate to find a partition
-bool partitionFindByPredicate (ListEntry_t* entry, void* data)
+bool partitionFindByPredicate (const ListEntry_t* entry, const void* data)
 {
-    char* s = data;
+    const char* s = data;
     if (!strcmp (s, ((Partition_t*) ListEntryData (entry))->name))
         return true;
     return false;
@@ -521,10 +521,10 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
         ConfBlock_t* block = ListEntryData (confEntry);
         lineNo = block->lineNo;
         // Figure out what this block is
-        if (!c32cmp (block->blockType, U"image"))
+        if (!c32cmp (StrRefGet (block->blockType), U"image"))
         {
             // Ensure a block name was given
-            if (block->blockName[0] == 0)
+            if (!block->blockName)
             {
                 error ("%s:%d: image declaration requires name",
                        ConfGetFileName(),
@@ -532,21 +532,21 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
                 return NULL;
             }
             // Add the image
-            if (!addImage (block->blockName))
+            if (!addImage (StrRefGet (block->blockName)))
                 return NULL;
             expecting = EXPECTING_IMAGE;
         }
-        else if (!c32cmp (block->blockType, U"partition"))
+        else if (!c32cmp (StrRefGet (block->blockType), U"partition"))
         {
             // Ensure a block name was given
-            if (block->blockName[0] == 0)
+            if (!block->blockName)
             {
                 error ("%s:%d: partition declaration requires name",
                        ConfGetFileName(),
                        lineNo);
                 return NULL;
             }
-            if (!addPartition (block->blockName))
+            if (!addPartition (StrRefGet (block->blockName)))
                 return NULL;
             expecting = EXPECTING_PARTITION;
         }
@@ -562,7 +562,7 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
             ConfProperty_t* curProp = ListEntryData (propsEntry);
             lineNo = curProp->lineNo;
             // Start new property
-            addProperty (curProp->name, NULL, true, 0);
+            addProperty (StrRefGet (curProp->name), NULL, true, 0);
             for (int i = 0; i < curProp->nextVal; ++i)
             {
                 lineNo = curProp->lineNo;
@@ -573,8 +573,8 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
                 {
                     mbstate_t mbState = {0};
                     c32stombs (val.strVal,
-                               curProp->vals[i].str,
-                               (size_t) BLOCK_BUFSZ * 4,
+                               StrRefGet (curProp->vals[i].str),
+                               256,
                                &mbState);
                 }
                 else
