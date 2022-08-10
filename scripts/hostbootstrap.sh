@@ -326,7 +326,7 @@ then
             tar xf ../tarballs/cloog-${cloogver}.tar.gz
         fi
         # Build it
-        if [ ! -f $NNBUILDROOT/tools/lib/libcloog.a ] || [ "$rebuild" = "1" ]
+        if [ ! -f $NNBUILDROOT/tools/lib/libcloog-isl.a ] || [ "$rebuild" = "1" ]
         then
             cloogroot="$NNEXTSOURCEROOT/tools/libraries/cloog-${cloogver}"
             mkdir -p $NNBUILDROOT/build/tools/libcloog-build
@@ -596,8 +596,7 @@ then
         mkdir -p $NNBUILDROOT/build/tools/nnpkg-build
         cd $NNBUILDROOT/build/tools/nnpkg-build
         cmake $nnpkgroot -DCMAKE_INSTALL_PREFIX="$NNBUILDROOT/tools" -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_SHARED_LIBS=OFF -DNNPKG_DATABASE_PATH=$NNDESTDIR/Programs/Nnpkg/var \
-              $cmakeargs
+              -DBUILD_SHARED_LIBS=OFF $cmakeargs
         checkerr $? "unable to build nnpkg"
         $cmakegen -j $NNJOBCOUNT
         checkerr $? "unable to build nnpkg"
@@ -619,14 +618,37 @@ then
     $cmakegen -j $NNJOBCOUNT $makeargs install
     checkerr $? "unable to install NexNix SDK"
     # Add to package database
-    nnpkg add $NNPKGROOT/NexNixSdk/sdkPackage.conf || true
+    nnpkg add $NNPKGROOT/NexNixSdk/sdkPackage.conf -c $NNCONFROOT/nnpkg.conf \
+        || true
 elif [ "$component" = "nnpkgdb" ]
 then
     echo "Initializing package database..."
     if [ ! -f $NNDESTDIR/Programs/Nnpkg/var/nnpkgdb ]
     then
+        # Initialize folders
         mkdir -p $NNDESTDIR/Programs/Nnpkg/var
-        nnpkg init -p $NNDESTDIR/Programs/Nnpkg
+        mkdir -p $NNDESTDIR/Programs/Nnpkg/etc
+        mkdir -p $NNDESTDIR/Programs/Index/bin
+        mkdir -p $NNDESTDIR/Programs/Index/lib
+        mkdir -p $NNDESTDIR/Programs/Index/etc
+        mkdir -p $NNDESTDIR/Programs/Index/share
+        mkdir -p $NNDESTDIR/Programs/Index/libexec
+        mkdir -p $NNDESTDIR/Programs/Index/sbin
+        mkdir -p $NNDESTDIR/Programs/Index/include
+        mkdir -p $NNDESTDIR/Programs/Index/var
+        ln -sf $NNDESTDIR/Programs/Index $NNDESTDIR/usr
+        ln -sf $NNDESTDIR/Programs/Index/bin $NNDESTDIR/bin
+        ln -sf $NNDESTDIR/Programs/Index/sbin $NNDESTDIR/sbin
+        # Create a new nnpkg configuration file
+        echo "settings" > $NNCONFROOT/nnpkg.conf
+        echo "{" >> $NNCONFROOT/nnpkg.conf
+        echo "    packageDb: \"$NNDESTDIR/Programs/Nnpkg/var/nnpkgdb\";" \
+            >> $NNCONFROOT/nnpkg.conf
+        echo "    strtab: \"$NNDESTDIR/Programs/Nnpkg/var/nnstrtab\";" \
+            >> $NNCONFROOT/nnpkg.conf
+        echo " indexPath: '$NNDESTDIR/Programs/Index';" >> $NNCONFROOT/nnpkg.conf
+        echo "}" >> $NNCONFROOT/nnpkg.conf
+        nnpkg init -c $NNCONFROOT/nnpkg.conf
     fi
 else
     panic "invalid component $component specified"

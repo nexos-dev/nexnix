@@ -1,6 +1,6 @@
 #[[
-    overrides-gnu.cmake - contains CMake variable overrides
-    Copyright 2021, 2022 The NexNix Project
+    CMakeLists.txt - contains build system for nexboot
+    Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,8 +15,5 @@
     limitations under the License.
 ]]
 
-set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -nostdlib -ffreestanding")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffreestanding")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffreestanding")
-set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -ffreestanding")
-set(CMAKE_C_STANDARD 11)
+cmake_minimum_required(VERSION 3.00)
+project(nexboot VERSION 0.0.1)

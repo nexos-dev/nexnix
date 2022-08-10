@@ -24,7 +24,7 @@ configure()
     else
         buildType="Release"
     fi
-    sdkLocation=$NNDESTDIR/Programs/SDKs/NexNixSdk
+    sdkLocation=$NNDESTDIR/Programs/SDKs/NexNixSdk/0.0.1/share/NexNixSdk/cmake
     if [ "$pkg_iskernel" = "1" ]
     then
         pkg_confopts="$pkg_confopts \

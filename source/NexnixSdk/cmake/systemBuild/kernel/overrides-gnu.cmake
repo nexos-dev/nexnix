@@ -15,7 +15,8 @@
     limitations under the License.
 ]]
 
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-nostdlib -ffreestanding -lgcc")
-set(CMAKE_C_FLAGS "-ffreestanding")
-set(CMAKE_ASM_FLAGS "-ffreestanding")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -nostdlib -ffreestanding -lgcc")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffreestanding")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffreestanding")
+set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -ffreestanding")
 set(CMAKE_C_STANDARD 99)

@@ -733,7 +733,6 @@ Run $0 -l to see supported targets"
     export NNBUILDROOT=$output
     export NNJOBCOUNT=$jobcount
     export NNUSENINJA=$useninja
-    echo "Building host tools..."
     $olddir/scripts/hostbootstrap.sh hostlibs
     checkerr $? "unable to bootstrap host tools" $0
     $olddir/scripts/hostbootstrap.sh hosttools

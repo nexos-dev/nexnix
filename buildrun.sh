@@ -94,6 +94,9 @@ build()
         then
             nnbuild -p $package all
             checkerr $? "unable to build NexNix"
+        elif [ "$action" = "confbuild" ]
+        then
+            nnbuild -p $package confbuild
         else
             nnbuild -p $package build
             checkerr $? "unable to build NexNix"
@@ -103,6 +106,9 @@ build()
         then
             nnbuild -g $group all
             checkerr $? "unable to build NexNix"
+        elif [ "$action" = "confbuild" ]
+        then
+            nnbuild -g $group confbuild
         else
             nnbuild -g $group build
             checkerr $? "unable to build NexNix"
@@ -193,7 +199,7 @@ Valid arguments:
                         Default: configuration directory/nndisk.img 
                         (or nncdrom.iso in the case of ISO images)
   -buildonly
-                        Skip nnbuild configure step
+                        Skip nnbuild download step
                         This option is useful for incremental builds
   -emulator-args args
                         Specifies extra arguments to pass to run.sh
@@ -203,7 +209,7 @@ Valid arguments:
 Run './configure.sh -help' to see additional options.
 Any option passable to configure.sh is passable to buildrun.sh
 Note that -installpkgs is always passed to configure.sh
-Valid arguments for action include "all", "configure", "build", 
+Valid arguments for action include "all", "configure", "confbuild", "build", 
 "image", "dumpconf", and "run". Default is "all"
 HELPEND
         exit 0
@@ -310,7 +316,7 @@ fi
 if [ "$action" = "configure" ]
 then
     configure
-elif [ "$action" = "build" ]
+elif [ "$action" = "build" ] || [ "$action" = "confbuild" ]
 then
     build
 elif [ "$action" = "image" ]
