@@ -17,3 +17,4 @@ pkg_name=nexboot
 pkg_iskernel=1
 pkg_buildsys=cmake
 pkg_prefix="/System/Core"
+pkg_confopts="-DNEXBOOT_FW=$NNFIRMWARE"

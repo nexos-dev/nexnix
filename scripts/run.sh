@@ -530,6 +530,7 @@ then
     exit $?
 elif [ "$emulator" = "bochs" ]
 then
+    cd $NNCONFROOT
     # TODO: add networking and sound card support
     if [ "$NNBOARD" != "pc" ]
     then
@@ -537,14 +538,6 @@ then
         exit 1
     fi
     # Begin writing out the configuration file
-    echo "log: bochslog.txt" > bochsrc.txt
-    echo "config_interface: textconfig" >> bochsrc.txt
-    echo "display_library: x" >> bochsrc.txt
-    echo "com1: enabled=1, mode=term, dev=$(tty)" >> bochsrc.txt
-    [ "$EMU_DEBUG" = "1" ] && \
-        echo "gdbstub: enabled=1, port=1234, ext_base=0, data_base=0, bss_base=0" \
-                >> bochsrc.txt
-    echo "magic_break: enabled=1" >> bochsrc.txt
     if [ "$NNTARGETCONF" = "acpi" ] || [ "$NNTARGETCONF" = "mp" ] || \
        [ "$NNTARGETCONF" = "acpi-up" ]
     then
@@ -569,7 +562,7 @@ then
             EMU_SMP=1
         fi
         # Write out BIOS line
-        echo 'romimage: file=$BXSHARE/BIOS-bochs-latest' >> bochsrc.txt
+        echo 'romimage: file=$BXSHARE/BIOS-bochs-latest' > bochsrc.txt
     elif [ "$NNTARGETCONF" = "pnp" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=512
@@ -582,15 +575,17 @@ then
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         EMU_SMP=0
         # Write out BIOS line
-        echo 'romimage: file=$BXSHARE/BIOS-bochs-legacy' >> bochsrc.txt
+        echo 'romimage: file=$BXSHARE/BIOS-bochs-legacy' > bochsrc.txt
     fi
     # Write out base stuff
     echo 'vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest' >> bochsrc.txt
+    echo "log: bochslog.txt" >> bochsrc.txt
+    echo "display_library: x" >> bochsrc.txt
+    echo "magic_break: enabled=1" >> bochsrc.txt
     echo "megs: $EMU_MEMCOUNT" >> bochsrc.txt
-    echo "clock: sync=realtime, time0=1" >> bochsrc.txt
+    echo "clock: sync=realtime" >> bochsrc.txt
     # Create CMOS RAM image
     dd if=/dev/zero of=cmos.img bs=128 count=1 > /dev/null 2>&1
-    echo "cmosimage: file=cmos.img, rtc_init=time0" >> bochsrc.txt
     # Write out CPU stuff
     echo "cpu: count=$EMU_CPUCOUNT, model=$EMU_CPU, ips=10000000" >> bochsrc.txt
     # Configure hard disk
@@ -604,15 +599,14 @@ then
     then
         echo "floppya: 1_44=$floppypath, status=inserted" >> bochsrc.txt
     fi
-    echo "mouse: enabled=0,toggle=ctrl+f10" >> bochsrc.txt
 
     # Start working on PCI stuff
     if [ "$NNTARGETCONF" = "acpi" ] || [ "$NNTARGETCONF" = "acpi-up" ]
     then
-        pciopt="pci: enabled=1, chipset=i440x"
+        pciopt="pci: enabled=1, chipset=i440fx"
     elif [ "$NNTARGETCONF" = "mp" ]
     then
-        pciopt="pci: enabled=1, chipset=i440x, advopts=\"noacpi,nohpet\""
+        pciopt="pci: enabled=1, chipset=i440fx, advopts=\"noacpi,nohpet\""
     elif [ "$NNTARGETCONF" = "pnp" ]
     then
         pciopt="pci: enabled=0"

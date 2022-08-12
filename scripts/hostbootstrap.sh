@@ -639,6 +639,7 @@ then
         ln -sf $NNDESTDIR/Programs/Index $NNDESTDIR/usr
         ln -sf $NNDESTDIR/Programs/Index/bin $NNDESTDIR/bin
         ln -sf $NNDESTDIR/Programs/Index/sbin $NNDESTDIR/sbin
+        ln -sf $NNDESTDIR/Programs/Index/etc $NNDESTDIR/etc
         # Create a new nnpkg configuration file
         echo "settings" > $NNCONFROOT/nnpkg.conf
         echo "{" >> $NNCONFROOT/nnpkg.conf
@@ -646,9 +647,200 @@ then
             >> $NNCONFROOT/nnpkg.conf
         echo "    strtab: \"$NNDESTDIR/Programs/Nnpkg/var/nnstrtab\";" \
             >> $NNCONFROOT/nnpkg.conf
-        echo " indexPath: '$NNDESTDIR/Programs/Index';" >> $NNCONFROOT/nnpkg.conf
+        echo "   indexPath: '$NNDESTDIR/Programs/Index';" >> $NNCONFROOT/nnpkg.conf
         echo "}" >> $NNCONFROOT/nnpkg.conf
         nnpkg init -c $NNCONFROOT/nnpkg.conf
+    fi
+elif [ "$component" = "nnimage-conf" ]
+then
+    echo "Generating nnimage configuration..."
+    # Generate list file
+    echo "Programs" > $NNCONFROOT/nnimage-list.lst
+    echo "System/Core" >> $NNCONFROOT/nnimage-list.lst
+    echo "usr" >> $NNCONFROOT/nnimage-list.lst
+    echo "bin" >> $NNCONFROOT/nnimage-list.lst
+    echo "sbin" >> $NNCONFROOT/nnimage-list.lst
+    echo "etc" >> $NNCONFROOT/nnimage-list.lst
+    # Generate configuration file
+    cd $NNCONFROOT
+    echo "image nnimg" > nnimage.conf
+    echo "{" >> nnimage.conf
+    if [ "$NNIMGTYPE" = "mbr" ]
+    then
+        echo "    defaultFile: '$NNCONFROOT/nndisk.img';" >> nnimage.conf
+        echo "    sizeMul: MiB;" >> nnimage.conf
+        echo "    size: 1024;" >> nnimage.conf
+        echo "    format: mbr;" >> nnimage.conf
+        # Ensure boot mode is BIOS
+        if [ "$NNIMGBOOTMODE" != "bios" ]
+        then
+            panic "only BIOS boot mode is allowed on MBR disks"
+        fi
+        echo "    bootMode: bios;" >> nnimage.conf
+        # Set path to MBR
+        echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/hdmbr';" >> nnimage.conf
+        echo "}" >> nnimage.conf
+        # Output partitions
+        echo "partition boot" >> nnimage.conf
+        echo "{" >> nnimage.conf
+        echo "    start: 1;" >> nnimage.conf
+        echo "    size: 128;" >> nnimage.conf
+        echo "    format: fat32;" >> nnimage.conf
+        echo "    prefix: '/System/Core';" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
+        echo "    isBoot: true;" >> nnimage.conf
+        echo "    vbrFile: '$NNDESTDIR/System/Core/bootrec/hdvbr';" >> nnimage.conf
+        echo "}" >> nnimage.conf
+        echo "partition system" >> nnimage.conf
+        echo "{" >> nnimage.conf
+        echo "    start: 130;" >> nnimage.conf
+        echo "    size: 893;" >> nnimage.conf
+        echo "    format: ext2;" >> nnimage.conf
+        echo "    prefix: '/';" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
+        echo "}" >> nnimage.conf
+    elif [ "$NNIMGTYPE" = "gpt" ]
+    then
+        echo "    defaultFile: '$NNCONFROOT/nndisk.img';" >> nnimage.conf
+        echo "    sizeMul: MiB;" >> nnimage.conf
+        echo "    size: 1024;" >> nnimage.conf
+        echo "    format: gpt;" >> nnimage.conf
+        # Check for valid boot mode
+        if [ "$NNIMGBOOTMODE" = "isofloppy" ] || [ "$NNIMGBOOTMODE" = "none" ]
+        then
+            panic "invalid boot mode specified"
+        fi
+        echo "    bootMode: $NNIMGBOOTMODE;" >> nnimage.conf
+        # Set path to MBR if needed
+        if [ "$NNIMGBOOTMODE" != "efi" ]
+        then
+            echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/gptmbr';" >> nnimage.conf
+        fi
+        echo "}" >> nnimage.conf
+        # Output partitions
+        echo "partition boot" >> nnimage.conf
+        echo "{" >> nnimage.conf
+        echo "    start: 1;" >> nnimage.conf
+        echo "    size: 128;" >> nnimage.conf
+        echo "    format: fat32;" >> nnimage.conf
+        echo "    prefix: '/System/Core';" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
+        echo "    isBoot: true;" >> nnimage.conf
+        if [ "$NNIMGBOOTMODE" != "efi" ]
+        then
+            echo "    vbrFile: '$NNDESTDIR/System/Core/bootrec/hdvbr';" >> nnimage.conf
+        fi
+        echo "}" >> nnimage.conf
+        echo "partition system" >> nnimage.conf
+        echo "{" >> nnimage.conf
+        echo "    start: 130;" >> nnimage.conf
+        echo "    size: 893;" >> nnimage.conf
+        echo "    format: ext2;" >> nnimage.conf
+        echo "    prefix: '/';" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
+        echo "}" >> nnimage.conf
+    elif [ "$NNIMGTYPE" = "iso9660" ]
+    then
+        echo "    defaultFile: '$NNCONFROOT/nncdrom.iso';" >> nnimage.conf
+        echo "    sizeMul: KiB;" >> nnimage.conf
+        echo "    format: iso9660;" >> nnimage.conf
+        if [ "$NNIMGBOOTMODE" = "isofloppy" ]
+        then
+            echo "    bootMode: noboot;" >> nnimage.conf
+        else
+            echo "    bootMode: $NNIMGBOOTMODE;" >> nnimage.conf
+            if [ "$NNIMGBOOTMODE" != "efi" ]
+            then
+                echo "    bootEmu: $NNIMGBOOTEMU;" >> nnimage.conf
+            fi
+            if [ "$NNIMGUNIVERSAL" = "0" ]
+            then
+                echo "    isUniversal: false;" >> nnimage.conf
+            else
+                echo "    isUniversal: true;" >> nnimage.conf
+            fi
+        fi
+        if [ "$NNIMGBOOTMODE" = "isofloppy" ]
+        then
+            # Write out boot floppy
+            echo "}" >> nnimage.conf
+            echo "image nnboot" >> nnimage.conf
+            echo "{" >> nnimage.conf
+            echo "    defaultFile: '$NNCONFROOT/nndisk.flp';" >> nnimage.conf
+            echo "    sizeMul: KiB;" >> nnimage.conf
+            echo "    size: 1440;" >> nnimage.conf
+            echo "    format: floppy;" >> nnimage.conf
+            echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/flpmbr';" >> nnimage.conf
+            echo "partition bootpart" >> nnimage.conf
+            echo "{" >> nnimage.conf
+            echo "    size: 1440;" >> nnimage.conf
+            echo "    prefix: '/System/Core';" >> nnimage.conf
+            echo "    format: fat12;" >> nnimage.conf
+            echo "    isBoot: true;" >> nnimage.conf
+            echo "    image: nnboot;" >> nnimage.conf
+            echo "}" >> nnimage.conf
+        elif [ "$NNIMGBOOTEMU" = "noemu" ]
+        then
+            echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/isombr';" >> nnimage.conf
+        fi
+        echo "}" >> nnimage.conf
+        # Create partitions
+        if [ "$NNIMGBOOTMODE" = "bios" ] || [ "$NNIMGBOOTMODE" = "hybrid" ]
+        then
+            if [ "$NNIMGBOOTEMU" = "hdd" ]
+            then
+                echo "partition boot" >> nnimage.conf
+                echo "{" >> nnimage.conf
+                echo "    size: 131072;" >> nnimage.conf
+                echo "    format: fat32;" >> nnimage.conf
+                echo "    isBoot: true;"  >> nnimage.conf
+                echo "    prefix: '/System/Core';" >> nnimage.conf
+                echo "    image: nnimg"; >> nnimage.conf
+                echo "}" >> nnimage.conf
+            elif [ "$NNIMGBOOTEMU" = "fdd" ]
+            then
+                echo "partition boot" >> nnimage.conf
+                echo "{" >> nnimage.conf
+                echo "    size: 1440;" >> nnimage.conf
+                echo "    format: fat12;" >> nnimage.conf
+                echo "    isBoot: true;"  >> nnimage.conf
+                echo "    prefix: '/System/Core';" >> nnimage.conf
+                echo "    image: nnimg"; >> nnimage.conf
+                echo "}" >> nnimage.conf
+            fi
+        fi
+        if [ "$NNIMGBOOTMODE" = "efi" ]
+        then
+            echo "partition boot" >> nnimage.conf
+            echo "{" >> nnimage.conf
+            echo "    format: fat32;" >> nnimage.conf
+            echo "    size: 131072;" >> nnimage.conf
+            echo "    isBoot: true;" >> nnimage.conf
+            echo "    prefix: '/System/Core';" >> nnimage.conf
+            echo "    image: nnimg;" >> nnimage.conf
+            echo "}" >> nnimage.conf
+        fi
+        if [ "$NNIMGBOOTMODE" = "hybrid" ]
+        then
+            echo "partition efiboot" >> nnimage.conf
+            echo "{" >> nnimage.conf
+            echo "    format: fat32;" >> nnimage.conf
+            echo "    size: 131072;" >> nnimage.conf
+            echo "    isAltBoot: true;" >> nnimage.conf
+            echo "    prefix: '/System/Core';" >> nnimage.conf
+            echo "    image: nnimg;" >> nnimage.conf
+            echo "}" >> nnimage.conf
+        fi
+        echo "partition system" >> nnimage.conf
+        echo "{" >> nnimage.conf
+        echo "    format: iso9660;" >> nnimage.conf
+        echo "    prefix: '/';" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
+        if [ "$NNIMGBOOTEMU" = "noemu" ]
+        then
+            echo "    isBoot: true;" >> nnimage.conf
+        fi
+        echo "}" >> nnimage.conf
     fi
 else
     panic "invalid component $component specified"

@@ -1,5 +1,5 @@
 #[[
-    CMakeLists.txt - contains build system for nexboot
+    bootrec.cmake - contains helpers to work with boot records
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +15,13 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
-project(nexboot C ASM_NASM)
+include(NasmOverride)
 
-if(NOT NEXBOOT_FW)
-    message(FATAL_ERROR "firmware type not specified")
-endif()
-
-add_subdirectory(fw/${NEXBOOT_FW})
+function(add_boot_record __target __source)
+    add_executable(${__target} ${__source})
+    # Add all link options
+    target_link_options(${__target} PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLink.ld
+                    -Wl,--oformat,binary)
+    # Install it
+    install(TARGETS ${__target} DESTINATION bootrec)
+endfunction()

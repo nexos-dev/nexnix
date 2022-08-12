@@ -1,6 +1,6 @@
 #[[
-    overrides-gnu.cmake - contains CMake variable overrides
-    Copyright 2021, 2022 The NexNix Project
+    CMakeLists.txt - contains build system for BIOS builds
+    Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,8 +15,20 @@
     limitations under the License.
 ]]
 
-set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -nostdlib -ffreestanding -lgcc")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffreestanding")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffreestanding")
-set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -ffreestanding")
-set(CMAKE_C_STANDARD 99)
+cmake_minimum_required(VERSION 3.00)
+
+# Ensure we are building for x86
+if(NOT NEXNIX_BASEARCH STREQUAL "x86")
+    message(FATAL_ERROR "BIOS nexboot only supported on x86 systems")
+endif()
+
+if(NOT NEXNIX_BOARD STREQUAL "pc")
+    message(FATAL_ERROR "BIOS nexboot only supported on PC-based systems")
+endif()
+
+# Include boot record rules
+include(boot/bootrec.cmake)
+
+# Add boot records
+add_boot_record(hdmbr boot/hdmbr.asm)
+add_boot_record(hdvbr boot/hdvbr.asm)

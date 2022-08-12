@@ -212,6 +212,7 @@ static bool updateSymlink (guestfs_h* guestFs,
 {
     // Allocate buffer for readlink
     char* linkName = malloc_s (srcSt->st_size + 1);
+    char* olinkName = linkName;
     if (!linkName)
         return false;
     // Read in symlink
@@ -221,19 +222,15 @@ static bool updateSymlink (guestfs_h* guestFs,
         return false;
     }
     linkName[srcSt->st_size] = 0;
-    // Ensure link target isn't absolute
-    if (linkName[0] == '/')
-    {
-        error ("target of link %s is absolute", src);
-        free (linkName);
-        return false;
-    }
+    // Strip absoulte part of prefix
     size_t prefixLen = strlen (hostPrefix);
+    if (linkName[0] == '/')
+        linkName += prefixLen;
     // Prepend destdir
     char* fullLink = malloc_s (prefixLen + srcSt->st_size + 2);
     if (!fullLink)
     {
-        free (linkName);
+        free (olinkName);
         return false;
     }
     strcpy (fullLink, hostPrefix);
@@ -249,7 +246,7 @@ static bool updateSymlink (guestfs_h* guestFs,
     char* fullDest = malloc_s (prefixLen + mountLen + 2);
     if (!fullDest)
     {
-        free (linkName);
+        free (olinkName);
         free (fullLink);
         return false;
     }
@@ -277,7 +274,7 @@ static bool updateSymlink (guestfs_h* guestFs,
     char* backupFullDest = strdup (fullDest);
     if (!updateFile (guestFs, fullLink, fullDest))
     {
-        free (linkName);
+        free (olinkName);
         free (fullDest);
         free (fullLink);
         free (backupFullDest);
@@ -287,7 +284,7 @@ static bool updateSymlink (guestfs_h* guestFs,
     if (guestfs_mkdir_p (guestFs, dirname ((char*) dest)) == -1)
     {
         free (backupDest);
-        free (linkName);
+        free (olinkName);
         free (fullDest);
         free (fullLink);
         free (backupFullDest);
@@ -297,13 +294,13 @@ static bool updateSymlink (guestfs_h* guestFs,
     if (guestfs_ln_sf (guestFs, linkName, backupDest) == -1)
     {
         free (backupDest);
-        free (linkName);
+        free (olinkName);
         free (fullDest);
         free (fullLink);
         free (backupFullDest);
         return false;
     }
-    free (linkName);
+    free (olinkName);
     free (fullDest);
     free (fullLink);
     free (backupDest);

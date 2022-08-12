@@ -22,5 +22,3 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 # Set general flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe")
-# Set linker flags
-set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS_INIT})

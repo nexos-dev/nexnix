@@ -1,5 +1,5 @@
 #[[
-    CMakeLists.txt - contains build system for nexboot
+    NasmOverride.cmake - contains NASM support improvements
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +15,10 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
-project(nexboot C ASM_NASM)
+set(CMAKE_ASM_NASM_COMPILE_OBJECT "<CMAKE_ASM_NASM_COMPILER> <INCLUDES> <FLAGS> -o <OBJECT> <SOURCE>")
 
-if(NOT NEXBOOT_FW)
-    message(FATAL_ERROR "firmware type not specified")
-endif()
-
-add_subdirectory(fw/${NEXBOOT_FW})
+# Recognize target property to specify NASM object format
+add_compile_options(
+    "$<$<COMPILE_LANGUAGE:ASM_NASM>:-f $<IF:$<BOOL:$<TARGET_PROPERTY:NASM_OBJ_FORMAT>>, \
+    $<TARGET_PROPERTY:NASM_OBJ_FORMAT>, ${CMAKE_ASM_NASM_OBJECT_FORMAT}>>"
+)

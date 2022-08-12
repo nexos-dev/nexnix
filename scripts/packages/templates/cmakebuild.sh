@@ -28,13 +28,13 @@ configure()
     if [ "$pkg_iskernel" = "1" ]
     then
         pkg_confopts="$pkg_confopts \
--DCMAKE_USER_MAKE_RULES_OVERRIDE=$sdkLocation/systemBuild/kernel/overrides-$NNTOOLCHAIN.cmake \
+-DCMAKE_USER_MAKE_RULES_OVERRIDE=$sdkLocation/SystemBuild/kernel/overrides-$NNTOOLCHAIN.cmake \
 -DNEXNIX_ARCH=$NNARCH -DNEXNIX_BOARD=$NNBOARD -DNEXNIX_BASEARCH=$NNCOMMONARCH \
 -DNEXNIX_TOOLCHAIN=$NNTOOLCHAIN"
     fi
     if [ ! -z "$pkg_prefix" ]
     then
-        pkg_confopts="$pkg_confopts -DCMAKE_INSTALL_PREFIX=$pkg_prefix"
+        pkg_confopts="$pkg_confopts -DCMAKE_INSTALL_PREFIX=$NNDESTDIR/$pkg_prefix"
     fi
     if [ "$NNUSENINJA" = "1" ]
     then
@@ -44,7 +44,7 @@ configure()
     then
         pkg_sourcedir="$NNSOURCEROOT/$pkg_name"
     fi
-    cmake $pkg_sourcedir --toolchain $sdkLocation/systemBuild/toolchain-$NNTOOLCHAIN.cmake \
+    cmake $pkg_sourcedir --toolchain $sdkLocation/SystemBuild/toolchain-$NNTOOLCHAIN.cmake \
             -DCMAKE_BUILD_TYPE=$buildType -DCMAKE_SYSROOT=$NNDESTDIR \
             $pkg_confopts
     checkerr $? "unable to configure $pkg_name"

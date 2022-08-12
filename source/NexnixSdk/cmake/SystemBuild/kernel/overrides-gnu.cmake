@@ -1,6 +1,6 @@
 #[[
-    CMakeLists.txt - contains build system for nexboot
-    Copyright 2022 The NexNix Project
+    overrides-gnu.cmake - contains CMake variable overrides
+    Copyright 2021, 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,11 +15,8 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
-project(nexboot C ASM_NASM)
-
-if(NOT NEXBOOT_FW)
-    message(FATAL_ERROR "firmware type not specified")
-endif()
-
-add_subdirectory(fw/${NEXBOOT_FW})
+set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -Bstatic -nostdlib -ffreestanding")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffreestanding")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffreestanding")
+set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -ffreestanding")
+set(CMAKE_C_STANDARD 99)

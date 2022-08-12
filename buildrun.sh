@@ -66,7 +66,6 @@ getoptarg()
 # Action handlers
 configure()
 {
-    echo $confopts
     # Run the configure script
     ./configure.sh -installpkgs $confopts
     checkerr $? "unable to configure NexNix"

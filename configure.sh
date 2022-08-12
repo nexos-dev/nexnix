@@ -346,10 +346,11 @@ Valid arguments:
                         Valid arguments include  "mbr", "gpt", and "iso9660"
   -imgbootmode bootmode
                         Specifies the boot mode to use on the image
-                        Valid arguments include "none", "bios", "efi", and "hybrid"
+                        Valid arguments include "noboot", "isofloppy",
+                        "bios", "efi", and "hybrid"
   -imgbootemu bootemu
                         Specifies boot emulation on iso9660 bios or hybrid images
-                        Valid arguments include "hdd", "fdd", or "none"
+                        Valid arguments include "hdd", "fdd", or "noemu"
   -imguniversal
                         Specifies that image can be booted as a hard disk for
                         iso9660 images
@@ -414,7 +415,7 @@ HELPEND
         imgbootemu=$(getoptarg "$2" "$1")
         shift 2
         bootemufound=0
-        for bootemu in "hdd fdd none"
+        for bootemu in hdd fdd noemu
         do
             if [ "$imgbootemu" = "$bootemu" ]
             then
@@ -431,11 +432,11 @@ HELPEND
         imgbootmode=$(getoptarg "$2" "$1")
         shift 2
         bootmodefound=0
-        for bootmode in "bios none efi hybrid"
+        for bootmode in isofloppy bios noboot efi hybrid
         do
             if [ "$imgbootmode" = "$bootmode" ]
             then
-                boomodefound=1
+                bootmodefound=1
                 break
             fi
         done
@@ -452,7 +453,7 @@ HELPEND
         fwtype=$(getoptarg "$2" "$1")
         shift 2
         fwfound=0
-        for fw in "bios efi"
+        for fw in bios efi
         do
             if [ "$fwtype" = "$fw" ]
             then
@@ -766,11 +767,15 @@ Run $0 -l to see supported targets"
         echo "export NNCOMMONARCH=\"$commonarch\"" >> nexnix-conf.sh
         echo "export NNTARGETCONF=$tarconf" >> nexnix-conf.sh
         echo "export NNUSENINJA=$useninja" >> nexnix-conf.sh
-        echo "export NNSCRIPTROOT=\"$olddir/scripts\"/" >> nexnix-conf.sh
-        echo "export NNMOUNTDIR=\"$output/conf/$target/$conf/fsdir\"/" >> nexnix-conf.sh
+        echo "export NNSCRIPTROOT=\"$olddir/scripts/\"" >> nexnix-conf.sh
+        echo "export NNMOUNTDIR=\"$output/conf/$target/$conf/fsdir/\"" >> nexnix-conf.sh
         echo "export NNTARGETISMP=$targetismp" >> nexnix-conf.sh
         echo "export NNFIRMWARE=\"$fwtype\"" >> nexnix-conf.sh
         echo "export NNPKGROOT=\"$olddir/scripts/packages\"" >> nexnix-conf.sh
+        echo "export NNIMGBOOTMODE=\"$imgbootmode\"" >> nexnix-conf.sh
+        echo "export NNIMGBOOTEMU=\"$imgbootemu\"" >> nexnix-conf.sh
+        echo "export NNIMGTYPE=\"$imagetype\"" >> nexnix-conf.sh
+        echo "export NNIMGUNIVERSAL=\"$imguniversal\"" >> nexnix-conf.sh
         # Link nnbuild.conf to configuration directory
         ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi

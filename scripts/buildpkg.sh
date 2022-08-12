@@ -73,7 +73,8 @@ then
     build
     if [ -f $NNPKGROOT/${pkg_name}/nnpkg-pkg.conf ]
     then
-        nnpkg add $NNPKGROOT/${pkg_name}/nnpkg-pkg.conf
+        nnpkg add $NNPKGROOT/${pkg_name}/nnpkg-pkg.conf -c -c $NNCONFROOT/nnpkg.conf \
+        || true
     fi
 elif [ "$action" = "clean" ]
 then
