@@ -19,7 +19,7 @@ group=
 target=
 conf=
 debug=0
-imgformat=mbr
+imgformat=
 toolchain=gnu
 useninja=0
 output="$PWD/output"
@@ -122,24 +122,46 @@ image()
     then
         imgaction="update"
     fi
+    # Set image
+    if [ "$NNIMGTYPE" = "mbr" ] || [ "$NNIMGTYPE" = "gpt" ]
+    then
+        image=$NNCONFROOT/nndisk.img
+    elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
+    then
+        image=$NNCONFROOT/nndisk.flp
+    else
+        image=$NNCONFROOT/nncdrom.iso
+    fi
     # Run the configuration script
     olddir=$(pwd)
     cd $output/conf/$target/$buildconf && . $PWD/nexnix-conf.sh
-    nnimage -o $image $imgaction
+    nnimage -l $NNCONFROOT/nnimage-list.lst $imgaction
     checkerr $? "unable to generate image for NexNix"
     cd $olddir
 }
 
 run()
 {
-    cd $output/conf/$target/$buildconf && . $PWD/nexnix-conf.sh && cd $olddir
+    cd $output/conf/$target/$buildconf && . $PWD/nexnix-conf.sh
     # Set the image arguments
-    if [ "$imgformat" = "mbr" ]
+    imgformat=$NNIMGTYPE
+    # Set image
+    if [ "$NNIMGTYPE" = "mbr" ] || [ "$NNIMGTYPE" = "gpt" ]
     then
-        $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -disk $image $emuargs
+        image=$NNCONFROOT/nndisk.img
+    elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
+    then
+        image=$NNCONFROOT/nndisk.flp
+    else
+        image=$NNCONFROOT/nncdrom.iso
+    fi
+    if [ "$imgformat" = "mbr" ] || [ "$imgformat" = "gpt" ]
+    then
+        $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -disk $image -fw $NNFIRMWARE $emuargs
     elif [ "$imgformat" = "iso9660" ]
     then
-        $NNPROJECTROOT/scritps/run.sh $EMU_ARGS -cdrom $image -cdromboot $emuargs
+        $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -cdrom $image -cdromboot \
+                        -fw $NNFIRMWARE $emuargs
     fi
 }
 
@@ -176,7 +198,7 @@ do
     -help)
         cat <<HELPEND
 $0 - wrapper script to configure, build, and run NexNix (or a subset)
-Usage: $0 action [-help] [-pkg package] [-group pkggroup] [-imgaction action] 
+Usage: $0 action [-help] [-pkg package] [-group pkggroup] [-imgaction action]
                  [-image img] [-emulator-args args]
 
 Valid arguments:
@@ -265,17 +287,6 @@ then
     panic "package and group specification are mutually exclusive"
 fi
 
-# Try to get target and conf from environment
-if [ -z "$target" ]
-then
-    target=$NNTARGET
-fi
-
-if [ -z "$conf" ]
-then
-    conf=$NNTARGETCONF
-fi
-
 # If no configuration was specified, then figure out the default
 if [ -z "$conf" ]
 then
@@ -291,15 +302,6 @@ fi
 if [ -z "$buildconf" ]
 then
     buildconf="$conf"
-fi
-
-# Set image path
-if [ "$imgformat" = "mbr" ]
-then
-    image=$output/conf/$target/$buildconf/nnimage.img
-elif [ "$imgformat" = "iso9660" ]
-then
-    image=$output/conf/$target/$buildconf/nncdrom.iso
 fi
 
 # Export buildonly value for buildpkg

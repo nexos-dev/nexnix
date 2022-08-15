@@ -745,7 +745,7 @@ bool createImages (ListHead_t* images,
             guestfs_close (img->guestFs);
         }
         // Decide if we should write out the VBR and MBR
-        if (!strcmp (action, "update"))
+        if (!strcmp (action, "update") || !strcmp (action, "all"))
         {
             // Check if this image needs a VBR or MBR
             if (img->bootMode == IMG_BOOTMODE_HYBRID ||
@@ -781,8 +781,11 @@ bool createImages (ListHead_t* images,
             }
         }
         // If this is an ISO image, write it out if the action is update
-        if (img->format == IMG_FORMAT_ISO9660 && !strcmp (action, "update"))
+        if (img->format == IMG_FORMAT_ISO9660 &&
+            (!strcmp (action, "update") || !strcmp (action, "all")))
+        {
             writeIso (img);
+        }
     nextImgNoClean:
         imgEntry = ListIterate (imgEntry);
     }

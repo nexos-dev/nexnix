@@ -93,7 +93,6 @@ then
     if [ ! -d $NNSOURCEROOT/external/tools/libraries/libchardet ] || [ "$rebuild" = "1" ]
     then
         rm -rf $NNSOURCEROOT/external/tools/libraries/libchardet
-        cd $NNEXTSOURCEROOT/tools/libraries
         git clone https://github.com/nexos-dev/libchardet.git \
                   $NNSOURCEROOT/external/tools/libraries/libchardet
         checkerr $? "unable to download libchardet"
@@ -276,8 +275,8 @@ then
             mkdir -p $NNBUILDROOT/build/tools/libmpc-build
             cd $NNBUILDROOT/build/tools/libmpc-build
             $mpcroot/configure --disable-shared --prefix=$NNBUILDROOT/tools \
-                                --with-gmp=$NNBUILDROOT/tools --with-mpfr=$NNBUILDROOT/tools\
-                                CFLAGS="-O2 -DNDEBUG" CXXFLAGS="-O2 -DNDEBUG"\
+                                --with-gmp=$NNBUILDROOT/tools --with-mpfr=$NNBUILDROOT/tools \
+                                CFLAGS="-O2 -DNDEBUG" CXXFLAGS="-O2 -DNDEBUG"
             checkerr $? "unable to configure libmpc"
             make -j$NNJOBCOUNT
             checkerr $? "unable to build libmpc"
@@ -476,56 +475,6 @@ then
             checkerr $? "unable to install LLVM"
         fi
     fi
-    if [ "$NNCOMMONARCH" = "x86" ]
-    then
-        nasmver=2.15.05
-        if [ ! -d $NNEXTSOURCEROOT/tools/nasm-${nasmver} ] || [ "$rebuild" = "1" ]
-        then
-            mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
-            # Download it
-            wget https://www.nasm.us/pub/nasm/releasebuilds/${nasmver}/nasm-${nasmver}.tar.xz
-            checkerr $? "unable to download NASM"
-            cd ..
-            echo "Extracting NASM..."
-            tar xf tarballs/nasm-${nasmver}.tar.xz
-        fi
-        if [ ! -f $NNBUILDROOT/tools/bin/nasm ] || [ "$rebuild" = "1" ]
-        then
-            nasmroot=$NNEXTSOURCEROOT/tools/nasm-${nasmver}
-            mkdir -p $NNBUILDROOT/build/tools/nasm-build
-            cd $NNBUILDROOT/build/tools/nasm-build
-            $nasmroot/configure --prefix=$NNBUILDROOT/tools
-            checkerr $? "unable to configure NASM"
-            make -j $NNJOBCOUNT
-            checkerr $? "unable to build NASM"
-            make install -j $NNJOBCOUNT
-            checkerr $? "unable to install NASM"
-        fi
-        if [ "$NNFIRMWARE" = "bios" ]
-        then
-            dev86ver=0.16.21
-            if [ ! -d $NNEXTSOURCEROOT/tools/dev86-${dev86ver} ] || [ "$rebuild" = "1" ]
-            then
-                mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
-                wget https://github.com/lkundrak/dev86/archive/refs/tags/v$dev86ver.tar.gz \
-                     -O dev86-$dev86ver.tar.gz
-                checkerr $? "unable to download dev86"
-                cd ..
-                echo "Extracting dev86..."
-                tar xf tarballs/dev86-${dev86ver}.tar.gz
-            fi
-            if [ ! -f $NNBUILDROOT/tools/bin/bcc ] || [ "$rebuild" = "1" ]
-            then
-                # Create link to dev86 source directory in build directory
-                ln -sf $NNEXTSOURCEROOT/tools/dev86-${dev86ver} $NNBUILDROOT/build/tools/dev86-build
-                cd $NNBUILDROOT/build/tools/dev86-build
-                echo "\n" | make PREFIX=$NNBUILDROOT/tools
-                checkerr $? "unable to build dev86" 
-                make install
-                checkerr $? "unable to install dev86"
-            fi
-        fi
-    fi
 elif [ "$component" = "firmware" ]
 then
     echo "Building firmware images..."
@@ -678,7 +627,7 @@ then
         fi
         echo "    bootMode: bios;" >> nnimage.conf
         # Set path to MBR
-        echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/hdmbr';" >> nnimage.conf
+        echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdmbr';" >> nnimage.conf
         echo "}" >> nnimage.conf
         # Output partitions
         echo "partition boot" >> nnimage.conf
@@ -689,7 +638,7 @@ then
         echo "    prefix: '/System/Core';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
-        echo "    vbrFile: '$NNDESTDIR/System/Core/bootrec/hdvbr';" >> nnimage.conf
+        echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf
         echo "{" >> nnimage.conf
@@ -714,7 +663,7 @@ then
         # Set path to MBR if needed
         if [ "$NNIMGBOOTMODE" != "efi" ]
         then
-            echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/gptmbr';" >> nnimage.conf
+            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/gptmbr';" >> nnimage.conf
         fi
         echo "}" >> nnimage.conf
         # Output partitions
@@ -770,7 +719,7 @@ then
             echo "    sizeMul: KiB;" >> nnimage.conf
             echo "    size: 1440;" >> nnimage.conf
             echo "    format: floppy;" >> nnimage.conf
-            echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/flpmbr';" >> nnimage.conf
+            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/flpmbr';" >> nnimage.conf
             echo "partition bootpart" >> nnimage.conf
             echo "{" >> nnimage.conf
             echo "    size: 1440;" >> nnimage.conf
@@ -781,7 +730,7 @@ then
             echo "}" >> nnimage.conf
         elif [ "$NNIMGBOOTEMU" = "noemu" ]
         then
-            echo "    mbrFile: '$NNDESTDIR/System/Core/bootrec/isombr';" >> nnimage.conf
+            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/isombr';" >> nnimage.conf
         fi
         echo "}" >> nnimage.conf
         # Create partitions

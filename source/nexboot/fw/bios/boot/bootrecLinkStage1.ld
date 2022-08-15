@@ -1,5 +1,5 @@
 /*
-    bootrecLink.ld - contains linker script for boot records
+    bootrecLinkStage1.ld - contains linker script for boot records
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,8 @@ ENTRY(start)
 
 SECTIONS
 {
-    . = 0x0;
-    .text : {
+    . = 0x600;
+    .text : AT(0x0) {
         *(.text)
     }
     /* lld oddly includes some sections like the below in freestanding mode. Discard them */
@@ -34,5 +34,12 @@ SECTIONS
         *(.dynstr)
         *(.dynamic)
         *(.eh_frame*)
+        *(.data)
+        *(.bss)
+        *(.debug*)
+        *(.symtab)
+        *(.strtab)
+        *(.rel*)
+        *(.rela*)
     }
 }

@@ -230,6 +230,9 @@ findprog()
         elif [ "$1" = "iasl" ]
         then
             pkg="acpica-tools"
+        elif [ "$1" = "nasm" ]
+        then
+            pkg="nasm"
         fi
         pkgs="$pkgs $pkg"
     else
@@ -614,6 +617,7 @@ findprog "tex"
 findprog "python"
 findprog "iasl"
 findprog "bash"
+findprog "nasm"
 findlib "guestfs"
 findlib "uuid"
 # Check if the check succeeded

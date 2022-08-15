@@ -1,7 +1,7 @@
-# nexboot.sh - contains nexboot buildpkg configuration
+# hdvbr.asm - contains VBR for hard disks
 # Copyright 2022 The NexNix Project
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License")#
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -13,8 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-pkg_name=nexboot
-pkg_iskernel=1
-pkg_buildsys=cmake
-pkg_prefix="/System/Core/Boot"
-pkg_confopts="-DNEXBOOT_FW=$NNFIRMWARE"
+.code16
+.section .text
+
+.global start
+start:
+    mov $0x0E, %ah
+    mov $78, %al
+    int $0x10
+    cli
+    hlt
+
+.skip 412 - (. - start), 0

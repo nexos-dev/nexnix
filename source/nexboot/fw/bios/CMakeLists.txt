@@ -30,5 +30,6 @@ endif()
 include(boot/bootrec.cmake)
 
 # Add boot records
-add_boot_record(hdmbr boot/hdmbr.asm)
-add_boot_record(hdvbr boot/hdvbr.asm)
+add_boot_record(hdmbr boot/hdmbr.S "1")
+add_boot_record(hdvbr boot/hdvbr.S "0")
+add_boot_record(gptmbr boot/gptmbr.S "1")

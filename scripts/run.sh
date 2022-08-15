@@ -20,7 +20,8 @@ getoptarg()
     isdash=$(echo "$1" | awk '/^-/')
     if [ ! -z "$isdash" ]
     then
-        panic "option $2 requires an argument" $0
+        echo "option $2 requires an argument" $0
+        exit 1
     fi
     # Report it
     echo "$1"
@@ -82,7 +83,7 @@ Valid arguments:
                         Can be hda, sb16, or ac97
   -fw FIRMWARETYPE
                         Specifies the firmware type
-                        Can be uefi, bios or default
+                        Can be efi, bios or default
   -cpu CPU
                         Specifies the CPU type to use
                         Valid types depend on the emulator
@@ -235,7 +236,7 @@ then
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
             [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
-        elif [ "$NNARCH" ="i386" ]
+        elif [ "$NNARCH" = "i386" ]
         then
             [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
             [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=2
@@ -306,7 +307,7 @@ then
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="virtio"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
-        EMU_FWTYPE="uefi"
+        EMU_FWTYPE="efi"
         EMU_CPU=max
         EMU_MACHINETYPE="virt"
         EMU_CDROM=0
@@ -328,13 +329,15 @@ then
     then
         if [ "$NNTARGETCONF" = "pnp" ]
         then
-            QEMUARGS="${QEMUARGS} -device isa-ide"
+            QEMUARGS="${QEMUARGS} -device isa-ide -device ide-hd,drive=hd0"
+        else
+            QEMUARGS="${QEMUARGS} -device piix4-ide -device ide-hd,drive=hd0"
         fi
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
+        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0,if=none"
     elif [ "$EMU_DRIVETYPE" = "nvme" ]
     then
-        QEMUARGS="${QEMUARGS} -device nvme"
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
+        QEMUARGS="${QEMUARGS} -device nvme -device nvme-ns,drive=hd0"
+        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
     elif [ "$EMU_DRIVETYPE" = "virtio" ]
     then
         if [ "$EMU_BUSTYPE" = "virtio" ]
@@ -496,11 +499,16 @@ then
         QEMUARGS="${QEMUARGS} -device ati-vga"
     elif [ "$EMU_DISPLAYTYPE" = "vga" ]
     then
-        QEMUARGS="${QEMUARGS} -device VGA"
+        if [ "$NNTARGETCONF" = "pnp" ]
+        then
+            QEMUARGS="${QEMUARGS} -device isa-cirrus-vga"
+        else
+            QEMUARGS="${QEMUARGS} -device VGA"
+        fi
     fi
 
     # Set the firmware images
-    if [ "$EMU_FWTYPE" = "uefi" ]
+    if [ "$EMU_FWTYPE" = "efi" ]
     then
         # Figure out the UEFI architecture
         if [ "$NNARCH" = "x86_64" ]
@@ -542,15 +550,16 @@ then
        [ "$NNTARGETCONF" = "acpi-up" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
-        [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
         EMU_BUSTYPE="pci"
         if [ "$NNTARGETCONF" = "acpi" ]
         then
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
             [ -z "$EMU_CPU" ] && EMU_CPU="ryzen"
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
         else
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="uhci"
             [ -z "$EMU_CPU" ] && EMU_CPU="p3_katmai"
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=1
         fi
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
@@ -562,7 +571,7 @@ then
             EMU_SMP=1
         fi
         # Write out BIOS line
-        echo 'romimage: file=$BXSHARE/BIOS-bochs-latest' > bochsrc.txt
+        echo 'romimage: file=$BXSHARE/BIOS-bochs-latest,options=fastboot' > bochsrc.txt
     elif [ "$NNTARGETCONF" = "pnp" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=512
@@ -575,7 +584,7 @@ then
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         EMU_SMP=0
         # Write out BIOS line
-        echo 'romimage: file=$BXSHARE/BIOS-bochs-legacy' > bochsrc.txt
+        echo 'romimage: file=$BXSHARE/BIOS-bochs-legacy,options=fastboot' > bochsrc.txt
     fi
     # Write out base stuff
     echo 'vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest' >> bochsrc.txt
@@ -725,10 +734,10 @@ then
     fi
     # Setup base global settings
     VBoxManage modifyvm "NexNix" --cpus $EMU_CPUCOUNT --memory ${EMU_MEMCOUNT}
-    if [ "$NNARCH" = "i386" ] && [ "$EMU_FWTYPE" = "uefi" ]
+    if [ "$NNARCH" = "i386" ] && [ "$EMU_FWTYPE" = "efi" ]
     then
         VBoxManage modifyvm "NexNix" --firmware efi32
-    elif [ "$NNARCH" = "x86_64" ] && [ "$EMU_FWTYPE" = "uefi" ]
+    elif [ "$NNARCH" = "x86_64" ] && [ "$EMU_FWTYPE" = "efi" ]
     then
         VBoxManage modifyvm "NexNix" --firmware efi64
     else

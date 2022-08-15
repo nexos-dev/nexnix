@@ -15,13 +15,19 @@
     limitations under the License.
 ]]
 
-include(NasmOverride)
-
-function(add_boot_record __target __source)
+function(add_boot_record __target __source __isStage1)
     add_executable(${__target} ${__source})
     # Add all link options
-    target_link_options(${__target} PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLink.ld
-                    -Wl,--oformat,binary)
+    if("${__isStage1}" STREQUAL "1")
+        set(__link_script "${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLinkStage1.ld")
+    else()
+        set(__link_script "${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLinkStage2.ld")
+    endif()
+    # Ensure code knows toolchain being used
+    if(${NEXNIX_TOOLCHAIN} STREQUAL "gnu")
+        target_compile_definitions(${__target} PUBLIC TOOLCHAIN_GNU)
+    endif()
+    target_link_options(${__target} PUBLIC -T ${__link_script} -Wl,--oformat,binary -z notext)
     # Install it
     install(TARGETS ${__target} DESTINATION bootrec)
 endfunction()

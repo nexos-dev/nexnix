@@ -16,7 +16,7 @@
 ]]
 
 cmake_minimum_required(VERSION 3.00)
-project(nexboot C ASM_NASM)
+project(nexboot C ASM)
 
 if(NOT NEXBOOT_FW)
     message(FATAL_ERROR "firmware type not specified")
