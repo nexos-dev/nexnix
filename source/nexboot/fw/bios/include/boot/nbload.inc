@@ -1,4 +1,4 @@
-# hdmbr.S - contains MBR for hard disks
+# nbload.inc - contains common code for stage 1 / 1.5
 # Copyright 2022 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License")#
@@ -13,16 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.code16
-.section .text
-
 # This is a horrible hack right here. LLD doesn't allow relocations on the object
 # files of flat binaries, hence, we pass -z notext to stop the errors
 # The only problem is that is expects up to process the relocations in the .rel.dyn
 # section output, which obviously is neither feasible nor even possible here.
 # So what do we do? We hack it! Basically, we explicity add LABEL_OFFSET to every label
 # reference. That makes it work.
-# Note that we have to this with an explicit add instruction, meaning that we must be very
+# Note that we have to this with an explicit add instruction, meaning that we ust be very
 # careful to avoid emitting relocations
 
 # So don't mind the weird syntax of variable references. It's manual position-independent-code.
@@ -30,88 +27,102 @@
 #ifdef TOOLCHAIN_GNU
 #define LABEL_OFFSET 0
 #else
-#define LABEL_OFFSET 0x600
+#define LABEL_OFFSET 0x7C00
 #endif
 
-# Global constants
-#define HDMBR_BASE 0x600
-#define HDMBR_BIOS_BASE 0x7C00
-#define HDMBR_WORDS 0x100
-#define HDMBR_STACK_TOP 0x7B00
-#define HDMBR_PARTTAB_START 0x7BE
-#define HDMBR_ACTIVE (1 << 7)
-#define HDMBR_ENTRY_SIZE 16
-#define HDMBR_VBR_BASE 0x7C00
-#define HDMBR_VBR_SIG 0x7DFE
-#define HDMBR_BIOS_SIG 0xAA55
-
-mbrBase:
-    jmp start
-    nop
-# Some BIOSes expect a valid BPB, and will trash the MBR if one isn't found.
-# Account for that
-.skip 87, 0
-
 #include "common.inc"
+#include <version.h>
 
-# Entry point of NexNix
-.global start
-start:
-    # Setup basic state
-    cld
-    cli
-    xor %ax, %ax
-    mov %ax, %ds
-    mov %ax, %es
-    mov %ax, %ss
-    mov $HDMBR_STACK_TOP, %sp
+# Memory layout
+# Address 0x0 - 0x5FF is reserved. Note that 0x500 - 0x5FF _could_ be used, but some
+# old BIOSes use it for PrtScr status
+# Address 0x600 - 0x7C00 are used for our purposes. We reserve a 4 KiB stack from 0x7C00
+# down to 0x6C00. 
+# Everything beneath there is used for whatever we need
+# Note that we don't have an official memory allocation system; we hard code what we need
+# to specific addresses
+#define NBLOAD_STACK_TOP 0x7C00
+#define NBLOAD_FREEMEM_BASE 0x600
+#define NBLOAD_FREEMEM_TOP 0x6BFF
+#define NBLOAD_PART2_BASE 0x7E00
+#define NBLOAD_FAT_ROOTDIR_BASE 0x8000
+#define NBLOAD_FAT_FAT_BASE 0x800
+#define NBLOAD_NEXBOOT_SEG 0x1000
+
+# Waits for key strike and goes to next boot device
+NbloadPanic:
+    mov $0, %ah
+    int $0x16
+    int $0x18
+
+#define NBLOAD_LOG_START 0x600
+#define NBLOAD_LOG_SIZE 0x100
+
+# Logs a message to boot log
+# Input: DS:SI = string to write, CX = log level of message
+NbloadLogMsg:
+    pusha
+    # Write message out to log
+    mov %si, %bx                # Save SI
+    push %bx                    # BX is trashed by LOAD/STORE_WORD
+    LOAD_WORD $logLocation, %si # Get log location
+    pop %bx
+    add $LABEL_OFFSET, %bx
+    mov %bx, (%si)              # Write message offset
+    mov %ds, 2(%si)             # Write segment
+    mov %cx, 4(%si)             # Write log level
+    # Write out new log location
+    add $6, %si                 # Move to next log entry
+    push %bx
+    STORE_WORD %si $logLocation # Store it
+    pop %bx
+    mov %bx, %si                # Get message back in SI
+    # Decide where to print
+    cmp $NEXBOOT_LOGLEVEL, %cx
+    jg .logDone                    # Print to serial port if message level
+                                # is greater than system level
+    sub $LABEL_OFFSET, %si      # Remove label offset, BootPrint puts it back in
+    call BootPrint              # Print to screen if allowed, then to serial port
+.logDone:
+    popa
+    ret
+# The current log pointer
+logLocation: .word NBLOAD_LOG_START
+
+# Initializes disk system
+NbloadInitDisk:
+    push %bx
+    # Save drive number
+    STORE_BYTE %dl $driveNumber
+    pop %bx
+    ret
+
+# Reads a sector from disk
+# Input: DX:AX = sector to read, ES:DI = buffer to read into
+#ifndef IS_FLOPPY
+NbloadReadSector:
+    pusha
+    # Set BP to stack top at current moment
+    # This is neccesary for us to read local variables
     mov %sp, %bp
-    # Relocate us
-    mov $HDMBR_BIOS_BASE, %si
-    mov $HDMBR_BASE, %di
-    mov $HDMBR_WORDS, %cx
-    rep movsw
-    # Jump to new position, setting CS in the process
-    mov $LABEL_OFFSET, %ax
-    add $HdMbrEntry, %ax
-    push $0
-    push %ax
-    lret
-HdMbrEntry:
-    # Save DL
-    push %dx
-    sti
-    # Find active partition
-    mov $HDMBR_PARTTAB_START, %si
-    mov $4, %cx
-.activeLoop:
-    movb (%si), %al
-    test $HDMBR_ACTIVE, %al
-    jnz .activeFound
-    add $HDMBR_ENTRY_SIZE, %si
-    loop .activeLoop
-    # Print error, as there is no active partition
-    mov $msgPrefix, %si
-    call BootPrint
-    mov $bootPartErr, %si
-    call BootPrint
-    jmp .reboot
-.activeFound:
-    # Get partition start
-    movw 8(%si), %ax
-    push %ax            # Save sector low
-    movw 10(%si), %bx
-    push %bx            # Save sector high
+    LOAD_BYTE $driveNumber %cl      # Get drive number
+    xor %ch, %ch                    # Clear upper portion of DX
+    push %cx                        # Save it
+    # Save LBA low and high
+    push %ax                    # Save sector low
+    push %dx                    # Save sector high
     # Attempt to read using LBA BIOS
     # WARNING: We run extended read, and then if carry is set or AH contains 0x86
     # or 0x80, we fall back to CHS
     # If some old BIOS uses AH = 0x42 for some other functions, who knows
     # what will happen
     # RBIL doesn't list 42h for anything else, so I think we're OK
-    mov $dap, %si
+    mov $biosDap, %si
     add $LABEL_OFFSET, %si
+    mov %di, 4(%si)     # Save destination offset
+    mov %es, 6(%si)     # Save destination segment
     mov %ax, 8(%si)     # Save LBA low to DAP
-    mov %bx, 10(%si)     # Save LBA high to DAP
+    mov %dx, 10(%si)     # Save LBA high to DAP
     mov -2(%bp), %dx    # Restore drive number
     mov $0x42, %ah      # BIOS extended read
     int $0x13           # Read it in
@@ -120,7 +131,7 @@ HdMbrEntry:
     je .chsBios
     cmp $0x80, %ah
     je .chsBios
-    jmp .launchVbr
+    jmp .done
 .chsBios:
     # Now we must convert it to CHS.
     # This is quite complex, to start, obtain the BIOS'es geometry
@@ -151,7 +162,6 @@ HdMbrEntry:
     mov -14(%bp), %ax
     push %ax            # Re-push it
     # Call BIOS to read in sector now
-    # Reset disk system
     mov -16(%bp), %dx
     mov %dl, %ch        # Store cylinder low CH for BIOS
     and $0x3, %dh       # Clear top 6 bits. Cylinder high is in DH
@@ -163,49 +173,32 @@ HdMbrEntry:
     mov -18(%bp), %dx   # Get head
     mov %dl, %dh        # Stick head in DH
     mov -2(%bp), %dl    # Get drive number in DL
-    mov $HDMBR_VBR_BASE, %bx    # VBR base goes in BX
+    mov %di, %bx        # Offset goes in BX
     mov $2, %ah         # BIOS read sector
     mov $1, %al         # Sector count
     int $0x13           # Read it in
     jc .diskError       # Did an error occur?
-.launchVbr:
-    # VBR is now read, check signature
-    cmpw $HDMBR_BIOS_SIG, HDMBR_VBR_SIG
-    jne .invalidSig
-    # Restore DL
-    mov -2(%bp), %dx
-    # Off to VBR land we go!
-    jmp HDMBR_VBR_BASE
+.done:
+    mov %bp, %sp        # Restore stack pointer
+    popa
+    ret
 .diskError:
-    mov $msgPrefix, %si
-    call BootPrint
     mov $diskErrMsg, %si
     call BootPrint
-    jmp .reboot
-.invalidSig:
-    mov $msgPrefix, %si
-    call BootPrint
-    mov $sigMsg, %si
-    call BootPrint
-    jmp .reboot
-.reboot:
-    # Wait for key strike and reboot
-    mov $0, %ah
-    int $0x16
-    int $0x18
+    jmp NbloadPanic
+#endif
 
-dap:
-    .byte 0x10
+# Disk variables
+driveNumber: .byte 0
+#ifndef IS_FLOPPY
+# DAP packet
+biosDap:
+    .byte 16
     .byte 0
     .byte 1
     .byte 0
-    .word 0x7C00
-    .word 0
-    .quad 0
-msgPrefix: .asciz "hdmbr: "
-bootPartErr: .asciz "No boot partition"
-diskErrMsg: .asciz "Disk error"
-sigMsg: .asciz "Invalid VBR signature"
-
-# Pad out to partition table start
-.fill 440 - (. - mbrBase), 1, 0
+    .word 0          # Offset to load into
+    .word 0          # Segment to load into
+    .quad 0         # Sector to read
+#endif
+diskErrMsg: .asciz "nbload: disk read error"

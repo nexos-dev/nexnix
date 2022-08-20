@@ -18,6 +18,8 @@
 # Start shell test
 ####################################
 
+printf "Checking shell..."
+
 # Check for !
 if eval '! true > /dev/null 2>&1'
 then
@@ -39,6 +41,7 @@ then
     exit 1
 fi
 
+echo "done"
 # The shell works. Let's start configuring now
 
 ###########################################
@@ -300,6 +303,8 @@ usesu=0
 hostos=
 pkgs=
 fwtype=
+loglevel=4
+graphicsmode=text
 
 # Target specific features
 targetismp=
@@ -310,7 +315,7 @@ targets="i386-pc"
 # Valid image types
 imagetypes="mbr gpt iso9660"
 # Target configuration list
-confs_i386_pc="pnp mp acpi-up acpi"
+confs_i386_pc="isa pnp mp acpi-up acpi"
 
 # Loop through every argument
 while [ $# -gt 0 ]
@@ -323,16 +328,15 @@ Usage - $0 [-help] [-archs] [-debug] [-target target] [-toolchain llvm|gnu] [-jo
            [-output destdir] [-buildconf conf] [-prefix prefix]
            [-imgformat image_type] [-conf conf] [-installpkgs] [-su]
 
-Valid arguments:
+Help options:
   -help
                         Show this help menu
-  -debug
-                        Include debugging info, asserts, etc.
   -archs
                         List supported targets and configurations
+Build system configuration options:
   -target target
                         Build the system for the specified target. 
-                        Specify -l to list architectures
+                        Run with options -archs to list targets
   -toolchain toolchain
                         Specifies if the "llvm" or "gnu" toolchain should be used
                         Default: llvm
@@ -344,19 +348,6 @@ Valid arguments:
                         Specfies directory to output build files to
   -prefix prefix
                         Specifies prefix directory
-  -imgformat imagetype
-                        Specifies the type of the disk image
-                        Valid arguments include  "mbr", "gpt", and "iso9660"
-  -imgbootmode bootmode
-                        Specifies the boot mode to use on the image
-                        Valid arguments include "noboot", "isofloppy",
-                        "bios", "efi", and "hybrid"
-  -imgbootemu bootemu
-                        Specifies boot emulation on iso9660 bios or hybrid images
-                        Valid arguments include "hdd", "fdd", or "noemu"
-  -imguniversal
-                        Specifies that image can be booted as a hard disk for
-                        iso9660 images
   -fwtype type
                         Specifies firmware type
                         Can be "bios" or "efi"
@@ -372,6 +363,30 @@ Valid arguments:
   -su
                         Use su(1) to run commands as root
                         By default, sudo(1) is used
+Image output options:
+  -imgformat imagetype
+                        Specifies the type of the disk image
+                        Valid arguments include  "mbr", "gpt", and "iso9660"
+  -imgbootmode bootmode
+                        Specifies the boot mode to use on the image
+                        Valid arguments include "noboot", "isofloppy",
+                        "bios", "efi", and "hybrid"
+  -imgbootemu bootemu
+                        Specifies boot emulation on iso9660 bios or hybrid images
+                        Valid arguments include "hdd", "fdd", or "noemu"
+  -imguniversal
+                        Specifies that image can be booted as a hard disk for
+                        iso9660 images
+System configuration options:
+  -debug
+                        Include debugging info, asserts, etc.
+  -loglevel level
+                        Set NexNix's log level to specfied level.
+                        Can be "none", "errors", "warnings", "info", 
+                        or "verbose".
+  -graphicsmode mode
+                        Specifies if graphical output mode
+                        Can be "gui", "text", or "headless"
 HELPEND
         exit 0
         ;;
@@ -533,6 +548,47 @@ HELPEND
         usesu=1
         shift
         ;;
+    -loglevel)
+        # Get the argument
+        loglevelname=$(getoptarg "$2" "$1")
+        # Convert to numeric form
+        if [ "$loglevelname" = "none" ]
+        then
+            loglevel=0
+        elif [ "$loglevelname" = "errors" ]
+        then
+            loglevel=1
+        elif [ "$loglevelname" = "warnings" ]
+        then
+            loglevel=2
+        elif [ "$loglevelname" = "info" ]
+        then
+            loglevel=3
+        elif [ "$loglevelname" = "verbose" ]
+        then
+            loglevel=4
+        else
+            panic "invalid loglevel $loglevelname" $0
+        fi
+        shift 2
+        ;;
+    -graphicsmode)
+        graphicsmode=$(getoptarg "$2" "$1")
+        modefound=0
+        for mode in gui text none
+        do
+            if [ "$graphicsmode" = "$mode" ]
+            then
+                modefound=1
+                break
+            fi
+        done
+        if [ $modefound -eq 0 ]
+        then
+            panic "invalid graphics mode specified" $0
+        fi
+        shift 2
+        ;;
     *)
         # Invalid option
         panic "invalid option $1" $0
@@ -607,13 +663,11 @@ findprog "cc" "gcc" "clang"
 findprog "c++" "g++" "clang++"
 findprog "ld" "lld"
 findprog "ar"
-findprog "pkg-config"
 if [ "$toolchain" = "gnu" ] || [ $useninja -eq 0 ]
 then
     findprog "gmake"
 fi
 findprog "xz"
-findprog "tex"
 findprog "python"
 findprog "iasl"
 findprog "bash"
@@ -698,19 +752,20 @@ Run $0 -l to see supported targets"
             # Ensure environment is valid
             if [ "$imgbootmode" = "none" ]
             then
-                panic "boot mode \"none\" not valid for i386-pc configuration acpi"
+                panic "boot mode \"none\" not valid for i386-pc configuration $tarconf"
             fi
             [ -z "$imagetype" ] && imagetype="mbr"
             [ -z "$imgbootmode" ] && imgbootmode="bios"
             [ -z "$imgbootemu" ] && imgbootemu="fdd"
             [ -z "$fwtype" ] && fwtype="bios"
             targetismp=1
-        elif [ "$tarconf" = "acpi-up" ] || [ "$tarconf" = "pnp" ]
+        elif [ "$tarconf" = "acpi-up" ] || [ "$tarconf" = "pnp" ] || \
+             [ "$tarconf" = "isa" ]
         then
             # Ensure environment is valid
             if [ "$imgbootmode" = "none" ]
             then
-                panic "boot mode \"none\" not valid for i386-pc configuration acpi-up"
+                panic "boot mode \"none\" not valid for i386-pc configuration $tarconf"
             fi
             [ -z "$imagetype" ] && imagetype="mbr"
             [ -z "$imgbootmode" ] && imgbootmode="bios"
@@ -780,6 +835,8 @@ Run $0 -l to see supported targets"
         echo "export NNIMGBOOTEMU=\"$imgbootemu\"" >> nexnix-conf.sh
         echo "export NNIMGTYPE=\"$imagetype\"" >> nexnix-conf.sh
         echo "export NNIMGUNIVERSAL=\"$imguniversal\"" >> nexnix-conf.sh
+        echo "export NNLOGLEVEL=$loglevel" >> nexnix-conf.sh
+        echo "export NNGRAPHICSMODE=\"$graphicsmode\"" >> nexnix-conf.sh
         # Link nnbuild.conf to configuration directory
         ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi

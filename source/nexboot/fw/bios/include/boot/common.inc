@@ -13,23 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a horrible hack right here. LLD doesn't allow relocations on the object
-# files of flat binaries, hence, we pass -z notext to stop the errors
-# The only problem is that is expects up to process the relocations in the .rel.dyn
-# section output, which obviously is neither feasible nor even possible here.
-# So what do we do? We hack it! Basically, we explicity add HDMBR_BASE to every label
-# reference. That makes it work.
-# Note that we have to this with an explicit add instruction, meaning that we must be very
-# careful to avoid emitting relocations
-
-# So don't mind the weird syntax of variable references. It's manual position-independent-code.
-
-#ifdef TOOLCHAIN_GNU
-#define LABEL_OFFSET 0
-#else
-#define LABEL_OFFSET 0x600
-#endif
-
 # Macros to help with variable references
 .macro LOAD_BYTE addr, reg
     mov \addr, %bx

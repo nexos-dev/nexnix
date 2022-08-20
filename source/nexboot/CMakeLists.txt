@@ -15,11 +15,30 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
+cmake_minimum_required(VERSION 3.12)
 project(nexboot C ASM)
 
 if(NOT NEXBOOT_FW)
     message(FATAL_ERROR "firmware type not specified")
 endif()
+
+if(NOT NEXBOOT_GRAPHICS_MODE)
+    set(NEXBOOT_GRAPHICS_MODE "text" CACHE STRING "Graphics output mode for nexboot")
+endif()
+
+if(NOT NEXBOOT_LOGLEVEL)
+    set(NEXBOOT_LOGLEVEL "4" CACHE STRING "Log output level for messages")
+endif()
+
+# NOTE! We exclude NEXNIX_FW here because it may be changed by firmware-specific
+# processing
+add_compile_definitions(NEXBOOT_LOGLEVEL=${NEXBOOT_LOGLEVEL} 
+                        NEXBOOT_GRAPHICS_MODE=${NEXBOOT_GRAPHICS_MODE}
+                        NEXBOOT_ARCH=${NEXNIX_ARCH}
+                        NEXBOOT_BOARD=${NEXNIX_BOARD})
+
+# Create object library of portable nexboot sources
+list(APPEND NEXBOOT_SOURCES src/main.c)
+add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
 
 add_subdirectory(fw/${NEXBOOT_FW})

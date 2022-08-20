@@ -873,4 +873,15 @@ then
 
     # Start it up
     VBoxManage startvm --putenv VBOX_DBG_GUI_ENABLED=true "NexNix"
+elif [ "$emulator" = "simnow" ]
+then
+    if [ "$NNBOARD" != "pc" ]
+    then
+        panic "simnow not supported on architecture $NNARCH"
+    fi
+    if [ -z "$EMU_SIMNOWPATH" ]
+    then
+        panic "environment variable EMU_SIMNOWPATH must be set"
+    fi
+    
 fi

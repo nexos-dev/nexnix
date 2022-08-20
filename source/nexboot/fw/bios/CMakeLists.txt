@@ -1,5 +1,5 @@
 #[[
-    CMakeLists.txt - contains build system for BIOS builds
+    CMakeLists.txt - contains firmware specific build process
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,9 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
+cmake_minimum_required(VERSION 3.12)
+
+# Build firmware-specific targets
 
 # Ensure we are building for x86
 if(NOT NEXNIX_BASEARCH STREQUAL "x86")
@@ -30,6 +32,28 @@ endif()
 include(boot/bootrec.cmake)
 
 # Add boot records
-add_boot_record(hdmbr boot/hdmbr.S "1")
-add_boot_record(hdvbr boot/hdvbr.S "0")
-add_boot_record(gptmbr boot/gptmbr.S "1")
+add_boot_record(hdmbr boot/hdmbr.S TRUE)
+add_boot_record(gptmbr boot/gptmbr.S TRUE)
+add_boot_record(fdmbr boot/fdmbr.S FALSE)
+add_boot_record(hdvbr boot/hdvbr.S FALSE)
+
+# Let floppy MBR know that it's the floppy MBR
+target_compile_definitions(fdmbr PRIVATE IS_FLOPPY)
+
+# Add nbdetect
+add_subdirectory(nbdetect)
+
+# Add bootloader
+add_executable(nexboot-bios-1 bios.c)
+target_link_libraries(nexboot-bios-1 PRIVATE nexboot)
+
+# Add a custom command to concatenate nexboot-bios and nbdetect
+set(NEXBOOT_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nexboot")
+add_custom_command(OUTPUT ${NEXBOOT_OUTPUT}
+                   COMMAND cat $<TARGET_FILE:nbdetect> $<TARGET_FILE:nexboot-bios-1> >
+                   ${NEXBOOT_OUTPUT})
+add_custom_target(nexboot-bios ALL DEPENDS 
+                                   ${NEXBOOT_OUTPUT}
+                                   nexboot-bios)
+# Install to root of boot partition
+install(FILES ${NEXBOOT_OUTPUT} DESTINATION ..)

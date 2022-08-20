@@ -17,6 +17,11 @@
 
 /// @file update.c
 
+// WARNING: If you value your sanity, please, close this file and move on
+// This code is a mess, it is need of a large overhaul
+// It also is in need of optimization
+
+#include <assert.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -592,6 +597,7 @@ bool updateVbr (Image_t* img, Partition_t* part)
     }
     else
         file = getenv ("NNBOOTIMG");
+    assert (file);
     // Open up image
     int imgFd = open (file, O_RDWR);
     if (imgFd == -1)
@@ -600,8 +606,8 @@ bool updateVbr (Image_t* img, Partition_t* part)
         return false;
     }
     // Read in VBR
-    uint8_t vbrBuf[IMG_SECT_SZ];
-    if (pread64 (imgFd, vbrBuf, IMG_SECT_SZ, vbrBase) == -1)
+    uint8_t vbrBuf[IMG_SECT_SZ * 2];
+    if (pread (imgFd, vbrBuf, IMG_SECT_SZ, vbrBase) == -1)
     {
         error ("%s: %s", file, strerror (errno));
         close (imgFd);
@@ -615,7 +621,7 @@ bool updateVbr (Image_t* img, Partition_t* part)
         close (imgFd);
         return false;
     }
-    if (st.st_size > IMG_SECT_SZ)
+    if (st.st_size > (long) (IMG_SECT_SZ * 2))
     {
         error ("%s: maximum size of VBR is %d bytes", part->vbrFile, IMG_SECT_SZ);
         close (imgFd);
@@ -644,16 +650,23 @@ bool updateVbr (Image_t* img, Partition_t* part)
         return false;
     }
     // Read into VBR buffer
-    if (read (vbrFd, vbrBuf + bpbSize, st.st_size) == -1)
+    if (pread (vbrFd, vbrBuf + bpbSize, st.st_size - bpbSize, bpbSize) == -1)
     {
         error ("%s:%s", part->vbrFile, strerror (errno));
         close (imgFd);
         close (vbrFd);
         return false;
     }
+    // Patch JMP instruction at start of VBR to skip partitoin base
+    vbrBuf[0] = 0xEB;
+    vbrBuf[1] = 0x5E;
+    vbrBuf[2] = 0x90;
+    // Write out sector base of VBR
+    uint32_t* sectorBase = (uint32_t*) &vbrBuf[92];
+    *sectorBase = (vbrBase / IMG_SECT_SZ);
     close (vbrFd);
     // Write out to disk
-    if (pwrite64 (imgFd, vbrBuf, IMG_SECT_SZ, vbrBase) == -1)
+    if (pwrite (imgFd, vbrBuf, IMG_SECT_SZ * 2, vbrBase) == -1)
     {
         error ("%s:%s", file, strerror (errno));
         close (imgFd);
@@ -711,6 +724,10 @@ bool updateMbr (Image_t* img)
         close (mbrFd);
         return false;
     }
+    // If this is a GPT disk, write out boot partition VBR base
+    uint32_t* vbrBase = (uint32_t*) &mbrBuf[92];
+    if (img->format == IMG_FORMAT_GPT)
+        *vbrBase = IMG_MUL_TO_SECT (getBootPart()->start);
     close (mbrFd);
     // Write out to disk
     if (pwrite (imgFd, mbrBuf, IMG_SECT_SZ, 0) == -1)

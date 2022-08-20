@@ -605,7 +605,7 @@ then
     echo "Generating nnimage configuration..."
     # Generate list file
     echo "Programs" > $NNCONFROOT/nnimage-list.lst
-    echo "System/Core" >> $NNCONFROOT/nnimage-list.lst
+    echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
     echo "usr" >> $NNCONFROOT/nnimage-list.lst
     echo "bin" >> $NNCONFROOT/nnimage-list.lst
     echo "sbin" >> $NNCONFROOT/nnimage-list.lst
@@ -677,7 +677,7 @@ then
         echo "    isBoot: true;" >> nnimage.conf
         if [ "$NNIMGBOOTMODE" != "efi" ]
         then
-            echo "    vbrFile: '$NNDESTDIR/System/Core/bootrec/hdvbr';" >> nnimage.conf
+            echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
         fi
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf

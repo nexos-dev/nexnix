@@ -18,7 +18,7 @@
 function(add_boot_record __target __source __isStage1)
     add_executable(${__target} ${__source})
     # Add all link options
-    if("${__isStage1}" STREQUAL "1")
+    if(${__isStage1})
         set(__link_script "${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLinkStage1.ld")
     else()
         set(__link_script "${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLinkStage2.ld")
@@ -28,6 +28,7 @@ function(add_boot_record __target __source __isStage1)
         target_compile_definitions(${__target} PUBLIC TOOLCHAIN_GNU)
     endif()
     target_link_options(${__target} PUBLIC -T ${__link_script} -Wl,--oformat,binary -z notext)
+    target_include_directories(${__target} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/boot)
     # Install it
     install(TARGETS ${__target} DESTINATION bootrec)
 endfunction()

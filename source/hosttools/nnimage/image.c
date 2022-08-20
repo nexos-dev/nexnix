@@ -296,14 +296,14 @@ static bool formatPartition (const char* action, Image_t* img, Partition_t* part
     if (part->filesys == IMG_FILESYS_FAT12)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t fat -F 12 '");
+        strcpy (cmd, "mkfs -t fat -F 12 -R 4'");
         strcat (cmd, partDev);
         strcat (cmd, "'");
     }
     else if (part->filesys == IMG_FILESYS_FAT16)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t fat -F 16 '");
+        strcpy (cmd, "mkfs -t fat -F 16 -R 4'");
         strcat (cmd, partDev);
         strcat (cmd, "'");
     }
