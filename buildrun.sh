@@ -160,8 +160,15 @@ run()
         $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -disk $image -fw $NNFIRMWARE $emuargs
     elif [ "$imgformat" = "iso9660" ]
     then
-        $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -cdrom $image -cdromboot \
-                        -fw $NNFIRMWARE $emuargs
+        if [ "$NNIMGBOOTMODE" = "isofloppy" ]
+        then
+            $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -cdrom $NNCONFROOT/nncdrom.iso \
+                            -floppy $image -floppyboot \
+                            -fw $NNFIRMWARE $emuargs
+        else
+            $NNPROJECTROOT/scripts/run.sh $EMU_ARGS -cdrom $image -cdromboot \
+                            -fw $NNFIRMWARE $emuargs
+        fi
     fi
 }
 

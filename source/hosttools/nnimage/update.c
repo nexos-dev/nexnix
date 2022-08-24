@@ -568,12 +568,12 @@ bool updatePartition (Image_t* img,
     if (xorrisoList)
     {
         // Ensure boot image is in disk image
-        if (getBootPart())
+        if (getBootPart (img))
             fprintf (xorrisoList,
                      "%s=%s\n",
                      basename (strdup (getenv ("NNBOOTIMG"))),
                      getenv ("NNBOOTIMG"));
-        if (getAltBootPart())
+        if (getAltBootPart (img))
             fprintf (xorrisoList,
                      "%s=%s\n",
                      basename (strdup (getenv ("NNALTBOOTIMG"))),
@@ -590,13 +590,15 @@ bool updateVbr (Image_t* img, Partition_t* part)
     // Get start of VBR. If this is an ISO9660 boot image, skip this
     loff_t vbrBase = 0;
     const char* file = NULL;
-    if (img->format != IMG_FORMAT_ISO9660)
+    if (img->format == IMG_FORMAT_ISO9660)
+        file = getenv ("NNBOOTIMG");
+    else if (img->format == IMG_FORMAT_FLOPPY)
+        file = img->file;
+    else
     {
         file = img->file;
         vbrBase = IMG_MUL_TO_SECT (part->start) * (loff_t) IMG_SECT_SZ;
     }
-    else
-        file = getenv ("NNBOOTIMG");
     assert (file);
     // Open up image
     int imgFd = open (file, O_RDWR);
@@ -657,13 +659,16 @@ bool updateVbr (Image_t* img, Partition_t* part)
         close (vbrFd);
         return false;
     }
-    // Patch JMP instruction at start of VBR to skip partitoin base
-    vbrBuf[0] = 0xEB;
-    vbrBuf[1] = 0x5E;
-    vbrBuf[2] = 0x90;
-    // Write out sector base of VBR
-    uint32_t* sectorBase = (uint32_t*) &vbrBuf[92];
-    *sectorBase = (vbrBase / IMG_SECT_SZ);
+    if (img->format != IMG_FORMAT_FLOPPY)
+    {
+        // Patch JMP instruction at start of VBR to skip partitoin base
+        vbrBuf[0] = 0xEB;
+        vbrBuf[1] = 0x5E;
+        vbrBuf[2] = 0x90;
+        // Write out sector base of VBR
+        uint32_t* sectorBase = (uint32_t*) &vbrBuf[92];
+        *sectorBase = (vbrBase / IMG_SECT_SZ);
+    }
     close (vbrFd);
     // Write out to disk
     if (pwrite (imgFd, vbrBuf, IMG_SECT_SZ * 2, vbrBase) == -1)
@@ -727,7 +732,7 @@ bool updateMbr (Image_t* img)
     // If this is a GPT disk, write out boot partition VBR base
     uint32_t* vbrBase = (uint32_t*) &mbrBuf[92];
     if (img->format == IMG_FORMAT_GPT)
-        *vbrBase = IMG_MUL_TO_SECT (getBootPart()->start);
+        *vbrBase = IMG_MUL_TO_SECT (getBootPart (img)->start);
     close (mbrFd);
     // Write out to disk
     if (pwrite (imgFd, mbrBuf, IMG_SECT_SZ, 0) == -1)

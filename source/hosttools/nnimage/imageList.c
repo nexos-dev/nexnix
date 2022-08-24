@@ -30,12 +30,6 @@ static ListHead_t* images = NULL;
 // The current partition that is being operated on
 static Partition_t* curPart = NULL;
 
-// Boot partition
-static Partition_t* bootPart = NULL;
-
-// Alternate boot partition
-static Partition_t* altBootPart = NULL;
-
 // Current line number for diagnostics
 static int lineNo = 0;
 
@@ -63,14 +57,14 @@ ListHead_t* getImages()
     return images;
 }
 
-Partition_t* getBootPart()
+Partition_t* getBootPart (Image_t* img)
 {
-    return bootPart;
+    return img->bootPart;
 }
 
-Partition_t* getAltBootPart()
+Partition_t* getAltBootPart (Image_t* img)
 {
-    return altBootPart;
+    return img->altBootPart;
 }
 
 // Function to destroy an image
@@ -391,8 +385,6 @@ bool addProperty (const char32_t* newProp,
                     lineNo);
                 return false;
             }
-            // Set boot partition
-            bootPart = curPart;
         }
         else if (!c32cmp (prop, U"isAltBoot"))
         {
@@ -423,8 +415,6 @@ bool addProperty (const char32_t* newProp,
                        lineNo);
                 return false;
             }
-            // Set boot partition
-            altBootPart = curPart;
         }
         /*else if (!strcmp (prop, "isRoot"))
         {
@@ -481,6 +471,11 @@ bool addProperty (const char32_t* newProp,
                          0);
             ((Image_t*) ListEntryData (imgEntry))->partCount++;
             wasPartLinked = true;
+            // Set if this is the boot partition or not
+            if (curPart->isBootPart)
+                ((Image_t*) ListEntryData (imgEntry))->bootPart = curPart;
+            else if (curPart->isAltBootPart)
+                ((Image_t*) ListEntryData (imgEntry))->altBootPart = curPart;
         }
         else if (!c32cmp (prop, U"vbrFile"))
         {

@@ -87,11 +87,7 @@ NbloadMain:
     # Jump to part 2
     jmp NBLOAD_PART2_BASE
 
-# Fake GDTR for 386 detection. We use 6 bytes from the messages for this
-fakeGdtr:
 no386msg: .asciz "nbload: 386+ needed"
-welcomeBanner: .ascii "NexNix version "
-.ascii NEXNIX_VERSION
 progDot: .asciz "."
 fileName: .ascii "NEXBOOT    "
 loadMsg: .asciz "\r\nLoading nexboot"
@@ -260,7 +256,11 @@ NbloadReadCluster:
     popa
     ret
 
-
+# Fake GDTR for 386 detection
+fakeGdtr:
+    .long 0
+    .word 0
+    
 #include "nbload2.inc"
 
 .fill 512 - (. - start2), 1, 0

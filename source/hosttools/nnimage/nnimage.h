@@ -35,18 +35,20 @@ static const char* partTypeNames[] = {"", "mbr", "gpt", "ISO9660", "floppy"};
 /// An image in the list
 typedef struct _image
 {
-    const char* name;         ///< The name of this image
-    uint32_t sz;              ///< Size of the image
-    uint32_t mul;             ///< Multiplier of size
-    char* file;               ///< File to read from
-    short format;             ///< Format of image
-    int partCount;            ///< Number of partitions on this image
-    short bootMode;           ///< Boot mode of this image
-    short bootEmu;            ///< Emulation mode of image (on ISO images)
-    bool isUniversal;         ///< Is it a universal disk image?
-    char* mbrFile;            /// Path to file used for MBR
-    guestfs_h* guestFs;       ///< Handle to libguestfs instance
-    ListHead_t* partsList;    ///< List of partitions
+    const char* name;             ///< The name of this image
+    uint32_t sz;                  ///< Size of the image
+    uint32_t mul;                 ///< Multiplier of size
+    char* file;                   ///< File to read from
+    short format;                 ///< Format of image
+    int partCount;                ///< Number of partitions on this image
+    short bootMode;               ///< Boot mode of this image
+    short bootEmu;                ///< Emulation mode of image (on ISO images)
+    bool isUniversal;             ///< Is it a universal disk image?
+    char* mbrFile;                /// Path to file used for MBR
+    guestfs_h* guestFs;           ///< Handle to libguestfs instance
+    ListHead_t* partsList;        ///< List of partitions
+    struct _part* bootPart;       ///< Boot partition
+    struct _part* altBootPart;    ///< Alternate boot partition
 } Image_t;
 
 /// Valid filesystems
@@ -57,7 +59,8 @@ typedef struct _image
 #define IMG_FILESYS_ISO9660 5
 
 // Name table for file systems
-static const char* fsTypeNames[] = {"", "FAT32", "FAT16", "FAT12", "ext2", "ISO9660"};
+static const char* fsTypeNames[] =
+    {"", "FAT32", "FAT16", "FAT12", "ext2", "ISO9660"};
 
 // MBR partition byte IDs
 static uint8_t mbrByteIds[] = {0, 0x0C, 0x0E, 0x01, 0x83, 0};
@@ -121,16 +124,24 @@ ListHead_t* createImageList (ListHead_t* confBlocks);
 ListHead_t* getImages();
 
 /// Gets boot partition pointer
-Partition_t* getBootPart();
+Partition_t* getBootPart (Image_t* img);
 
 /// Gets alternate boot partition pointer
-Partition_t* getAltBootPart();
+Partition_t* getAltBootPart (Image_t* img);
 
 /// Creates images, partitions, and filesystems, and copies files
-bool createImages (ListHead_t* images, const char* action, bool overwrite, const char* file, const char* listFile);
+bool createImages (ListHead_t* images,
+                   const char* action,
+                   bool overwrite,
+                   const char* file,
+                   const char* listFile);
 
 /// Update a partition's files
-bool updatePartition (Image_t* img, Partition_t* part, const char* listFile, const char* mount, const char* host);
+bool updatePartition (Image_t* img,
+                      Partition_t* part,
+                      const char* listFile,
+                      const char* mount,
+                      const char* host);
 
 /// Updates the VBR of a partition
 bool updateVbr (Image_t* img, Partition_t* part);

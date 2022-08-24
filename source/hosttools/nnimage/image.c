@@ -156,12 +156,15 @@ static bool createImage (Image_t* img,
     }
     else
     {
-        // Check if image exists
-        struct stat st;
-        if (stat (img->file, &st) == -1)
+        if (img->format != IMG_FORMAT_ISO9660)
         {
-            error ("%s: %s\n", img->file, strerror (errno));
-            return false;
+            // Check if image exists
+            struct stat st;
+            if (stat (img->file, &st) == -1)
+            {
+                error ("%s: %s\n", img->file, strerror (errno));
+                return false;
+            }
         }
         return true;
     }
@@ -296,14 +299,14 @@ static bool formatPartition (const char* action, Image_t* img, Partition_t* part
     if (part->filesys == IMG_FILESYS_FAT12)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t fat -F 12 -R 4'");
+        strcpy (cmd, "mkfs -t fat -F 12 -R 4 '");
         strcat (cmd, partDev);
         strcat (cmd, "'");
     }
     else if (part->filesys == IMG_FILESYS_FAT16)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t fat -F 16 -R 4'");
+        strcpy (cmd, "mkfs -t fat -F 16 -R 4 '");
         strcat (cmd, partDev);
         strcat (cmd, "'");
     }
@@ -390,18 +393,20 @@ bool writeIso (Image_t* img)
         }
     }
     // Prepare argv
-    const char* argv[10];
+    static const char* argv[10] = {0};
     argv[0] = script;
     argv[1] = img->file;
     // TODO: allow xorriso list file to be dynamically changed
     argv[2] = "xorrisolst.txt";
     // FIXME: memory leak
-    argv[3] = basename (strdup (bootImg));
+    if (bootImg)
+        argv[3] = basename (strdup (bootImg));
     argv[4] = bootModeNames[img->bootMode];
     argv[5] = bootEmuNames[img->bootEmu];
     argv[6] = (img->isUniversal) ? "true" : "false";
     argv[7] = img->mbrFile;
-    argv[8] = basename (strdup (altBootImg));
+    if (altBootImg)
+        argv[8] = basename (strdup (altBootImg));
     argv[9] = NULL;
     // Run it
     if (!runScript (scriptPath, argv))
@@ -484,14 +489,14 @@ bool createImages (ListHead_t* images,
         // Check if we need a bootable partition
         if (img->bootMode != IMG_BOOTMODE_NOBOOT)
         {
-            if (!getBootPart())
+            if (!getBootPart (img))
             {
                 error ("bootable partition not found on image %s", img->name);
                 goto nextImgNoClean;
             }
             // Check if we need an alternate boot partition
             if (img->format == IMG_FORMAT_ISO9660 &&
-                img->bootMode == IMG_BOOTMODE_HYBRID && !getAltBootPart())
+                img->bootMode == IMG_BOOTMODE_HYBRID && !getAltBootPart (img))
             {
                 error ("alternate boot partition not found on image %s", img->name);
                 goto nextImgNoClean;
@@ -511,7 +516,7 @@ bool createImages (ListHead_t* images,
         else
         {
             // Check if image needs a temp boot image
-            if (getBootPart())
+            if (getBootPart (img))
             {
                 // Create temporary image
                 bootImg = getenv ("NNBOOTIMG");
@@ -524,7 +529,7 @@ bool createImages (ListHead_t* images,
                                           true,
                                           bootImg,
                                           img->mul,
-                                          getBootPart()->sz))
+                                          getBootPart (img)->sz))
                     goto nextImg;
                 // Add to guestfs
                 if (guestfs_add_drive (img->guestFs, bootImg) == -1)
@@ -534,7 +539,7 @@ bool createImages (ListHead_t* images,
                 img->format == IMG_FORMAT_ISO9660)
             {
                 // Make sure an alt boot partition exists
-                if (!getAltBootPart())
+                if (!getAltBootPart (img))
                 {
                     error ("alternate boot partition required on hybrid ISO9660 "
                            "images");
@@ -551,7 +556,7 @@ bool createImages (ListHead_t* images,
                                           true,
                                           altBootImg,
                                           img->mul,
-                                          getAltBootPart()->sz))
+                                          getAltBootPart (img)->sz))
                     return false;
                 // Add to guestfs
                 if (guestfs_add_drive (img->guestFs, altBootImg) == -1)
@@ -627,6 +632,7 @@ bool createImages (ListHead_t* images,
                                img->name);
                         goto nextPart;
                     }
+                    img->bootMode = IMG_BOOTMODE_BIOS;
                 }
                 else
                 {
@@ -751,19 +757,33 @@ bool createImages (ListHead_t* images,
             if (img->bootMode == IMG_BOOTMODE_HYBRID ||
                 img->bootMode == IMG_BOOTMODE_BIOS)
             {
-                if (!getBootPart()->vbrFile)
+                if (img->format != IMG_FORMAT_FLOPPY)
                 {
-                    error ("\"vbrFile\" property not set on BIOS bootable image");
-                    return false;
+                    if (!getBootPart (img)->vbrFile)
+                    {
+                        error (
+                            "\"vbrFile\" property not set on BIOS bootable image");
+                        return false;
+                    }
                 }
-                // Write out VBR
-                if (!updateVbr (img, getBootPart()))
+                else
+                {
+                    if (!img->mbrFile)
+                    {
+                        error (
+                            "\"mbrFile\" property not set on BIOS bootable image");
+                        return false;
+                    }
+                    getBootPart (img)->vbrFile = strdup (img->mbrFile);
+                }
+                if (!updateVbr (img, getBootPart (img)))
                 {
                     imgEntry = ListIterate (imgEntry);
                     continue;
                 }
                 // Check if we need to write out MBR
-                if (img->format != IMG_FORMAT_ISO9660)
+                if (img->format != IMG_FORMAT_ISO9660 &&
+                    img->format != IMG_FORMAT_FLOPPY)
                 {
                     if (!img->mbrFile)
                     {

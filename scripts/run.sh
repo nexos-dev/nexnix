@@ -213,6 +213,7 @@ then
         [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="pc"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+        [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
         [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
         EMU_SMP=0
         EMU_CDROMBOOT=0
@@ -235,6 +236,7 @@ then
             [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="q35"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+            [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
             [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
         elif [ "$NNARCH" = "i386" ]
         then
@@ -252,6 +254,7 @@ then
             [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="pc"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+            [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
             [ -z "$EMU_USBDRIVE" ] && EMU_USBDRIVE=0
         fi
         EMU_SMP=1
@@ -272,6 +275,7 @@ then
         [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
         EMU_MACHINETYPE="isapc"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+        [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
         EMU_FLOPPY=1
         EMU_USBDRIVE=0
         EMU_SMP=0
@@ -290,7 +294,9 @@ then
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
         [ -z "$EMU_CPU" ] && EMU_CPU="pentium2"
+        [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
         EMU_MACHINETYPE="pc"
+        EMU_FLOPPY=1
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         EMU_USBDRIVE=0
         [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
@@ -321,39 +327,42 @@ then
     then
         QEMUARGS="${QEMUARGS} -smp ${EMU_CPUCOUNT}"
     fi
-    if [ "$EMU_DRIVETYPE" = "sata" ]
+    if [ ! -z $diskpath ]
     then
-        QEMUARGS="${QEMUARGS} -device ich9-ahci"
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
-    elif [ "$EMU_DRIVETYPE" = "ata" ]
-    then
-        if [ "$NNTARGETCONF" = "pnp" ]
+        if [ "$EMU_DRIVETYPE" = "sata" ]
         then
-            QEMUARGS="${QEMUARGS} -device isa-ide -device ide-hd,drive=hd0"
-        else
-            QEMUARGS="${QEMUARGS} -device piix4-ide -device ide-hd,drive=hd0"
-        fi
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0,if=none"
-    elif [ "$EMU_DRIVETYPE" = "nvme" ]
-    then
-        QEMUARGS="${QEMUARGS} -device nvme -device nvme-ns,drive=hd0"
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
-    elif [ "$EMU_DRIVETYPE" = "virtio" ]
-    then
-        if [ "$EMU_BUSTYPE" = "virtio" ]
+            QEMUARGS="${QEMUARGS} -device ich9-ahci"
+            QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
+        elif [ "$EMU_DRIVETYPE" = "ata" ]
         then
-            QEMUARGS="${QEMUARGS} -device virtio-blk-device,drive=hd0"
+            if [ "$NNTARGETCONF" = "pnp" ]
+            then
+                QEMUARGS="${QEMUARGS} -device isa-ide -device ide-hd,drive=hd0"
+            else
+                QEMUARGS="${QEMUARGS} -device piix4-ide -device ide-hd,drive=hd0"
+            fi
+            QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0,if=none"
+        elif [ "$EMU_DRIVETYPE" = "nvme" ]
+        then
+            QEMUARGS="${QEMUARGS} -device nvme -device nvme-ns,drive=hd0"
+            QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
+        elif [ "$EMU_DRIVETYPE" = "virtio" ]
+        then
+            if [ "$EMU_BUSTYPE" = "virtio" ]
+            then
+                QEMUARGS="${QEMUARGS} -device virtio-blk-device,drive=hd0"
+            else
+                QEMUARGS="${QEMUARGS} -device virtio-blk,drive=hd0"
+            fi
+            QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
+        elif [ "$EMU_DRIVETYPE" = "scsi" ]
+        then
+            QEMUARGS="${QEMUARGS} -device scsi-block,drive=hd0"
+            QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
         else
-            QEMUARGS="${QEMUARGS} -device virtio-blk,drive=hd0"
+            echo "$0: invalid drive type \"$EMU_DRIVETYPE\""
+            exit 1
         fi
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
-    elif [ "$EMU_DRIVETYPE" = "scsi" ]
-    then
-        QEMUARGS="${QEMUARGS} -device scsi-block,drive=hd0"
-        QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
-    else
-        echo "$0: invalid drive type \"$EMU_DRIVETYPE\""
-        exit 1
     fi   
 
     if [ $EMU_CDROM -eq 1 ]
@@ -384,7 +393,7 @@ then
     then
         if [ ! -z "$floppypath" ]
         then
-            QEMUARGS="${QEMUARGS} -drive file=$floppypath,format=raw,id=fd0 -device floppy,drive=fd0"
+            QEMUARGS="${QEMUARGS} -drive file=$floppypath,format=raw,id=fd0,if=none -device floppy,drive=fd0"
         fi
     fi
 
@@ -529,6 +538,9 @@ then
     if [ $EMU_CDROMBOOT -eq 1 ]
     then
         QEMUARGS="${QEMUARGS} -boot d"
+    elif [ $EMU_FLOPPYBOOT -eq 1 ]
+    then
+        QEMUARGS="${QEMUARGS} -boot a"
     else
         QEMUARGS="${QEMUARGS} -boot c"
     fi
@@ -563,6 +575,7 @@ then
         fi
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+        [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
         if [ "$NNTARGETCONF" = "acpi-up" ]
         then
@@ -580,7 +593,8 @@ then
         EMU_USBTYPE=
         [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
-        [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+        [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=1
+        [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         EMU_SMP=0
         # Write out BIOS line
@@ -598,8 +612,11 @@ then
     # Write out CPU stuff
     echo "cpu: count=$EMU_CPUCOUNT, model=$EMU_CPU, ips=10000000" >> bochsrc.txt
     # Configure hard disk
-    echo "ata0-master: type=disk, path=$diskpath, mode=flat, translation=auto" \
-        >> bochsrc.txt
+    if [ ! -z $diskpath ]
+    then
+        echo "ata0-master: type=disk, path=$diskpath, mode=flat, translation=auto" \
+            >> bochsrc.txt
+    fi
     if [ "$EMU_CDROM" = "1" ]
     then
         echo "ata0-slave: type=cdrom, path=$cdrompath, status=inserted" >> bochsrc.txt
@@ -646,6 +663,7 @@ then
     # Run bochs
     bochs -q -f bochsrc.txt
     echo $?
+# TODO: Add floppy boot support
 elif [ "$emulator" = "vbox" ]
 then
     if [ "$NNBOARD" != "pc" ]
@@ -676,6 +694,7 @@ then
             [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+            [ -z "$EMU_FLOPPYBOOT" ] &&  EMU_FLOPPYBOOT=0
         elif [ "$NNARCH" = "x86_64" ]
         then
             [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=3072
@@ -689,6 +708,7 @@ then
             [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
+            [ -z "$EMU_FLOPPYBOOT" ] &&  EMU_FLOPPYBOOT=0
         fi
         if [ "$NNTARGETCONF" = "acpi" ]
         then
@@ -719,6 +739,7 @@ then
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
+        [ -z "$EMU_FLOPPYBOOT" ] &&  EMU_FLOPPYBOOT=0
         EMU_CDROM=0
         EMU_CDROMBOOT=0
         EMU_SMP=1
@@ -836,10 +857,13 @@ then
     fi
 
     # Add mediums
-    rm -f $vboxdiskpath
-    VBoxManage convertfromraw $diskpath $vboxdiskpath --format VDI
-    VBoxManage storageattach "NexNix" --storagectl "NexNix-storage" \
-                --medium $vboxdiskpath --type hdd --port 1 --device 1
+    if [ ! -z $diskpath ]
+    then
+        rm -f $vboxdiskpath
+        VBoxManage convertfromraw $diskpath $vboxdiskpath --format VDI
+        VBoxManage storageattach "NexNix" --storagectl "NexNix-storage" \
+                    --medium $vboxdiskpath --type hdd --port 1 --device 1
+    fi
     if [ "$EMU_CDROM" = "1" ]
     then
         if [ ! -z "$docreate" ]
@@ -867,6 +891,9 @@ then
     if [ "$EMU_CDROMBOOT" = "1" ]
     then
         VBoxManage modifyvm "NexNix" --boot1 dvd --boot2 disk
+    elif [ "$EMU_FLOPPYBOOT" = "1" ]
+    then
+        VBoxManage modifyvm "NexNix" --boot1 floppy --boot2 disk
     else
         VBoxManage modifyvm "NexNix" --boot1 disk --boot2 dvd
     fi
@@ -883,5 +910,5 @@ then
     then
         panic "environment variable EMU_SIMNOWPATH must be set"
     fi
-    
+    panic "SimNow support incomplete"
 fi

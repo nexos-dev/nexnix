@@ -719,7 +719,8 @@ then
             echo "    sizeMul: KiB;" >> nnimage.conf
             echo "    size: 1440;" >> nnimage.conf
             echo "    format: floppy;" >> nnimage.conf
-            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/flpmbr';" >> nnimage.conf
+            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/fdmbr';" >> nnimage.conf
+            echo "}" >> nnimage.conf
             echo "partition bootpart" >> nnimage.conf
             echo "{" >> nnimage.conf
             echo "    size: 1440;" >> nnimage.conf
@@ -727,7 +728,6 @@ then
             echo "    format: fat12;" >> nnimage.conf
             echo "    isBoot: true;" >> nnimage.conf
             echo "    image: nnboot;" >> nnimage.conf
-            echo "}" >> nnimage.conf
         elif [ "$NNIMGBOOTEMU" = "noemu" ]
         then
             echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/isombr';" >> nnimage.conf

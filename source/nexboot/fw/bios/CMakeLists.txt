@@ -51,9 +51,9 @@ target_link_libraries(nexboot-bios-1 PRIVATE nexboot)
 set(NEXBOOT_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nexboot")
 add_custom_command(OUTPUT ${NEXBOOT_OUTPUT}
                    COMMAND cat $<TARGET_FILE:nbdetect> $<TARGET_FILE:nexboot-bios-1> >
-                   ${NEXBOOT_OUTPUT})
+                   ${NEXBOOT_OUTPUT}
+                   DEPENDS nexboot-bios nbdetect)
 add_custom_target(nexboot-bios ALL DEPENDS 
-                                   ${NEXBOOT_OUTPUT}
-                                   nexboot-bios)
+                                   ${NEXBOOT_OUTPUT})
 # Install to root of boot partition
 install(FILES ${NEXBOOT_OUTPUT} DESTINATION ..)

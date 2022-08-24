@@ -18,5 +18,8 @@
 
 .global NbStartDetect
 NbStartDetect:
+    mov $0x0E, %ah
+    mov $78, %al
+    int $0x10
     cli
     hlt
