@@ -374,9 +374,6 @@ Image output options:
   -imgbootemu bootemu
                         Specifies boot emulation on iso9660 bios or hybrid images
                         Valid arguments include "hdd", "fdd", or "noemu"
-  -imguniversal
-                        Specifies that image can be booted as a hard disk for
-                        iso9660 images
 System configuration options:
   -debug
                         Include debugging info, asserts, etc.
@@ -462,10 +459,6 @@ HELPEND
         then
             panic "boot mode \"$imgbootmode\" is invalid" $0
         fi
-        ;;
-    -imguniversal)
-        imguniversal=1
-        shift
         ;;
     -fwtype)
         fwtype=$(getoptarg "$2" "$1")
@@ -834,7 +827,6 @@ Run $0 -l to see supported targets"
         echo "export NNIMGBOOTMODE=\"$imgbootmode\"" >> nexnix-conf.sh
         echo "export NNIMGBOOTEMU=\"$imgbootemu\"" >> nexnix-conf.sh
         echo "export NNIMGTYPE=\"$imagetype\"" >> nexnix-conf.sh
-        echo "export NNIMGUNIVERSAL=\"$imguniversal\"" >> nexnix-conf.sh
         echo "export NNLOGLEVEL=$loglevel" >> nexnix-conf.sh
         echo "export NNGRAPHICSMODE=\"$graphicsmode\"" >> nexnix-conf.sh
         echo "export NNBOOTIMG=\"$output/conf/$target/$conf/nnboot.img\"" >> nexnix-conf.sh
