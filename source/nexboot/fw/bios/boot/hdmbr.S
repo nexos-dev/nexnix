@@ -164,6 +164,8 @@ HdMbrEntry:
     mov %dl, %dh        # Stick head in DH
     mov -2(%bp), %dl    # Get drive number in DL
     mov $HDMBR_VBR_BASE, %bx    # VBR base goes in BX
+    xor %si, %si
+    mov %si, %es
     mov $2, %ah         # BIOS read sector
     mov $1, %al         # Sector count
     int $0x13           # Read it in

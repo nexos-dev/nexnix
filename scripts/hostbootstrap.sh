@@ -731,6 +731,9 @@ then
         elif [ "$NNIMGBOOTEMU" = "noemu" ]
         then
             echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/isombr';" >> nnimage.conf
+        elif [ "$NNIMGBOOTEMU" = "hdd" ]
+        then
+            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdmbr';" >> nnimage.conf
         fi
         echo "}" >> nnimage.conf
         # Create partitions
@@ -740,11 +743,13 @@ then
             then
                 echo "partition boot" >> nnimage.conf
                 echo "{" >> nnimage.conf
-                echo "    size: 131072;" >> nnimage.conf
+                echo "    start: 1;" >> nnimage.conf
+                echo "    size: 131050;" >> nnimage.conf
                 echo "    format: fat32;" >> nnimage.conf
                 echo "    isBoot: true;"  >> nnimage.conf
                 echo "    prefix: '/System/Core';" >> nnimage.conf
-                echo "    image: nnimg"; >> nnimage.conf
+                echo "    image: nnimg;" >> nnimage.conf
+                echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
                 echo "}" >> nnimage.conf
             elif [ "$NNIMGBOOTEMU" = "fdd" ]
             then
@@ -754,7 +759,8 @@ then
                 echo "    format: fat12;" >> nnimage.conf
                 echo "    isBoot: true;"  >> nnimage.conf
                 echo "    prefix: '/System/Core';" >> nnimage.conf
-                echo "    image: nnimg"; >> nnimage.conf
+                echo "    image: nnimg;" >> nnimage.conf
+                echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/fdmbr';" >> nnimage.conf
                 echo "}" >> nnimage.conf
             fi
         fi

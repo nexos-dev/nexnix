@@ -137,8 +137,12 @@ NbloadReadSector:
     # This is quite complex, to start, obtain the BIOS'es geometry
     mov -2(%bp), %dx     # Restore drive number
     mov $0x08, %ah      # BIOS get disk geometry
+    push %es
+    push %di
     int $0x13
     jc .diskError
+    pop %di
+    pop %es
     and $0x3F, %cl      # Clear upper 2 bits of cylinder to get SPT
     xor %ch, %ch        # Clear CH
     push %cx            # Save SPT
@@ -174,6 +178,7 @@ NbloadReadSector:
     mov %dl, %dh        # Stick head in DH
     mov -2(%bp), %dl    # Get drive number in DL
     mov %di, %bx        # Offset goes in BX
+
     mov $2, %ah         # BIOS read sector
     mov $1, %al         # Sector count
     int $0x13           # Read it in

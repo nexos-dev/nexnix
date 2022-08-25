@@ -619,7 +619,7 @@ then
     fi
     if [ "$EMU_CDROM" = "1" ]
     then
-        echo "ata0-slave: type=cdrom, path=$cdrompath, status=inserted" >> bochsrc.txt
+        echo "ata0-slave: type=cdrom, path=$cdrompath, status=inserted, translation=lba" >> bochsrc.txt
     fi
     if [ "$EMU_FLOPPY" = "1" ]
     then

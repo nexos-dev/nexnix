@@ -60,6 +60,7 @@ start:
 NbloadMain:
     # Setup the stack
     mov $NBLOAD_STACK_TOP, %sp
+    sti
     # Initialize disk system
     call NbloadInitDisk
     # Read in NBLOAD sector 2

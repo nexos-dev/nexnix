@@ -591,7 +591,11 @@ bool updateVbr (Image_t* img, Partition_t* part)
     loff_t vbrBase = 0;
     const char* file = NULL;
     if (img->format == IMG_FORMAT_ISO9660)
+    {
         file = getenv ("NNBOOTIMG");
+        if (img->bootEmu == IMG_BOOTEMU_HDD)
+            vbrBase = IMG_MUL_TO_SECT (part->start) * (loff_t) IMG_SECT_SZ;
+    }
     else if (img->format == IMG_FORMAT_FLOPPY)
         file = img->file;
     else
@@ -659,7 +663,7 @@ bool updateVbr (Image_t* img, Partition_t* part)
         close (vbrFd);
         return false;
     }
-    if (img->format != IMG_FORMAT_FLOPPY)
+    if (img->format != IMG_FORMAT_FLOPPY && img->bootEmu != IMG_BOOTEMU_FDD)
     {
         // Patch JMP instruction at start of VBR to skip partitoin base
         vbrBuf[0] = 0xEB;
@@ -685,17 +689,22 @@ bool updateVbr (Image_t* img, Partition_t* part)
 bool updateMbr (Image_t* img)
 {
     // Open up image
-    int imgFd = open (img->file, O_RDWR);
+    const char* file = NULL;
+    if (img->bootEmu == IMG_BOOTEMU_HDD && img->format == IMG_FORMAT_ISO9660)
+        file = getenv ("NNBOOTIMG");
+    else
+        file = img->file;
+    int imgFd = open (file, O_RDWR);
     if (imgFd == -1)
     {
-        error ("%s:%s", img->file, strerror (errno));
+        error ("%s:%s", file, strerror (errno));
         return false;
     }
     // Read in MBR
     uint8_t mbrBuf[IMG_SECT_SZ];
     if (pread (imgFd, mbrBuf, IMG_SECT_SZ, 0) == -1)
     {
-        error ("%s: %s", img->file, strerror (errno));
+        error ("%s: %s", file, strerror (errno));
         close (imgFd);
         return false;
     }

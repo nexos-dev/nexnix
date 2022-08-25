@@ -222,11 +222,17 @@ static bool formatPartition (const char* action, Image_t* img, Partition_t* part
                    "than ISO9660");
             return false;
         }
-        // Ensure guestFsDev is in partDev so code will operate on it
-        strcpy (partDev, guestFsDev);
+        if (img->bootEmu != IMG_BOOTEMU_HDD)
+        {
+            // Ensure guestFsDev is in partDev so code will operate on it
+            strcpy (partDev, guestFsDev);
+        }
+        else
+            goto addPart;
     }
     else if (img->format != IMG_FORMAT_FLOPPY)
     {
+    addPart:
         // Add partition to guestfs
         if (guestfs_part_add (img->guestFs,
                               guestFsDev,
@@ -237,7 +243,7 @@ static bool formatPartition (const char* action, Image_t* img, Partition_t* part
             return false;
         }
         // Set file system type of partition
-        if (img->format == IMG_FORMAT_MBR)
+        if (img->format == IMG_FORMAT_MBR || img->bootEmu == IMG_BOOTEMU_HDD)
         {
             if (guestfs_part_set_mbr_id (img->guestFs,
                                          guestFsDev,
@@ -525,11 +531,12 @@ bool createImages (ListHead_t* images,
                     error ("NNBOOTIMG not set in environment");
                     goto nextImg;
                 }
-                if (!createImageInternal (action,
-                                          true,
-                                          bootImg,
-                                          img->mul,
-                                          getBootPart (img)->sz))
+                size_t sz = 0;
+                if (img->bootEmu == IMG_BOOTEMU_FDD)
+                    sz = getBootPart (img)->sz;
+                else
+                    sz = getBootPart (img)->sz + 1;
+                if (!createImageInternal (action, true, bootImg, img->mul, sz))
                     goto nextImg;
                 // Add to guestfs
                 if (guestfs_add_drive (img->guestFs, bootImg) == -1)
@@ -556,7 +563,7 @@ bool createImages (ListHead_t* images,
                                           true,
                                           altBootImg,
                                           img->mul,
-                                          getAltBootPart (img)->sz))
+                                          getAltBootPart (img)->sz + 1))
                     return false;
                 // Add to guestfs
                 if (guestfs_add_drive (img->guestFs, altBootImg) == -1)
@@ -572,13 +579,21 @@ bool createImages (ListHead_t* images,
         if (!strcmp (action, "partition") || !strcmp (action, "all"))
         {
             if (img->format != IMG_FORMAT_FLOPPY &&
-                img->format != IMG_FORMAT_ISO9660)
+                img->bootEmu != IMG_BOOTEMU_FDD && img->bootEmu != IMG_BOOTEMU_NONE)
             {
                 // Create a new partition table
-                if (guestfs_part_init (img->guestFs,
-                                       "/dev/sdb",
-                                       partTypeNames[img->format]) == -1)
-                    goto nextImg;
+                if (img->bootEmu == IMG_BOOTEMU_HDD)
+                {
+                    if (guestfs_part_init (img->guestFs, "/dev/sdb", "msdos") == -1)
+                        goto nextImg;
+                }
+                else
+                {
+                    if (guestfs_part_init (img->guestFs,
+                                           "/dev/sdb",
+                                           partTypeNames[img->format]) == -1)
+                        goto nextImg;
+                }
             }
         }
         ListEntry_t* partEntry = ListFront (img->partsList);
@@ -680,6 +695,9 @@ bool createImages (ListHead_t* images,
                         goto nextPart;
                     }
                 }
+
+                if (img->bootEmu == IMG_BOOTEMU_HDD)
+                    strcpy (partDev, "/dev/sdb1");
             }
             else
             {
@@ -782,7 +800,8 @@ bool createImages (ListHead_t* images,
                     continue;
                 }
                 // Check if we need to write out MBR
-                if (img->format != IMG_FORMAT_ISO9660 &&
+                if ((img->format != IMG_FORMAT_ISO9660 ||
+                     img->bootEmu == IMG_BOOTEMU_HDD) &&
                     img->format != IMG_FORMAT_FLOPPY)
                 {
                     if (!img->mbrFile)

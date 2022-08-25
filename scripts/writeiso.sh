@@ -59,6 +59,5 @@ then
 fi
 
 xorrisoargs="$xorrisoargs -o $output"
-
 # Run it!
 exec xorriso $xorrisoargs

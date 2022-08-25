@@ -837,6 +837,8 @@ Run $0 -l to see supported targets"
         echo "export NNIMGUNIVERSAL=\"$imguniversal\"" >> nexnix-conf.sh
         echo "export NNLOGLEVEL=$loglevel" >> nexnix-conf.sh
         echo "export NNGRAPHICSMODE=\"$graphicsmode\"" >> nexnix-conf.sh
+        echo "export NNBOOTIMG=\"$output/conf/$target/$conf/nnboot.img\"" >> nexnix-conf.sh
+        echo "export NNALTBOOTIMG=\"$output/conf/$target/$conf/nnboot2.img\"" >> nexnix-conf.sh
         # Link nnbuild.conf to configuration directory
         ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi
