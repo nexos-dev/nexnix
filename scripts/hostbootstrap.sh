@@ -702,12 +702,6 @@ then
             then
                 echo "    bootEmu: $NNIMGBOOTEMU;" >> nnimage.conf
             fi
-            if [ "$NNIMGUNIVERSAL" = "0" ]
-            then
-                echo "    isUniversal: false;" >> nnimage.conf
-            else
-                echo "    isUniversal: true;" >> nnimage.conf
-            fi
         fi
         if [ "$NNIMGBOOTMODE" = "isofloppy" ]
         then

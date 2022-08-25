@@ -740,9 +740,32 @@ then
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
         [ -z "$EMU_FLOPPYBOOT" ] &&  EMU_FLOPPYBOOT=0
-        EMU_CDROM=0
-        EMU_CDROMBOOT=0
-        EMU_SMP=1
+        [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+        [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
+        [ -z "$EMU_SMP" ] && EMU_SMP=1
+        if [ "$NNARCH" = "x86_64" ]
+        then
+            VBoxManage modifyvm "NexNix" --ostype Other_64
+        elif [ "$NNARCH" = "i386" ]
+        then
+            VBoxManage modifyvm "NexNix" --ostype Other
+        fi
+        VBoxManage modifyvm "NexNix" --apic on --pae on --largepages on \
+                 --biosapic apic --acpi off --hpet off --x2apic off
+    elif [ "$NNTARGETCONF" = "pnp" ]
+    then
+        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=512
+        [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=2
+        [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="ata"
+        [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ohci"
+        [ -z "$EMU_NETDEV" ] && EMU_NETDEV="pcnet"
+        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
+        [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
+        [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
+        [ -z "$EMU_FLOPPYBOOT" ] &&  EMU_FLOPPYBOOT=0
+        [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+        [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
+        [ -z "$EMU_SMP" ] && EMU_SMP=1
         if [ "$NNARCH" = "x86_64" ]
         then
             VBoxManage modifyvm "NexNix" --ostype Other_64
@@ -827,11 +850,11 @@ then
     vboxdiskpath=$(echo "$diskpath" | sed 's/\.img/\.vdi/')
 
     # Delete old storage stuff
-    if [ ! -z "$docreate" ]
+    if [ ! -z "$docreate" ] && [ ! -z "$diskpath" ]
     then
-        VBoxManage storagectl "NexNix" --name "NexNix-storage" --remove
         VBoxManage closemedium disk $vboxdiskpath > /dev/null 2>&1
     fi
+    VBoxManage storagectl "NexNix" --name "NexNix-storage" --remove
 
     # Setup storage device
     if [ "$EMU_DRIVETYPE" = "ata" ]
@@ -855,23 +878,18 @@ then
         VBoxManage storagectl "NexNix" --name "NexNix-storage" --add pcie \
                     --controller VirtIO --portcount 2 --bootable on
     fi
-
     # Add mediums
     if [ ! -z $diskpath ]
     then
         rm -f $vboxdiskpath
         VBoxManage convertfromraw $diskpath $vboxdiskpath --format VDI
         VBoxManage storageattach "NexNix" --storagectl "NexNix-storage" \
-                    --medium $vboxdiskpath --type hdd --port 1 --device 1
+                    --medium $vboxdiskpath --type hdd --port 0 --device 0
     fi
     if [ "$EMU_CDROM" = "1" ]
     then
-        if [ ! -z "$docreate" ]
-        then
-            VBoxManage closemedium $cdrompath
-        fi
         VBoxManage storageattach "NexNix" --storagectl "NexNix-storage" \
-                    --medium $cdrompath --type dvddrive --port 2
+                    --medium $cdrompath --type dvddrive --port 1 --device 0
     fi
 
     if [ "$EMU_FLOPPY" = "1" ]

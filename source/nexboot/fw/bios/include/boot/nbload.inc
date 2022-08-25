@@ -139,6 +139,9 @@ NbloadReadSector:
     mov $0x08, %ah      # BIOS get disk geometry
     push %es
     push %di
+    mov $0, %bx         # Set ES and DI to zero to work around buggy BIOSes
+    mov %bx, %es
+    mov %bx, %di
     int $0x13
     jc .diskError
     pop %di
@@ -208,6 +211,9 @@ NbloadReadSector:
     mov $0x08, %ah      # BIOS get disk geometry
     push %di
     push %es
+    mov $0, %bx         # Set ES and DI to zero to work around buggy BIOSes
+    mov %bx, %es
+    mov %bx, %di
     int $0x13
     jc .diskError
     pop %es
@@ -279,7 +285,7 @@ biosDap:
     .word 0          # Segment to load into
     .quad 0         # Sector to read
 #endif
-diskErrMsg: .asciz "nbload: disk read error"
+diskErrMsg: .asciz "nbload: disk error"
 
 welcomeBanner: .ascii "NexNix version "
 .asciz NEXNIX_VERSION
