@@ -399,7 +399,10 @@ bool writeIso (Image_t* img)
         }
     }
     // Prepare argv
-    static const char* argv[10] = {0};
+    static const char* argv[10];
+    const char* empty = "";
+    for (int i = 0; i < 10; ++i)
+        argv[i] = empty;
     argv[0] = script;
     argv[1] = img->file;
     // TODO: allow xorriso list file to be dynamically changed
@@ -410,7 +413,7 @@ bool writeIso (Image_t* img)
     argv[4] = bootModeNames[img->bootMode];
     argv[5] = bootEmuNames[img->bootEmu];
     argv[6] = (img->isUniversal) ? "true" : "false";
-    argv[7] = img->mbrFile;
+    argv[7] = img->mbrFile + strlen (hostPrefix);
     if (altBootImg)
         argv[8] = basename (strdup (altBootImg));
     argv[9] = NULL;
@@ -493,7 +496,7 @@ bool createImages (ListHead_t* images,
                 img->bootEmu = IMG_BOOTEMU_NONE;
         }
         // Check if we need a bootable partition
-        if (img->bootMode != IMG_BOOTMODE_NOBOOT)
+        if (img->bootMode != IMG_BOOTMODE_NOBOOT && img->bootEmu != IMG_BOOTEMU_NONE)
         {
             if (!getBootPart (img))
             {
@@ -772,8 +775,9 @@ bool createImages (ListHead_t* images,
         if (!strcmp (action, "update") || !strcmp (action, "all"))
         {
             // Check if this image needs a VBR or MBR
-            if (img->bootMode == IMG_BOOTMODE_HYBRID ||
-                img->bootMode == IMG_BOOTMODE_BIOS)
+            if ((img->bootMode == IMG_BOOTMODE_HYBRID ||
+                 img->bootMode == IMG_BOOTMODE_BIOS) &&
+                img->bootEmu != IMG_BOOTEMU_NONE)
             {
                 if (img->format != IMG_FORMAT_FLOPPY)
                 {

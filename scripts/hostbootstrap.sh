@@ -605,7 +605,21 @@ then
     echo "Generating nnimage configuration..."
     # Generate list file
     echo "Programs" > $NNCONFROOT/nnimage-list.lst
-    echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
+    # Special cases for boot partition: on no emulation disks, there is no "boot partition"
+    # per se. We also add nexboot to the root directory of the disk
+    # On emulated disks, /System/Core/Boot is the root of the boot partition
+    if [ "$NNIMGBOOTEMU" = "noemu" ]
+    then
+        echo "System" >> $NNCONFROOT/nnimage-list.lst
+        echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
+        cp $NNDESTDIR/System/Core/nexboot $NNDESTDIR/nexboot
+    elif [ "$NIMGBOOTEMU" = "hdd" ] || [ "$NNIMGBOOTEMU" = "fdd" ]
+    then
+        echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
+        cp $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
+    else
+        echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
+    fi
     echo "usr" >> $NNCONFROOT/nnimage-list.lst
     echo "bin" >> $NNCONFROOT/nnimage-list.lst
     echo "sbin" >> $NNCONFROOT/nnimage-list.lst

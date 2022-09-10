@@ -24,8 +24,13 @@ isuniversal=$6
 hybridmbr=$7
 efibootimg=$8
 
+if [ "$bootemu" = "noemu" ]
+then
+    bootimg=$hybridmbr
+fi
+
 # Begin constructing command line
-xorrisoargs="-as mkisofs -R -graft-points -U -iso-level 2 -path-list $listfile"
+xorrisoargs="-as mkisofs -graft-points -iso-level 1 -path-list $listfile"
 if [ "$bootmode" = "noboot" ]
 then
     : ;

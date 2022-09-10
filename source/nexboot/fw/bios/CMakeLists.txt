@@ -36,6 +36,7 @@ add_boot_record(hdmbr boot/hdmbr.S TRUE)
 add_boot_record(gptmbr boot/gptmbr.S TRUE)
 add_boot_record(fdmbr boot/fdmbr.S FALSE)
 add_boot_record(hdvbr boot/hdvbr.S FALSE)
+add_boot_record(isombr boot/isombr.S FALSE)
 
 # Let floppy MBR know that it's the floppy MBR
 target_compile_definitions(fdmbr PRIVATE IS_FLOPPY)
