@@ -22,20 +22,18 @@ if(NOT NEXBOOT_FW)
     message(FATAL_ERROR "firmware type not specified")
 endif()
 
-if(NOT NEXBOOT_GRAPHICS_MODE)
-    set(NEXBOOT_GRAPHICS_MODE "text" CACHE STRING "Graphics output mode for nexboot")
+include(SystemBuild/ArchToMacro)
+include(SystemBuild/Options)
+
+nexnix_add_parameter(NEXNIX_LOGLEVEL 
+                     "Value that defines what should and shouldn't be logged"
+                     2)
+if(NEXNIX_ARCH STREQUAL "i386")
+    nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
 endif()
 
-if(NOT NEXBOOT_LOGLEVEL)
-    set(NEXBOOT_LOGLEVEL "4" CACHE STRING "Log output level for messages")
-endif()
-
-# NOTE! We exclude NEXNIX_FW here because it may be changed by firmware-specific
-# processing
-add_compile_definitions(NEXBOOT_LOGLEVEL=${NEXBOOT_LOGLEVEL} 
-                        NEXBOOT_GRAPHICS_MODE=${NEXBOOT_GRAPHICS_MODE}
-                        NEXBOOT_ARCH=${NEXNIX_ARCH}
-                        NEXBOOT_BOARD=${NEXNIX_BOARD})
+# Include main include directory
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Create object library of portable nexboot sources
 list(APPEND NEXBOOT_SOURCES src/main.c)

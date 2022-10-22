@@ -110,7 +110,8 @@ NbloadMain:
     add $33, %si                        # Go to file name
 .compareLoop:
     # Compute size of name
-    movzxb 32(%di), %cx
+    xor %cx, %cx
+    movb 32(%di), %cl
     push %di
     push %si
     mov $fileName, %di
@@ -119,7 +120,8 @@ NbloadMain:
     pop %si
     pop %di
     # Move to next one
-    movzxb (%di), %dx
+    xor %dx, %dx
+    movb (%di), %dl
     add %dx, %si
     add %dx, %di  
     cmpb $0, (%di)           # Check if we are at the end
@@ -134,12 +136,14 @@ NbloadMain:
     mov 2(%di), %ebx        # Obtain extent
     mov 10(%di), %eax       # Obtain size
     # Round up
-    movzxw -2(%bp), %ecx    # Get size of a block
+    xor %ecx, %ecx
+    movw -2(%bp), %cx       # Get size of a block
     add %ecx, %eax
     sub $1, %eax
     # Divide size by size of block
     xor %edx, %edx          # Prepare for division
-    movzxw -2(%bp), %ecx
+    xor %ecx, %ecx
+    movw -2(%bp), %cx
     div %ecx                # Divide by block size
     # Read it in
     mov %ax, %cx            # NOTE: size is truncated!

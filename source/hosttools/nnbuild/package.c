@@ -274,7 +274,6 @@ static int addDependencyToPackage (char32_t* depName)
         return 0;
     }
     // Package to dependencies list
-    package_t* curPkg = getCurPackage();
     ListAddBack (curPkg->depends, ObjRef (&package->obj), 0);
     return 1;
 }

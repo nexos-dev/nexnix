@@ -303,12 +303,17 @@ usesu=0
 hostos=
 pkgs=
 fwtype=
+
+# System configuration options
 loglevel=4
 graphicsmode=text
 
 # Target specific features
 targetismp=
 commonarch=
+
+# i386 options
+ispae=
 
 # Target list
 targets="i386-pc"
@@ -384,6 +389,13 @@ System configuration options:
   -graphicsmode mode
                         Specifies if graphical output mode
                         Can be "gui", "text", or "headless"
+Options for target i386:
+These options should be passed after -target option
+  -pae val
+                        Specifies if PAE should be used by OS
+                        Value can be "on" or "off", defaults to "on"
+                        for configurations acpi and acpi-up, "off"
+                        for everything else
 HELPEND
         exit 0
         ;;
@@ -582,6 +594,23 @@ HELPEND
         fi
         shift 2
         ;;
+    -pae)
+        ispae=$(getoptarg "$2" "$1")
+        valvalid=0
+        for val in on off
+        do
+            if [ "$val" = "$ispae" ]
+            then
+                valvalid=1
+                break
+            fi
+        done
+        if [ $valvalid -eq 0 ]
+        then
+            panic "invalid PAE mode specified" $0
+        fi
+        shift 2
+        ;;
     *)
         # Invalid option
         panic "invalid option $1" $0
@@ -739,6 +768,17 @@ Run $0 -l to see supported targets"
             fi
         fi
 
+        # Validate options
+        if [ ! -z "$ispae" ]
+        then
+            if [ "$ispae" = "on" ]
+            then
+                ispae=1
+            else
+                ispae=0
+            fi
+        fi
+
         # Set the parameters of this configuration
         if [ "$tarconf" = "acpi" ] || [ "$tarconf" = "mp" ]
         then
@@ -751,6 +791,12 @@ Run $0 -l to see supported targets"
             [ -z "$imgbootmode" ] && imgbootmode="bios"
             [ -z "$imgbootemu" ] && imgbootemu="fdd"
             [ -z "$fwtype" ] && fwtype="bios"
+            if [ "$tarconf" = "acpi" ]
+            then
+                [ -z "$ispae" ] && ispae=1
+            else
+                [ -z "$ispae" ] && ispae=0
+            fi
             targetismp=1
         elif [ "$tarconf" = "acpi-up" ] || [ "$tarconf" = "pnp" ] || \
              [ "$tarconf" = "isa" ]
@@ -764,6 +810,12 @@ Run $0 -l to see supported targets"
             [ -z "$imgbootmode" ] && imgbootmode="bios"
             [ -z "$imgbootemu" ] && imgbootemu="fdd"
             [ -z "$fwtype" ] && fwtype="bios"
+            if [ "$tarconf" = "acpi-up" ]
+            then
+                [ -z "$ispae" ] && ispae=1
+            else
+                [ -z "$ispae" ] && ispae=0
+            fi
             targetismp=0
         fi
     fi
@@ -801,7 +853,7 @@ Run $0 -l to see supported targets"
         mkdir -p $output/conf/$target/$conf && cd $output/conf/$target/$conf
         mkdir -p $prefix
         # Setup target configuration script
-        echo "export PATH=\"\$PATH:$output/tools/bin\"" > nexnix-conf.sh
+        echo "export PATH=\"$output/tools/bin:$output/tools/$compiler/bin:\$PATH\"" > nexnix-conf.sh
         echo "export NNBUILDROOT=\"$output\"" >> nexnix-conf.sh
         echo "export NNTARGET=\"$target\"" >> nexnix-conf.sh
         echo "export NNARCH=\"$arch\"" >> nexnix-conf.sh
@@ -824,13 +876,21 @@ Run $0 -l to see supported targets"
         echo "export NNTARGETISMP=$targetismp" >> nexnix-conf.sh
         echo "export NNFIRMWARE=\"$fwtype\"" >> nexnix-conf.sh
         echo "export NNPKGROOT=\"$olddir/scripts/packages\"" >> nexnix-conf.sh
+        if [ "$imagetype" = "iso9660" ]
+        then
+            echo "export NNIMGBOOTEMU=\"$imgbootemu\"" >> nexnix-conf.sh
+        fi
         echo "export NNIMGBOOTMODE=\"$imgbootmode\"" >> nexnix-conf.sh
-        echo "export NNIMGBOOTEMU=\"$imgbootemu\"" >> nexnix-conf.sh
         echo "export NNIMGTYPE=\"$imagetype\"" >> nexnix-conf.sh
         echo "export NNLOGLEVEL=$loglevel" >> nexnix-conf.sh
         echo "export NNGRAPHICSMODE=\"$graphicsmode\"" >> nexnix-conf.sh
         echo "export NNBOOTIMG=\"$output/conf/$target/$conf/nnboot.img\"" >> nexnix-conf.sh
         echo "export NNALTBOOTIMG=\"$output/conf/$target/$conf/nnboot2.img\"" >> nexnix-conf.sh
+        echo "export NNTARGETCONF=$tarconf" >> nexnix-conf.sh
+        if [ "$arch" = "i386" ]
+        then
+            echo "export NNISPAE=$ispae" >> nexnix-conf.sh
+        fi
         # Link nnbuild.conf to configuration directory
         ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi

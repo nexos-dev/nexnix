@@ -1,5 +1,5 @@
 #[[
-    CMakeLists.txt - contains build system for BIOS nbdetect
+    CMakeLists.txt - contains build system for BIOS nbload
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,14 @@
 
 cmake_minimum_required(VERSION 3.00)
 
-add_executable(nbdetect nbdetect.S)
+add_executable(nbload nbload.S)
 # Ensure code knows toolchain being used
 if(${NEXNIX_TOOLCHAIN} STREQUAL "gnu")
-    target_compile_definitions(nbdetect PUBLIC TOOLCHAIN_GNU)
+    target_compile_definitions(nbload PUBLIC TOOLCHAIN_GNU)
 elseif(${NEXNIX_TOOLCHAIN} STREQUAL "llvm")
-    target_compile_definitions(nbdetect PUBLIC TOOLCHAIN_LLVM)
+    target_compile_definitions(nbload PUBLIC TOOLCHAIN_LLVM)
 endif()
 
-target_link_options(nbdetect PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/link.ld
+target_include_directories(nbload PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/boot)
+target_link_options(nbload PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/link.ld
                     -Wl,--oformat,binary -z notext)

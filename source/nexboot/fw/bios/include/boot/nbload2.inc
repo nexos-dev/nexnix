@@ -15,4 +15,4 @@
 
 # Welcome banner
 welcomeBanner2:
-.asciz "\r\nCopyright (C) 2021 - 2022 The NexNix Project. All rights reserved.\r\n"
+.asciz "\r\nCopyright (C) 2021 - 2022 The NexNix Project.\r\n"

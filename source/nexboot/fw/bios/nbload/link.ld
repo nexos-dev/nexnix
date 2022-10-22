@@ -1,5 +1,5 @@
 /*
-    link.ld - contains linker script for nbdetect
+    link.ld - contains linker script for nbload
     Copyright 2022 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ ENTRY(NbStartDetect)
 
 SECTIONS
 {
-    . = 0x10000;
+    . = 0x0;
     .text : AT(0x0) {
         *(.text)
     }
@@ -35,15 +35,6 @@ SECTIONS
         *(.dynamic)
         *(.eh_frame*)
         *(.comment)
-        *(.gnu*)
-        *(.note*)
-        *(.interp)
-        *(.dynsym)
-        *(.dynstr)
-        *(.dynamic)
-        *(.eh_frame*)
-        *(.data)
-        *(.bss)
         *(.debug*)
         *(.symtab)
         *(.strtab)

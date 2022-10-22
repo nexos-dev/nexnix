@@ -15,7 +15,11 @@
     limitations under the License.
 */
 
+int test = 0;
+
 // Just a dummy for now
 void _start()
 {
+    for (;;)
+        ;
 }

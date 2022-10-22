@@ -225,7 +225,7 @@ start2:
 .next:
     # Check for EOF
     cmp $0xFF8, %ax
-    jge .launchNexboot
+    jae .launchNexboot
     pop %di
     pop %es
     add $2, %sp             # Pop cluster number
@@ -233,7 +233,7 @@ start2:
     jmp .readLoop
 .launchNexboot:
     LOAD_BYTE $driveNumber %dl      # Grab drive number
-    ljmp $NBLOAD_NEXBOOT_SEG, $0       # Far jump to nbdetect!
+    ljmp $NBLOAD_NEXBOOT_SEG, $0       # Far jump to nbload!
 .no386:
     mov $no386msg, %si
     call BootPrint

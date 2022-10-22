@@ -68,6 +68,10 @@ NbloadLogMsg:
     LOAD_WORD $logLocation, %si # Get log location
     pop %bx
     add $LABEL_OFFSET, %bx
+    # Format of log entry:
+    # Offset 0 - 1: Message offset
+    # Offset 2 - 3: Message segment
+    # Offset 4 - 5: Log level
     mov %bx, (%si)              # Write message offset
     mov %ds, 2(%si)             # Write segment
     mov %cx, 4(%si)             # Write log level
@@ -78,7 +82,7 @@ NbloadLogMsg:
     pop %bx
     mov %bx, %si                # Get message back in SI
     # Decide where to print
-    cmp $NEXBOOT_LOGLEVEL, %cx
+    cmp $NEXNIX_LOGLEVEL, %cx
     jg .logDone                    # Print to serial port if message level
                                 # is greater than system level
     sub $LABEL_OFFSET, %si      # Remove label offset, BootPrint puts it back in

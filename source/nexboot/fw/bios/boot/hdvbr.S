@@ -90,7 +90,6 @@ NbloadMain:
 
 no386msg: .asciz "nbload: 386+ needed"
 progDot: .asciz "."
-fileName: .ascii "NEXBOOT    "
 loadMsg: .asciz "\r\nLoading nexboot"
 
 .fill 510 - (. - vbrBase), 1, 0
@@ -162,7 +161,7 @@ start2:
         jmp .findLoop
 .readFile:
     # Compute size of a cluster
-    LOAD_WORD $bpbBytesPerSector %ax        # Load bytes per cluster
+    LOAD_WORD $bpbBytesPerSector %ax        # Load bytes per sector
     xor %cx, %cx                            # Prepare CX
     LOAD_BYTE $bpbSectorsPerClus %cl        # Load sectors per cluster
     mul %cx                                 # Multiply
@@ -209,7 +208,7 @@ start2:
     movl (%di), %eax                # Get FAT value of this cluster
     and $0x0FFFFFFF, %eax           # Clear top 4 reserved bits
     cmp $0x0FFFFFF8, %eax           # Check for EOF
-    jge .launchNexboot              # If EOF, launch nbdetect
+    jae .launchNexboot              # If EOF, launch nbload
     # Move to next cluster
     pop %di                         # Restore old buffer
     pop %es
@@ -217,7 +216,7 @@ start2:
     jmp .readLoop                   # Move on
 .launchNexboot:
     LOAD_BYTE $driveNumber %dl      # Grab drive number
-    ljmp $NBLOAD_NEXBOOT_SEG, $0       # Far jump to nbdetect!
+    ljmp $NBLOAD_NEXBOOT_SEG, $0       # Far jump to nbload!
 .noNexboot:
     mov $fileError, %si     # Grab error
     call BootPrint          # Print it
@@ -261,7 +260,8 @@ NbloadReadCluster:
 fakeGdtr:
     .long 0
     .word 0
-    
+
+fileName: .ascii "NEXBOOT    "
 #include "nbload2.inc"
 
 .fill 512 - (. - start2), 1, 0

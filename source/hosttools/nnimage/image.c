@@ -413,7 +413,8 @@ bool writeIso (Image_t* img)
     argv[4] = bootModeNames[img->bootMode];
     argv[5] = bootEmuNames[img->bootEmu];
     argv[6] = (img->isUniversal) ? "true" : "false";
-    argv[7] = img->mbrFile + strlen (hostPrefix);
+    if (img->mbrFile)
+        argv[7] = img->mbrFile + strlen (hostPrefix);
     if (altBootImg)
         argv[8] = basename (strdup (altBootImg));
     argv[9] = NULL;

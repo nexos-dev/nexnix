@@ -272,7 +272,7 @@ then
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="sb16"
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
-        [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
+        [ -z "$EMU_CPU" ] && EMU_CPU="486"
         EMU_MACHINETYPE="isapc"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
@@ -570,7 +570,7 @@ then
             [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
         else
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="uhci"
-            [ -z "$EMU_CPU" ] && EMU_CPU="p3_katmai"
+            [ -z "$EMU_CPU" ] && EMU_CPU="athlon64_clawhammer"
             [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=1
         fi
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0

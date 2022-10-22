@@ -41,20 +41,21 @@ add_boot_record(isombr boot/isombr.S FALSE)
 # Let floppy MBR know that it's the floppy MBR
 target_compile_definitions(fdmbr PRIVATE IS_FLOPPY)
 
-# Add nbdetect
-add_subdirectory(nbdetect)
+# Add nbload
+add_subdirectory(nbload)
 
 # Add bootloader
 add_executable(nexboot-bios-1 bios.c)
+# Set linker script
+target_link_options(nexboot-bios-1 PRIVATE -T 
+                                   ${CMAKE_CURRENT_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/link.ld)
 target_link_libraries(nexboot-bios-1 PRIVATE nexboot)
 
-# Add a custom command to concatenate nexboot-bios and nbdetect
+# Add a custom command to concatenate nexboot-bios and nbload
 set(NEXBOOT_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nexboot")
 add_custom_command(OUTPUT ${NEXBOOT_OUTPUT}
-                   COMMAND cat $<TARGET_FILE:nbdetect> $<TARGET_FILE:nexboot-bios-1> >
-                   ${NEXBOOT_OUTPUT}
-                   DEPENDS nexboot-bios nbdetect)
-add_custom_target(nexboot-bios ALL DEPENDS 
-                                   ${NEXBOOT_OUTPUT})
+                   COMMAND cat $<TARGET_FILE:nbload> $<TARGET_FILE:nexboot-bios-1> >
+                   ${NEXBOOT_OUTPUT} DEPENDS nbload nexboot-bios-1)
+add_custom_target(nexboot-bios ALL DEPENDS ${NEXBOOT_OUTPUT})
 # Install to root of boot partition
 install(FILES ${NEXBOOT_OUTPUT} DESTINATION ..)

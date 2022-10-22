@@ -612,11 +612,15 @@ then
     then
         echo "System" >> $NNCONFROOT/nnimage-list.lst
         echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
-        cp $NNDESTDIR/System/Core/nexboot $NNDESTDIR/nexboot
+        mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/nexboot
     elif [ "$NIMGBOOTEMU" = "hdd" ] || [ "$NNIMGBOOTEMU" = "fdd" ]
     then
         echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
-        cp $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
+        mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
+    elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
+    then
+        echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
+        mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
     else
         echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
     fi
@@ -650,9 +654,9 @@ then
         echo "    size: 128;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
         echo "    prefix: '/System/Core';" >> nnimage.conf
-        echo "    image: nnimg;" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
         echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf
         echo "{" >> nnimage.conf
@@ -687,8 +691,8 @@ then
         echo "    size: 128;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
         echo "    prefix: '/System/Core';" >> nnimage.conf
-        echo "    image: nnimg;" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
+        echo "    image: nnimg;" >> nnimage.conf
         if [ "$NNIMGBOOTMODE" != "efi" ]
         then
             echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
@@ -732,7 +736,7 @@ then
             echo "partition bootpart" >> nnimage.conf
             echo "{" >> nnimage.conf
             echo "    size: 1440;" >> nnimage.conf
-            echo "    prefix: '/System/Core';" >> nnimage.conf
+            echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
             echo "    format: fat12;" >> nnimage.conf
             echo "    isBoot: true;" >> nnimage.conf
             echo "    image: nnboot;" >> nnimage.conf

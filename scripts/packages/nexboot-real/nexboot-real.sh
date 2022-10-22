@@ -17,5 +17,14 @@ pkg_name=nexboot
 pkg_iskernel=1
 pkg_buildsys=cmake
 pkg_prefix="/System/Core/Boot"
-pkg_confopts="-DNEXBOOT_FW=$NNFIRMWARE -DNEXBOOT_LOGLEVEL=$NNLOGLEVEL \
-              -DNEXBOOT_GRAPHICS_MODE=$NNGRAPHICSMODE"
+pkg_confopts="-DNEXBOOT_FW=$NNFIRMWARE -DNEXNIX_LOGLEVEL=$NNLOGLEVEL \
+              -DNEXNIX_GRAPHICS_MODE=$NNGRAPHICSMODE"
+if [ "$NNARCH" = "i386" ]
+then
+    if [ "$NNISPAE" = "1" ]
+    then
+        pkg_confopts="$pkg_confopts -DNEXNIX_I386_PAE=ON"
+    else
+        pkg_confopts="$pkg_confopts -DNEXNIX_I386_PAE=OFF"
+    fi
+fi

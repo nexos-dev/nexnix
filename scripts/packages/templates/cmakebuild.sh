@@ -30,7 +30,7 @@ configure()
         pkg_confopts="$pkg_confopts \
 -DCMAKE_USER_MAKE_RULES_OVERRIDE=$sdkLocation/SystemBuild/kernel/overrides-$NNTOOLCHAIN.cmake \
 -DNEXNIX_ARCH=$NNARCH -DNEXNIX_BOARD=$NNBOARD -DNEXNIX_BASEARCH=$NNCOMMONARCH \
--DNEXNIX_TOOLCHAIN=$NNTOOLCHAIN"
+-DNEXNIX_TOOLCHAIN=$NNTOOLCHAIN -DNEXNIX_TARGETCONF=$NNTARGETCONF"
     fi
     if [ ! -z "$pkg_prefix" ]
     then

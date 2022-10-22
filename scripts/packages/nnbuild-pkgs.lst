@@ -14,4 +14,4 @@
 # limitations under the License.
 
 # Include every package NexNix consists of
-include "$NNPKGROOT/nexboot/nexboot.conf"
+include "$NNPKGROOT/nexboot-real/nexboot.conf"
