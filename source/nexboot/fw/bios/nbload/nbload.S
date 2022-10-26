@@ -222,7 +222,6 @@ NbStartDetect:
     mov %eax, %cr0                  # Update CR0 with PE bit set
     ljmpl $0x18, $NBLOAD_PMODE_ENTRY # Far return to protected mode
 #elif defined NEXNIX_ARCH_X86_64
-    xchg %bx, %bx
     cli
     # Now we need to enter long mode
     # First, load the GDT
@@ -641,8 +640,6 @@ NbloadStartLmode:
     pop %rsi
     mov 24(%rsi), %rbx
     mov $0, %rbp                    # Set up zero frame
-    cli
-    hlt
     jmp *%rbx                       # Jump to it
 end:
 #endif
