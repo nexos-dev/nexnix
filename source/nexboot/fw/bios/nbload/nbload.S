@@ -624,7 +624,7 @@ NbloadStartLmode:
     mov 8(%rbx), %rdx               # Get program header data offset from phdr
     add %rsi, %rdx
     mov %rdx, %rsi                  # So we can use it rep movsb
-    mov 16(%rbx), %rcx              # Get section file size
+    mov 32(%rbx), %rcx              # Get section file size
     mov $NBLOAD_NEXBOOT_BASE, %rdi  # Get nexboot base address
     rep movsb                       # Copy out
     # Get difference between memory and file size, and zero that out
