@@ -366,6 +366,7 @@ then
         if [ ! -f $NNTOOLCHAINPATH/$NNARCH-$gnusys-ld ] || [ "$rebuild" = "1" ]
         then
             binroot="$NNEXTSOURCEROOT/tools/binutils-${binutilsver}"
+            rm -rf $NNBUILDROOT/build/tools/binutils-build
             mkdir -p $NNBUILDROOT/build/tools/binutils-build
             cd $NNBUILDROOT/build/tools/binutils-build
             $binroot/configure --prefix=$NNBUILDROOT/tools/$NNTOOLCHAIN --disable-nls \
@@ -393,6 +394,7 @@ then
         if [ ! -f $NNTOOLCHAINPATH/$NNARCH-$gnusys-gcc ] || [ "$rebuild" = "1" ]
         then
             gccroot="$NNEXTSOURCEROOT/tools/gcc-${gccver}"
+            rm -rf $NNBUILDROOT/build/tools/gcc-build
             mkdir -p $NNBUILDROOT/build/tools/gcc-build
             cd $NNBUILDROOT/build/tools/gcc-build
             $gccroot/configure --target=$NNARCH-$gnusys \
@@ -449,9 +451,15 @@ then
             mkdir -p $toolsbuildroot/cr-build && cd $toolsbuildroot/cr-build
             # A hack to avoid errors about assert.h for now
             echo "#define assert(nothing) ((void)0)" > $NNTOOLCHAINPATH/../lib/clang/$llvmver/include/assert.h
+            if [ "$NNARCH" = "x86_64" ]
+            then
+                cflags="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver -mno-red-zone"
+            else
+                cflags="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver"
+            fi
             cmake $buildbase/tools/llvm-project-${llvmver}.src/compiler-rt \
-                    -DCMAKE_CXX_FLAGS="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver" \
-                    -DCMAKE_C_FLAGS="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver" \
+                    -DCMAKE_CXX_FLAGS="$cflags" \
+                    -DCMAKE_C_FLAGS="$cflags" \
                     -DCOMPILER_RT_USE_LIBCXX=OFF -DCOMPILER_RT_BAREMETAL_BUILD=ON \
                     -G Ninja -DCMAKE_AR=$NNTOOLCHAINPATH/llvm-ar \
                     -DCMAKE_ASM_COMPILER_TARGET=$NNARCH-elf \
@@ -465,7 +473,7 @@ then
                     -DCOMPILER_RT_BUILD_XRAY=OFF -DLLVM_CONFIG_PATH=$NNTOOLCHAINPATH/llvm-config \
                     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
                     -DCOMPILER_RT_BUILD_ORC=ON \
-                    -DCMAKE_ASM_FLAGS="-D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver" \
+                    -DCMAKE_ASM_FLAGS="$cflags" \
                     -DCMAKE_INSTALL_PREFIX=$NNTOOLCHAINPATH/.. \
                     -DCOMPILER_RT_OS_DIR=nexnix -DCOMPILER_RT_BUILTINS_ENABLE_PIC=OFF
             checkerr $? "unable to build LLVM" $0
@@ -522,6 +530,18 @@ then
                $NNBUILDROOT/tools/firmware/OVMF_CODE_i386.fd
             cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_VARS.fd \
                $NNBUILDROOT/tools/firmware/OVMF_VARS_i386.fd
+            touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+        elif [ "$NNARCH" = "x86_64" ]
+        then
+            ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
+            mkdir -p $NNBUILDROOT/tools/firmware
+            build -a X64 -t GCC5 -p OvmfPkg/OvmfPkgX64.dsc
+            checkerr $? "unable to build EDK2"
+            echo "Installing EDK2..."
+            cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_CODE.fd \
+               $NNBUILDROOT/tools/firmware/OVMF_CODE_X64.fd
+            cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_VARS.fd \
+               $NNBUILDROOT/tools/firmware/OVMF_VARS_X64.fd
             touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
         fi
     fi

@@ -25,8 +25,31 @@
 #define NBLOAD_LOG_SIZE 0x100
 
 #define NBLOAD_PMODE_ENTRY 0x11000
+#define NBLOAD_LMODE_ENTRY NBLOAD_PMODE_ENTRY
 #define NBLOAD_BASE 0x10000
 #define NBLOAD_BASE_SEG 0x1000
+
+# Paging structure locations
+#ifdef NEXNIX_ARCH_X86_64
+#ifdef NEXNIX_X86_64_LA57
+#define NBLOAD_PML5_BASE 0x3000
+#define NBLOAD_PML4_BASE 0x4000
+#define NBLOAD_PDPT_BASE 0x5000
+#define NBLOAD_PDIR_BASE 0x6000
+#else
+#define NBLOAD_PML4_BASE 0x3000
+#define NBLOAD_PDPT_BASE 0x4000
+#define NBLOAD_PDIR_BASE 0x5000
+#endif
+#else
+#ifndef NEXNIX_I386_PAE
+#define NBLOAD_PDIR_BASE 0x3000
+#define NBLOAD_PTAB_BASE 0x4000
+#else
+#define NBLOAD_PDIR_BASE 0x3000
+#define NBLOAD_PDPT_BASE 0x4000
+#endif
+#endif
 
 #include <detect.h>
 
@@ -143,6 +166,25 @@ NbStartDetect:
     mov $4, %cx
     call NbloadLogMsg
 .fpuCheckDone:
+#ifdef NEXNIX_ARCH_X86_64
+    # Check for long mode support
+    mov $0x80000000, %eax               # Check to ensure CPUID extended features
+                                        # are supported
+    cpuid
+    cmp $0x80000001, %eax
+    jb .noLmode
+    mov $0x80000001, %eax               # Get extended flags
+    cpuid
+    test $(1 << 29), %edx               # Test long-mode support bit
+    jz .noLmode                         # If not supported, panic
+    jmp .a20Enable
+.noLmode:
+    mov $noLmodeMessage, %si
+    mov $0, %cx
+    call NbloadLogMsg
+    call NbloadPanic
+.a20Enable:
+#endif
     # Now we must enable the A20 gate
     call NbloadWaitInputBuf     # Wait for input buffer to be empty
     mov $0xAD, %al              # Command 0xAD disables keyboard
@@ -171,6 +213,7 @@ NbStartDetect:
     pop %es
     cmpw $0xAA88, 0x7DFE
     je .a20failed               # If equal, A20 check failed
+#ifdef NEXNIX_ARCH_I386
     # Now we must enter protected mode...
     cli                             # Disable interrupts
     lgdt gdtPtr                     # Load the GDT
@@ -178,6 +221,97 @@ NbStartDetect:
     or $(1 << 0), %eax              # Set the PE bit
     mov %eax, %cr0                  # Update CR0 with PE bit set
     ljmpl $0x18, $NBLOAD_PMODE_ENTRY # Far return to protected mode
+#elif defined NEXNIX_ARCH_X86_64
+    xchg %bx, %bx
+    cli
+    # Now we need to enter long mode
+    # First, load the GDT
+    lgdt gdtPtr
+    # Initialize paging structures. This changes based on wheter we are using LA57 or not
+    push %ds                            # Zero out DS
+    mov $0, %ax
+    mov %ax, %ds
+    mov $0, %ax
+    # Zero out everything
+#ifdef NEXNIX_X86_64_LA57
+    mov $NBLOAD_PML5_BASE, %di          # Get PML5
+    mov $0x1000, %cx                    # Zero out page
+    mov $0, %al
+    rep stosb
+#endif
+    mov $NBLOAD_PML4_BASE, %di          # Get PML4
+    mov $0x1000, %cx                    # Zero out the whole page
+    mov $0, %al
+    rep stosb
+    mov $NBLOAD_PDPT_BASE, %di          # Get PDPT
+    mov $0x1000, %cx                    # Zero out a page
+    mov $0, %al
+    rep stosb                           # Zero it
+    mov $NBLOAD_PDIR_BASE, %di          # Get page directory
+    mov $0x1000, %cx
+    mov $0, %al
+    rep stosb
+    # If LA57 is used, we must check for LA57, enable it if supported, and map the PML4 to the PML5
+    # If not supported, just jump to mapping
+#ifdef NEXNIX_X86_64_LA57
+    # Check for CPUID function 0x7
+    mov $0, %eax
+    cpuid
+    cmp $0x7, %eax
+    jb .nola57
+    # CPUID supports function 0x7, now check for LA57
+    mov $7, %eax
+    mov $0, %ecx
+    cpuid
+    test $(1 << 16), %ecx               # Test LA57 bit
+    jz .nola57
+    # CPU supports LA57, map PML4 into PML5
+    mov $NBLOAD_PML4_BASE, %ebx
+    mov $NBLOAD_PML5_BASE, %edi
+    or $3, %ebx                         # Set present and writable bits
+    mov %ebx, (%edi)                    # Move PML5E to PML5
+    mov $NBLOAD_PML5_BASE, %ebp         # Save PML5
+    # Enable LA57
+    mov %cr4, %eax
+    or $(1 << 12), %eax                 # Set LA57 bit in CR4
+    mov %eax, %cr4
+    jmp .la57continue
+.nola57:
+#endif
+    mov $NBLOAD_PML4_BASE, %ebp         # Save PML4 address
+.la57continue:
+    # Map PDPT into PML4
+    mov $NBLOAD_PDPT_BASE, %ebx
+    mov $NBLOAD_PML4_BASE, %edi
+    or $3, %ebx                         # Set present and writable bits on entry
+    mov %ebx, (%edi)                    # Move PML4E into PML4
+    # Map page directory into PDPT
+    mov $NBLOAD_PDPT_BASE, %edi         # Get PDPT address
+    mov $NBLOAD_PDIR_BASE, %ebx         # Get page directory address
+    or $3, %ebx                         # Mark as present and writable
+    mov %ebx, (%edi)                    # Map it
+    # Map page into directory
+    mov $NBLOAD_PDIR_BASE, %edi         # Get page directory address
+    mov $0x83, %ebx                     # Set physical address to 0, present and
+                                        # writable bits to 0, and size bit to 1
+    mov %ebx, (%edi)                    # Put in directory
+    # Enable PAE
+    mov %cr4, %eax
+    or $(1 << 5), %eax                  # Set PAE bit
+    mov %eax, %cr4
+    # Load saved PML4 or PML5 from EBP
+    mov %ebp, %cr3                      # Load top-level paging structure
+    # Set the LME bit in EFER
+    mov $0xC0000080, %ecx               # Load MSR to read
+    rdmsr                               # Read MSR
+    or $(1 << 8), %eax                  # Set LME bit
+    wrmsr                               # Write it out
+    # Enable PE and PG bits at the same time to activate long mode
+    mov %cr0, %eax
+    or $0x80000001, %eax                # Set both bits
+    mov %eax, %cr0                      # Activate long mode
+    ljmpl $0x18, $NBLOAD_LMODE_ENTRY    # Far jump to flush CS
+#endif
 .a20failed:
     mov $a20failMessage, %si
     mov $1, %cx
@@ -251,8 +385,12 @@ cpu386Message: .asciz "\r\nnbload: detected CPU 386"
 fpuMessage: .asciz "\r\nnbload: x87 FPU found"
 noFpuMessage: .asciz "\r\nnbload: no x87 FPU found"
 a20failMessage: .asciz "\r\nnbload: unable to enable A20 gate"
-noPaeMessage: .asciz "\r\nnbload: PAE not supported on CPU"
+noPaeMessage: .asciz "\r\nnbload: PAE not supported on this CPU. Please use non-PAE images"
+#ifdef NEXNIX_ARCH_X86_64
+noLmodeMessage: .asciz "\r\nnbload: long mode not supported on this CPU. Please use 32-bit images"
+#endif
 
+#ifdef NEXNIX_ARCH_I386
 # Protected mode data structures
 
 # The global descriptor table
@@ -310,17 +448,6 @@ gdtPtr:
 #define NBLOAD_PMODE_STACK 0x7FFFC
 #define NBLOAD_NEXBOOT_BASE 0x50000
 
-# Paging structure locations
-#ifdef NEXNIX_ARCH_I386
-#ifndef NEXNIX_I386_PAE
-#define NBLOAD_PDIR_BASE 0x3000
-#define NBLOAD_PTAB_BASE 0x4000
-#else
-#define NBLOAD_PDIR_BASE 0x3000
-#define NBLOAD_PDPT_BASE 0x4000
-#endif
-#endif
-
 # Protected mode entry point
 NbloadStartPmode:
     # Set data segments
@@ -345,7 +472,7 @@ NbloadStartPmode:
     mov $0, %al
     mov $0x1000, %ecx               # Zero out a page
     rep stosb
-    or $1, %ebx                     # Set as present and writable
+    or $1, %ebx                     # Mark as present
     mov %ebx, (%esi)                # Map page directory. Note that we only work with
                                     # the low 32 bits and leave the top bits zeroed
     # Create PDE
@@ -355,7 +482,6 @@ NbloadStartPmode:
                                     # Entry is present, writable, and large
                                     # Address mapped is address 0
     mov %eax, (%esi)                # Map it
-    xchg %bx, %bx
     # Enable paging now
     mov %cr4, %eax                  # Get CR4 to enable PAE
     or $(1 << 5), %eax              # Set PAE bit
@@ -365,11 +491,6 @@ NbloadStartPmode:
     mov %cr0, %eax                  # Get CR0
     or $(1 << 31), %eax             # Set PG bit
     mov %eax, %cr0                  # Enable paging
-    # Set EFER.NX
-    mov $0xC0000080, %ecx
-    rdmsr                           # Read the MSR
-    or $(1 << 11), %eax             # Set bit 11 (NX bit)
-    wrmsr
 #else
     mov $NBLOAD_PDIR_BASE, %esi     # Get page directory address
     mov %esi, %edi                  # Prepare to zero it
@@ -425,5 +546,103 @@ NbloadStartPmode:
     # Get entry point
     pop %esi
     mov 24(%esi), %ebx
+    mov $0, %ebp                    # Set up zero frame
     jmp *%ebx                       # Jump to it
 end:
+#elif defined NEXNIX_ARCH_X86_64
+# Long mode data structures
+
+# Global descriptor table
+gdtBase:
+    # Null descriptor
+    .word 0
+    .word 0
+    .byte 0
+    .byte 0
+    .byte 0
+    .byte 0
+    # 16 bit code segment descriptor
+    .word 0xFFFF                # Low 16 bits of limit
+    .word 0                     # Low 16 bits of base
+    .byte 0x5                   # High 8 bits of base
+    .byte 0x98                  # Access byte. Execute-only code segment
+                                # that is non-conforming and present
+    .byte 0                     # Reserved
+    .byte 0                     # Reserved
+    # 16 bit data segment descriptor
+    .word 0xFFFF                # Low 16 bits of limit
+    .word 0                     # Low 16 bits of base
+    .byte 0x5                   # High 8 bits of base
+    .byte 0x92                  # Read-write data segment
+    .byte 0                     # Reserved
+    .byte 0                     # Reserved
+    # 64 bit code segment descriptor
+    .word 0                     # Low 16 bits of limit
+    .word 0                     # Low 16 bits of base
+    .byte 0                     # Middle 8 bits of base
+    .byte 0x98                  # Access byte. Execute-only code segment
+                                # that is non-conforming and present
+    .byte 0xA0                  # Top 4 bits of limit = 0xF, granularity = 4K,
+                                # L bit = 1, indicating long mode segment
+    .byte 0                     # Top 8 bits of base
+    # 64 bit data segment descriptor
+    .word 0xFFFF                # Low 16 bits of limit
+    .word 0                     # Low 16 bits of base
+    .byte 0                     # Middle 8 bits of base
+    .byte 0x92                  # Read write data segment
+    .byte 0                     # Top 4 bits of limit = 0xF, granularity = 4K,
+                                # B bit = 1
+    .byte 0                     # Top 8 bits of base
+gdtEnd:
+
+gdtPtr:
+    .word gdtEnd - gdtBase - 1
+    .quad gdtBase + 0x10000
+
+.align 4096
+.code64
+
+# Memory locations
+#define NBLOAD_LMODE_STACK 0x7FFFC
+#define NBLOAD_NEXBOOT_BASE 0x50000
+
+NbloadStartLmode:
+    # Load data segments
+    mov $0x20, %ax
+    mov %ax, %ds
+    mov %ax, %es
+    mov %ax, %fs
+    mov %ax, %gs
+    mov %ax, %ss
+    mov $NBLOAD_LMODE_STACK, %rsp           # Load stack pointer
+    # Now we must load up the ELF bootloader
+    # Get base of it
+    mov $end, %rsi                  # Get end of this part
+    add $NBLOAD_BASE, %rsi
+    mov 32(%rsi), %rbx              # Get program header offset
+    add %rsi, %rbx                  # Add base of ELF
+    push %rsi                       # Save base
+    mov 8(%rbx), %rdx               # Get program header data offset from phdr
+    add %rsi, %rdx
+    mov %rdx, %rsi                  # So we can use it rep movsb
+    mov 16(%rbx), %rcx              # Get section file size
+    mov $NBLOAD_NEXBOOT_BASE, %rdi  # Get nexboot base address
+    rep movsb                       # Copy out
+    # Get difference between memory and file size, and zero that out
+    mov 40(%rbx), %rdx              # Get memory size
+    mov 32(%rbx), %rcx              # Get file size
+    sub %rcx, %rdx                  # Subtract
+    mov $NBLOAD_NEXBOOT_BASE, %rdi  # Get nexboot base in EDI
+    add %rcx, %rdi                  # Move to area to be zeroed
+    mov %rdx, %rcx                  # Set loop counter to memory-file difference
+    mov $0, %al                     # Store a zero
+    rep stosb                       # Store it
+    # Get entry point
+    pop %rsi
+    mov 24(%rsi), %rbx
+    mov $0, %rbp                    # Set up zero frame
+    cli
+    hlt
+    jmp *%rbx                       # Jump to it
+end:
+#endif

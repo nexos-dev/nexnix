@@ -209,7 +209,7 @@ then
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="bochs"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
-        [ -z "$EMU_CPU" ] && EMU_CPU="athlon"
+        [ -z "$EMU_CPU" ] && EMU_CPU="Opteron_G1-v1"
         [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="pc"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
@@ -232,7 +232,7 @@ then
             [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="bochs"
             [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
             [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="uefi"
-            [ -z "$EMU_CPU" ] && EMU_CPU="max"
+            [ -z "$EMU_CPU" ] && EMU_CPU="Icelake-Server-v5"
             [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="q35"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
@@ -475,7 +475,7 @@ then
     # Set the sound device
     if [ "$EMU_SOUNDDEV" = "hda" ]
     then
-        QEMUARGS="${QEMUARGS} -device ich9-intel-hda -audiodev id=alsa,driver=alsa -device hda-duplex,audiodev=als"
+        QEMUARGS="${QEMUARGS} -device ich9-intel-hda -audiodev id=alsa,driver=alsa -device hda-duplex,audiodev=alsa"
     elif [ "$EMU_SOUNDDEV" = "ac97" ]
     then
         QEMUARGS="${QEMUARGS} -device ac97,audiodev=alsa -audiodev id=alsa,driver=alsa"
@@ -567,7 +567,7 @@ then
         then
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
             [ -z "$EMU_CPU" ] && EMU_CPU="ryzen"
-            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
+            [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=1
         else
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="uhci"
             [ -z "$EMU_CPU" ] && EMU_CPU="athlon64_clawhammer"

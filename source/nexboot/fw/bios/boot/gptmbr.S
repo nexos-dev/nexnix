@@ -41,6 +41,7 @@
 
 mbrBase:
     jmp start
+    nop
 
 # Skip over BPB area, as some BIOSes may trash it
 .skip 87, 0

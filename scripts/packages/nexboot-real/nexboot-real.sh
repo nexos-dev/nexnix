@@ -27,4 +27,12 @@ then
     else
         pkg_confopts="$pkg_confopts -DNEXNIX_I386_PAE=OFF"
     fi
+elif [ "$NNARCH" = "x86_64" ]
+then
+    if [ "$NNISLA57" = "1" ]
+    then
+        pkg_confopts="$pkg_confopts -DNEXNIX_X86_64_LA57=ON"
+    else
+        pkg_confopts="$pkg_confopts -DNEXNIX_X86_64_LA57=OFF"
+    fi
 fi

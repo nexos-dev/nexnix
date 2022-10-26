@@ -30,6 +30,8 @@ nexnix_add_parameter(NEXNIX_LOGLEVEL
                      2)
 if(NEXNIX_ARCH STREQUAL "i386")
     nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
+elseif(NEXNIX_ARCH STREQUAL "x86_64")
+    nexnix_add_option(NEXNIX_X86_64_LA57 "Specifies if 5-level paging should be used" OFF)
 endif()
 
 # Include main include directory

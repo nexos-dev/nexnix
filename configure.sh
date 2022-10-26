@@ -315,12 +315,16 @@ commonarch=
 # i386 options
 ispae=
 
+# x86_64 options
+isla57=
+
 # Target list
-targets="i386-pc"
+targets="i386-pc x86_64-pc"
 # Valid image types
 imagetypes="mbr gpt iso9660"
 # Target configuration list
 confs_i386_pc="isa pnp mp acpi-up acpi"
+confs_x86_64_pc="acpi acpi-up"
 
 # Loop through every argument
 while [ $# -gt 0 ]
@@ -390,12 +394,18 @@ System configuration options:
                         Specifies if graphical output mode
                         Can be "gui", "text", or "headless"
 Options for target i386:
-These options should be passed after -target option
+These options should be passed after the -target option
   -pae val
                         Specifies if PAE should be used by OS
                         Value can be "on" or "off", defaults to "on"
                         for configurations acpi and acpi-up, "off"
                         for everything else
+Options for target x86_64:
+These options should be passed after the -target option
+  -la57 val
+                        Specifies if LA57 (aka 5-level paging) should be used
+                        on supporting hardware. Value can be "on" or "off"
+                        Defaults to "off"
 HELPEND
         exit 0
         ;;
@@ -407,6 +417,11 @@ HELPEND
         echo $confs_i386_pc
         echo "Default configuration for i386-pc is: acpi"
         echo "Default image type for i386-pc is: mbr"
+        echo ""
+        echo "Valid configurations for x86_64-pc:"
+        echo $confs_x86_64_pc
+        echo "Default configuration for x86_64-pc is: acpi"
+        echo "Default image type for x86_64-pc is: gpt"
         exit 0
         ;;
     -debug)
@@ -609,6 +624,35 @@ HELPEND
         then
             panic "invalid PAE mode specified" $0
         fi
+        if [ "$ispae" = "on" ]
+        then
+            ispae=1
+        else
+            ispae=0
+        fi
+        shift 2
+        ;;
+    -la57)
+        isla57=$(getoptarg "$2" "$1")
+        valvalid=0
+        for val in on off
+        do
+            if [ "$val" = "$isla57" ]
+            then
+                valvalid=1
+                break
+            fi
+        done
+        if [ $valvalid -eq 0 ]
+        then
+            panic "invalid LA57 mode specified" $0
+        fi
+        if [ "$isla57" = "on" ]
+        then
+            isla57=1
+        else
+            isla57=0
+        fi
         shift 2
         ;;
     *)
@@ -768,17 +812,6 @@ Run $0 -l to see supported targets"
             fi
         fi
 
-        # Validate options
-        if [ ! -z "$ispae" ]
-        then
-            if [ "$ispae" = "on" ]
-            then
-                ispae=1
-            else
-                ispae=0
-            fi
-        fi
-
         # Set the parameters of this configuration
         if [ "$tarconf" = "acpi" ] || [ "$tarconf" = "mp" ]
         then
@@ -817,6 +850,41 @@ Run $0 -l to see supported targets"
                 [ -z "$ispae" ] && ispae=0
             fi
             targetismp=0
+        fi
+    elif [ "$target" = "x86_64-pc" ]
+    then
+        commonarch="x86"
+        if [ -z "$tarconf" ]
+        then
+            tarconf="acpi"
+        else
+            conffound=0
+            for tconf in $confs_x86_64_pc
+            do
+                if [ "$tconf" = "$tarconf" ]
+                then
+                    conffound=1
+                    break
+                fi
+            done
+            if [ $conffound -eq 0 ]
+            then
+                panic "configuration \"$tarconf\" invalid for target \"$target\"" $0
+            fi
+        fi
+        # Ensure environment is valid
+        if [ "$imgbootmode" = "none" ]
+        then
+            panic "boot mode \"none\" not valid for x86_64-pc configuration $tarconf"
+        fi
+        [ -z "$imagetype" ] && imagetype="gpt"
+        [ -z "$imgbootmode" ] && imgbootmode="hybrid"
+        [ -z "$imgbootemu" ] && imgbootemu="noemu"
+        [ -z "$fwtype" ] && fwtype="hybrid"
+        [ -z "$isla57" ] && isla57=0
+        if [ "$tarconf" = "acpi" ]
+        then
+            targetismp=1
         fi
     fi
     # Setup build configuration name
@@ -890,6 +958,9 @@ Run $0 -l to see supported targets"
         if [ "$arch" = "i386" ]
         then
             echo "export NNISPAE=$ispae" >> nexnix-conf.sh
+        elif [ "$arch" = "x86_64" ]
+        then
+            echo "export NNISLA57=$isla57" >> nexnix-conf.sh
         fi
         # Link nnbuild.conf to configuration directory
         ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
