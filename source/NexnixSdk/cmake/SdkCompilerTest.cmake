@@ -1,6 +1,6 @@
 #[[
     SdkCompilerTest.cmake - contains standard compiler tests
-    Copyright 2022 The NexNix Project
+    Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

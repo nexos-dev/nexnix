@@ -1,6 +1,6 @@
 #!/bin/sh
 # hostbootstrap.sh - bootstraps host tools
-# Copyright 2022 The NexNix Project
+# Copyright 2022, 2023 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -620,6 +620,24 @@ then
         echo "}" >> $NNCONFROOT/nnpkg.conf
         nnpkg init -c $NNCONFROOT/nnpkg.conf
     fi
+elif [ "$component" = "efi-headers" ]
+then
+    echo "Downloading EFI headers..."
+    # Check if we need to even consider building them
+    if [ "$NNFIRMWARE" != "efi" ]
+    then
+        # Nothing we need to do
+        exit 0
+    fi
+    # Check if they've been built already
+    if [ ! -d $NNDESTDIR/Programs/Index/include/nexboot/efi ] || [ "$rebulid" = "1" ]
+    then
+        mkdir -p $NNDESTDIR/Programs/Index/include/nexboot/efi
+        # Download GNU-EFI headers
+        git clone https://github.com/vathpela/gnu-efi.git $NNEXTSOURCEROOT/tools/gnu-efi
+        # Copy the headers
+        cp -r $NNEXTSOURCEROOT/tools/gnu-efi/inc $NNDESTDIR/Programs/Index/include/nexboot/efi
+    fi
 elif [ "$component" = "nnimage-conf" ]
 then
     echo "Generating nnimage configuration..."
@@ -628,21 +646,31 @@ then
     # Special cases for boot partition: on no emulation disks, there is no "boot partition"
     # per se. We also add nexboot to the root directory of the disk
     # On emulated disks, /System/Core/Boot is the root of the boot partition
-    if [ "$NNIMGBOOTEMU" = "noemu" ]
+    if [ "$NNIMGBOOTMODE" = "bios" ] || [ "$NNIMGBOOTMODE" = "isofloppy" ]
     then
-        echo "System" >> $NNCONFROOT/nnimage-list.lst
-        echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
-        mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/nexboot
-    elif [ "$NIMGBOOTEMU" = "hdd" ] || [ "$NNIMGBOOTEMU" = "fdd" ]
+        if [ "$NNIMGBOOTEMU" = "noemu" ]
+        then
+            echo "System" >> $NNCONFROOT/nnimage-list.lst
+            echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
+            mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/nexboot
+        elif [ "$NIMGBOOTEMU" = "hdd" ] || [ "$NNIMGBOOTEMU" = "fdd" ]
+        then
+            echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
+            mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
+        elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
+        then
+            echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
+            mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
+        else
+            echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
+        fi
+    elif [ "$NNIMGBOOTMODE" = "efi" ]
     then
-        echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
-        mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
-    elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
-    then
-        echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
-        mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
-    else
-        echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
+        echo "/System/Core/Boot" >> $NNCONFROOT/nnimage-list.lst
+        # Copy out nexboot.efi to appropiate location so EFI firmware can boot
+        mkdir -p $NNDESTDIR/System/Core/Boot/EFI/BOOT
+        cp $NNDESTDIR/System/Core/Boot/nexboot.efi \
+            $NNDESTDIR/System/Core/Boot/EFI/BOOT/BOOT${NNEFIARCH}.efi
     fi
     echo "usr" >> $NNCONFROOT/nnimage-list.lst
     echo "bin" >> $NNCONFROOT/nnimage-list.lst
@@ -710,7 +738,13 @@ then
         echo "    start: 1;" >> nnimage.conf
         echo "    size: 128;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
-        echo "    prefix: '/System/Core';" >> nnimage.conf
+        if [ "$NNIMGBOOTMODE" = "bios" ]
+        then
+            echo "    prefix: '/System/Core';" >> nnimage.conf
+        elif [ "$NNIMGBOOTMODE" = "efi" ]
+        then
+            echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
+        fi
         echo "    isBoot: true;" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
         if [ "$NNIMGBOOTMODE" != "efi" ]
@@ -760,16 +794,19 @@ then
             echo "    format: fat12;" >> nnimage.conf
             echo "    isBoot: true;" >> nnimage.conf
             echo "    image: nnboot;" >> nnimage.conf
-        elif [ "$NNIMGBOOTEMU" = "noemu" ]
+        elif [ "$NNIMGBOOTMODE" = "bios" ]
         then
-            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/isombr';" >> nnimage.conf
-        elif [ "$NNIMGBOOTEMU" = "hdd" ]
-        then
-            echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdmbr';" >> nnimage.conf
+            if [ "$NNIMGBOOTEMU" = "noemu" ]
+            then
+                echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/isombr';" >> nnimage.conf
+            elif [ "$NNIMGBOOTEMU" = "hdd" ]
+            then
+                echo "    mbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdmbr';" >> nnimage.conf
+            fi
         fi
         echo "}" >> nnimage.conf
         # Create partitions
-        if [ "$NNIMGBOOTMODE" = "bios" ] || [ "$NNIMGBOOTMODE" = "hybrid" ]
+        if [ "$NNIMGBOOTMODE" = "bios" ]
         then
             if [ "$NNIMGBOOTEMU" = "hdd" ]
             then
@@ -803,18 +840,7 @@ then
             echo "    format: fat32;" >> nnimage.conf
             echo "    size: 131072;" >> nnimage.conf
             echo "    isBoot: true;" >> nnimage.conf
-            echo "    prefix: '/System/Core';" >> nnimage.conf
-            echo "    image: nnimg;" >> nnimage.conf
-            echo "}" >> nnimage.conf
-        fi
-        if [ "$NNIMGBOOTMODE" = "hybrid" ]
-        then
-            echo "partition efiboot" >> nnimage.conf
-            echo "{" >> nnimage.conf
-            echo "    format: fat32;" >> nnimage.conf
-            echo "    size: 131072;" >> nnimage.conf
-            echo "    isAltBoot: true;" >> nnimage.conf
-            echo "    prefix: '/System/Core';" >> nnimage.conf
+            echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
             echo "    image: nnimg;" >> nnimage.conf
             echo "}" >> nnimage.conf
         fi

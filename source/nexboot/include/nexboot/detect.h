@@ -1,6 +1,6 @@
 /*
     detect.h - contains hardware detection result structure
-    Copyright 2022 The NexNix Project
+    Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -38,13 +38,13 @@ typedef struct _systabs
     uint32_t tabs[32];    // Detected tables
 } __attribute__ ((packed)) DetectSysTabs_t;
 
-#define NBLOAD_TABLE_ACPI 0
-#define NBLOAD_TABLE_PNP 1
-#define NBLOAD_TABLE_APM 2
-#define NBLOAD_TABLE_MPS 3
-#define NBLOAD_TABLE_SMBIOS 4
+#define NBLOAD_TABLE_ACPI    0
+#define NBLOAD_TABLE_PNP     1
+#define NBLOAD_TABLE_APM     2
+#define NBLOAD_TABLE_MPS     3
+#define NBLOAD_TABLE_SMBIOS  4
 #define NBLOAD_TABLE_SMBIOS3 5
-#define NBLOAD_TABLE_BIOS32 6
+#define NBLOAD_TABLE_BIOS32  6
 
 #endif
 
@@ -52,7 +52,8 @@ typedef struct _systabs
 #define NBLOAD_CPU_FAMILY_X86 1
 
 // CPU archutectures
-#define NBLOAD_CPU_ARCH_I386 1
+#define NBLOAD_CPU_ARCH_I386   1
+#define NBLOAD_CPU_ARCH_X86_64 2
 
 // CPU versions
 #define NBLOAD_CPU_VERSION_386   1

@@ -1,6 +1,6 @@
 /*
     image.c - contains functions to build images
-    Copyright 2022 The NexNix Project
+    Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -399,9 +399,9 @@ bool writeIso (Image_t* img)
         }
     }
     // Prepare argv
-    static const char* argv[10];
+    static const char* argv[9];
     const char* empty = "";
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 9; ++i)
         argv[i] = empty;
     argv[0] = script;
     argv[1] = img->file;
@@ -415,9 +415,7 @@ bool writeIso (Image_t* img)
     argv[6] = (img->isUniversal) ? "true" : "false";
     if (img->mbrFile)
         argv[7] = img->mbrFile + strlen (hostPrefix);
-    if (altBootImg)
-        argv[8] = basename (strdup (altBootImg));
-    argv[9] = NULL;
+    argv[8] = NULL;
     // Run it
     if (!runScript (scriptPath, argv))
         return false;

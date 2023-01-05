@@ -1,6 +1,6 @@
 #[[
     CMakeLists.txt - contains build system for nexboot
-    Copyright 2022 The NexNix Project
+    Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ endif()
 
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
+include(GNUInstallDirs)
 
 nexnix_add_parameter(NEXNIX_LOGLEVEL 
                      "Value that defines what should and shouldn't be logged"
@@ -34,8 +35,20 @@ elseif(NEXNIX_ARCH STREQUAL "x86_64")
     nexnix_add_option(NEXNIX_X86_64_LA57 "Specifies if 5-level paging should be used" OFF)
 endif()
 
+# Add definition based off firmware type
+if(${NEXBOOT_FW} STREQUAL "bios")
+    add_compile_definitions(NEXNIX_FW_BIOS)
+elseif(${NEXBOOT_FW} STREQUAL "efi")
+    add_compile_definitions(NEXNIX_FW_EFI)
+endif()
+
 # Include main include directory
 include_directories(${CMAKE_SOURCE_DIR}/include)
+
+# Install header files
+# HACK ALERT: we install directly to /usr/include. There probably is a better way of doing this,
+# but I don't know it
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
 # Create object library of portable nexboot sources
 list(APPEND NEXBOOT_SOURCES src/main.c)

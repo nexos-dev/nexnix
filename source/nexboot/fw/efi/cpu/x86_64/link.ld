@@ -1,5 +1,5 @@
-#[[
-    ArchToMacro.cmake - adds compiler definitions for architecture variables
+/*
+    link.ld - contains linker script for nexboot EFI
     Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +14,41 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-list(APPEND __nexnixVars NEXNIX_ARCH NEXNIX_BOARD NEXNIX_TARGETCONF 
-                          NEXNIX_BASEARCH NEXNIX_TOOLCHAIN)
+OUTPUT_FORMAT(elf64-x86_64)
+ENTRY(NbEfiEntry)
 
-# Expand to a defitition
-foreach(var ${__nexnixVars})
-    set(val ${${var}})      # Get value of variable
-    string(TOUPPER ${val} upperVal) # Convert to uppercase
-    string(REPLACE "-" "_" finalVal ${upperVal})
-    add_compile_definitions(${var}_${finalVal})   # Add to definitions
-endforeach()
+SECTIONS
+{
+    . = 4096;
+    .text : ALIGN(4K) {
+        *(.text*)
+    }
+
+    .data : ALIGN(4K) {
+        *(.data*)
+    }
+
+    .rodata : ALIGN(4K) {
+        *(.rodata*)
+    }
+
+    .bss : ALIGN(4K) {
+        *(.bss*)
+        *(COMMON)
+    }
+
+    /DISCARD/ : {
+        *(.comment)
+        *(.gnu*)
+        *(.note*)
+        *(.interp)
+        *(.dynsym)
+        *(.dynstr)
+        *(.dynamic)
+        *(.eh_frame*)
+        *(.comment)
+        *(.debug*)
+    }
+}

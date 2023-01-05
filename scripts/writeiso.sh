@@ -1,6 +1,6 @@
 #!/bin/sh
 # writeiso.sh - builds an ISO image with xorriso
-# Copyright 2022 The NexNix Project
+# Copyright 2022, 2023 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,21 +22,18 @@ bootmode=$4
 bootemu=$5
 isuniversal=$6
 hybridmbr=$7
-efibootimg=$8
-
-if [ "$bootemu" = "noemu" ]
-then
-    bootimg=$hybridmbr
-fi
 
 # Begin constructing command line
 xorrisoargs="-as mkisofs -graft-points -iso-level 1 -path-list $listfile"
 if [ "$bootmode" = "noboot" ]
 then
     : ;
-fi
-if [ "$bootmode" = "bios" ] || [ "$bootmode" = "hybrid" ]
+elif [ "$bootmode" = "bios" ]
 then
+    if [ "$bootemu" = "noemu" ]
+    then
+        bootimg=$hybridmbr
+    fi
     xorrisoargs="$xorrisoargs -c boot.cat -b $bootimg"
     if [ "$bootemu" = "hdd" ]
     then
@@ -53,10 +50,9 @@ then
     then
         xorrisoargs="$xorrisoargs -eltorito-alt-boot"
     fi
-fi
-if [ "$bootmode" = "efi" ] || [ "$bootmode" = "hybrid" ]
+elif [ "$bootmode" = "efi" ]
 then
-    xorrisoargs="$xorrisoargs -e $efibootimg -no-emul-boot"
+    xorrisoargs="$xorrisoargs -e $bootimg -no-emul-boot"
     if [ "$isuniversal" = "true" ]
     then
         xorrisoargs="$xorrisoargs -isohybrid-gpt-basdat"

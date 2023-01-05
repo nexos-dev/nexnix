@@ -1,6 +1,6 @@
 #!/bin/sh
 # run.sh - wraps over emulators
-# Copyright 2021, 2022 The NexNix Project
+# Copyright 2021, 2022, 2023 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -530,8 +530,8 @@ then
             EFIARCH=${NNARCH}-
         fi
         # Add it to the command line
-        QEMUARGS="${QEMUARGS} -drive if=pflash,file=$NNBUILDROOT/tools/firmware/EFIFW-$EFIARCH$NNBOARD.fd,format=raw,unit=0 \
-                    -drive if=pflash,file=$NNBUILDROOT/tools/firmware/EFIFW_VARS-$EFIARCH$NNBOARD.fd,format=raw,unit=1"
+        QEMUARGS="${QEMUARGS} -drive if=pflash,file=$NNBUILDROOT/tools/firmware/OVMF_CODE_$EFIARCH.fd,format=raw,unit=0 \
+                    -drive if=pflash,file=$NNBUILDROOT/tools/firmware/OVMF_VARS_$EFIARCH.fd,format=raw,unit=1"
     fi
 
     # Set the boot device

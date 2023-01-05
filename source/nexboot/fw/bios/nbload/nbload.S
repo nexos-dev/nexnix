@@ -1,5 +1,5 @@
 # nbload.S - contains nbload logic
-# Copyright 2022 The NexNix Project
+# Copyright 2022, 2023 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License")#
 # you may not use this file except in compliance with the License.
@@ -73,7 +73,13 @@ NbStartDetect:
     movw $NBLOAD_LOG_SIZE, 8(%di)               # Set log size
     # CPU detection
     movb $NBLOAD_CPU_FAMILY_X86, 12(%di)        # Set CPU family
+#ifdef NEXNIX_ARCH_I386
     movb $NBLOAD_CPU_ARCH_I386, 13(%di)         # Set CPU architecture
+#elif defined NEXNIX_ARCH_X86_64
+    movb $NBLOAD_CPU_ARCH_X86_64, 13(%di)       # Set CPU architecture
+#else
+#error Unsupported BIOS architecture
+#endif
     # Detect wheter we are on a CPU with CPUID, or if we are on a 486, or a 386
     # Intel says that we must check if EFLAGS.ID is modifiable to determine
     pushfl                          # Get EFLAGS

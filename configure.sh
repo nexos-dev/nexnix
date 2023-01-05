@@ -1,6 +1,6 @@
 #!/bin/sh
 # configure.sh - configure NexNix to build
-# Copyright 2021, 2022 The NexNix Project
+# Copyright 2021, 2022, 2023 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -306,7 +306,7 @@ fwtype=
 
 # System configuration options
 loglevel=4
-graphicsmode=text
+graphicsmode=gui
 
 # Target specific features
 targetismp=
@@ -357,9 +357,6 @@ Build system configuration options:
                         Specfies directory to output build files to
   -prefix prefix
                         Specifies prefix directory
-  -fwtype type
-                        Specifies firmware type
-                        Can be "bios" or "efi"
   -conf conf
                         Specifies the configuration for the target
   -ninja
@@ -379,9 +376,9 @@ Image output options:
   -imgbootmode bootmode
                         Specifies the boot mode to use on the image
                         Valid arguments include "noboot", "isofloppy",
-                        "bios", "efi", and "hybrid"
+                        "bios", and "efi"
   -imgbootemu bootemu
-                        Specifies boot emulation on iso9660 bios or hybrid images
+                        Specifies boot emulation on iso9660 bios images
                         Valid arguments include "hdd", "fdd", or "noemu"
 System configuration options:
   -debug
@@ -474,7 +471,7 @@ HELPEND
         imgbootmode=$(getoptarg "$2" "$1")
         shift 2
         bootmodefound=0
-        for bootmode in isofloppy bios noboot efi hybrid
+        for bootmode in isofloppy bios noboot efi
         do
             if [ "$imgbootmode" = "$bootmode" ]
             then
@@ -788,11 +785,22 @@ do
 Run $0 -l to see supported targets"
     fi
     echo "$target"
-    
+
+    # Check the boot mode
+    if [ "$imgbootmode" = "isofloppy" ] || [ "$imgbootmode" = "bios" ]
+    then
+        fwtype="bios"
+    elif [ "$imgbootmode" = "noboot" ]
+    then
+        fwtype=
+    else
+        fwtype=$imgbootmode
+    fi
     # Validate the target configuration
     if [ "$target" = "i386-pc" ]
     then
         commonarch="x86"
+        efiarch="IA32"
         if [ -z "$tarconf" ]
         then
             tarconf="acpi"
@@ -854,6 +862,7 @@ Run $0 -l to see supported targets"
     elif [ "$target" = "x86_64-pc" ]
     then
         commonarch="x86"
+        efiarch="X64"
         if [ -z "$tarconf" ]
         then
             tarconf="acpi"
@@ -878,9 +887,9 @@ Run $0 -l to see supported targets"
             panic "boot mode \"none\" not valid for x86_64-pc configuration $tarconf"
         fi
         [ -z "$imagetype" ] && imagetype="gpt"
-        [ -z "$imgbootmode" ] && imgbootmode="hybrid"
+        [ -z "$imgbootmode" ] && imgbootmode="efi"
         [ -z "$imgbootemu" ] && imgbootemu="noemu"
-        [ -z "$fwtype" ] && fwtype="hybrid"
+        [ -z "$fwtype" ] && fwtype="efi"
         [ -z "$isla57" ] && isla57=0
         if [ "$tarconf" = "acpi" ]
         then
@@ -955,6 +964,7 @@ Run $0 -l to see supported targets"
         echo "export NNBOOTIMG=\"$output/conf/$target/$conf/nnboot.img\"" >> nexnix-conf.sh
         echo "export NNALTBOOTIMG=\"$output/conf/$target/$conf/nnboot2.img\"" >> nexnix-conf.sh
         echo "export NNTARGETCONF=$tarconf" >> nexnix-conf.sh
+        echo "export NNEFIARCH=$efiarch" >> nexnix-conf.sh
         if [ "$arch" = "i386" ]
         then
             echo "export NNISPAE=$ispae" >> nexnix-conf.sh
