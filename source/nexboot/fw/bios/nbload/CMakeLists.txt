@@ -15,16 +15,9 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
+cmake_minimum_required(VERSION 3.7)
 
-add_executable(nbload nbload.S)
-# Ensure code knows toolchain being used
-if(${NEXNIX_TOOLCHAIN} STREQUAL "gnu")
-    target_compile_definitions(nbload PUBLIC TOOLCHAIN_GNU)
-elseif(${NEXNIX_TOOLCHAIN} STREQUAL "llvm")
-    target_compile_definitions(nbload PUBLIC TOOLCHAIN_LLVM)
-endif()
-
-target_include_directories(nbload PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/boot)
-target_link_options(nbload PUBLIC -T ${CMAKE_CURRENT_SOURCE_DIR}/link.ld
-                    -Wl,--oformat,binary -z notext)
+# We use add_boot_record, even though nbload technically isn't a boot record
+get_property(defines GLOBAL PROPERTY NEXNIX_ARCH_MACROS)
+add_boot_record(nbload ${CMAKE_CURRENT_SOURCE_DIR}/nbload.asm
+                       ${CMAKE_CURRENT_BINARY_DIR}/nbload "${defines}")

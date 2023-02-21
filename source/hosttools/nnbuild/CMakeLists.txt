@@ -15,7 +15,7 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.00)
+cmake_minimum_required(VERSION 3.7)
 project(nnbuild VERSION 0.0.1)
 enable_language(C)
 

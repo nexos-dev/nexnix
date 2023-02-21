@@ -15,7 +15,7 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.7)
 
 # Build firmware-specific targets
 
@@ -32,14 +32,17 @@ endif()
 include(boot/bootrec.cmake)
 
 # Add boot records
-add_boot_record(hdmbr boot/hdmbr.S TRUE)
-add_boot_record(gptmbr boot/gptmbr.S TRUE)
-add_boot_record(fdmbr boot/fdmbr.S FALSE)
-add_boot_record(hdvbr boot/hdvbr.S FALSE)
-add_boot_record(isombr boot/isombr.S FALSE)
-
-# Let floppy MBR know that it's the floppy MBR
-target_compile_definitions(fdmbr PRIVATE IS_FLOPPY)
+add_boot_record(hdmbr ${CMAKE_CURRENT_SOURCE_DIR}/boot/hdmbr.asm
+                      ${CMAKE_CURRENT_BINARY_DIR}/hdmbr "-DIS_NOFLOPPY")
+add_boot_record(gptmbr ${CMAKE_CURRENT_SOURCE_DIR}/boot/gptmbr.asm 
+                       ${CMAKE_CURRENT_BINARY_DIR}/gptmbr "-DIS_NOFLOPPY")
+add_boot_record(fdmbr ${CMAKE_CURRENT_SOURCE_DIR}/boot/fdmbr.asm
+                      ${CMAKE_CURRENT_BINARY_DIR}/fdmbr
+                      "")
+add_boot_record(hdvbr ${CMAKE_CURRENT_SOURCE_DIR}/boot/hdvbr.asm 
+                      ${CMAKE_CURRENT_BINARY_DIR}/hdvbr "-DIS_NOFLOPPY")
+add_boot_record(isombr ${CMAKE_CURRENT_SOURCE_DIR}/boot/isombr.asm 
+                      ${CMAKE_CURRENT_BINARY_DIR}/isombr "-DIS_NOFLOPPY")
 
 # Add nbload
 add_subdirectory(nbload)
@@ -53,9 +56,11 @@ target_link_libraries(nexboot-bios-1 PRIVATE nexboot)
 
 # Add a custom command to concatenate nexboot-bios and nbload
 set(NEXBOOT_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nexboot")
+get_target_property(NBLOAD_OUTPUT nbload OUTPUT)
+message(${NBLOAD_OUTPUT})
 add_custom_command(OUTPUT ${NEXBOOT_OUTPUT}
-                   COMMAND cat $<TARGET_FILE:nbload> $<TARGET_FILE:nexboot-bios-1> >
-                   ${NEXBOOT_OUTPUT} DEPENDS nbload nexboot-bios-1)
+                   COMMAND cat ${NBLOAD_OUTPUT} $<TARGET_FILE:nexboot-bios-1> >
+                   ${NEXBOOT_OUTPUT} DEPENDS ${NBLOAD_OUTPUT} nexboot-bios-1)
 add_custom_target(nexboot-bios ALL DEPENDS ${NEXBOOT_OUTPUT})
 # Install to root of boot partition
 install(FILES ${NEXBOOT_OUTPUT} DESTINATION ..)

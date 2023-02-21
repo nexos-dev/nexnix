@@ -25,4 +25,5 @@ foreach(var ${__nexnixVars})
     string(TOUPPER ${val} upperVal) # Convert to uppercase
     string(REPLACE "-" "_" finalVal ${upperVal})
     add_compile_definitions(${var}_${finalVal})   # Add to definitions
+    set_property(GLOBAL APPEND PROPERTY NEXNIX_ARCH_MACROS -D${var}_${finalVal})
 endforeach()

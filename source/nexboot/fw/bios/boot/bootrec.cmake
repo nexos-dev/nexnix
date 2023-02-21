@@ -15,20 +15,16 @@
     limitations under the License.
 ]]
 
-function(add_boot_record __target __source __isStage1)
-    add_executable(${__target} ${__source})
-    # Add all link options
-    if(${__isStage1})
-        set(__link_script "${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLinkStage1.ld")
-    else()
-        set(__link_script "${CMAKE_CURRENT_SOURCE_DIR}/boot/bootrecLinkStage2.ld")
-    endif()
-    # Ensure code knows toolchain being used
-    if(${NEXNIX_TOOLCHAIN} STREQUAL "gnu")
-        target_compile_definitions(${__target} PUBLIC TOOLCHAIN_GNU)
-    endif()
-    target_link_options(${__target} PUBLIC -T ${__link_script} -Wl,--oformat,binary -z notext)
-    target_include_directories(${__target} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/boot)
-    # Install it
-    install(TARGETS ${__target} DESTINATION bootrec)
+function(add_boot_record __target __source __output __flags)
+    add_custom_command(OUTPUT ${__output}
+                       COMMAND nasm -f bin ${__source} -o ${__output}
+                               -I ${CMAKE_SOURCE_DIR}/fw/bios/include/boot
+                               -I ${CMAKE_SYSROOT}/usr/include ${__flags}
+                               -D NEXNIX_LOGLEVEL=${NEXNIX_LOGLEVEL}
+                               DEPENDS ${__source})
+    set_source_files_properties(${__output} PROPERTIES GENERATED TRUE)
+    add_custom_target(${__target} ALL DEPENDS ${__output})
+    set_target_properties(${__target} PROPERTIES OUTPUT ${__output})
+    message(${__output})
+    install(FILES ${__output} DESTINATION ${CMAKE_INSTALL_PREFIX}/bootrec)
 endfunction()

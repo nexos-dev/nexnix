@@ -14,4 +14,5 @@
 # limitations under the License.
 
 # Include every package NexNix consists of
+include "$NNPKGROOT/libk/libk.conf"
 include "$NNPKGROOT/nexboot-real/nexboot.conf"

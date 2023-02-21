@@ -344,6 +344,33 @@ then
             checkerr $? "libcloog test suite failed"
         fi
     fi
+elif [ "$component" = "nasm" ] && [ "$NNCOMMONARCH" = "x86" ]
+then
+    echo "Building nasm..."
+    # Download libgmp
+    yasmver=1.3.0
+    if [ ! -d $NNEXTSOURCEROOT/tools/yasm-${yasmver} ] || [ "$rebuild" = "1" ]
+    then
+        mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
+        wget http://www.tortall.net/projects/yasm/releases/yasm-${yasmver}.tar.gz
+        checkerr $? "unable to download nasm"
+        cd ..
+        echo "Extracting nasm..."
+        tar xf tarballs/yasm-${yasmver}.tar.gz
+    fi
+    if [ ! -f $NNBUILDROOT/tools/bin/nasm ] || [ "$rebuild" = "1" ]
+    then
+        cd $NNEXTSOURCEROOT/tools/yasm-${yasmver}
+        yasmroot="$NNEXTSOURCEROOT/tools/yasm-${yasmver}"
+        mkdir -p $NNBUILDROOT/build/tools/yasm-build
+        cd $NNBUILDROOT/build/tools/yasm-build
+        $yasmroot/configure --prefix=$NNBUILDROOT/tools
+        checkerr $? "unable to configure nasm"
+        make -j$jobcount
+        checkerr $? "unable to build nasm"
+        make install -j$jobcount
+        checkerr $? "unable to install nasm"
+    fi
 elif [ "$component" = "toolchain" ]
 then
     echo "Building toolchain..."
@@ -457,11 +484,15 @@ then
             else
                 cflags="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver"
             fi
+            if [ "$cmakegen" = "ninja" ]
+            then
+                genflags="-G Ninja"
+            fi
             cmake $buildbase/tools/llvm-project-${llvmver}.src/compiler-rt \
                     -DCMAKE_CXX_FLAGS="$cflags" \
                     -DCMAKE_C_FLAGS="$cflags" \
                     -DCOMPILER_RT_USE_LIBCXX=OFF -DCOMPILER_RT_BAREMETAL_BUILD=ON \
-                    -G Ninja -DCMAKE_AR=$NNTOOLCHAINPATH/llvm-ar \
+                    -DCMAKE_AR=$NNTOOLCHAINPATH/llvm-ar \
                     -DCMAKE_ASM_COMPILER_TARGET=$NNARCH-elf \
                     -DCMAKE_C_COMPILER=$NNTOOLCHAINPATH/clang \
                     -DCMAKE_C_COMPILER_TARGET=$NNARCH-elf \
@@ -472,10 +503,10 @@ then
                     -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
                     -DCOMPILER_RT_BUILD_XRAY=OFF -DLLVM_CONFIG_PATH=$NNTOOLCHAINPATH/llvm-config \
                     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-                    -DCOMPILER_RT_BUILD_ORC=ON \
+                    -DCOMPILER_RT_BUILD_ORC=OFF \
                     -DCMAKE_ASM_FLAGS="$cflags" \
                     -DCMAKE_INSTALL_PREFIX=$NNTOOLCHAINPATH/.. \
-                    -DCOMPILER_RT_OS_DIR=nexnix -DCOMPILER_RT_BUILTINS_ENABLE_PIC=OFF
+                    -DCOMPILER_RT_OS_DIR=nexnix -DCOMPILER_RT_BUILTINS_ENABLE_PIC=OFF $genflags
             checkerr $? "unable to build LLVM" $0
             $cmakegen -j $NNJOBCOUNT
             checkerr $? "unable to build LLVM"

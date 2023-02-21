@@ -1,6 +1,6 @@
-#[[
-    compiler-gnu.cmake - contains compiler flags setup
-    Copyright 2021, 2022, 2023 The NexNix Project
+/*
+    memset.c - contains memset function for libc
+    Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -13,12 +13,15 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-# Setup warning flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -Werror -Wno-error=pedantic")
-# Set optimization flags
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
-# Set general flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe")
+#include <stdint.h>
+#include <string.h>
+
+void* memset (void* str, int ch, size_t count)
+{
+    uint8_t* s = str;
+    for (int i = 0; i < count; ++i)
+        s[i] = (unsigned char) ch;
+    return str;
+}

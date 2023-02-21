@@ -15,7 +15,7 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.7)
 project(nnimage VERSION 0.0.1)
 enable_language(C)
 

@@ -30,9 +30,9 @@ set(CMAKE_AR ${NEXNIX_TOOLCHAINPREFIX}-ar)
 set(CMAKE_ASM_COMPILER ${NEXNIX_TOOLCHAINPREFIX}-gcc)
 set(CMAKE_OBJCOPY ${NEXNIX_TOOLCHAINPREFIX}-objcopy)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isystem ${CMAKE_SYSROOT}/usr/include")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${CMAKE_SYSROOT}/usr/include")
-set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -isystem ${CMAKE_SYSROOT}/usr/include")
+set(CMAKE_C_FLAGS_INIT "-isystem ${CMAKE_SYSROOT}/usr/include")
+set(CMAKE_CXX_FLAGS_INIT "-isystem ${CMAKE_SYSROOT}/usr/include")
+set(CMAKE_ASM_FLAGS_INIT "-isystem ${CMAKE_SYSROOT}/usr/include")
 
 set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
 

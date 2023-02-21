@@ -35,7 +35,14 @@ typedef struct _cpuDetect
 typedef struct _systabs
 {
     uint32_t detected;    // Bit mask of detected tables
+    // HACK: on BIOS, these fields are 32 bit. Else, they are the size of uintptr_t
+    // This is OK because system table only will realistically be in the first 4GB of
+    // memory on BIOS systems
+#ifdef NEXNIX_FW_BIOS
     uint32_t tabs[32];    // Detected tables
+#else
+    uintptr_t tabs[32];
+#endif
 } __attribute__ ((packed)) DetectSysTabs_t;
 
 #define NBLOAD_TABLE_ACPI    0

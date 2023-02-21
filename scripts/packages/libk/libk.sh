@@ -1,5 +1,5 @@
-# nexboot.conf - contains nexboot nnbuild info
-# Copyright 2022, 2023 The NexNix Project
+# libk.sh - contains libk buildpkg configuration
+# Copyright 2023 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package efi-headers
-{
-    build: '$NNSCRIPTROOT/hostbootstrap.sh efi-headers';
-}
-
-package nexboot-real
-{
-    usebuildpkg: true;
-    dependencies: efi-headers, libk;
-}
+pkg_name=libk
+pkg_iskernel=1
+pkg_buildsys=cmake
+pkg_prefix="/Programs/libc"
+pkg_confopts="-DLIBC_LIBK_ONLY=ON -DBUILD_SHARED_LIBS=OFF"
+pkg_sourcedir=$NNSOURCEROOT/libraries/libc

@@ -15,7 +15,7 @@
     limitations under the License.
 ]]
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.7)
 project(nexboot C ASM)
 
 if(NOT NEXBOOT_FW)
@@ -53,5 +53,6 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 # Create object library of portable nexboot sources
 list(APPEND NEXBOOT_SOURCES src/main.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
+target_link_libraries(nexboot PUBLIC -lk)
 
 add_subdirectory(fw/${NEXBOOT_FW})
