@@ -17,8 +17,8 @@
 
 if(NOT "${__flags_initialized}" STREQUAL "1")
     set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} -nostdlib -ffreestanding")
-    set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -ffreestanding -fno-stack-protector")
-    set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -ffreestanding -fno-stack-protector")
+    set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -ffreestanding -fno-stack-protector -mgeneral-regs-only")
+    set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -ffreestanding -fno-stack-protector -mgeneral-regs-only")
     set(CMAKE_ASM_FLAGS_INIT "${CMAKE_ASM_FLAGS_INIT} -ffreestanding")
     set(CMAKE_C_STANDARD 99)
     if("${NEXNIX_ARCH}" STREQUAL "x86_64")

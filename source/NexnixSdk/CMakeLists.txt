@@ -28,9 +28,6 @@ configure_package_config_file(${CMAKE_SOURCE_DIR}/cmake/NexNixSdkConfig.cmake.in
                               INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake
                               PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_DATADIR)
 
-write_basic_package_version_file(${CMAKE_BINARY_DIR}/NexNixSdkConfigVersion.cmake
-                                 COMPATIBILITY AnyNewerVersion)
-
 # Configure version header
 configure_file(${CMAKE_SOURCE_DIR}/include/version.h.in ${CMAKE_BINARY_DIR}/version.h)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS 
@@ -42,8 +39,6 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/cmake"
         FILES_MATCHING
         PATTERN "*.cmake")
 install(FILES ${CMAKE_BINARY_DIR}/NexNixSdkConfig.cmake 
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
-install(FILES ${CMAKE_BINARY_DIR}/NexNixSdkConfigVersion.cmake 
         DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/include"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/..

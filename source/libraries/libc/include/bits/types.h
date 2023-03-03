@@ -15,8 +15,7 @@
     limitations under the License.
 */
 
-#ifndef _BITS_TYPES_H
-#define _BITS_TYPES_H
+#include <bits/arch.h>
 
 #ifdef __NEED_NULL
 #undef NULL
@@ -31,8 +30,27 @@
 // Ensure size_t hasn't been already defined
 #ifndef __SIZET_DEFINED
 #define __SIZET_DEFINED
-typedef unsigned long int size_t;
+typedef _uaddr_t size_t;
 #endif
 #endif
 
+#ifdef __NEED_PTRDIFFT
+#ifndef __PTRDIFFT_DEFINED
+#define __PTRDIFFT_DEFINED
+typedef _saddr_t ptrdiff_t;
+#endif
+#endif
+
+#ifdef __NEED_MAXALIGN_T
+#ifndef __MAXALIGNT_DEFINED
+#define __MAXALIGNT_DEFINED
+typedef _uint64_t max_align_t;
+#endif
+#endif
+
+#ifdef __NEED_WCHART
+#ifndef __WCHART_DEFINED
+#define __WCHART_DEFINED
+typedef _uint16_t wchar_t;
+#endif
 #endif

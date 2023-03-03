@@ -1,0 +1,3 @@
+section .realmode
+
+incbin '@NEXBOOT_BIOSCALL_LOCATION@'

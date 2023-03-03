@@ -533,11 +533,11 @@ bool createImages (ListHead_t* images,
                     error ("NNBOOTIMG not set in environment");
                     goto nextImg;
                 }
-                size_t sz = 0;
+                size_t sz = getBootPart (img)->start;
                 if (img->bootEmu == IMG_BOOTEMU_FDD)
                     sz = getBootPart (img)->sz;
                 else
-                    sz = getBootPart (img)->sz + 1;
+                    sz += getBootPart (img)->sz + 10;
                 if (!createImageInternal (action, true, bootImg, img->mul, sz))
                     goto nextImg;
                 // Add to guestfs

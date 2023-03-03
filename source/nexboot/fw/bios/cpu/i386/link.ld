@@ -17,16 +17,22 @@
 */
 
 OUTPUT_FORMAT(elf32-i386)
+ENTRY(NbMain)
 
 NEXBOOT_LOADADDR = 0x50000;
 
 PHDRS
 {
+    realmode PT_LOAD;
     nexboot PT_LOAD;
 }
 
 SECTIONS
 {
+    . = 0x2000;
+    .realmode : {
+        *(.realmode)
+    } :realmode
     . = NEXBOOT_LOADADDR;
     .text : {
         *(.text*)

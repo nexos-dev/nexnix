@@ -606,7 +606,7 @@ then
 elif [ "$component" = "nexnix-sdk" ]
 then
     echo "Bootstraping NexNix SDK..."
-    nnsdk_builddir="$NNBUILDROOT/build/tools/nnsdk-build"
+    nnsdk_builddir="$NNOBJDIR/nexnix-sdk"
     mkdir -p $nnsdk_builddir/$cmakegen
     cd $nnsdk_builddir/$cmakegen
     cmake $NNSOURCEROOT/NexnixSdk \
@@ -858,7 +858,7 @@ then
                 echo "    size: 1440;" >> nnimage.conf
                 echo "    format: fat12;" >> nnimage.conf
                 echo "    isBoot: true;"  >> nnimage.conf
-                echo "    prefix: '/System/Core';" >> nnimage.conf
+                echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
                 echo "    image: nnimg;" >> nnimage.conf
                 echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/fdmbr';" >> nnimage.conf
                 echo "}" >> nnimage.conf

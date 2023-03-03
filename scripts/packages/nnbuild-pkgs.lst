@@ -14,5 +14,14 @@
 # limitations under the License.
 
 # Include every package NexNix consists of
+
+# Group base libraries
 include "$NNPKGROOT/libk/libk.conf"
+include "$NNPKGROOT/libnex/libnex.conf"
+
+group baselib
+{
+    packages: libnex, libk;
+}
+
 include "$NNPKGROOT/nexboot-real/nexboot.conf"

@@ -14,3 +14,26 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
+
+#include <nexboot/bios/bios.h>
+
+// Location of bioscall blob
+#define NEXBOOT_BIOSCALL_BLOB 0x2000
+
+// Calls NbBiosCall in binary blob
+void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out)
+{
+    // Create function pointer for bioscall
+    void (*bioscall) (uint32_t, NbBiosRegs_t*, NbBiosRegs_t*) =
+        (void*) NEXBOOT_BIOSCALL_BLOB;
+    bioscall (intNo, in, out);
+}
+
+// Print a character to the BIOS screen
+void NbFwEarlyPrint (char c)
+{
+    NbBiosRegs_t in = {0}, out = {0};
+    in.ah = 0x0E;
+    in.al = (uint8_t) c;
+    NbBiosCall (0x10, &in, &out);
+}

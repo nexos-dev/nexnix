@@ -19,5 +19,5 @@ cmake_minimum_required(VERSION 3.7)
 
 # We use add_boot_record, even though nbload technically isn't a boot record
 get_property(defines GLOBAL PROPERTY NEXNIX_ARCH_MACROS)
-add_boot_record(nbload ${CMAKE_CURRENT_SOURCE_DIR}/nbload.asm
+add_boot_record(nbload1 ${CMAKE_CURRENT_SOURCE_DIR}/nbload.asm
                        ${CMAKE_CURRENT_BINARY_DIR}/nbload "${defines}")

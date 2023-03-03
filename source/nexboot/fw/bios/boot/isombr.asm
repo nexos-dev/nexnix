@@ -15,6 +15,7 @@
 
 bits 16
 section .text
+org 0x7c00
 
 start:
     jmp 0:NbloadMain

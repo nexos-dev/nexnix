@@ -16,7 +16,7 @@
 ]]
 
 cmake_minimum_required(VERSION 3.7)
-project(nexboot C ASM)
+project(nexboot C ASM_NASM)
 
 if(NOT NEXBOOT_FW)
     message(FATAL_ERROR "firmware type not specified")
@@ -24,6 +24,7 @@ endif()
 
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
+include(SystemBuild/NexLibrary)
 include(GNUInstallDirs)
 
 nexnix_add_parameter(NEXNIX_LOGLEVEL 
@@ -51,8 +52,14 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
 # Create object library of portable nexboot sources
-list(APPEND NEXBOOT_SOURCES src/main.c)
+list(APPEND NEXBOOT_SOURCES src/main.c src/log.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
-target_link_libraries(nexboot PUBLIC -lk)
+
+# Find libk and libnex
+nexnix_find_library(k libk NEXBOOT_LK_LOCATION)
+nexnix_find_library(nex libnex NEXBOOT_LNEX_LOCATION)
+
+target_link_libraries(nexboot PUBLIC ${NEXBOOT_LK_LOCATION})
+add_dependencies(nexboot libk libnex)
 
 add_subdirectory(fw/${NEXBOOT_FW})

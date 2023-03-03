@@ -69,15 +69,7 @@ build()
 clean()
 {
     echo "Cleaning $pkg_name..."
-    if [ "$NNUSENINJA" = "1" ]
-    then
-        cmakegen=ninja
-    else
-        cmakegen=make
-    fi
-    cd $NNOBJDIR/${pkg_name}-build
-    $cmakegen -j $NNJOBCOUNT clean
-    checkerr $? "unable to clean $pkg_name"
+    rm -rf $NNOBJDIR/${pkg_name}-build
 }
 
 confhelp()

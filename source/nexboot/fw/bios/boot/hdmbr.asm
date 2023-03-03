@@ -62,7 +62,7 @@ HdMbrEntry:
     mov bp, sp
     ; Save DL
     push dx
-    sti
+    ;sti
     ; Find active partition
     mov si, HDMBR_PARTTAB_START
     mov cx, 4
@@ -115,7 +115,7 @@ HdMbrEntry:
     add dh, 1           ; Get HPC
     mov dl, dh          ; Make HPC low byte
     xor dh, dh          ; Clear high byte
-    push dx             ; Save HPC
+    push dx             ; Sav HPC
     ; Get LBA / SPT
     mov ax, [bp-4]        ; Place low 16 of LBA in AX
     mov dx, [bp-6]        ; Place upper 16 of LBA in DX
@@ -137,7 +137,7 @@ HdMbrEntry:
     mov dl, ch          ; Store cylinder low CH for BIOS
     and dh, 3           ; Clear top 6 bits. Cylinder high is in DH
     mov bx, word [bp-20]   ; Get sector
-    mov bl, cl          ; Stick sector in CL for BIOS
+    mov cl, bl          ; Stick sector in CL for BIOS
     shl dh, 6           ; Move cylinder high to top two bits of DH
     and dh, 0xC0
     or cl, dh           ; Stick cylinder high in CL
@@ -146,7 +146,7 @@ HdMbrEntry:
     mov dl, [bp-2]      ; Get drive number in DL
     mov bx, HDMBR_VBR_BASE    ; VBR base goes in BX
     xor si, si
-    mov si, es
+    mov es, si
     mov ah, 2           ; BIOS read sector
     mov al, 1           ; Sector count
     int 0x13            ; Read it in

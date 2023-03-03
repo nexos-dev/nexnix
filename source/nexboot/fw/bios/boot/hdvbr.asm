@@ -68,7 +68,7 @@ NbloadMain:
     ; First, set up a stack
     ; Segment registers have been set by the MBR to 0. I hope :)
     mov sp, NBLOAD_STACK_TOP
-    sti
+    ;sti
     call NbloadInitDisk         ; Initialize disk system
     ; Read in NBLOAD sector 2
     mov si, vbrSector

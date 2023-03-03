@@ -160,6 +160,14 @@ int buildPackage (package_t* package, char* action)
             return 0;
         curDepEntry = ListIterate (curDepEntry);
     }
+    // And dependent groups
+    ListEntry_t* curGroupEntry = ListFront (package->groupDeps);
+    while (curGroupEntry)
+    {
+        if (!buildGroup (ListEntryData (curGroupEntry), action))
+            return 0;
+        curGroupEntry = ListIterate (curGroupEntry);
+    }
     // Do the build, based on the action
     if (!strcmp (action, "download"))
     {

@@ -28,6 +28,7 @@ function(nexnix_add_option __name __help __default)
     # Pass to compiler if defined
     if(${${__name}})
         add_compile_definitions(${__name})
+        set_property(GLOBAL APPEND PROPERTY NEXNIX_ARCH_MACROS -D${__name})
     endif()
 endfunction()
 

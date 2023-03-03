@@ -591,7 +591,12 @@ then
         [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=1
         EMU_BUSTYPE="isa"
         EMU_USBTYPE=
-        [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
+        if [ "$NNISPAE" = "0" ]
+        then
+            [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
+        else
+            [ -z "$EMU_CPU" ] && EMU_CPU="p4_willamette"
+        fi
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=1
         [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0

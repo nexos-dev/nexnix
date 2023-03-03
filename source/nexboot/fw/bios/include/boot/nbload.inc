@@ -78,7 +78,6 @@ NbloadInitDisk:
 ; Reads a sector from disk
 ; Input: DX:AX = sector to read, ES:DI = buffer to read into
 NbloadReadSector:
-%ifdef IS_NOFLOPPY
     pusha
     ; Set BP to stack top at current moment
     ; This is neccesary for us to read local variables
@@ -89,6 +88,7 @@ NbloadReadSector:
     ; Save LBA low and high
     push ax                     ; Save sector low
     push dx                     ; Save sector high
+%ifdef IS_NOFLOPPY
     ; Attempt to read using LBA BIOS
     ; WARNING: We run extended read, and then if carry is set or AH contains 0x86
     ; or 0x80, we fall back to CHS
@@ -109,6 +109,7 @@ NbloadReadSector:
     cmp ah, 0x80
     je .chsBios
     jmp .done
+%endif
 .chsBios:
     ; Now we must convert it to CHS.
     ; This is quite complex, to start, obtain the BIOS'es geometry
@@ -127,7 +128,7 @@ NbloadReadSector:
     xor ch, ch          ; Clear CH
     push cx             ; Save SPT
     add dh, 1           ; Get HPC
-    mov dh, dl          ; Make HPC low byte
+    mov dl, dh          ; Make HPC low byte
     xor dh, dh          ; Clear high byte
     push dx             ; Save HPC
     ; Get LBA / SPT
@@ -146,8 +147,11 @@ NbloadReadSector:
     mov ax, [bp-14]
     push ax             ; Re-push it
     ; Call BIOS to read in sector now
+    mov cx, 3
+.diskRead:
+    push cx
     mov dx, [bp-16]
-    mov dl, ch          ; Store cylinder low CH for BIOS
+    mov ch, dl          ; Store cylinder low CH for BIOS
     and dh, 3           ; Clear top 6 bits. Cylinder high is in DH
     mov bx, [bp-20]     ; Get sector
     mov cl, bl          ; Stick sector in CL for BIOS
@@ -162,7 +166,10 @@ NbloadReadSector:
     mov ah, 2           ; BIOS read sector
     mov al, 1           ; Sector count
     int 0x13            ; Read it in
-    jc .diskError       ; Did an error occur?
+    jnc .done           ; Did an error occur?
+    pop cx
+    loop .diskRead
+    jmp .diskError
 .done:
     mov sp, bp          ; Restore stack pointer
     popa
@@ -171,83 +178,6 @@ NbloadReadSector:
     mov si, diskErrMsg
     call BootPrint
     jmp NbloadPanic
-%else
-    pusha
-    ; Set BP to stack top at current moment
-    ; This is neccesary for us to read local variables
-    mov bp, sp
-    mov cl, [driveNumber]           ; Get drive number
-    xor ch, ch                      ; Clear upper portion of DX
-    push cx                         ; Save it
-    ; Save LBA low and high
-    push ax                    ; Save sector low
-    push dx                    ; Save sector high
-    ; Now we must convert it to CHS.
-    ; This is quite complex, to start, obtain the BIOS'es geometry
-    mov dx, [bp-2]      ; Restore drive number
-    mov ah, 8           ; BIOS get disk geometry
-    push di
-    push es
-    mov bx, 0           ; Set ES and DI to zero to work around buggy BIOSes
-    mov es, bx
-    mov di, bx
-    int 0x13
-    jc .diskError
-    pop es
-    pop di
-    and cl, 0x3F        ; Clear upper 2 bits of cylinder to get SPT
-    xor ch, ch          ; Clear CH
-    push cx             ; Save SPT
-    add dh, 1           ; Get HPC
-    mov dl, dh          ; Make HPC low byte
-    xor dh, dh          ; Clear high byte
-    push dx             ; Save HPC
-    ; Get LBA / SPT
-    mov ax, [bp-4]        ; Place low 16 of LBA in AX
-    mov dx, [bp-6]        ; Place upper 16 of LBA in DX
-    div cx                ; Get LBA over SPT
-    push ax               ; Save LBA / SPT
-    push dx               ; Save LBA % SPT
-    ; Get cylinder and head 
-    xor dx, dx          ; Clear DX
-    div word [bp-10]    ; Get them
-    push ax             ; Save cylinder
-    push dx             ; Save head
-    ; Get sector
-    add word [bp-14], 1      ; Add 1 to LBA % SPT
-    mov ax, [bp-14]
-    push ax             ; Re-push it
-    ; Call BIOS to read in sector now
-    mov cx, 3
-.biosRead:
-    push cx
-    mov dx, [bp-16]
-    mov ch, dl          ; Store cylinder low CH for BIOS
-    and dh, 3           ; Clear top 6 bits. Cylinder high is in DH
-    mov bx, [bp-20]     ; Get sector
-    mov cl, bl          ; Stick sector in CL for BIOS
-    shl dh, 6           ; Move cylinder high to top two bits of DH
-    and dh, 0xC0
-    or cl, dh           ; Stick cylinder high in CL
-    mov dx, [bp-18]     ; Get head
-    mov dh, dl          ; Stick head in DH
-    mov dl, [bp-2]      ; Get drive number in DL
-    mov bx, di          ; Offset goes in BX
-    mov ah, 2           ; BIOS read sector
-    mov al, 1           ; Sector count
-    int 0x13            ; Read it in
-    jnc .done           ; Did it work?
-    pop cx
-    loop .biosRead
-.done:
-    mov sp, bp         ; Restore stack pointer
-    popa
-    ret
-.diskError:
-    mov si, diskErrMsg
-    call BootPrint
-    jmp NbloadPanic
-%endif
 
 ; Disk variables
 driveNumber: db 0

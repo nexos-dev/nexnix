@@ -15,11 +15,18 @@
     limitations under the License.
 */
 
-int test = 0;
+#include <nexboot/detect.h>
+#include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
+#include <stdio.h>
 
-// Just a dummy for now
-void _start()
+// The main entry point into nexboot
+void NbMain (NbloadDetect_t* nbDetect)
 {
+    // So, we are loaded by nbload, and all it has given us is the nbdetect
+    // structure. It's our job to create a usable environment.
+    // Initialize logging
+    NbLogInit();
     for (;;)
         ;
 }

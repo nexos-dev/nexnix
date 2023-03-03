@@ -244,11 +244,11 @@ NbStartDetect:
 %ifdef NEXNIX_ARCH_I386
     ; Now we must enter protected mode...
     cli                             ; Disable interrupts
-    lgdt gdtPtr                     ; Load the GDT
+    lgdt [gdtPtr]                   ; Load the GDT
     mov eax, cr0                    ; Grab CR0
     or eax, 1 << 0                  ; Set the PE bit
     mov cr0, eax                    ; Update CR0 with PE bit set
-    jmp 0x18:NBLOAD_PMODE_ENTRY     ; Far return to protected mode
+    jmp dword 0x18:NBLOAD_PMODE_ENTRY     ; Far return to protected mode
 %elifdef NEXNIX_ARCH_X86_64
     cli
     ; Now we need to enter long mode
@@ -430,7 +430,7 @@ gdtBase:
     ; 16 bit code segment descriptor
     dw 0xFFFF                ; Low 16 bits of limit
     dw 0                     ; Low 16 bits of base
-    db 0x2                   ; High 8 bits of base
+    db 0x0                   ; High 8 bits of base
     db 0x98                  ; Access byte. Execute-only code segment
                              ; that is non-conforming and present
     db 0                     ; Reserved
@@ -438,7 +438,7 @@ gdtBase:
     ; 16 bit data segment descriptor
     dw 0xFFFF                ; Low 16 bits of limit
     dw 0                     ; Low 16 bits of base
-    db 0x2                   ; High 8 bits of base
+    db 0x0                   ; High 8 bits of base
     db 0x92                  ; Read-write data segment
     db 0                     ; Reserved
     db 0                     ; Reserved
@@ -550,14 +550,25 @@ NbloadStartPmode:
     ; Get base of it
     mov esi, end                    ; Get end of this part
     add esi, NBLOAD_BASE
+    mov ebp, esi
     mov ebx, [esi+28]               ; Get program header offset
     add ebx, esi                    ; Add base of ELF
     push esi                        ; Save base
+    ; Copy realmode program header
     mov edx, [ebx+4]                ; Get program header data offset from phdr
     add edx, esi
     mov esi, edx                    ; So we can use it rep movsb
     mov ecx, [ebx+16]               ; Get section file size
-    mov edi, NBLOAD_NEXBOOT_BASE    ; Get nexboot base address
+    mov edi, [ebx+8]                ; Get nexboot base address
+    rep movsb                       ; Copy out
+    ; Move to main program header
+    add ebx, 32
+    mov esi, ebp
+    mov edx, [ebx+4]                ; Get program header data offset from phdr
+    add edx, esi
+    mov esi, edx                    ; So we can use it rep movsb
+    mov ecx, [ebx+16]               ; Get section file size
+    mov edi, [ebx+8]                ; Get nexboot base address
     rep movsb                       ; Copy out
     ; Get difference between memory and file size, and zero that out
     mov edx, [ebx+20]               ; Get memory size
@@ -572,6 +583,7 @@ NbloadStartPmode:
     pop esi
     mov ebx, [esi+24]
     mov ebp, 0                      ; Set up zero frame
+    mov esp, 0x10FFFF
     jmp ebx                         ; Jump to it
 end:
 %elifdef NEXNIX_ARCH_X86_64
@@ -589,7 +601,7 @@ gdtBase:
     ; 16 bit code segment descriptor
     dw 0xFFFF                ; Low 16 bits of limit
     dw 0                     ; Low 16 bits of base
-    db 0x5                   ; High 8 bits of base
+    db 0x0                   ; High 8 bits of base
     db 0x98                  ; Access byte. Execute-only code segment
                                 ; that is non-conforming and present
     db 0                     ; Reserved
@@ -597,7 +609,7 @@ gdtBase:
     ; 16 bit data segment descriptor
     dw 0xFFFF                ; Low 16 bits of limit
     dw 0                     ; Low 16 bits of base
-    db 0x5                   ; High 8 bits of base
+    db 0x0                   ; High 8 bits of base
     db 0x92                  ; Read-write data segment
     db 0                     ; Reserved
     db 0                     ; Reserved
@@ -663,7 +675,6 @@ NbloadStartLmode:
     mov al, 0                       ; Store a zero
     rep stosb                       ; Store it
     ; Get entry point
-    xchg bx, bx
     pop rsi
     mov rbx, [rsi+24]
     mov rbp, 0                      ; Set up zero frame

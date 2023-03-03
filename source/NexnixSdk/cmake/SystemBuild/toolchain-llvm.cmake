@@ -32,7 +32,7 @@ set(CMAKE_OBJCOPY ${NEXNIX_TOOLCHAINPREFIX}/llvm-objcopy)
 
 set(CMAKE_C_FLAGS_INIT "--target=$ENV{NNARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
 set(CMAKE_CXX_FLAGS_INIT "--target=$ENV{NNARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-fuse-ld=lld")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-fuse-ld=lld -L${CMAKE_SYSROOT}/usr/lib -L$ENV{NNBUILDROOT}/tools/llvm/lib/nexnix -lclang_rt.builtins-$ENV{NNARCH}")
 set(CMAKE_ASM_FLAGS_INIT "--target=$ENV{NNARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
 
 set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})

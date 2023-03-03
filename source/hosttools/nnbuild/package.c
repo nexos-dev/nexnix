@@ -120,6 +120,8 @@ int addPackage (char32_t* name)
     expecting = EXPECTING_PACKAGE;
     // Create depencencies list
     newPkg->depends = ListCreate ("package_t", true, offsetof (package_t, obj));
+    newPkg->groupDeps =
+        ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
     ListSetDestroy (newPkg->depends, pkgDestroy);
     curPkg = newPkg;
     return 1;
@@ -265,16 +267,28 @@ static int addDependencyToPackage (char32_t* depName)
 {
     // Find the package
     package_t* package = findPackage (depName);
-    if (!package)
+    if (package)
     {
-        error ("%s:%d: package \"%s\" undeclared",
-               ConfGetFileName(),
-               lineNo,
-               UnicodeToHost (depName));
-        return 0;
+        // Add package to dependencies list
+        ListAddBack (curPkg->depends, ObjRef (&package->obj), 0);
     }
-    // Package to dependencies list
-    ListAddBack (curPkg->depends, ObjRef (&package->obj), 0);
+    else
+    {
+        packageGroup_t* group = findGroup (depName);
+        if (group)
+        {
+            // Add group to dependencies list
+            ListAddBack (curPkg->groupDeps, ObjRef (&group->obj), 0);
+        }
+        else
+        {
+            error ("%s:%d: package \"%s\" undeclared",
+                   ConfGetFileName(),
+                   lineNo,
+                   UnicodeToHost (depName));
+            return 0;
+        }
+    }
     return 1;
 }
 

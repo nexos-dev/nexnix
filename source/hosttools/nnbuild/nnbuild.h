@@ -47,11 +47,12 @@ typedef struct _package
     char buildAction[ACTION_BUFSIZE];        ///< ... and so on
     char cleanAction[ACTION_BUFSIZE];
     char confHelpAction[ACTION_BUFSIZE];
-    ListHead_t* depends;    //< Dependencies of this package
-    bool isBuilt;           ///< If this package has been buit or not
-    bool isInstalled;       ///< If this package has been built yet
-    bool bindInstall;       ///< If installation and building should be one step
-    bool useBuildPkg;       ///< If we should use the default template for building
+    ListHead_t* depends;      ///< Dependencies of this package
+    ListHead_t* groupDeps;    ///< Group dependencies of package
+    bool isBuilt;             ///< If this package has been buit or not
+    bool isInstalled;         ///< If this package has been built yet
+    bool bindInstall;         ///< If installation and building should be one step
+    bool useBuildPkg;         ///< If we should use the default template for building
 } package_t;
 
 /// Converts the parse tree into the package tree

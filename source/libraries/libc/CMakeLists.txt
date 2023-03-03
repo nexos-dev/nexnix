@@ -29,8 +29,6 @@ if(${LIBC_ENABLE_TESTS} AND NOT ${CMAKE_CROSSCOMPILING})
     enable_testing()
 endif()
 
-find_package(NexNixSdk REQUIRED)
-
 # Include modules
 include(GNUInstallDirs)
 include(NexTest)
@@ -45,11 +43,31 @@ endif()
 list(APPEND LIBC_SOURCE_ALWAYS 
             string/memset.c 
             string/memcmp.c
-            string/memcpy.c)
+            string/memcpy.c
+            string/strcmp.c
+            string/strlen.c
+            string/strcpy.c
+            string/strcat.c
+            stdio/vsnprintf.c
+            stdio/vsprintf.c
+            stdio/sprintf.c
+            stdio/snprintf.c
+            stdio/vprintf_core.c)
 
 # Headers used on libc and libk
 list(APPEND LIBC_HEADERS_ALWAYS
-            include/string.h)
+            include/string.h
+            include/uchar.h
+            include/stdlib.h
+            include/stddef.h
+            include/stdbool.h
+            include/stdnoreturn.h
+            include/stdio.h
+            include/stdarg.h)
+list(APPEND LIBC_ARCH_HEADERS_BITS
+            arch/${NEXNIX_ARCH}/include/bits/arch.h)
+list(APPEND LIBC_ARCH_HEADERS
+            arch/${NEXNIX_ARCH}/include/stdint.h)
 list(APPEND LIBC_HEADERS_BITS
             include/bits/types.h)
 
@@ -65,6 +83,9 @@ else()
 endif()
 
 target_include_directories(${LIBC_TARGET} PRIVATE include)
+target_include_directories(${LIBC_TARGET} PRIVATE arch/${NEXNIX_ARCH}/include)
 
 install(FILES ${LIBC_HEADERS_ALWAYS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES ${LIBC_ARCH_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES ${LIBC_HEADERS_BITS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bits)
+install(FILES ${LIBC_ARCH_HEADERS_BITS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bits)
