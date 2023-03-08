@@ -169,6 +169,9 @@ start2:
     mov dx, [di+20]
     shl edx, 16           ; OR into EAX
     or eax, edx
+    ; Grab file size
+    mov esi, [di+28]
+    push esi
     ; Set up buffer
     mov dx, NBLOAD_NEXBOOT_SEG
     mov es, dx
@@ -206,14 +209,15 @@ start2:
     mov eax, [di]                   ; Get FAT value of this cluster
     and eax, 0x0FFFFFFF             ; Clear top 4 reserved bits
     cmp eax, 0x0FFFFFF8             ; Check for EOF
-    jae .launchNexboot              ; If EOF, launch nbload
-    ; Move to next cluster
     pop di                          ; Restore old buffer
     pop es
+    jae .launchNexboot              ; If EOF, launch nbload
+    ; Move to next cluster
     add di, cx                      ; Move to next location in buffer
     jmp .readLoop                   ; Move on
 .launchNexboot:
     mov dl, [driveNumber]           ; Grab drive number
+    pop ecx                          ; Get file size
     jmp NBLOAD_NEXBOOT_SEG:0        ; Far jump to nbload!
 .noNexboot:
     mov si, fileError       ; Grab error

@@ -544,6 +544,12 @@ then
     else
         QEMUARGS="${QEMUARGS} -boot c"
     fi
+
+    if [ "$EMU_USEGDB" = "1" ]
+    then
+        QEMUARGS="${QEMUARGS} -s -S"
+    fi
+
     QEMUARGS="${QEMUARGS} $EMU_EXTRAARGS"
     # Run QEMU
     qemu-system-$NNARCH $QEMUARGS
@@ -665,6 +671,12 @@ then
     else
         echo "boot: disk, cdrom, floppy" >> bochsrc.txt
     fi
+
+    if [ "$EMU_USEGDB" = "1" ]
+    then
+        echo "gdbstub: enabled=1, port=1234, text_base=0, data_base=0, bss_base=0" >> bochsrc.txt
+    fi
+
     # Run bochs
     bochs -q -f bochsrc.txt
     echo $?

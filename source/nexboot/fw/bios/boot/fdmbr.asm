@@ -157,6 +157,8 @@ start2:
 .readFile:
     ; Get initial cluster
     mov ax, [di+26]
+    mov ecx, [di+28]
+    mov [fileSize], ecx
     ; Setup buffer
     mov cx, NBLOAD_NEXBOOT_SEG
     mov es, cx
@@ -227,6 +229,7 @@ start2:
     add di, cx              ; Move to next cluster in memory
     jmp .readLoop
 .launchNexboot:
+    mov ecx, [fileSize]
     mov dl, [driveNumber]
     jmp NBLOAD_NEXBOOT_SEG:0 ; Far jump to nbload!
 .no386:
@@ -264,6 +267,7 @@ NbloadReadCluster:
 
 ; Strings
 fileError: db 0x0D, 0x0A, "nbload: unable to read nexboot", 0
+fileSize: dd 0
 
 ; Fake GDTR for 386 detection
 fakeGdtr:

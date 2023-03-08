@@ -33,7 +33,7 @@ set(CMAKE_OBJCOPY ${NEXNIX_TOOLCHAINPREFIX}-objcopy)
 set(CMAKE_C_FLAGS_INIT "-isystem ${CMAKE_SYSROOT}/usr/include")
 set(CMAKE_CXX_FLAGS_INIT "-isystem ${CMAKE_SYSROOT}/usr/include")
 set(CMAKE_ASM_FLAGS_INIT "-isystem ${CMAKE_SYSROOT}/usr/include")
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-lgcc")
+set(CMAKE_C_STANDARD_LIBRARIES "-lgcc")
 
 set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
 

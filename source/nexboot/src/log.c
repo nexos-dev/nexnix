@@ -17,6 +17,7 @@
 
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
+#include <stdio.h>
 #include <string.h>
 
 // The log herein is quite simple. It is themed after syslog, as described
@@ -25,15 +26,15 @@
 // Log structure format
 typedef struct _nbLogEnt
 {
-    int priority;       // Contains facility and severity (but facility is always 0)
-    short minute;       // Minute since boot of message
-    short second;       // Seconds since boot of message
-    short ms;           // Milliseconds since boot of message
-    const char* msg;    // Message itself
+    int priority;     // Contains facility and severity (but facility is always 0)
+    short minute;     // Minute since boot of message
+    short second;     // Seconds since boot of message
+    short ms;         // Milliseconds since boot of message
+    char msg[128];    // Message itself
 } nbLogEntry_t;
 
 // NOTE: Temporary, until we get dynamic memory allocation implemented
-static nbLogEntry_t logEntries[256] = {0};
+static nbLogEntry_t logEntries[64] = {0};
 
 static short curEntry = 0;
 
@@ -54,23 +55,22 @@ void NbLogInit()
         minSeverity = NEXBOOT_LOGLEVEL_DEBUG;
 }
 
-void NbLogMessageEarly (const char* s, int level)
+void NbLogMessageEarly (const char* fmt, int level, ...)
 {
+    va_list ap;
+    va_start (ap, level);
+    // snprintf it
+    vsnprintf (logEntries[curEntry].msg, 128, fmt, ap);
     // Log it
     logEntries[curEntry].priority = level;
-    logEntries[curEntry].msg = s;
     // Check if we should print it
     if (level <= minSeverity)
-    {
-        while (*s)
-        {
-            NbFwEarlyPrint (*s);
-            ++s;
-        }
-    }
+        NbPrintEarly (logEntries[curEntry].msg);
+    va_end (ap);
+    ++curEntry;
 }
 
-void NbPrint (const char* s)
+void NbPrintEarly (const char* s)
 {
     while (*s)
     {

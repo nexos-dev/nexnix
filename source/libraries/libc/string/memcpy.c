@@ -24,7 +24,9 @@ void* memcpy (void* restrict dest, const void* restrict src, size_t n)
     uint8_t* d = dest;
     while (n--)
     {
-        *d++ = *s++;
+        *d = *s;
+        ++d;
+        ++s;
     }
     return dest;
 }

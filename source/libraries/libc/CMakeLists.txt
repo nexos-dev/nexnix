@@ -63,7 +63,9 @@ list(APPEND LIBC_HEADERS_ALWAYS
             include/stdbool.h
             include/stdnoreturn.h
             include/stdio.h
-            include/stdarg.h)
+            include/stdarg.h
+            include/elf.h
+            include/assert.h)
 list(APPEND LIBC_ARCH_HEADERS_BITS
             arch/${NEXNIX_ARCH}/include/bits/arch.h)
 list(APPEND LIBC_ARCH_HEADERS

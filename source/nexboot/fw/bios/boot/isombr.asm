@@ -134,6 +134,8 @@ NbloadMain:
     jne .interleaved
     mov ebx, [di+2]         ; Obtain extent
     mov eax, [di+10]        ; Obtain size
+    mov [fileSize], eax
+    
     ; Round up
     xor ecx, ecx
     mov cx, [bp-2]          ; Get size of a block
@@ -153,6 +155,7 @@ NbloadMain:
     call NbloadReadBlocks
     ; Re-load drive number
     mov dl, [driveNumber]
+    mov ecx, [fileSize]
     jmp NBLOAD_NEXBOOT_SEG:0
 .interleaved:
     mov si, interleavedMsg
@@ -225,6 +228,7 @@ fileError: db 0x0A, 0x0D, "nbload: unable to read nexboot", 0
 interleavedMsg: db 0x0A, 0x0D, "nbload: unable to read interleaved files currently", 0
 loadMsg: db 0x0D, 0x0A, "Loading nexboot", 0
 progDot: db ".", 0
+fileSize: dd 0
 
 ; File name we are looking for
 fileName: db "nexboot.;1", 0

@@ -95,9 +95,6 @@ static int lenToSizeUint[] = {PRINTF_SIZE_UINT,
     ++fmt;         \
     ++fmtOffset;
 
-void NbPrint (const char* s);
-void NbFwEarlyPrint (char c);
-
 static int __fmtStrToNum (const char** fmts, int* fmtOffset)
 {
     int i = 0;
@@ -131,29 +128,25 @@ static bool __fmtSignedNumToStr (char* s, intmax_t num)
     char buf[25];
     int bufPos = 0;
     // Begin converting
-    while (num)
+    do
     {
         buf[bufPos] = ((char) (num % 10)) + '0';
         num /= 10;
         ++bufPos;
-    }
+    } while (num);
     // So, we have a string, it's just backwards. Let's fix that
     for (int i = 0, j = bufPos; j != 0; j--, i++)
         s[i] = buf[j - 1];
     return sign;
 }
 
-static void __fmtUnsignedNumToStr (char* s,
-                                   uintmax_t num,
-                                   int base,
-                                   bool upperCase,
-                                   bool prefix)
+static void __fmtUnsignedNumToStr (char* s, uintmax_t num, int base, bool upperCase)
 {
     char obuf[25];
     char* buf = obuf;
     int bufPos = 0;
     // Begin converting
-    while (num)
+    do
     {
         char curNum = ((char) (num % base));
         if (curNum >= 10)
@@ -169,19 +162,20 @@ static void __fmtUnsignedNumToStr (char* s,
         buf[bufPos] = curNum;
         num /= base;
         ++bufPos;
-    }
+    } while (num);
     // So, we have a string, it's just backwards. Let's fix that
     for (int i = 0, j = bufPos; j != 0; j--, i++)
         s[i] = buf[j - 1];
 }
 
-static int __outString (_printfOut_t* out, const char* s)
+static int __outString (_printfOut_t* out, const char* s, size_t charsToPrint)
 {
-    while (*s)
+    while (*s && charsToPrint)
     {
         if (out->out (out, *s) == EOF)
             return EOF;
         ++s;
+        --charsToPrint;
     }
     return 0;
 }
@@ -196,6 +190,7 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
     int prefixChars = 0;
     char fieldWidthChar = ' ';
     bool sign = true;
+    size_t charsToPrint = SIZE_MAX;
     // Figure out the conversion to do
     switch (fmt->conv)
     {
@@ -207,49 +202,33 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
             if (fmt->sdata == 0 && fmt->precision == 0)
                 return 0;    // Special case in spec
             // Add prefix characters
-            if (fmt->sdata >= 0 &&
+            if (fmt->sdata <= 0 ||
                 ((fmt->flags & PRINTF_FLAG_ALWAYS_SIGN) == PRINTF_FLAG_ALWAYS_SIGN))
             {
                 ++prefixChars;
             }
             goto numCommon;
         case PRINTF_CONV_UNSIGNED:
-            __fmtUnsignedNumToStr (buf,
-                                   fmt->udata,
-                                   10,
-                                   false,
-                                   fmt->flags & PRINTF_FLAG_PREFIX);
+            __fmtUnsignedNumToStr (buf, fmt->udata, 10, false);
             s = buf;
             accountPrecision = true;
             goto numCommon;
         case PRINTF_CONV_HEX_LOWER:
-            __fmtUnsignedNumToStr (buf,
-                                   fmt->udata,
-                                   16,
-                                   false,
-                                   fmt->flags & PRINTF_FLAG_PREFIX);
+            __fmtUnsignedNumToStr (buf, fmt->udata, 16, false);
             s = buf;
             accountPrecision = true;
             if ((fmt->flags & PRINTF_FLAG_PREFIX) == PRINTF_FLAG_PREFIX)
                 prefixChars += 2;
             goto numCommon;
         case PRINTF_CONV_HEX_UPPER:
-            __fmtUnsignedNumToStr (buf,
-                                   fmt->udata,
-                                   16,
-                                   true,
-                                   fmt->flags & PRINTF_FLAG_PREFIX);
+            __fmtUnsignedNumToStr (buf, fmt->udata, 16, true);
             s = buf;
             accountPrecision = true;
             if ((fmt->flags & PRINTF_FLAG_PREFIX) == PRINTF_FLAG_PREFIX)
                 prefixChars += 2;
             goto numCommon;
         case PRINTF_CONV_OCTAL:
-            __fmtUnsignedNumToStr (buf,
-                                   fmt->udata,
-                                   8,
-                                   false,
-                                   fmt->flags & PRINTF_FLAG_PREFIX);
+            __fmtUnsignedNumToStr (buf, fmt->udata, 8, false);
             s = buf;
             accountPrecision = true;
             if ((fmt->flags & PRINTF_FLAG_PREFIX) == PRINTF_FLAG_PREFIX)
@@ -265,7 +244,9 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
             }
             break;
         case PRINTF_CONV_PTR:
-            __fmtUnsignedNumToStr (buf, fmt->ptr, 16, true, true);
+            __fmtUnsignedNumToStr (buf, fmt->ptr, 16, true);
+            prefixChars = 2;
+            fmt->flags |= PRINTF_FLAG_PREFIX;
             s = buf;
             break;
         case PRINTF_CONV_CHAR:
@@ -273,6 +254,7 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
             return 0;
         case PRINTF_CONV_STRING:
             s = (const char*) fmt->ptr;
+            accountPrecision = true;
             break;
         case PRINTF_CONV_WRITTEN_CHARS:
             break;
@@ -281,6 +263,12 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
     }
     if (accountPrecision)
     {
+        // On strings, precision is number of characters to print
+        if (fmt->conv == PRINTF_CONV_STRING)
+        {
+            size_t strLen = strlen (s);
+            charsToPrint = (strLen > fmt->precision) ? fmt->precision : strLen;
+        }
         // Figure out current number of characters
         int curCharCount = (int) strlen (s);
         precisionChars = fmt->precision - curCharCount;
@@ -292,6 +280,8 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
     {
         // Determine number of field with characters
         int curCharCount = (int) strlen (s);
+        if (curCharCount > charsToPrint)
+            curCharCount = charsToPrint;
         widthChars = fmt->width - (curCharCount + precisionChars + prefixChars);
         if (widthChars < 0)
             widthChars = 0;
@@ -308,11 +298,13 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
     // Write sign
     if (fmt->conv == PRINTF_CONV_DECIMAL)
     {
-        if (sign &&
-            ((fmt->flags & PRINTF_FLAG_ALWAYS_SIGN) == PRINTF_FLAG_ALWAYS_SIGN))
+        if (sign)
         {
-            if (out->out (out, '+') == EOF)
-                return EOF;
+            if ((fmt->flags & PRINTF_FLAG_ALWAYS_SIGN) == PRINTF_FLAG_ALWAYS_SIGN)
+            {
+                if (out->out (out, '+') == EOF)
+                    return EOF;
+            }
         }
         else
         {
@@ -327,7 +319,8 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
         {
             case PRINTF_CONV_HEX_LOWER:
             case PRINTF_CONV_HEX_UPPER:
-                if (__outString (out, "0x") == EOF)
+            case PRINTF_CONV_PTR:
+                if (__outString (out, "0x", SIZE_MAX) == EOF)
                     return EOF;
                 break;
             case PRINTF_CONV_OCTAL:
@@ -345,8 +338,8 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
                 return EOF;
         }
     }
-    // Write actual string
-    if (__outString (out, s) == EOF)
+    // Write actual string.
+    if (__outString (out, s, charsToPrint) == EOF)
         return EOF;
     // If being left justified, now write out field with stuff
     if ((fmt->flags & PRINTF_FLAG_LEFT_JUSTIFY) == PRINTF_FLAG_LEFT_JUSTIFY)

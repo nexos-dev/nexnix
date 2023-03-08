@@ -26,6 +26,7 @@ typedef struct _biosregFrame
     // These unions allow for individual bytes to be set
     union
     {
+        uint32_t eax;
         uint16_t ax;
         struct
         {
@@ -35,6 +36,7 @@ typedef struct _biosregFrame
     };
     union
     {
+        uint32_t ebx;
         uint16_t bx;
         struct
         {
@@ -44,6 +46,7 @@ typedef struct _biosregFrame
     };
     union
     {
+        uint32_t ecx;
         uint16_t cx;
         struct
         {
@@ -53,6 +56,7 @@ typedef struct _biosregFrame
     };
     union
     {
+        uint32_t edx;
         uint16_t dx;
         struct
         {
@@ -60,8 +64,16 @@ typedef struct _biosregFrame
             uint8_t dh;
         };
     };
-    uint16_t si;
-    uint16_t di;
+    union
+    {
+        uint32_t esi;
+        uint16_t si;
+    };
+    union
+    {
+        uint32_t edi;
+        uint16_t di;
+    };
     uint16_t ds;
     uint16_t es;
     uint16_t flags;
@@ -72,5 +84,9 @@ void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out);
 
 /// Prints a character to screen using int 0x10. Used during early phases
 void NbFwEarlyPrint (char c);
+
+// Memory constants
+#define NEXBOOT_BIOS_MEMBASE 0x100000
+#define NEXBOOT_BIOS_BASE    0x200000
 
 #endif

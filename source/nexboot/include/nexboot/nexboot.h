@@ -25,12 +25,21 @@
 #define NEXBOOT_LOGLEVEL_WARNING   4
 #define NEXBOOT_LOGLEVEL_NOTICE    5
 #define NEXBOOT_LOGLEVEL_INFO      6
-#define NEXBOOT_LOGLEVEL_DEBUG      7
+#define NEXBOOT_LOGLEVEL_DEBUG     7
 
 /// Initializes log for bootup
 void NbLogInit();
 
 /// Logs a string to the log, pre console intialization
-void NbLogMessageEarly (const char* s, int level);
+void NbLogMessageEarly (const char* fmt, int level, ...);
+
+// Prints a string using NbFwPrintEarly
+void NbPrintEarly (const char* s);
+
+/// Initializes memory manager
+void NbMemInit();
+
+// Minimum amount of memory NexNix requires (in MiB)
+#define NEXBOOT_MIN_MEM 8
 
 #endif

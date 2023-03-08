@@ -84,6 +84,12 @@ NbStartDetect:
     mov ss, ax
     mov es, ax
     mov sp, NBLOAD_STACK_TOP
+    ; Save size
+    push es
+    mov ax, NBLOAD_BASE_SEG
+    mov es, ax
+    mov di, nexbootSz
+    mov es:[di], ecx
     ; Save drive number
     push dx
     mov bp, sp
@@ -401,15 +407,18 @@ NbloadLogMsg:
     popa
     ret
 
+; Size of nexboot file
+nexbootSz: dd 0
+
 ; The current log pointer
 logLocation: dw NBLOAD_LOG_START
 
 cpuCpuidMessage: db 0x0A, 0x0D, "nbload: detected CPU 486+", 0
 cpu486Message: db 0x0A, 0x0D, "nbload: detected CPU 486", 0
 cpu386Message: db 0x0A, 0x0D, "nbload: detected CPU 386", 0
-fpuMessage: db 0x0A, 0x0D, "nbload: x87 FPU found", 0
+fpuMessage: db 0x0A, 0x0D, "nbload: x87 FPU found", 0x0A, 0x0D, 0
 noFpuMessage: db 0x0A, 0x0D, "nbload: no x87 FPU found", 0
-a20failMessage: db 0x0A, 0x0D, "\r\nnbload: unable to enable A20 gate", 0
+a20failMessage: db 0x0A, 0x0D, "nbload: unable to enable A20 gate", 0
 noPaeMessage: db 0x0A, 0x0D, "nbload: PAE not supported on this CPU. Please use non-PAE images", 0
 %ifdef NEXNIX_ARCH_X86_64
 noLmodeMessage: db 0x0A, 0x0D, "nbload: long mode not supported on this CPU. Please use 32-bit images", 0
@@ -507,6 +516,8 @@ NbloadStartPmode:
                                     ; Entry is present, writable, and large
                                     ; Address mapped is address 0
     mov [esi], eax                  ; Map it
+    or eax, 0x200000                ; Set physical address of entry to 2 MiB
+    mov [esi+8], eax                ; Map that
     ; Enable paging now
     mov eax, cr4                    ; Get CR4 to enable PAE
     or eax, 1 << 5                  ; Set PAE bit
@@ -546,24 +557,14 @@ NbloadStartPmode:
     or eax, 1 << 31                 ; Set PG bit
     mov cr0, eax                    ; Enable paging
 %endif
-    ; Now we must load up the ELF bootloader
+    ; Now we must load up the ELF decompressor
     ; Get base of it
     mov esi, end                    ; Get end of this part
     add esi, NBLOAD_BASE
     mov ebp, esi
     mov ebx, [esi+28]               ; Get program header offset
     add ebx, esi                    ; Add base of ELF
-    push esi                        ; Save base
-    ; Copy realmode program header
-    mov edx, [ebx+4]                ; Get program header data offset from phdr
-    add edx, esi
-    mov esi, edx                    ; So we can use it rep movsb
-    mov ecx, [ebx+16]               ; Get section file size
-    mov edi, [ebx+8]                ; Get nexboot base address
-    rep movsb                       ; Copy out
-    ; Move to main program header
-    add ebx, 32
-    mov esi, ebp
+    push esi
     mov edx, [ebx+4]                ; Get program header data offset from phdr
     add edx, esi
     mov esi, edx                    ; So we can use it rep movsb
@@ -583,8 +584,25 @@ NbloadStartPmode:
     pop esi
     mov ebx, [esi+24]
     mov ebp, 0                      ; Set up zero frame
-    mov esp, 0x10FFFF
-    jmp ebx                         ; Jump to it
+    mov esp, 0x7FFF0
+    ; Find end of ndecomp
+    mov edx, 0
+    mov edi, [esi+0x20]
+    add edi, esi
+    ; Get size of table
+    movzx eax, word [esi+0x2E]
+    movzx ecx, word [esi+0x30]
+    mul ecx
+    add edi, eax
+    ; Get size of nexboot
+    mov ecx, [nexbootSz+NBLOAD_BASE]
+    mov eax, edi            ; Get base of nexboot
+    sub eax, NBLOAD_BASE    ; Subtract base of base
+    sub ecx, eax            ; Subtract ndecomp and and nbload size
+    push ecx
+    push edi
+    push dword NBLOAD_DETECT_RESULT
+    call ebx                         ; Jump to it
 end:
 %elifdef NEXNIX_ARCH_X86_64
 ; Long mode data structures

@@ -46,14 +46,14 @@ NbBiosCall:
     ; Copy to new stack
     push dword [cr3Val]
     push gdtStore
-    push word [eax]
-    push word [eax+2]
-    push word [eax+4]
-    push word [eax+6]
-    push word [eax+8]
-    push word [eax+10]
-    push word [eax+12]
-    push word [eax+14]
+    push dword [eax]
+    push dword [eax+4]
+    push dword [eax+8]
+    push dword [eax+12]
+    push dword [eax+16]
+    push dword [eax+20]
+    push word [eax+24]
+    push word [eax+26]
     push ebx
     push ecx
     ; Jump to 16 bit mode protected mode
@@ -79,22 +79,22 @@ bits 16
     ; Store registers
     pop es
     pop ds
-    pop di
-    pop si
-    pop dx
-    pop cx
-    pop bx
-    pop ax
-    ; Execure interrupt
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    ; Execute interrupt
 .int:
     int 0                   ; Modified to right interrupt
     ; Push output
-    push ax
-    push bx
-    push cx
-    push dx
-    push si
-    push di
+    push eax
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
     push ds
     push es
     pushf
@@ -119,15 +119,15 @@ bits 32
     or eax, (1 << 31)
     mov cr0, eax
     ; Restore output to right data structure
-    pop word [ebp+16]
-    pop word [ebp+14]
-    pop word [ebp+12]
-    pop word [ebp+10]
-    pop word [ebp+8]
-    pop word [ebp+6]
-    pop word [ebp+4]
-    pop word [ebp+2]
-    pop word [ebp]
+    pop word [ebp+28]
+    pop word [ebp+26]
+    pop word [ebp+24]
+    pop dword [ebp+20]
+    pop dword [ebp+16]
+    pop dword [ebp+12]
+    pop dword [ebp+8]
+    pop dword [ebp+4]
+    pop dword [ebp]
     ; Restore stack
     mov esp, [pmodeStack]
     ; And exit

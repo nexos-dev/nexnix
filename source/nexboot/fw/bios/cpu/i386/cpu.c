@@ -1,6 +1,6 @@
 /*
-    main.c - contains entry point
-    Copyright 2022, 2023 The NexNix Project
+    cpu.c - contains CPU specific abstractions
+    Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,22 +15,10 @@
     limitations under the License.
 */
 
-#include <nexboot/detect.h>
 #include <nexboot/fw.h>
-#include <nexboot/nexboot.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-// The main entry point into nexboot
-void NbMain (NbloadDetect_t* nbDetect)
+void NbCrash()
 {
-    // So, we are loaded by nbload, and all it has given us is the nbdetect
-    // structure. It's our job to create a usable environment.
-
-    // Initialize logging
-    NbLogInit();
-    // Initialize memory allocation
-    NbMemInit();
-    for (;;)
-        ;
+    // Halt system
+    asm("cli; hlt");
 }

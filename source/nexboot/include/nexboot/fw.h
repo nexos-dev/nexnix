@@ -22,4 +22,38 @@
 #include <nexboot/bios/bios.h>
 #endif
 
+// Include CPU header
+#ifdef NEXNIX_ARCH_I386
+#include <nexboot/cpu/i386/cpu.h>
+#endif
+
+// Memory types
+#define NEXBOOT_MEM_FREE         1
+#define NEXBOOT_MEM_RESVD        2
+#define NEXBOOT_MEM_ACPI_RECLAIM 3
+#define NEXBOOT_MEM_ACPI_NVS     4
+#define NEXBOOT_MEM_MMIO         5
+#define NEXBOOT_MEM_FW_RECLAIM   6
+#define NEXBOOT_MEM_BOOT_RECLAIM 7
+
+#define NEXBOOT_MEM_FLAG_NON_VOLATILE (1 << 0)
+
+// Memory map abstractions
+typedef struct _mementry
+{
+    uintmax_t base;        // Base of region
+    uintmax_t sz;          // Size of region
+    unsigned int type;     // Memory type
+    unsigned int flags;    // Memory flags
+} NbMemEntry_t;
+
+/// Initializes memory map
+void NbFwMemDetect();
+
+/// Reads memory map
+NbMemEntry_t* NbGetMemMap (int* size);
+
+// Allocates a page for nexboot
+uintptr_t NbFwAllocPage();
+
 #endif

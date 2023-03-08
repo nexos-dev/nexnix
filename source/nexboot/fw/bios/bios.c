@@ -15,7 +15,7 @@
     limitations under the License.
 */
 
-#include <nexboot/bios/bios.h>
+#include <nexboot/fw.h>
 
 // Location of bioscall blob
 #define NEXBOOT_BIOSCALL_BLOB 0x2000
@@ -36,4 +36,15 @@ void NbFwEarlyPrint (char c)
     in.ah = 0x0E;
     in.al = (uint8_t) c;
     NbBiosCall (0x10, &in, &out);
+}
+
+uintptr_t curMemLocation = NEXBOOT_BIOS_MEMBASE;
+
+uintptr_t NbFwAllocPage()
+{
+    uintptr_t ret = curMemLocation;
+    curMemLocation += NEXBOOT_CPU_PAGE_SIZE;
+    if (curMemLocation >= NEXBOOT_BIOS_BASE)
+        return 0;
+    return ret;
 }

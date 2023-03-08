@@ -236,6 +236,9 @@ findprog()
         elif [ "$1" = "nasm" ]
         then
             pkg="nasm"
+        elif [ "$1" = "gzip" ]
+        then
+            pkg="gzip"
         fi
         pkgs="$pkgs $pkg"
     else
@@ -735,6 +738,7 @@ findprog "python"
 findprog "iasl"
 findprog "bash"
 findprog "nasm"
+findprog "gzip"
 findlib "guestfs"
 findlib "uuid"
 # Check if the check succeeded

@@ -1,5 +1,5 @@
 /*
-    link.ld - contains linker script for nbload
+    decomp_link.ld - contains linker script for ndecomp
     Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,38 +17,33 @@
 */
 
 OUTPUT_FORMAT(elf32-i386)
-ENTRY(NbMain)
+ENTRY(NbDecompMain)
 
-NEXBOOT_LOADADDR = 0x200000;
+NEXBOOT_LOADADDR = 0x50000;
 
 PHDRS
 {
-    realmode PT_LOAD;
-    nexboot PT_LOAD;
+    ndecomp PT_LOAD;
 }
 
 SECTIONS
 {
-    . = 0x2000;
-    .realmode : {
-        *(.realmode)
-    } :realmode
     . = NEXBOOT_LOADADDR;
     .text : {
         *(.text*)
-    } :nexboot
+    } :ndecomp
 
     .data : {
         *(.data*)
-    } :nexboot
+    } :ndecomp
 
     .rodata : {
         *(.rodata*)
-    } :nexboot
+    } :ndecomp
 
     .bss : {
         *(.bss*)
-    } :nexboot
+    } :ndecomp
 
     /DISCARD/ : {
         *(.comment)
@@ -58,7 +53,9 @@ SECTIONS
         *(.dynsym)
         *(.dynstr)
         *(.dynamic)
+        *(.eh_frame*)
         *(.comment)
+        *(.debug*)
         *(.symtab)
         *(.strtab)
         *(.rel*)
