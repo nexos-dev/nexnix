@@ -15,9 +15,11 @@
     limitations under the License.
 */
 
+#include <assert.h>
 #include <nexboot/detect.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -31,6 +33,8 @@ void NbMain (NbloadDetect_t* nbDetect)
     NbLogInit();
     // Initialize memory allocation
     NbMemInit();
+    // Initialize object database
+    NbObjInitDb();
     for (;;)
         ;
 }

@@ -243,7 +243,7 @@ void* malloc (size_t sz)
     return allocBlockInPage (newPage, sz);
 }
 
-static void dumpData()
+void dumpData()
 {
     memPage_t* pg = pageList;
     while (pg)
@@ -289,7 +289,6 @@ void free (void* ptr)
         // Check if block is free
         if (nextBlock->isFree)
         {
-            // dumpData();
             //  Merge right, start by replacing current block with a new one
             block->isFree = true;
             block->size += nextBlock->size;
@@ -349,5 +348,4 @@ void free (void* ptr)
         size_t* szEnd = MEM_BLOCK_SIZE_END (block);
         *szEnd = block->size;
     }
-    dumpData();
 }

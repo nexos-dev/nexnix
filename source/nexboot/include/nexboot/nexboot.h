@@ -18,6 +18,8 @@
 #ifndef _NEXBOOT_H
 #define _NEXBOOT_H
 
+#include <nexboot/object.h>
+
 /// Log levels
 #define NEXBOOT_LOGLEVEL_EMERGENCY 1
 #define NEXBOOT_LOGLEVEL_CRITICAL  2

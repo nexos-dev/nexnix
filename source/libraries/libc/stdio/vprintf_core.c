@@ -255,6 +255,7 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
         case PRINTF_CONV_STRING:
             s = (const char*) fmt->ptr;
             accountPrecision = true;
+
             break;
         case PRINTF_CONV_WRITTEN_CHARS:
             break;
@@ -268,6 +269,11 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
         {
             size_t strLen = strlen (s);
             charsToPrint = (strLen > fmt->precision) ? fmt->precision : strLen;
+            if (fmt->precisionIsDefault)
+            {
+                fmt->precision = charsToPrint;
+                charsToPrint = strLen;
+            }
         }
         // Figure out current number of characters
         int curCharCount = (int) strlen (s);
@@ -466,6 +472,7 @@ static int __parseFormat (_printfOut_t* outData,
     if (*fmt == '.')
     {
         INC_FORMAT
+        fmtRes->precisionIsDefault = false;
         // Check if this in va_list
         if (*fmt == '*')
         {
@@ -589,6 +596,7 @@ int vprintfCore (_printfOut_t* outData, const char* fmt, va_list ap)
                 // Parse format string
                 _printfFmt_t fmtParse = {0};
                 fmtParse.precision = 1;    // Default precision
+                fmtParse.precisionIsDefault = true;
                 int fmtOffset = __parseFormat (outData, &fmtParse, fmt, &ap);
                 if (fmtOffset == EOF)
                     return EOF;

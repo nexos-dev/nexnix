@@ -65,3 +65,11 @@ void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uint32_t nbSize)
     for (;;)
         asm("hlt");
 }
+
+// Stub assert
+void __attribute__ ((noreturn))
+__assert_failed (const char* expr, const char* file, int line, const char* func)
+{
+    asm("cli;hlt");
+    __builtin_unreachable();
+}

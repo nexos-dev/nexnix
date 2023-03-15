@@ -21,6 +21,7 @@
 #define __NEED_SIZET
 #include <bits/types.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 // Contains printf out data
@@ -45,8 +46,9 @@ typedef struct _printfFmt
     int flags;        // Flags applied
     int width;        // Minimum neccesary width
     int precision;    // Minimum number of digits to appear on screen
-    int conv;         // Conversion specifier
-    int type;         // Type of data
+    bool precisionIsDefault;
+    int conv;    // Conversion specifier
+    int type;    // Type of data
 } _printfFmt_t;
 
 int vprintfCore (_printfOut_t* outData, const char* fmt, va_list ap);

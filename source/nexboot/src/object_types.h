@@ -1,5 +1,5 @@
 /*
-    assert.h - contains assert macro
+    object_types.h - contains object type definitions
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,14 +15,15 @@
     limitations under the License.
 */
 
-void __attribute__ ((noreturn))
-__assert_failed (const char* expr, const char* file, int line, const char* func);
+#ifndef _OBJECT_TYPES_H
+#define _OBJECT_TYPES_H
 
-#ifdef NDEBUG
-#define assert(expr) ((void) 0)
-#else
-#define assert(expr) \
-    (void) ((expr) ? 0 : __assert_failed (#expr, __FILE__, __LINE__, __func__))
+#define NEED_SVC_PTRS
+
+#define OBJ_MAX_TYPES      48
+#define OBJ_MAX_INTERFACES 8
+
+// Service table
+NbObjSvcTab_t* objSvcTable[OBJ_MAX_TYPES][OBJ_MAX_INTERFACES] = {{&objDirSvcs}};
+
 #endif
-
-#define static_assert _Static_assert

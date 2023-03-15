@@ -33,7 +33,7 @@ typedef struct _nbLogEnt
     char msg[128];    // Message itself
 } nbLogEntry_t;
 
-// NOTE: Temporary, until we get dynamic memory allocation implemented
+// Temporary initialization log
 static nbLogEntry_t logEntries[64] = {0};
 
 static short curEntry = 0;
@@ -77,4 +77,19 @@ void NbPrintEarly (const char* s)
         NbFwEarlyPrint (*s);
         ++s;
     }
+}
+
+// Assertion failure implementation
+void __attribute__ ((noreturn))
+__assert_failed (const char* expr, const char* file, int line, const char* func)
+{
+    // Log the message
+    NbLogMessageEarly ("Assertion '%s' failed: file %s, line %d, function %s\r\n",
+                       NEXBOOT_LOGLEVEL_EMERGENCY,
+                       expr,
+                       file,
+                       line,
+                       func);
+    NbCrash();
+    __builtin_unreachable();
 }
