@@ -17,6 +17,8 @@
 
 #include <assert.h>
 #include <nexboot/detect.h>
+#include <nexboot/driver.h>
+#include <nexboot/drivers/console.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdbool.h>
@@ -35,6 +37,20 @@ void NbMain (NbloadDetect_t* nbDetect)
     NbMemInit();
     // Initialize object database
     NbObjInitDb();
+    // Start phase 1 drivers
+    if (!NbStartPhase1Drvs())
+    {
+        NbLogMessageEarly ("Error: Unable to start phase 1 drivers",
+                           NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbCrash();
+    }
+    // Detect hardware devices and add them to object database
+    if (!NbFwDetectHw (nbDetect))
+    {
+        NbLogMessageEarly ("Error: Unable to detect hardware devices",
+                           NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbCrash();
+    }
     for (;;)
         ;
 }

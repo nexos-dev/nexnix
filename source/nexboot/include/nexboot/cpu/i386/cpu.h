@@ -48,4 +48,15 @@ static inline uint64_t NbPageAlignDown (uint64_t ptr)
 /// Halts system
 void NbCrash();
 
+/// Small I/O delay
+void NbIoWait();
+
+void NbOutb (uint16_t port, uint8_t val);
+void NbOutw (uint16_t port, uint16_t val);
+void NbOutl (uint16_t port, uint32_t val);
+
+uint8_t NbInb (uint16_t port);
+uint16_t NbInw (uint16_t port);
+uint32_t NbInl (uint16_t port);
+
 #endif

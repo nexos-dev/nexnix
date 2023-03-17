@@ -89,4 +89,20 @@ void NbFwEarlyPrint (char c);
 #define NEXBOOT_BIOS_MEMBASE 0x100000
 #define NEXBOOT_BIOS_BASE    0x200000
 
+#define NEXBOOT_BIOSBUF_BASE 0x600
+
+// System detection macros
+
+// PC architecture components
+#define NB_ARCH_COMP_ACPI    0
+#define NB_ARCH_COMP_MPS     1
+#define NB_ARCH_COMP_PNP     2
+#define NB_ARCH_COMP_APM     3
+#define NB_ARCH_COMP_SMBIOS  4
+#define NB_ARCH_COMP_SMBIOS3 5
+#define NB_ARCH_COMP_PCI     6
+#define NB_ARCH_COMP_VESA    7
+#define NB_ARCH_COMP_BIOS32  8
+#define NB_ARCH_COMP_TCG_TPM 10
+
 #endif

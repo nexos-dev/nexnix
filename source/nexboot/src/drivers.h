@@ -1,5 +1,5 @@
 /*
-    memcmp.c - contains memcmp function for libc
+    drivers.h - contains driver definitions
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,20 +15,19 @@
     limitations under the License.
 */
 
-#include <stdint.h>
-#include <string.h>
+#ifndef _DRIVERS_H
+#define _DRIVERS_H
 
-int memcmp (const void* s1, const void* s2, size_t n)
-{
-    const uint8_t* _s1 = s1;
-    const uint8_t* _s2 = s2;
-    while (n && (*_s1 == *_s2))
-    {
-        ++_s1;
-        ++_s2;
-        --n;
-    }
-    if (n)
-        return *_s1 - *_s2;
-    return 0;
-}
+#include <nexboot/driver.h>
+#include <nexboot/nexboot.h>
+#include <stdbool.h>
+
+// Driver pointers
+extern NbDriver_t vgaConsoleDrv;
+
+// Driver tables
+
+// Drivers started as soon as possible for devices
+static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv};
+
+#endif

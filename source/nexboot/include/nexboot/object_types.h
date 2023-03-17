@@ -1,5 +1,5 @@
 /*
-    services.h - contains references to interface service definitions
+    object_types.h - contains object type definitions
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,22 +15,13 @@
     limitations under the License.
 */
 
-#ifndef _SERVICES_H
-#define _SERVICES_H
+#ifndef _OBJECT_TYPES_H
+#define _OBJECT_TYPES_H
 
-#include <stdbool.h>
-#include <stddef.h>
+#define OBJ_TYPE_DIR    0
+#define OBJ_TYPE_DEVICE 1
 
-typedef struct _svcTab
-{
-    size_t numSvcs;
-    NbObjSvc* svcTab;
-} NbObjSvcTab_t;
-
-#ifdef NEED_SVC_PTRS
-
-extern NbObjSvcTab_t objDirSvcs;
-
-#endif
+#define OBJ_INTERFACE_DIR     0
+#define OBJ_INTERFACE_CONSOLE 1
 
 #endif

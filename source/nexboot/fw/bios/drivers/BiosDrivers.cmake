@@ -1,5 +1,5 @@
-/*
-    object_types.h - contains object type definitions
+#[[
+    BiosDrivers.cmake - contains BIOS drivers source declarations
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,17 +13,6 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-*/
+]]
 
-#ifndef _OBJECT_TYPES_H
-#define _OBJECT_TYPES_H
-
-#define NEED_SVC_PTRS
-
-#define OBJ_MAX_TYPES      48
-#define OBJ_MAX_INTERFACES 8
-
-// Service table
-NbObjSvcTab_t* objSvcTable[OBJ_MAX_TYPES][OBJ_MAX_INTERFACES] = {{&objDirSvcs}};
-
-#endif
+list(APPEND NEXBOOT_BIOS_DRIVERS drivers/vgaconsole.c)

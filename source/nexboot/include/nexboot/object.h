@@ -19,6 +19,7 @@
 #define _NB_OBJECT_H
 
 #include <libnex/object.h>
+#include <nexboot/object_types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,12 +43,24 @@ typedef struct _obj
     struct _obj* prevChild;    /// Previous child object
 } NbObject_t;
 
-#include <nexboot/services.h>
+typedef struct _svcTab
+{
+    size_t numSvcs;
+    NbObjSvc* svcTab;
+} NbObjSvcTab_t;
 
 /// Standard interface services
-#define OBJ_SERVICE_INIT    0
-#define OBJ_SERVICE_DESTROY 2
-#define OBJ_SERVICE_REF     1
+#define OBJ_SERVICE_INIT     0
+#define OBJ_SERVICE_DESTROY  2
+#define OBJ_SERVICE_REF      1
+#define OBJ_SERVICE_DUMPDATA 3
+#define OBJ_SERVICE_NOTIFY   4
+
+typedef struct _objNotify
+{
+    int code;
+    void* data;
+} NbObjNotify_t;
 
 /// Initializes object database
 void NbObjInitDb();
@@ -67,6 +80,9 @@ NbObject_t* NbObjFind (const char* name);
 /// Calls an object service
 bool NbObjCallSvc (NbObject_t* obj, int svc, void* svcArgs);
 
+/// Installs service table pointer
+void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab);
+
 /// Get object interface
 #define NbObjGetInterface(obj) ((obj)->interface)
 
@@ -74,18 +90,14 @@ bool NbObjCallSvc (NbObject_t* obj, int svc, void* svcArgs);
 #define NbObjGetType(obj) ((obj)->type)
 
 /// Set object data
-#define NbObjSetData(obj, data) ((obj)->data = (data))
+#define NbObjSetData(obj, datap) ((obj)->data = (datap))
 
 /// Get object data
 #define NbObjGetData(obj) ((obj)->data)
 
-/// Object directory interfaces
-#define OBJ_TYPE_DIR      0
-#define OBJ_INTERFACE_DIR 0
-
-#define OBJDIR_ADD_CHILD    3
-#define OBJDIR_REMOVE_CHILD 4
-#define OBJDIR_FIND_CHILD   5
+#define OBJDIR_ADD_CHILD    5
+#define OBJDIR_REMOVE_CHILD 6
+#define OBJDIR_FIND_CHILD   7
 
 // Method structure
 typedef struct _objdirOp

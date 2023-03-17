@@ -22,3 +22,44 @@ void NbCrash()
     // Halt system
     asm("cli; hlt");
 }
+
+void NbIoWait()
+{
+    asm("mov $0, %al; outb %al, $0x80");
+}
+
+void NbOutb (uint16_t port, uint8_t val)
+{
+    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+}
+
+void NbOutw (uint16_t port, uint16_t val)
+{
+    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+}
+
+void NbOutl (uint16_t port, uint32_t val)
+{
+    asm volatile("outl %0, %1" : : "a"(val), "Nd"(port));
+}
+
+uint8_t NbInb (uint16_t port)
+{
+    uint8_t ret;
+    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}
+
+uint16_t NbInw (uint16_t port)
+{
+    uint16_t ret;
+    asm volatile("inw %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}
+
+uint32_t NbInl (uint16_t port)
+{
+    uint32_t ret;
+    asm volatile("inl %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}

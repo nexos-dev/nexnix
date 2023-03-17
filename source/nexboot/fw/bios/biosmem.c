@@ -15,6 +15,7 @@
     limitations under the License.
 */
 
+#include <assert.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdbool.h>
@@ -255,6 +256,76 @@ bool nbMemWith88()
     return true;
 }
 
+// Reserve a mememory region
+bool NbFwResvMem (uintptr_t base, size_t sz, int type)
+{
+    assert (memEntry < 256);
+    // Attempt to find a conflicting region
+    for (int i = 0; i < memEntry; ++i)
+    {
+        // Check for an overlap
+        if (base == memmap[i].base)
+        {
+            if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
+                return false;
+            // Figure out how much space should be left in this region
+            memmap[i].base = base + sz;
+            if ((int) (memmap[i].sz - sz) < 0)
+            {
+                memmap[i].base = 0;
+                memmap[i].sz = 0;
+            }
+            else
+                memmap[i].sz = memmap[i].sz - sz;
+        }
+        // Maybe the base of the new region is inside the base of the old?
+        else if (base > memmap[i].base && base < (memmap[i].base + memmap[i].sz))
+        {
+            if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
+                return false;
+            // Contract current region's size
+            memmap[i].sz = base - memmap[i].base;
+            // Check if we need to split this region
+            if ((memmap[i].base + memmap[i].sz) < (base + sz))
+            {
+                // Create a new region
+                memmap[memEntry].base = base + sz;
+                memmap[memEntry].sz = (memmap[i].base + sz) - (base + sz);
+                memmap[memEntry].flags = 0;
+                memmap[memEntry].type = NEXBOOT_MEM_FREE;
+                ++memEntry;
+                ++i;
+            }
+        }
+        // Maybe the size of the new region protrudes into the new
+        else if (memmap[i].base > base &&
+                 (base + sz) < (memmap[i].base + memmap[i].sz) &&
+                 (base + sz) > memmap[i].base)
+        {
+            if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
+                return false;
+            // Offset region's base and size
+            memmap[i].sz = (memmap[i].base + memmap[i].sz) - (base + sz);
+            memmap[i].base += ((base + sz) - memmap[i].base);
+        }
+        // Check if old region is consumed
+        else if ((base + sz) >= (memmap[i].base + memmap[i].sz) &&
+                 memmap[i].base > base)
+        {
+            if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
+                return false;
+            memmap[i].sz = 0;
+            memmap[i].base = 0;
+        }
+    }
+    // Create new memory entry for region
+    memmap[memEntry].base = base;
+    memmap[memEntry].sz = sz;
+    memmap[memEntry].flags = 0;
+    memmap[memEntry].type = type;
+    ++memEntry;
+}
+
 // Performs memory detection
 void NbFwMemDetect()
 {
@@ -274,40 +345,18 @@ void NbFwMemDetect()
     NbLogMessageEarly ("Error: not supported memory map found",
                        NEXBOOT_LOGLEVEL_EMERGENCY);
 bootResv:
-    // Reserve region from 0x0 - 0x8000, as this contains IVT, BDA, and stack
-    memmap[0].base = 0x0;
-    memmap[0].sz = 0x80000;
-    memmap[0].type = NEXBOOT_MEM_BOOT_RECLAIM;
-    // Reserve 0x100000 - 0x300000 as boot reclaim and 0x300000 - 0x600000 as
-    // reserved
-    for (int i = 0; i < memEntry; ++i)
+    // Reserve some memory regions
+    NbFwResvMem (0x0, 0x100000, NEXBOOT_MEM_RESVD);
+    NbFwResvMem (0x100000, 0x200000, NEXBOOT_MEM_BOOT_RECLAIM);
+    NbFwResvMem (0x300000, 0x300000, NEXBOOT_MEM_RESVD);
+    /*for (int i = 0; i < memEntry; ++i)
     {
-        // NOTE: I think 0x100000 should be a memory region base almost everywhere,
-        // but that probably should be tested some more
-        if (memmap[i].base == 0x100000)
-        {
-            if (memmap[i].sz <= 0x600000)
-            {
-                NbLogMessageEarly (
-                    "Error: could not find contigious memory area large "
-                    "enough for bootloader",
-                    NEXBOOT_LOGLEVEL_EMERGENCY);
-            }
-            memmap[i].base = 0x600000;
-            memmap[i].sz = memmap[i].sz - 0x500000;
-            memmap[i].type = NEXBOOT_MEM_FREE;
-            break;
-        }
-    }
-    memmap[memEntry].base = 0x100000;
-    memmap[memEntry].sz = 0x200000;
-    memmap[memEntry].type = NEXBOOT_MEM_BOOT_RECLAIM;
-    memmap[memEntry].flags = 0;
-    ++memEntry;
-    memmap[memEntry].base = 0x300000;
-    memmap[memEntry].sz = 0x300000;
-    memmap[memEntry].type = NEXBOOT_MEM_RESVD;
-    ++memEntry;
+        NbLogMessageEarly ("%llx %llx %u\r\n",
+                           NEXBOOT_LOGLEVEL_ERROR,
+                           memmap[i].base,
+                           memmap[i].sz,
+                           memmap[i].type);
+    }*/
 }
 
 NbMemEntry_t* NbGetMemMap (int* size)

@@ -20,8 +20,6 @@
 #include <nexboot/nexboot.h>
 #include <string.h>
 
-#include "object_types.h"
-
 // Object data structure
 typedef struct _objDir
 {
@@ -31,6 +29,8 @@ typedef struct _objDir
 
 // Root directory pointer
 static NbObject_t* rootDir = NULL;
+
+extern NbObjSvcTab_t objDirSvcs;
 
 // Pathname parser
 typedef struct _pathpart
@@ -118,20 +118,12 @@ NbObject_t* NbObjCreate (const char* name, int type, int interface)
     if (!obj)
         return NULL;
     ObjCreate ("NbObject_t", &obj->obj);
-    // Check interface and type
-    if (interface >= OBJ_MAX_INTERFACES || type >= OBJ_MAX_TYPES)
-        return NULL;
     obj->interface = interface;
     obj->type = type;
-    obj->services = objSvcTable[type][interface]->svcTab;
     obj->name = _basename (name);
-    obj->numSvcs = objSvcTable[type][interface]->numSvcs;
-    // Verify what we have init, ref, destory methods
-    if (!obj->services[0] || !obj->services[1] || !obj->services[2])
-        return NULL;
-    // Run init method
-    if (!NbObjCallSvc (obj, OBJ_SERVICE_INIT, NULL))
-        return NULL;
+    // If this is a directory, go ahead and install the services interface
+    if (obj->type == OBJ_TYPE_DIR)
+        NbObjInstallSvcs (obj, &objDirSvcs);
     // Add method to tree
     // Edge case: if name == "", we are the root directory and must set that variable
     if (!strcmp (name, "/"))
@@ -163,7 +155,7 @@ NbObject_t* NbObjFind (const char* name)
         if (!res)
             return NULL;    // Object doesn't exist
         if (part.isLastPart)
-            return NbObjRef (op.foundObj);
+            return op.foundObj;
         curDir = op.foundObj;
     }
 }
@@ -172,8 +164,8 @@ NbObject_t* NbObjRef (NbObject_t* obj)
 {
     assert (obj);
     ObjRef (&obj->obj);
-    if (!obj->services[OBJ_SERVICE_REF](obj, NULL))
-        return NULL;
+    if (obj->services[OBJ_SERVICE_REF])
+        obj->services[OBJ_SERVICE_REF](obj, NULL);
     return obj;
 }
 
@@ -187,7 +179,8 @@ void NbObjDeRef (NbObject_t* obj)
         ObjDirOp_t op;
         op.obj = obj;
         assert (NbObjCallSvc (obj->parent, OBJDIR_REMOVE_CHILD, &op));
-        obj->services[OBJ_SERVICE_DESTROY](obj, NULL);
+        if (obj->services[OBJ_SERVICE_DESTROY])
+            obj->services[OBJ_SERVICE_DESTROY](obj, NULL);
         free (obj);
     }
 }
@@ -198,6 +191,17 @@ bool NbObjCallSvc (NbObject_t* obj, int svc, void* svcArgs)
     if (svc >= obj->numSvcs)
         return false;
     return obj->services[svc](obj, svcArgs);
+}
+
+void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab)
+{
+    assert (obj && svcTab);
+    obj->services = svcTab->svcTab;
+    obj->numSvcs = svcTab->numSvcs;
+    assert (svcTab->svcTab[0] && svcTab->svcTab[1] && svcTab->svcTab[2] &&
+            svcTab->svcTab[3] && svcTab->svcTab[4]);
+    // Call init service
+    NbObjCallSvc (obj, OBJ_SERVICE_INIT, NULL);
 }
 
 // Initializes object directory
@@ -254,7 +258,7 @@ static bool nbObjAddChild (void* dirp, void* opp)
     dirData->childList = obj;
     dirData->childCount++;
     // Set parent
-    obj->parent = dir;
+    obj->parent = NbObjRef (dir);
     return true;
 }
 
@@ -290,6 +294,7 @@ static bool nbObjRemoveChild (void* dirp, void* opp)
         obj->nextChild->prevChild = obj->prevChild;
     if (obj == dirData->childList)
         dirData->childList = obj->nextChild;
+    NbObjDeRef (obj->parent);
     dirData->childCount--;
     return true;
 }
@@ -318,10 +323,22 @@ static bool nbObjFindChild (void* dirp, void* opp)
     return false;
 }
 
+static bool nbObjDirDump (void* dir, void* unused)
+{
+    return true;
+}
+
+static bool nbObjDirNotify (void* dir, void* unused)
+{
+    return true;
+}
+
 // Object directory interface
 static NbObjSvc objDirFuncs[] = {nbObjDirInit,
                                  nbObjDirRef,
                                  nbObjDirDestroy,
+                                 nbObjDirDump,
+                                 nbObjDirNotify,
                                  nbObjAddChild,
                                  nbObjRemoveChild,
                                  nbObjFindChild};

@@ -30,6 +30,7 @@ endif()
 
 # Include boot record rules
 include(boot/bootrec.cmake)
+include(drivers/BiosDrivers.cmake)
 include(cpu/${NEXNIX_ARCH}/arch.cmake)
 
 # Determine bit number
@@ -69,8 +70,12 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bioscall.asm.in ${CMAKE_CURRENT_BINAR
 set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/bioscall.asm PROPERTIES OBJECT_DEPENDS
                             ${NEXBOOT_BIOSCALL_LOCATION})
 # Add bootloader
-list(APPEND NEXBOOT_SOURCE_FILES bios.c biosmem.c ${CMAKE_CURRENT_BINARY_DIR}/bioscall.asm)
-add_executable(nexboot-bios-1 ${NEXBOOT_SOURCE_FILES})
+list(APPEND NEXBOOT_SOURCE_FILES 
+            bios.c
+            biosmem.c
+            hwdetect.c
+            ${CMAKE_CURRENT_BINARY_DIR}/bioscall.asm)
+add_executable(nexboot-bios-1 ${NEXBOOT_SOURCE_FILES} ${NEXBOOT_BIOS_DRIVERS})
 # Set linker script
 target_link_options(nexboot-bios-1 PRIVATE -Wl,-no-pie -T 
                                    ${CMAKE_CURRENT_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/link.ld)
