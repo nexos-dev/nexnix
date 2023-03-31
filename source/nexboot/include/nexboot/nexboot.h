@@ -32,6 +32,9 @@
 /// Initializes log for bootup
 void NbLogInit();
 
+/// Disables early printing
+void NbDisablePrintEarly();
+
 /// Logs a string to the log, pre console intialization
 void NbLogMessageEarly (const char* fmt, int level, ...);
 

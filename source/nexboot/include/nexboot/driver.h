@@ -30,10 +30,8 @@ typedef bool (*DrvEntry) (int, void*);
 // nexboot driver structure
 typedef struct _drv
 {
-    const char name[64];    //// Name of driver
-    int devType;            /// Type of device. Corresponds device object interface
-    int devSubType;         /// Subtype of device
-    DrvEntry entry;         /// Driver entry
+    const char name[64];                     //// Name of driver
+    DrvEntry entry;                          /// Driver entry
     const char deps[64][DRIVER_NUM_DEPS];    /// Driver dependencies
     size_t numDeps;                          /// Number of dependencies
     bool started;                            /// Has the driver been started
@@ -57,6 +55,9 @@ bool NbStopDriver (const char* drv);
 
 /// Starts phase 1 drivers
 bool NbStartPhase1Drvs();
+
+/// Starts phase 2 of drivers
+bool NbStartPhase2Drvs();
 
 /// Sends driver a code
 bool NbSendDriverCode (NbDriver_t* drv, int code, void* data);

@@ -1,5 +1,5 @@
 /*
-    drivers.h - contains driver definitions
+    terminal.c - contains terminal driver
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,23 +15,16 @@
     limitations under the License.
 */
 
-#ifndef _DRIVERS_H
-#define _DRIVERS_H
-
 #include <nexboot/driver.h>
-#include <nexboot/nexboot.h>
-#include <stdbool.h>
+#include <nexboot/drivers/terminal.h>
+#include <nexboot/object.h>
 
-// Driver pointers
-extern NbDriver_t vgaConsoleDrv;
-extern NbDriver_t terminalDrv;
-extern NbDriver_t ps2KbdDrv;
-extern NbDriver_t uart16550Drv;
+static bool TerminalEntry (int code, void* params)
+{
+    switch (code)
+    {
+    }
+    return true;
+}
 
-// Driver tables
-
-// Drivers started as soon as possible for devices
-static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv, &ps2KbdDrv, &uart16550Drv};
-static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv};
-
-#endif
+NbDriver_t terminalDrv = {"Terminal", TerminalEntry, {0}, 0, false, 0};

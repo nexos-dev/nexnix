@@ -18,10 +18,14 @@
 #ifndef _OBJECT_TYPES_H
 #define _OBJECT_TYPES_H
 
-#define OBJ_TYPE_DIR    0
-#define OBJ_TYPE_DEVICE 1
+#define OBJ_TYPE_DIR     0
+#define OBJ_TYPE_DEVICE  1
+#define OBJ_TYPE_SYSINFO 2
 
-#define OBJ_INTERFACE_DIR     0
-#define OBJ_INTERFACE_CONSOLE 1
+#define OBJ_INTERFACE_DIR           0
+#define OBJ_INTERFACE_CONSOLE       1
+#define OBJ_INTERFACE_KBD           2
+#define OBJ_INTERFACE_GENERIC_TIMER 3
+#define OBJ_INTERFACE_RS232         4
 
 #endif

@@ -19,6 +19,7 @@
 #include <nexboot/driver.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
+#include <stdio.h>
 #include <string.h>
 
 typedef struct _rsdp
@@ -238,6 +239,9 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     sysInfo.cpuInfo.flags = nbDetect->cpu.flags;
     sysInfo.cpuInfo.version = nbDetect->cpu.version;
     sysInfo.sysFwType = NB_FW_TYPE_BIOS;
+    // Create sysinfo object
+    NbObject_t* sysInfoObj = NbObjCreate ("/Devices/Sysinfo", OBJ_TYPE_SYSINFO, 0);
+    NbObjSetData (sysInfoObj, &sysInfo);
     // Detect various tables
     detectAcpi();
     detectMps();
@@ -255,5 +259,32 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     assert (NbSendDriverCode (drv, NB_DRIVER_ENTRY_DETECTHW, dev));
     // Attach device to driver
     createDeviceObject ("/Devices/VgaConsole0", OBJ_INTERFACE_CONSOLE, drv, dev);
-    // Use BIOS to look for hard disks
+    // Find keyboards
+    NbDriver_t* keyDrv = NbFindDriver ("PS2Kbd");
+    assert (keyDrv);
+    dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
+    while (NbSendDriverCode (keyDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        // Create object for driver
+        char buf[64] = {0};
+        snprintf (buf, 64, "/Devices/PS2Kbd%d", dev->devId);
+        createDeviceObject (buf, OBJ_INTERFACE_KBD, keyDrv, dev);
+        dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
+    }
+    // Free last allocated device
+    free (dev);
+    // Find serial ports
+    NbDriver_t* serialDrv = NbFindDriver ("Rs232_16550");
+    assert (serialDrv);
+    dev = (NbHwDevice_t*) malloc (serialDrv->devSize);
+    while (NbSendDriverCode (serialDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        // Create object for driver
+        char buf[64] = {0};
+        snprintf (buf, 64, "/Devices/Rs232%d", dev->devId);
+        createDeviceObject (buf, OBJ_INTERFACE_RS232, serialDrv, dev);
+        dev = (NbHwDevice_t*) malloc (serialDrv->devSize);
+    }
+    free (dev);
+    return true;
 }

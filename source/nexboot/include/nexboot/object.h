@@ -32,7 +32,7 @@ typedef bool (*NbObjSvc) (void*, void*);
 typedef struct _obj
 {
     Object_t obj;              /// libnex object for reference counting
-    const char* name;          /// Name of object in hierarchy
+    char name[64];             /// Name of object in hierarchy
     int type;                  /// Type of object
     int interface;             /// Interface of object
     NbObjSvc* services;        /// Object services
@@ -83,6 +83,9 @@ bool NbObjCallSvc (NbObject_t* obj, int svc, void* svcArgs);
 /// Installs service table pointer
 void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab);
 
+/// Enumerates a child directory
+NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter);
+
 /// Get object interface
 #define NbObjGetInterface(obj) ((obj)->interface)
 
@@ -98,6 +101,7 @@ void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab);
 #define OBJDIR_ADD_CHILD    5
 #define OBJDIR_REMOVE_CHILD 6
 #define OBJDIR_FIND_CHILD   7
+#define OBJDIR_ENUM_CHILD   8
 
 // Method structure
 typedef struct _objdirOp
@@ -110,6 +114,7 @@ typedef struct _objdirOp
             const char* name;
         };
         NbObject_t* obj;
+        NbObject_t* enumStat;
     };
     int status;
 } ObjDirOp_t;

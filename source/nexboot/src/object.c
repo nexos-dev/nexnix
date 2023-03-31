@@ -42,6 +42,7 @@ typedef struct _pathpart
 
 static void _parsePath (pathPart_t* part)
 {
+    memset (part->name, 0, 32);
     // Check if we need to skip over a '/'
     if (*part->oldName == '/')
         ++part->oldName;
@@ -120,7 +121,7 @@ NbObject_t* NbObjCreate (const char* name, int type, int interface)
     ObjCreate ("NbObject_t", &obj->obj);
     obj->interface = interface;
     obj->type = type;
-    obj->name = _basename (name);
+    strcpy (obj->name, _basename (name));
     // If this is a directory, go ahead and install the services interface
     if (obj->type == OBJ_TYPE_DIR)
         NbObjInstallSvcs (obj, &objDirSvcs);
@@ -198,10 +199,19 @@ void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab)
     assert (obj && svcTab);
     obj->services = svcTab->svcTab;
     obj->numSvcs = svcTab->numSvcs;
-    assert (svcTab->svcTab[0] && svcTab->svcTab[1] && svcTab->svcTab[2] &&
-            svcTab->svcTab[3] && svcTab->svcTab[4]);
+    assert (svcTab->svcTab[3] && svcTab->svcTab[4]);
     // Call init service
-    NbObjCallSvc (obj, OBJ_SERVICE_INIT, NULL);
+    if (obj->services[OBJ_SERVICE_INIT])
+        NbObjCallSvc (obj, OBJ_SERVICE_INIT, NULL);
+}
+
+NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter)
+{
+    assert (dir->type == OBJ_TYPE_DIR);
+    ObjDirOp_t op;
+    op.enumStat = iter;
+    NbObjCallSvc (dir, OBJDIR_ENUM_CHILD, &op);
+    return op.enumStat;
 }
 
 // Initializes object directory
@@ -323,6 +333,21 @@ static bool nbObjFindChild (void* dirp, void* opp)
     return false;
 }
 
+// Enumerates child directory
+static bool nbObjEnumChild (void* dirp, void* opp)
+{
+    NbObject_t* dir = dirp;
+    objDir_t* dirData = dir->data;
+    ObjDirOp_t* op = opp;
+    assert (dir && op);
+    // If enumeration has started, just go to next
+    if (op->enumStat)
+        op->enumStat = op->enumStat->nextChild;
+    else
+        op->enumStat = dirData->childList;    // Else start enumeration
+    return true;
+}
+
 static bool nbObjDirDump (void* dir, void* unused)
 {
     return true;
@@ -341,6 +366,7 @@ static NbObjSvc objDirFuncs[] = {nbObjDirInit,
                                  nbObjDirNotify,
                                  nbObjAddChild,
                                  nbObjRemoveChild,
-                                 nbObjFindChild};
+                                 nbObjFindChild,
+                                 nbObjEnumChild};
 
 NbObjSvcTab_t objDirSvcs = {ARRAY_SIZE (objDirFuncs), objDirFuncs};

@@ -15,9 +15,11 @@
     limitations under the License.
 */
 
+#include <assert.h>
 #include <nexboot/driver.h>
 #include <nexboot/drivers/vgaconsole.h>
 #include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
 #include <nexboot/object.h>
 #include <string.h>
 
@@ -27,7 +29,7 @@ extern NbObjSvcTab_t vgaSvcTab;
 // Note that in this mode, the buffer starts at 0xB8000, and operates in planar mode
 // with odd / even addressing, meaning that byte 0 corresponds to plane 0, byte 1 to
 // plane 1, byte 2 to plane 0, and so on. Plane 2 is only accesible via hacks, plane
-// 3 is unused Plane 0 contains color attributes, plane 1 contains ASCII codes, and
+// 3 is unused. Plane 0 contains color attributes, plane 1 contains ASCII codes, and
 // plane 2 contains font data. Note that ASCII escape sequences are not interpreted,
 // it prints stuff as it is passed. The terminal layer driver must interpret escape
 // sequences and accordingly adjust the associated line
@@ -66,6 +68,8 @@ static bool VgaConsoleEntry (int code, void* params)
         // Set the interface
         NbObject_t* obj = params;
         NbObjInstallSvcs (obj, &vgaSvcTab);
+        // Ensure no more BIOS printing takes place
+        NbDisablePrintEarly();
     }
     return true;
 }
@@ -158,6 +162,7 @@ static bool VgaObjNotify (void* objp, void* data)
 
 static bool VgaPutChar (void* objp, void* data)
 {
+    assert (data);
     NbPrintChar_t* charData = data;
     NbObject_t* obj = objp;
     NbVgaConsole_t* console = obj->data;
@@ -235,6 +240,15 @@ static bool VgaScrollDown (void* objp, void* unused)
     return true;
 }
 
+static bool VgaMoveCursor (void* objp, void* data)
+{
+    assert (data);
+    NbConsoleLoc_t* loc = data;
+    NbObject_t* obj = objp;
+    NbVgaConsole_t* console = obj->data;
+    vgaMoveCursor (console, loc->col, loc->row);
+}
+
 // Object interface
 static NbObjSvc vgaServices[] = {VgaObjInit,
                                  VgaObjDestroy,
@@ -247,16 +261,11 @@ static NbObjSvc vgaServices[] = {VgaObjInit,
                                  VgaEnableCursor,
                                  VgaSetFgColor,
                                  VgaSetBgColor,
-                                 VgaScrollDown};
+                                 VgaScrollDown,
+                                 VgaMoveCursor};
 
 NbObjSvcTab_t vgaSvcTab = {ARRAY_SIZE (vgaServices), vgaServices};
 
 // Driver structure
-NbDriver_t vgaConsoleDrv = {"VgaConsole",
-                            OBJ_INTERFACE_CONSOLE,
-                            NB_DEVICE_SUBTYPE_VGACONSOLE,
-                            VgaConsoleEntry,
-                            {0},
-                            0,
-                            false,
-                            sizeof (NbVgaConsole_t)};
+NbDriver_t vgaConsoleDrv =
+    {"VgaConsole", VgaConsoleEntry, {0}, 0, false, sizeof (NbVgaConsole_t)};

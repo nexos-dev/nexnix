@@ -15,4 +15,6 @@
     limitations under the License.
 ]]
 
-list(APPEND NEXBOOT_BIOS_DRIVERS drivers/vgaconsole.c)
+list(APPEND NEXBOOT_BIOS_DRIVERS drivers/vgaconsole.c 
+                                 drivers/ps2kbd.c
+                                 drivers/uart16550.c)

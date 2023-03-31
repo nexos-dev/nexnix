@@ -1,5 +1,5 @@
 /*
-    drivers.h - contains driver definitions
+    ps2kbd.h - contains PS/2 keyboard stuff
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,23 +15,24 @@
     limitations under the License.
 */
 
-#ifndef _DRIVERS_H
-#define _DRIVERS_H
+#ifndef _PS2KBD_H
+#define _PS2KBD_H
 
 #include <nexboot/driver.h>
-#include <nexboot/nexboot.h>
-#include <stdbool.h>
+#include <nexboot/drivers/terminal.h>
+#include <nexboot/fw.h>
 
-// Driver pointers
-extern NbDriver_t vgaConsoleDrv;
-extern NbDriver_t terminalDrv;
-extern NbDriver_t ps2KbdDrv;
-extern NbDriver_t uart16550Drv;
+typedef struct _ps2kbd
+{
+    NbHwDevice_t hdr;     // Device header
+    NbDriver_t* owner;    // Driver who currently owns keyboard
+    int ledFlags;         // LED flags
+    bool capsState;       // State of caps lock / shift
+    bool shiftState;
+    bool ctrlState;
+    bool altState;
+} NbPs2Kbd_t;
 
-// Driver tables
-
-// Drivers started as soon as possible for devices
-static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv, &ps2KbdDrv, &uart16550Drv};
-static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv};
+#define NB_DEVICE_SUBTYPE_PS2KBD 2
 
 #endif

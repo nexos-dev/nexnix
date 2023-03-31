@@ -19,7 +19,7 @@
 #define _VGACONSOLE_H
 
 #include <nexboot/driver.h>
-#include <nexboot/drivers/console.h>
+#include <nexboot/drivers/terminal.h>
 #include <nexboot/fw.h>
 
 typedef struct _vgaConsole

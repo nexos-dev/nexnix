@@ -1,5 +1,5 @@
 /*
-    drivers.h - contains driver definitions
+    time.h - contains timer driver interface
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,23 +15,11 @@
     limitations under the License.
 */
 
-#ifndef _DRIVERS_H
-#define _DRIVERS_H
+#ifndef _TIME_H
+#define _TIME_H
 
-#include <nexboot/driver.h>
-#include <nexboot/nexboot.h>
-#include <stdbool.h>
+#define NB_DEVICE_SUBTYPE_PITTIME 1
 
-// Driver pointers
-extern NbDriver_t vgaConsoleDrv;
-extern NbDriver_t terminalDrv;
-extern NbDriver_t ps2KbdDrv;
-extern NbDriver_t uart16550Drv;
-
-// Driver tables
-
-// Drivers started as soon as possible for devices
-static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv, &ps2KbdDrv, &uart16550Drv};
-static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv};
+#define NB_TIMER_WAIT 5
 
 #endif

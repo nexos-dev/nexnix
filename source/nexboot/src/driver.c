@@ -94,6 +94,20 @@ bool NbStartPhase1Drvs()
     return true;
 }
 
+bool NbStartPhase2Drvs()
+{
+    size_t numDrvs = ARRAY_SIZE (nbPhase2DrvTab);
+    for (int i = 0; i < numDrvs; ++i)
+    {
+        if (!nbPhase2DrvTab[i]->started)
+        {
+            if (!NbStartDriverByPtr (nbPhase2DrvTab[i]))
+                return false;
+        }
+    }
+    return true;
+}
+
 // Sends driver a code
 bool NbSendDriverCode (NbDriver_t* drv, int code, void* data)
 {

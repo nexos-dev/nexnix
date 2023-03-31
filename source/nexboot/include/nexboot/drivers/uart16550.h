@@ -1,5 +1,5 @@
 /*
-    drivers.h - contains driver definitions
+    uart16550.h - PC UART stuff
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,23 +15,16 @@
     limitations under the License.
 */
 
-#ifndef _DRIVERS_H
-#define _DRIVERS_H
+#ifndef _UART16550_H
+#define _UART16550_H
 
 #include <nexboot/driver.h>
-#include <nexboot/nexboot.h>
-#include <stdbool.h>
+#include <nexboot/fw.h>
 
-// Driver pointers
-extern NbDriver_t vgaConsoleDrv;
-extern NbDriver_t terminalDrv;
-extern NbDriver_t ps2KbdDrv;
-extern NbDriver_t uart16550Drv;
-
-// Driver tables
-
-// Drivers started as soon as possible for devices
-static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv, &ps2KbdDrv, &uart16550Drv};
-static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv};
+typedef struct _uart16550
+{
+    NbHwDevice_t dev;
+    uint16_t port;    // Base port of UART
+} NbUart16550Dev_t;
 
 #endif

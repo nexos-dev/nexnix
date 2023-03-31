@@ -1,5 +1,5 @@
 /*
-    console.h - contains console driver
+    terminal.h - contains console driver
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,8 @@
 #define NB_CONSOLEHW_ENABLE_CURSOR  8
 #define NB_CONSOLEHW_SET_FGCOLOR    9
 #define NB_CONSOLEHW_SET_BGCOLOR    10
-#define NB_CONSOLEHW_SCROLLDOWN     11
+#define NB_CONSOLEHW_SCROLL_DOWN    11
+#define NB_CONSOLEHW_MOVE_CURSOR    12
 
 typedef struct _consolePrint
 {
@@ -38,6 +39,40 @@ typedef struct _consolePrint
     int row;
     char c;
 } NbPrintChar_t;
+
+typedef struct _consoleLoc
+{
+    int col;
+    int row;
+} NbConsoleLoc_t;
+
+// Keyboard stuff
+#define NB_KEYBOARD_NOTIFY_SET_OWNER 32
+
+#define NB_KEYBOARD_READ_KEY 5
+#define NB_KEYBOARD_DISABLE  6
+#define NB_KEYBOARD_ENABLE   7
+
+// Key structure
+typedef struct _keyData
+{
+    union
+    {
+        uint8_t c;              // Key character in ASCII
+        const char* escCode;    // VT-100 escape code of key
+    };
+    bool isBreak;    // Key was released, not pressed
+    int flags;       // Contains state of capitals, CTRL, SHIFT, and ALT
+} NbKeyData_t;
+
+#define NB_KEY_FLAG_CTRL  (1 << 0)
+#define NB_KEY_FLAG_ALT   (1 << 1)
+#define NB_KEY_FLAG_CAPS  (1 << 2)
+#define NB_KEY_FLAG_SHIFT (1 << 3)
+
+// Serial port stuff
+#define NB_SERIAL_WRITE 5
+#define NB_SERIAL_READ  6
 
 #define NB_CONSOLE_COLOR_BLACK   0
 #define NB_CONSOLE_COLOR_RED     1

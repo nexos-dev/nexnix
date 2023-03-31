@@ -205,7 +205,7 @@ then
         EMU_BUSTYPE="pci"
         [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
         [ -z "$EMU_NETDEV" ] && EMU_NETDEV="ne2k"
-        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="bochs"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="ac97"
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
@@ -301,7 +301,6 @@ then
         EMU_USBDRIVE=0
         [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
         EMU_SMP=1
-        QEMUARGS="${QEMUARGS} -no-acpi"
     elif [ "$NNTARGETCONF" = "qemu" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
@@ -454,10 +453,10 @@ then
     # Set the input device
     if [ "$EMU_INPUTDEV" = "usb" ]
     then
-        QEMUARGS="${QEMUARGS} -device usb-kbd -device usb-mouse"
+        : ;
     elif [ "$EMU_INPUTDEV" = "ps2" ]
     then
-        QEMUARGS="${QEMUARGS} -device i8042"
+        : ;
     elif [ "$EMU_INPUTDEV" = "virtio" ]
     then
         if [ "$EMU_BUSTYPE" = "pci" ] || [ "$EMU_BUSTYPE" = "pcie" ]

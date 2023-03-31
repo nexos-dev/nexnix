@@ -70,12 +70,22 @@ void NbLogMessageEarly (const char* fmt, int level, ...)
     ++curEntry;
 }
 
+static bool printEarlyDisabled = false;
+
+void NbDisablePrintEarly()
+{
+    printEarlyDisabled = true;
+}
+
 void NbPrintEarly (const char* s)
 {
-    while (*s)
+    if (!printEarlyDisabled)
     {
-        NbFwEarlyPrint (*s);
-        ++s;
+        while (*s)
+        {
+            NbFwEarlyPrint (*s);
+            ++s;
+        }
     }
 }
 

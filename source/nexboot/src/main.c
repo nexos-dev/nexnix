@@ -18,7 +18,8 @@
 #include <assert.h>
 #include <nexboot/detect.h>
 #include <nexboot/driver.h>
-#include <nexboot/drivers/console.h>
+#include <nexboot/drivers/terminal.h>
+#include <nexboot/drivers/time.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdbool.h>
@@ -50,6 +51,41 @@ void NbMain (NbloadDetect_t* nbDetect)
         NbLogMessageEarly ("Error: Unable to detect hardware devices",
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
+    }
+    // Start phase 2 of drivers
+    if (!NbStartPhase2Drvs())
+    {
+        NbLogMessageEarly ("Error: Unable to start phase 2 drivers",
+                           NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbCrash();
+    }
+    NbObject_t* obj = NbObjFind ("/Devices/PS2Kbd0");
+    NbObject_t* obj2 = NbObjFind ("/Devices/VgaConsole0");
+    NbObject_t* obj3 = NbObjFind ("/Devices/Rs2320");
+    NbObjCallSvc (obj3, NB_SERIAL_WRITE, (void*) 'c');
+    uint8_t c = 0;
+    NbObjCallSvc (obj3, NB_SERIAL_READ, &c);
+    int col = 0;
+    int row = 0;
+    assert (obj);
+    while (1)
+    {
+        NbKeyData_t keyData = {0};
+        NbObjCallSvc (obj, NB_KEYBOARD_READ_KEY, &keyData);
+        NbPrintChar_t pc = {0};
+        pc.c = keyData.c;
+        pc.col = col;
+        pc.row = row;
+        if (!keyData.isBreak)
+        {
+            NbObjCallSvc (obj2, NB_CONSOLEHW_PRINTCHAR, &pc);
+            ++col;
+            if (col == 80)
+            {
+                col = 0;
+                ++row;
+            }
+        }
     }
     for (;;)
         ;
