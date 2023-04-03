@@ -32,6 +32,13 @@
 #define NB_CONSOLEHW_SET_BGCOLOR    10
 #define NB_CONSOLEHW_SCROLL_DOWN    11
 #define NB_CONSOLEHW_MOVE_CURSOR    12
+#define NB_CONSOLEHW_GET_SIZE       13
+
+typedef struct _consoleSz
+{
+    int cols;
+    int rows;
+} NbConsoleSz_t;
 
 typedef struct _consolePrint
 {
@@ -47,7 +54,7 @@ typedef struct _consoleLoc
 } NbConsoleLoc_t;
 
 // Keyboard stuff
-#define NB_KEYBOARD_NOTIFY_SET_OWNER 32
+#define NB_KEYBOARD_NOTIFY_SETOWNER 32
 
 #define NB_KEYBOARD_READ_KEY 5
 #define NB_KEYBOARD_DISABLE  6
@@ -61,8 +68,9 @@ typedef struct _keyData
         uint8_t c;              // Key character in ASCII
         const char* escCode;    // VT-100 escape code of key
     };
-    bool isBreak;    // Key was released, not pressed
-    int flags;       // Contains state of capitals, CTRL, SHIFT, and ALT
+    bool isEscCode;    // Wheter this is an escape code or not
+    bool isBreak;      // Key was released, not pressed
+    int flags;         // Contains state of capitals, CTRL, SHIFT, and ALT
 } NbKeyData_t;
 
 #define NB_KEY_FLAG_CTRL  (1 << 0)
@@ -74,6 +82,8 @@ typedef struct _keyData
 #define NB_SERIAL_WRITE 5
 #define NB_SERIAL_READ  6
 
+#define NB_SERIAL_NOTIFY_SETOWNER 32
+
 #define NB_CONSOLE_COLOR_BLACK   0
 #define NB_CONSOLE_COLOR_RED     1
 #define NB_CONSOLE_COLOR_GREEN   2
@@ -82,5 +92,17 @@ typedef struct _keyData
 #define NB_CONSOLE_COLOR_MAGENTA 5
 #define NB_CONSOLE_COLOR_CYAN    6
 #define NB_CONSOLE_COLOR_WHITE   7
+
+// Terminal functions
+#define NB_TERMINAL_WRITE   5
+#define NB_TERMINAL_READ    6
+#define NB_TEMRINAL_SETOPTS 7
+
+// Terminal read argument
+typedef struct _termRead
+{
+    char* buf;       // Buffer to read into
+    size_t bufSz;    // Size of buffer
+} NbTermRead_t;
 
 #endif

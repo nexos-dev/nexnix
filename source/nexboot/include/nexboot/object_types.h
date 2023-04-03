@@ -27,5 +27,6 @@
 #define OBJ_INTERFACE_KBD           2
 #define OBJ_INTERFACE_GENERIC_TIMER 3
 #define OBJ_INTERFACE_RS232         4
+#define OBJ_INTERFACE_TERMINAL      5
 
 #endif

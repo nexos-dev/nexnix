@@ -161,8 +161,7 @@ static bool Ps2KbdEntry (int code, void* params)
                 return false;
             while (NbInb (PS2_PORT_STATUS) & PS2_STATUS_OBF)
                 ps2ReadData();    // Read data to flush output buffer
-            // Disable translation, as it effects the ID bytes on QEMU
-            // Also disable interrupts
+            // Disable translation, interupts, and put in PC mode
             ps2SendCtrlCmd (PS2_COMMAND_READ_CCB);
             uint8_t ccb = ps2ReadData();
             ccb &= ~PS2_CCB_INTS;
@@ -170,7 +169,6 @@ static bool Ps2KbdEntry (int code, void* params)
             ccb |= PS2_CCB_PC;
             ps2SendCtrlCmdParam (PS2_COMMAND_WRITE_CCB, ccb);
             ps2SendCtrlCmd (PS2_COMMAND_ENABLE_KBD);
-            // Clear translation bit
             // Detect if a keyboard exists. To do this, we send the read ID
             // command If we get a timeout error when sending it, a keyboard
             // isn't plugged in
@@ -194,7 +192,6 @@ static bool Ps2KbdEntry (int code, void* params)
             if (ps2ReadData() != PS2_RESULT_ACK || ps2ReadData() != PS2_ID_BYTE1 ||
                 ps2ReadData() != PS2_ID_BYTE2)
                 return false;    // No keyboard
-            NbLogMessageEarly ("PS/2 Keyboard found\r\n", NEXBOOT_LOGLEVEL_INFO);
             // Set up keyboard parameters
             ps2SendKbdCmd (PS2_COMMAND_SET_DEFAULTS);
             assert (ps2ReadData() == PS2_RESULT_ACK);
@@ -229,7 +226,7 @@ static bool Ps2Notify (void* objp, void* params)
     NbObject_t* obj = objp;
     NbObjNotify_t* notify = params;
     int code = notify->code;
-    if (code == NB_CONSOLEHW_NOTIFY_SETOWNER)
+    if (code == NB_KEYBOARD_NOTIFY_SETOWNER)
     {
         // Notify current owner that we are being deteached
         NbPs2Kbd_t* console = obj->data;
@@ -252,6 +249,12 @@ static bool Ps2ReadKey (void* objp, void* params)
     // Check if were in caps mode
     if (kbd->capsState)
         keyData->flags |= NB_KEY_FLAG_CAPS;
+    if (kbd->shiftState)
+        keyData->flags |= NB_KEY_FLAG_SHIFT;
+    if (kbd->altState)
+        keyData->flags |= NB_KEY_FLAG_ALT;
+    if (kbd->ctrlState)
+        keyData->flags |= NB_KEY_FLAG_CTRL;
     // So, here's our logic: we read data from the keyboard in a sort of state
     // machine
     bool isBreak = false;
@@ -369,7 +372,9 @@ static bool Ps2ReadKey (void* objp, void* params)
                 isExtCode = false;
             continue;
         }
-        // Determine wheter this is capital or not
+        // Check if shift is held. The boolean condition ensures that if caps lock is
+        // held too then we don't capitalize, but still in that case handle
+        // non-alphabetic shifts
         if (kbd->shiftState && (!kbd->capsState || !(c >= 'a' && c <= 'z')))
             c = scanToEnUsUppercase[scanCode];
         else if (kbd->capsState && !kbd->shiftState)
@@ -384,7 +389,8 @@ static bool Ps2ReadKey (void* objp, void* params)
         if (c >= 0xF0 && c <= PS2_KEY_END)
         {
             // Convert to escape code
-            keyData->escCode = keyToEscCode[c];
+            keyData->isEscCode = true;
+            keyData->escCode = keyToEscCode[c - 0xF1];
         }
         if (isExtCode)
             isExtCode = false;

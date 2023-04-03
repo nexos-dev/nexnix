@@ -68,8 +68,6 @@ static bool VgaConsoleEntry (int code, void* params)
         // Set the interface
         NbObject_t* obj = params;
         NbObjInstallSvcs (obj, &vgaSvcTab);
-        // Ensure no more BIOS printing takes place
-        NbDisablePrintEarly();
     }
     return true;
 }
@@ -249,6 +247,17 @@ static bool VgaMoveCursor (void* objp, void* data)
     vgaMoveCursor (console, loc->col, loc->row);
 }
 
+static bool VgaGetSize (void* objp, void* data)
+{
+    assert (objp && data);
+    NbConsoleSz_t* out = data;
+    NbObject_t* obj = objp;
+    NbVgaConsole_t* console = obj->data;
+    out->cols = console->cols;
+    out->rows = console->rows;
+    return true;
+}
+
 // Object interface
 static NbObjSvc vgaServices[] = {VgaObjInit,
                                  VgaObjDestroy,
@@ -262,7 +271,8 @@ static NbObjSvc vgaServices[] = {VgaObjInit,
                                  VgaSetFgColor,
                                  VgaSetBgColor,
                                  VgaScrollDown,
-                                 VgaMoveCursor};
+                                 VgaMoveCursor,
+                                 VgaGetSize};
 
 NbObjSvcTab_t vgaSvcTab = {ARRAY_SIZE (vgaServices), vgaServices};
 

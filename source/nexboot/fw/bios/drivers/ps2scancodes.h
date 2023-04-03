@@ -94,7 +94,7 @@ uint8_t scanToEnUs2[] =
 // Escape key table
 const char* keyToEscCode[] = 
 {
-    NULL, NULL, "\eA","\eC","\eB","\x7F",NULL,"\eD", NULL
+    "\e[5~", "\e[6~", "\e[A","\e[C","\e[B","\e[3~","\e[H","\e[D", "\e[F"
 };
 
 #endif

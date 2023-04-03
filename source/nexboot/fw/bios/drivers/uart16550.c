@@ -163,6 +163,22 @@ static bool Uart16550DumpData (void* objp, void* params)
 
 static bool Uart16550Notify (void* objp, void* params)
 {
+    // Get notification code
+    NbObject_t* obj = objp;
+    NbObjNotify_t* notify = params;
+    int code = notify->code;
+    if (code == NB_SERIAL_NOTIFY_SETOWNER)
+    {
+        // Notify current owner that we are being deteached
+        NbUart16550Dev_t* console = obj->data;
+        if (console->owner)
+            console->owner->entry (NB_DRIVER_ENTRY_DETACHOBJ, obj);
+        NbDriver_t* newDrv = notify->data;
+        // Set new owner
+        console->owner = newDrv;
+        // Attach it
+        newDrv->entry (NB_DRIVER_ENTRY_ATTACHOBJ, obj);
+    }
     return true;
 }
 
