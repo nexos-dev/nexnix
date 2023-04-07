@@ -20,6 +20,7 @@
 
 #include <nexboot/driver.h>
 #include <nexboot/fw.h>
+#include <nexboot/object.h>
 
 // Console hardware driver stuff
 #define NB_CONSOLEHW_NOTIFY_SETOWNER 32
@@ -96,7 +97,9 @@ typedef struct _keyData
 // Terminal functions
 #define NB_TERMINAL_WRITE   5
 #define NB_TERMINAL_READ    6
-#define NB_TEMRINAL_SETOPTS 7
+#define NB_TERMINAL_SETOPTS 7
+#define NB_TERMINAL_GETOPTS 8
+#define NB_TERMINAL_CLEAR   9
 
 // Terminal read argument
 typedef struct _termRead
@@ -104,5 +107,28 @@ typedef struct _termRead
     char* buf;       // Buffer to read into
     size_t bufSz;    // Size of buffer
 } NbTermRead_t;
+
+// Terminal structure
+typedef struct _term
+{
+    NbObject_t* outEnd;    // Output end of terminal
+    NbObject_t* inEnd;     // Input end of terminal
+    int numCols;           // Number of columns
+    int numRows;           // Number of rows
+    bool echo;             // Wheter read characters are echoed to console
+    bool isPrimary;        // Is primary terminal
+    // State fields. All zeroed by TerminalGetOpts
+    int col;           // Column number
+    int row;           // Current row
+    char inBuf[16];    // Characters buffered to read
+    int bufPos;
+    bool foundCr;    // If serial abstractor read a CR, this flag is set so the code
+                     // looks for a potential LF
+    int escState;    // State of escape code state machine
+    int escParams[16];    // Escape code parameters
+    int escPos;           // Escape array current position
+    int numSize;          // Number of digits in current number
+    int backMax[2];    // Row column describing max spot to backspace to during read
+} NbTerminal_t;
 
 #endif

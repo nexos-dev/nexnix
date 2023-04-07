@@ -230,6 +230,7 @@ static bool createDeviceObject (const char* name,
 // Detects system hardware
 bool NbFwDetectHw (NbloadDetect_t* nbDetect)
 {
+    assert (nbDetect);
     // Create devices directory
     NbObjCreate ("/Devices", OBJ_TYPE_DIR, OBJ_INTERFACE_DIR);
     // Set string in sysInfo
@@ -252,17 +253,10 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     detectVesaBios();
     detectBios32();
     // Detect ISA devices the bootloader needs
-    // Find VGA console driver
-    NbDriver_t* drv = NbFindDriver ("VgaConsole");
-    assert (drv);
-    NbHwDevice_t* dev = (NbHwDevice_t*) malloc (drv->devSize);
-    assert (NbSendDriverCode (drv, NB_DRIVER_ENTRY_DETECTHW, dev));
-    // Attach device to driver
-    createDeviceObject ("/Devices/VgaConsole0", OBJ_INTERFACE_CONSOLE, drv, dev);
     // Find keyboards
     NbDriver_t* keyDrv = NbFindDriver ("PS2Kbd");
     assert (keyDrv);
-    dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
+    NbHwDevice_t* dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
     while (NbSendDriverCode (keyDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
     {
         // Create object for driver
@@ -286,5 +280,12 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
         dev = (NbHwDevice_t*) malloc (serialDrv->devSize);
     }
     free (dev);
+    // Find VGA console driver
+    NbDriver_t* drv = NbFindDriver ("VgaConsole");
+    assert (drv);
+    dev = (NbHwDevice_t*) malloc (drv->devSize);
+    assert (NbSendDriverCode (drv, NB_DRIVER_ENTRY_DETECTHW, dev));
+    // Attach device to driver
+    createDeviceObject ("/Devices/VgaConsole0", OBJ_INTERFACE_CONSOLE, drv, dev);
     return true;
 }

@@ -19,6 +19,7 @@
 #define _NB_OBJECT_H
 
 #include <libnex/object.h>
+#include <nexboot/driver.h>
 #include <nexboot/object_types.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,6 +42,7 @@ typedef struct _obj
     struct _obj* parent;       /// Parent object
     struct _obj* nextChild;    /// Next child object
     struct _obj* prevChild;    /// Previous child object
+    NbDriver_t* owner;         /// Owner of this object
 } NbObject_t;
 
 typedef struct _svcTab
@@ -97,6 +99,12 @@ NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter);
 
 /// Get object data
 #define NbObjGetData(obj) ((obj)->data)
+
+/// Set owner of object
+#define NbObjSetOwner(obj, nowner) ((obj)->owner = (nowner))
+
+/// Get owner of object
+#define NbObjGetOwner(obj) ((obj)->owner)
 
 #define OBJDIR_ADD_CHILD    5
 #define OBJDIR_REMOVE_CHILD 6

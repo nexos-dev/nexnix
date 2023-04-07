@@ -82,6 +82,7 @@ NbloadMain:
     mov cx, 3                   ; Set log level to info log level
     call NbloadLogMsg
     mov si, welcomeBanner2
+    mov cx, 3
     call NbloadLogMsg
     ; Jump to part 2
     jmp NBLOAD_PART2_BASE
@@ -214,6 +215,15 @@ start2:
     jae .launchNexboot              ; If EOF, launch nbload
     ; Move to next cluster
     add di, cx                      ; Move to next location in buffer
+    ; Check if we need to move to another segment
+    push eax
+    cmp di, 0                       ; Check for overflow
+    jne .cont
+    mov ax, es                      ; Get ES
+    add ax, 0x1000                  ; Move up 64 KiB
+    mov es, ax
+.cont:
+    pop eax
     jmp .readLoop                   ; Move on
 .launchNexboot:
     mov dl, [driveNumber]           ; Grab drive number

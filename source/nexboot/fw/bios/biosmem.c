@@ -349,14 +349,15 @@ bootResv:
     NbFwResvMem (0x0, 0x100000, NEXBOOT_MEM_RESVD);
     NbFwResvMem (0x100000, 0x200000, NEXBOOT_MEM_BOOT_RECLAIM);
     NbFwResvMem (0x300000, 0x300000, NEXBOOT_MEM_RESVD);
-    /*for (int i = 0; i < memEntry; ++i)
+    for (int i = 0; i < memEntry; ++i)
     {
-        NbLogMessageEarly ("%llx %llx %u\r\n",
-                           NEXBOOT_LOGLEVEL_ERROR,
-                           memmap[i].base,
-                           memmap[i].sz,
-                           memmap[i].type);
-    }*/
+        NbLogMessageEarly (
+            "Found memory region: Base %#llX, size %#llX, type %u\r\n",
+            NEXBOOT_LOGLEVEL_INFO,
+            memmap[i].base,
+            memmap[i].sz,
+            memmap[i].type);
+    }
 }
 
 NbMemEntry_t* NbGetMemMap (int* size)

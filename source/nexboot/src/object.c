@@ -114,6 +114,12 @@ static bool nbInsertObj (const char* name, NbObject_t* obj)
 
 NbObject_t* NbObjCreate (const char* name, int type, int interface)
 {
+    // Check if object exists
+    if (rootDir)
+    {
+        if (NbObjFind (name))
+            return NULL;
+    }
     // Allocate a new object
     NbObject_t* obj = (NbObject_t*) malloc (sizeof (NbObject_t));
     if (!obj)

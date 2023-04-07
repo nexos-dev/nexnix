@@ -15,6 +15,8 @@
     limitations under the License.
 */
 
+#include <assert.h>
+#include <nexboot/drivers/terminal.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdio.h>
@@ -22,6 +24,8 @@
 
 // The log herein is quite simple. It is themed after syslog, as described
 // in RFC 3164. There are a few differences, but the ideas are the same
+
+// Early log portion
 
 // Log structure format
 typedef struct _nbLogEnt
@@ -31,14 +35,16 @@ typedef struct _nbLogEnt
     short second;     // Seconds since boot of message
     short ms;         // Milliseconds since boot of message
     char msg[128];    // Message itself
-} nbLogEntry_t;
+} nbLogEntryEarly_t;
 
 // Temporary initialization log
-static nbLogEntry_t logEntries[64] = {0};
+static nbLogEntryEarly_t logEntries[64] = {0};
 
 static short curEntry = 0;
 
 static int minSeverity = 0;
+
+static bool logInit = false;
 
 void NbLogInit()
 {
@@ -93,13 +99,218 @@ void NbPrintEarly (const char* s)
 void __attribute__ ((noreturn))
 __assert_failed (const char* expr, const char* file, int line, const char* func)
 {
-    // Log the message
-    NbLogMessageEarly ("Assertion '%s' failed: file %s, line %d, function %s\r\n",
-                       NEXBOOT_LOGLEVEL_EMERGENCY,
-                       expr,
-                       file,
-                       line,
-                       func);
+    if (!logInit)
+    {
+        // Log the message
+        NbLogMessageEarly (
+            "Assertion '%s' failed: file %s, line %d, function %s\r\n",
+            NEXBOOT_LOGLEVEL_EMERGENCY,
+            expr,
+            file,
+            line,
+            func);
+    }
     NbCrash();
     __builtin_unreachable();
+}
+
+// Log variables
+static NbloadDetect_t* nbDetect = NULL;
+
+typedef struct _logEntry
+{
+    const char* msg;    // Message of entry
+    int priority;       // Contains facility and severity (but facility is always 0)
+    short minute;       // Minute since boot of message
+    short second;       // Seconds since boot of message
+    short ms;           // Milliseconds since boot of message
+    struct _logEntry* next;    // Next entry in list
+    struct _logEntry* prev;    // Previous entry in list
+} NbLogEntry_t;
+
+typedef struct _log
+{
+    NbLogEntry_t* entries;        // List of log entries
+    NbLogEntry_t* entriesEnd;     // End of entries list
+    NbObject_t* outputDevs[7];    // Output devices for each log level
+    int logLevel;                 // Current log level
+} NbLog_t;
+
+// Main log functions
+static bool LogDumpData (void* objp, void* unused)
+{
+    return true;
+}
+
+static bool LogNotify (void* objp, void* unused)
+{
+    return true;
+}
+
+static void logNewEntry (NbLog_t* log, const char* msg, int priority)
+{
+    NbLogEntry_t* logEntry = (NbLogEntry_t*) malloc (sizeof (NbLogEntry_t));
+    assert (logEntry);
+    memset (logEntry, 0, sizeof (NbLogEntry_t));
+    logEntry->msg = msg;
+    logEntry->priority = priority;
+    // Add to list
+    if (log->entriesEnd)
+        log->entriesEnd->next = logEntry;
+    else
+        log->entries = logEntry;    // If list is empty set entries pointer
+    logEntry->prev = log->entriesEnd;
+    logEntry->next = NULL;
+    log->entriesEnd = logEntry;
+}
+
+static bool LogWrite (void* objp, void* strp)
+{
+    assert (objp && strp);
+    NbObject_t* logObj = objp;
+    NbLogStr_t* str = strp;
+    NbLog_t* log = logObj->data;
+    // Create new entry
+    logNewEntry (log, str->str, str->priority);
+    // Determine wheter to print it
+    if (str->priority <= log->logLevel)
+    {
+        NbTerminal_t* term = log->outputDevs[str->priority - 1]->data;
+        // If this is the primary display, clear the screen
+        if (term->isPrimary)
+        {
+            NbObjCallSvc (log->outputDevs[str->priority - 1],
+                          NB_TERMINAL_CLEAR,
+                          NULL);
+        }
+        NbObjCallSvc (log->outputDevs[str->priority - 1],
+                      NB_TERMINAL_WRITE,
+                      (void*) str->str);
+    }
+    return true;
+}
+
+extern NbObjSvcTab_t logSvcTab;
+
+static int levelToPriority[] = {0,
+                                NEXBOOT_LOGLEVEL_ERROR,
+                                NEXBOOT_LOGLEVEL_WARNING,
+                                NEXBOOT_LOGLEVEL_INFO,
+                                NEXBOOT_LOGLEVEL_DEBUG};
+
+static bool LogObjInit (void* objp, void* unused)
+{
+    NbObject_t* obj = objp;
+    NbLog_t* log = malloc (sizeof (NbLog_t));
+    NbObjSetData (obj, log);
+    log->logLevel = levelToPriority[NEXNIX_LOGLEVEL];
+    // Copy old logs
+#ifdef NEXNIX_FW_BIOS
+    assert (nbDetect);
+    uint16_t* oldLog = (uint16_t*) ((nbDetect->logSeg * 0x10) + nbDetect->logOffset);
+    for (int i = 0; i < nbDetect->logSize; i += 6)
+    {
+        uint16_t msgOff = *oldLog;
+        uint16_t msgSeg = *(oldLog + 1);
+        uint32_t msgAddr = (msgSeg * 0x10) + msgOff;
+        uint16_t msgLevel = *(oldLog + 2);
+        if (!msgAddr)    // Last entry is zeroed
+            break;
+        int priority = levelToPriority[msgLevel];
+        logNewEntry (log, (char*) msgAddr, priority);
+        oldLog += 3;
+    }
+#endif
+    for (int i = 0; i < curEntry; ++i)
+    {
+        // Copy bootstrap log entries
+        logNewEntry (log, logEntries[i].msg, logEntries[i].priority);
+    }
+    // Find appropriate output devices by enumerating devices
+    NbObject_t* iter = NULL;
+    NbObject_t* devDir = NbObjFind ("/Devices");
+    int numConsoles = 0;
+    int numSerialPorts = 1;
+    while ((iter = NbObjEnumDir (devDir, iter)))
+    {
+        if (iter->type == OBJ_TYPE_DEVICE &&
+            iter->interface == OBJ_INTERFACE_TERMINAL)
+        {
+            // Acquire terminal
+            NbTerminal_t term;
+            NbObjCallSvc (iter, NB_TERMINAL_GETOPTS, &term);
+            // Determine output device type
+            if (term.outEnd->interface == OBJ_INTERFACE_CONSOLE)
+            {
+                ++numConsoles;
+                // Determine where this would be best suited
+                if (numConsoles == 1)
+                {
+                    // If this is the first console, set highest levels only
+                    log->outputDevs[0] = iter;
+                    log->outputDevs[1] = iter;
+                    log->outputDevs[2] = iter;
+                }
+                else if (numConsoles == 2)
+                {
+                    // Set warning, notice and info levels
+                    log->outputDevs[3] = iter;
+                    log->outputDevs[4] = iter;
+                    log->outputDevs[5] = iter;
+                }
+                else if (numConsoles == 3)
+                {
+                    // Set notice and info levels
+                    log->outputDevs[4] = iter;
+                    log->outputDevs[5] = iter;
+                }
+            }
+            else if (term.outEnd->interface == OBJ_INTERFACE_RS232)
+            {
+                // If this is the first console, set highest levels only
+                if (!log->outputDevs[0])
+                    log->outputDevs[0] = iter;
+                if (!log->outputDevs[1])
+                    log->outputDevs[1] = iter;
+                if (!log->outputDevs[2])
+                    log->outputDevs[2] = iter;
+                if (!log->outputDevs[3])
+                    log->outputDevs[3] = iter;
+                if (!log->outputDevs[4])
+                    log->outputDevs[4] = iter;
+                if (!log->outputDevs[5])
+                    log->outputDevs[5] = iter;
+            }
+        }
+    }
+    return true;
+}
+
+static bool LogSetLevel (void* objp, void* param)
+{
+    NbObject_t* obj = objp;
+    NbLog_t* log = obj->data;
+    int level = (int) param;
+    if (level <= 7)
+        return false;
+    log->logLevel = level;
+    return true;
+}
+
+static NbObjSvc logSvcs[] =
+    {LogObjInit, NULL, NULL, LogDumpData, LogNotify, LogWrite, LogSetLevel};
+
+NbObjSvcTab_t logSvcTab = {ARRAY_SIZE (logSvcs), logSvcs};
+
+void NbLogInit2 (NbloadDetect_t* detect)
+{
+    // Disable BIOS printing
+    NbDisablePrintEarly();
+    nbDetect = detect;
+    // Create object
+    NbObjCreate ("/Interfaces", OBJ_TYPE_DIR, OBJ_INTERFACE_DIR);
+    NbObject_t* logObj =
+        NbObjCreate ("/Interfaces/SysLog", OBJ_TYPE_LOG, OBJ_INTERFACE_LOG);
+    assert (logObj);
+    NbObjInstallSvcs (logObj, &logSvcTab);
 }

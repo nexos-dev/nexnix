@@ -19,6 +19,7 @@
 #include <nexboot/drivers/terminal.h>
 #include <nexboot/drivers/uart16550.h>
 #include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
 #include <nexboot/object.h>
 
 // Register definitions
@@ -104,6 +105,9 @@ static bool Uart16550Entry (int code, void* params)
             if (!portBase)
                 return false;    // No COM port here
             dev->port = portBase;
+            NbLogMessageEarly ("nbuart16550: found port COM%d at port base %x",
+                               curCom,
+                               portBase);
             ++curCom;
             // We have port base, begin initializing it
             // Program FIFO
@@ -176,6 +180,7 @@ static bool Uart16550Notify (void* objp, void* params)
         NbDriver_t* newDrv = notify->data;
         // Set new owner
         console->owner = newDrv;
+        NbObjSetOwner (obj, newDrv);
         // Attach it
         newDrv->entry (NB_DRIVER_ENTRY_ATTACHOBJ, obj);
     }

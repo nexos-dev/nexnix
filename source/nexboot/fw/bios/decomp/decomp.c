@@ -59,8 +59,8 @@ void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uint32_t nbSize)
                 0,
                 phdr[i].p_memsz - phdr[i].p_filesz);
     }
-    void (*NexBoot)() = (void*) ehdr->e_entry;
-    NexBoot();
+    void (*NexBoot) (NbloadDetect_t*) = (void*) ehdr->e_entry;
+    NexBoot (nbDetect);
     // Freeze if we return
     for (;;)
         asm("hlt");

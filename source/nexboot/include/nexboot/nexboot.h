@@ -18,6 +18,7 @@
 #ifndef _NEXBOOT_H
 #define _NEXBOOT_H
 
+#include <libnex/stringref.h>
 #include <nexboot/object.h>
 
 /// Log levels
@@ -31,6 +32,7 @@
 
 /// Initializes log for bootup
 void NbLogInit();
+void NbLogInit2();
 
 /// Disables early printing
 void NbDisablePrintEarly();
@@ -46,5 +48,16 @@ void NbMemInit();
 
 // Minimum amount of memory NexNix requires (in MiB)
 #define NEXBOOT_MIN_MEM 8
+
+// Log object functions
+#define NB_LOG_SET_LEVEL 6
+#define NB_LOG_WRITE     5
+
+// Log writing object
+typedef struct _logStr
+{
+    const char* str;    // String to be logged
+    int priority;       // Prority at which it will be logged
+} NbLogStr_t;
 
 #endif

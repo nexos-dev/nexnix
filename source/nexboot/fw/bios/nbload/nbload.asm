@@ -21,7 +21,7 @@ section .text
 ; Top of stack
 %define NBLOAD_STACK_TOP 0xFFFF
 ; Log-related bits
-%define NBLOAD_LOG_START 0x600
+%define NBLOAD_LOG_START 0x612
 %define NBLOAD_LOG_SIZE 0x100
 
 %define NBLOAD_PMODE_ENTRY 0x11000
@@ -90,21 +90,28 @@ NbStartDetect:
     mov es, ax
     mov di, nexbootSz
     mov es:[di], ecx
+    pop es
     ; Save drive number
     push dx
     mov bp, sp
+    ; Zero out log
+    mov di, NBLOAD_LOG_START
+    mov cx, NBLOAD_LOG_SIZE
+    sub cx, 18
+    mov al, 0
+    rep stosb
     ; Initialize detection structure
     mov di, NBLOAD_DETECT_RESULT
-    mov dword [di], NBLOAD_SIGNATURE            ; Set signature
-    mov word [di+4], NBLOAD_LOG_START           ; Set log start offset
-    mov word [di+6], 0                          ; Set log start segment
-    mov word [di+8], NBLOAD_LOG_SIZE            ; Set log size
+    mov dword es:[di], NBLOAD_SIGNATURE            ; Set signature
+    mov word es:[di+4], 0x600                      ; Set log start offset
+    mov word es:[di+6], 0                          ; Set log start segment
+    mov word es:[di+8], NBLOAD_LOG_SIZE            ; Set log size
     ; CPU detection
-    mov byte [di+12], NBLOAD_CPU_FAMILY_X86        ; Set CPU family
+    mov byte es:[di+12], NBLOAD_CPU_FAMILY_X86        ; Set CPU family
 %ifdef NEXNIX_ARCH_I386
-    mov byte [di+13], NBLOAD_CPU_ARCH_I386      ; Set CPU architecture
+    mov byte es:[di+13], NBLOAD_CPU_ARCH_I386      ; Set CPU architecture
 %elifdef NEXNIX_ARCH_X86_64
-    mov byte [di+13], NBLOAD_CPU_ARCH_X86_64    ; Set CPU architecture
+    mov byte es:[di+13], NBLOAD_CPU_ARCH_X86_64    ; Set CPU architecture
 %else
 %error Unsupported BIOS architecture
 %endif
@@ -133,14 +140,14 @@ NbStartDetect:
     cmp eax, ecx
     je .is486                       ; Nope, store that
 .is386:
-    mov word [di+14], NBLOAD_CPU_VERSION_386   ; Set it as 386
+    mov word es:[di+14], NBLOAD_CPU_VERSION_386   ; Set it as 386
     ; Print message
     mov si, cpu386Message
     mov cx, 4
     call NbloadLogMsg
     jmp .cpuCheckDone
 .is486:
-    mov word [di+14], NBLOAD_CPU_VERSION_486   ; Set it as 486
+    mov word es:[di+14], NBLOAD_CPU_VERSION_486   ; Set it as 486
     ; Print message
     mov si, cpu486Message
     mov cx, 4
@@ -151,7 +158,7 @@ NbStartDetect:
     mov cr0, eax
     jmp .cpuCheckDone
 .isCpuid:
-    mov word [di+14], NBLOAD_CPU_VERSION_CPUID ; Let other layers know to use CPUID
+    mov word es:[di+14], NBLOAD_CPU_VERSION_CPUID ; Let other layers know to use CPUID
 %ifdef NEXNIX_I386_PAE
     ; Check for PAE now since we know we have CPUID
     mov eax, 1
@@ -185,7 +192,7 @@ NbStartDetect:
     mov eax, cr0
     or eax, 1 << 2                  ; Set CR0.EM
     mov cr0, eax
-    mov byte [di+16], $0            ; Inform nexboot of this
+    mov byte es:[di+16], $0            ; Inform nexboot of this
     ; As of now, software-emulated FPU isn't supported
     ; Error out if an FPU doesn't exist
     mov si, noFpuMessage
@@ -194,7 +201,7 @@ NbStartDetect:
     call NbloadPanic
     jmp .fpuCheckDone
 .fpuExists:
-    mov byte [di+16], 1 << 0         ; Inform nexboot of this
+    mov byte es:[di+16], 1 << 0         ; Inform nexboot of this
     ; Print message
     mov si, fpuMessage
     mov cx, 4
@@ -381,22 +388,20 @@ NbloadLogMsg:
     ; Write message out to log
     mov bx, si                  ; Save SI
     mov si, word [logLocation]
-    mov si, [si]                ; Put log location in SI
-    push ds
+    push es
     mov dx, 0                   ; So we can access log
-    mov ds, dx
+    mov es, dx
     ; Format of log entry:
     ; Offset 0 - 1: Message offset
     ; Offset 2 - 3: Message segment
     ; Offset 4 - 5: Log level
-    mov [si], bx                ; Write message offset
-    mov [si+2], ds              ; Write segment
-    mov [si+4], cx              ; Write log level
-    pop ds
+    mov es:[si], bx                ; Write message offset
+    mov es:[si+2], ds              ; Write segment
+    mov es:[si+4], cx              ; Write log level
+    pop es
     ; Write out new log location
     add si, 6                   ; Move to next log entry
-    mov di, word [logLocation]
-    mov [di], si
+    mov word [logLocation], si
     mov si, bx                  ; Get message back in SI
     ; Decide where to print
     cmp cx, NEXNIX_LOGLEVEL

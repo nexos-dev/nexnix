@@ -45,19 +45,22 @@ NbloadPanic:
 ; Input: DS:SI = string to write, CX = log level of message
 NbloadLogMsg:
     pusha
+    push es
+    mov ax, 0
+    mov es, ax
     ; Write message out to log
     mov bx, si                  ; Save SI
-    mov si, [logLocation]
+    mov si, word [logLocation]
     ; Format of log entry:
     ; Offset 0 - 1: Message offset
     ; Offset 2 - 3: Message segment
     ; Offset 4 - 5: Log level
-    mov [si], bx              ; Write message offset
-    mov [si+2], ds            ; Write segment
-    mov [si+4], cx            ; Write log level
+    mov es:[si], bx              ; Write message offset
+    mov es:[si+2], ds            ; Write segment
+    mov es:[si+4], cx            ; Write log level
     ; Write out new log location
     add si, 6                 ; Move to next log entry
-    mov [logLocation], si     ; Store it
+    mov word [logLocation], si     ; Store it
     mov si, bx                ; Get message back in SI
     ; Decide where to print
     cmp cx, NEXNIX_LOGLEVEL
@@ -65,6 +68,7 @@ NbloadLogMsg:
                                 ; is greater than system level
     call BootPrint              ; Print to screen if allowed, then to serial port
 .logDone:
+    pop es
     popa
     ret
 ; The current log pointer

@@ -89,7 +89,7 @@ void NbFwEarlyPrint (char c);
 #define NEXBOOT_BIOS_MEMBASE 0x100000
 #define NEXBOOT_BIOS_BASE    0x200000
 
-#define NEXBOOT_BIOSBUF_BASE 0x600
+#define NEXBOOT_BIOSBUF_BASE 0x800
 
 // System detection macros
 

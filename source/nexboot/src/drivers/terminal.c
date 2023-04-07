@@ -23,26 +23,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// Terminal structure
-typedef struct _term
-{
-    NbObject_t* outEnd;    // Output end of terminal
-    NbObject_t* inEnd;     // Input end of terminal
-    int col;               // Column number
-    int row;               // Current row
-    int numCols;           // Number of columns
-    int numRows;           // Number of rows
-    bool echo;             // Wheter read characters are echoed to console
-    char inBuf[16];        // Characters buffered to read
-    int bufPos;
-    bool foundCr;    // If serial abstractor read a CR, this flag is set so the code
-                     // looks for a potential LF
-    int escState;    // State of escape code state machine
-    int escParams[16];    // Escape code parameters
-    int escPos;           // Escape array current position
-    int numSize;          // Number of digits in current number
-} NbTerminal_t;
-
 extern NbObjSvcTab_t terminalSvcTab;
 extern NbDriver_t terminalDrv;
 
@@ -60,7 +40,6 @@ static void createTerminal (int termNum,
     NbObject_t* obj = NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_TERMINAL);
     NbObjSetData (obj, term);
     NbObjInstallSvcs (obj, &terminalSvcTab);
-    memset (term, 0, sizeof (NbTerminal_t));
     terms[curTerm] = term;
     ++curTerm;
     assert (curTerm < 32);
@@ -102,9 +81,14 @@ static bool TerminalEntry (int code, void* params)
             NbTerminal_t* curTerm = NULL;
             NbObject_t* outEnd = NULL;
             NbObject_t* inEnd = NULL;
+            NbObject_t* rewindTo =
+                NULL;    // Where to go back to after finding a device
+            bool foundConsole = false;    // Set when a primary display was found
             int curTermNum = 0;
             while ((iter = NbObjEnumDir (devDir, iter)) != 0)
             {
+                if (iter->owner)
+                    continue;
                 if (iter->type == OBJ_TYPE_DEVICE)
                 {
                     if ((iter->interface == OBJ_INTERFACE_CONSOLE && !outEnd &&
@@ -118,16 +102,30 @@ static bool TerminalEntry (int code, void* params)
                         {
                             // Prepare terminal structure
                             curTerm = malloc (sizeof (NbTerminal_t));
+                            memset (curTerm, 0, sizeof (NbTerminal_t));
                             assert (curTerm);
+                            rewindTo = NULL;
                         }
                         else
                         {
+                            if (!foundConsole &&
+                                outEnd->interface == OBJ_INTERFACE_CONSOLE)
+                            {
+                                foundConsole = true;
+                                curTerm->isPrimary = true;
+                            }
                             createTerminal (curTermNum, curTerm, inEnd, outEnd);
                             ++curTermNum;
                             outEnd = NULL;
                             inEnd = NULL;
                             curTerm = NULL;
+                            if (rewindTo)    // Ensure next iteration points here
+                                iter = rewindTo->prevChild;
                         }
+                    }
+                    else if (inEnd && iter->interface != inEnd->interface)
+                    {
+                        rewindTo = iter;
                     }
                     if ((iter->interface == OBJ_INTERFACE_KBD && !inEnd &&
                          ((outEnd) ? (outEnd->interface != OBJ_INTERFACE_RS232)
@@ -141,21 +139,33 @@ static bool TerminalEntry (int code, void* params)
                         {
                             // Prepare terminal structure
                             curTerm = malloc (sizeof (NbTerminal_t));
+                            memset (curTerm, 0, sizeof (NbTerminal_t));
                             assert (curTerm);
+                            rewindTo = NULL;
                         }
                         else
                         {
+                            if (!foundConsole &&
+                                outEnd->interface == OBJ_INTERFACE_CONSOLE)
+                            {
+                                foundConsole = true;
+                                curTerm->isPrimary = true;
+                            }
                             createTerminal (curTermNum, curTerm, inEnd, outEnd);
                             ++curTermNum;
                             outEnd = NULL;
                             inEnd = NULL;
                             curTerm = NULL;
+                            if (rewindTo)
+                                iter = rewindTo->prevChild;
                         }
+                    }
+                    else if (outEnd && iter->interface != outEnd->interface)
+                    {
+                        rewindTo = iter;
                     }
                 }
             }
-            // Ensure no more BIOS printing takes place
-            NbDisablePrintEarly();
             break;
         }
         case NB_DRIVER_ENTRY_DETACHOBJ: {
@@ -322,6 +332,34 @@ static void terminalProccesEscCodeLetter (NbTerminal_t* term, uint8_t c)
             if (term->row < 0)
                 term->row = 0;
         }
+    }
+    else if (c == 'J')
+    {
+        int num = 0;
+        if (term->escParams[0])
+            num = term->escParams[0];
+        // Ensure no more paramters were provided
+        if (term->escPos > 1)
+        {
+            term->escState = 0;
+            return;
+        }
+        if (num != 2)
+        {
+            // Not supported
+            term->escState = 0;
+            return;
+        }
+        // Clear screen
+        NbObjCallSvc (term->outEnd, NB_CONSOLEHW_CLEAR, NULL);
+        term->col = 0, term->row = 0;
+        // Set color
+        NbObjCallSvc (term->outEnd,
+                      NB_CONSOLEHW_SET_BGCOLOR,
+                      (void*) NB_CONSOLE_COLOR_BLACK);
+        NbObjCallSvc (term->outEnd,
+                      NB_CONSOLEHW_SET_FGCOLOR,
+                      (void*) NB_CONSOLE_COLOR_WHITE);
     }
     else if (c == 'm')
     {
@@ -496,7 +534,7 @@ static bool terminalWriteChar (NbObject_t* termObj, uint8_t c)
                 pc.row = term->row;
                 NbObjCallSvc (out, NB_CONSOLEHW_PRINTCHAR, &pc);
                 ++term->col;
-                if (term->col == term->numCols)
+                if (term->col >= term->numCols)
                 {
                     // Wrap to next line
                     term->col = 0;
@@ -582,8 +620,19 @@ static uint8_t terminalReadChar (NbObject_t* termObj)
         }
         else
         {
-            if (!terminalWriteChar (termObj, c))
-                return 0;
+            // Only print backspaces if they don't overwrite previous data
+            if (c == '\b' &&
+                (((term->col - 1) < 0) ? ((term->row - 1) < term->backMax[0])
+                                       : false))
+                ;
+            else if (c == '\b' && (term->col - 1) < term->backMax[1] &&
+                     term->row == term->backMax[0])
+                ;
+            else
+            {
+                if (!terminalWriteChar (termObj, c))
+                    return 0;
+            }
         }
     }
     return c;
@@ -605,7 +654,11 @@ static bool TerminalWrite (void* objp, void* params)
 static bool TerminalRead (void* objp, void* params)
 {
     NbObject_t* termObj = objp;
+    NbTerminal_t* term = termObj->data;
     NbTermRead_t* readData = params;
+    // Ensure backspacing doesn't overwrite previous printing
+    term->backMax[0] = term->row;
+    term->backMax[1] = term->col;
     // Read data into buffer
     uint8_t c = 0;
     int charsWritten = 0;
@@ -616,12 +669,47 @@ static bool TerminalRead (void* objp, void* params)
             return false;
         readData->buf[charsWritten] = (char) c;
         ++charsWritten;
-    } while (c != '\n' && c != '\f' && readData->bufSz > charsWritten);
+    } while (c != '\n' && c != '\f' && readData->bufSz > (charsWritten - 1));
     return true;
 }
 
 static bool TerminalSetOpts (void* objp, void* params)
 {
+    NbObject_t* obj = objp;
+    NbTerminal_t* term = obj->data;
+    NbTerminal_t* in = params;
+    assert (in);
+    term->echo = in->echo;
+    return true;
+}
+
+static bool TerminalGetOpts (void* objp, void* params)
+{
+    NbObject_t* obj = objp;
+    NbTerminal_t* term = obj->data;
+    NbTerminal_t* out = params;
+    assert (out);
+    memset (out, 0, sizeof (NbTerminal_t));
+    // Set fields
+    out->outEnd = term->outEnd;
+    out->inEnd = term->inEnd;
+    out->numCols = term->numCols;
+    out->numRows = term->numRows;
+    out->echo = term->echo;
+    out->isPrimary = term->isPrimary;
+    return true;
+}
+
+static bool TerminalClear (void* objp, void* unused)
+{
+    NbObject_t* obj = objp;
+    assert (obj);
+    NbTerminal_t* term = obj->data;
+    if (term->outEnd->interface == OBJ_INTERFACE_CONSOLE)
+    {
+        term->row = 0, term->col = 0;
+        NbObjCallSvc (term->outEnd, NB_CONSOLEHW_CLEAR, NULL);
+    }
     return true;
 }
 
@@ -632,7 +720,9 @@ static NbObjSvc terminalSvcs[] = {NULL,
                                   TerminalNotify,
                                   TerminalWrite,
                                   TerminalRead,
-                                  TerminalSetOpts};
+                                  TerminalSetOpts,
+                                  TerminalGetOpts,
+                                  TerminalClear};
 
 NbObjSvcTab_t terminalSvcTab = {ARRAY_SIZE (terminalSvcs), terminalSvcs};
 

@@ -18,7 +18,6 @@
 #ifndef _DRIVER_H
 #define _DRIVER_H
 
-#include <nexboot/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 

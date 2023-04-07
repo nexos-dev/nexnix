@@ -48,6 +48,7 @@
 // PS/2 keyboard commands
 #define PS2_COMMAND_RESET               0xFF
 #define PS2_COMMAND_START_SCANNING      0xF4
+#define PS2_COMMAND_DISABLE_SCANNING    0xF5
 #define PS2_COMMAND_SET_KEYS_NORMAL     0xFA
 #define PS2_COMMAND_SET_KEYS_MAKE       0xF9
 #define PS2_COMMAND_SET_KEYS_MAKE_BREAK 0xF8
@@ -159,6 +160,7 @@ static bool Ps2KbdEntry (int code, void* params)
         case NB_DRIVER_ENTRY_DETECTHW: {
             if (kbdFound)
                 return false;
+            ps2SendCtrlCmd (PS2_COMMAND_DISABLE_KBD);
             while (NbInb (PS2_PORT_STATUS) & PS2_STATUS_OBF)
                 ps2ReadData();    // Read data to flush output buffer
             // Disable translation, interupts, and put in PC mode
@@ -172,6 +174,8 @@ static bool Ps2KbdEntry (int code, void* params)
             // Detect if a keyboard exists. To do this, we send the read ID
             // command If we get a timeout error when sending it, a keyboard
             // isn't plugged in
+            ps2SendKbdCmd (PS2_COMMAND_DISABLE_SCANNING);
+            assert (ps2ReadData() == PS2_RESULT_ACK);
             ps2SendKbdCmd (PS2_COMMAND_READ_ID);
             // Read status port, and check for OBF and TXTO
             uint8_t status = NbInb (PS2_PORT_STATUS);
@@ -183,20 +187,25 @@ static bool Ps2KbdEntry (int code, void* params)
                 if (status & PS2_STATUS_TXTO || status & PS2_STATUS_TO)
                 {
                     // No keyboard exists
-                    NbLogMessageEarly ("PS/2 Keyboard not found",
+                    NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard not found",
                                        NEXBOOT_LOGLEVEL_INFO);
                     return false;
                 }
+                status = NbInb (PS2_PORT_STATUS);
             }
             // Check ID
             if (ps2ReadData() != PS2_RESULT_ACK || ps2ReadData() != PS2_ID_BYTE1 ||
                 ps2ReadData() != PS2_ID_BYTE2)
                 return false;    // No keyboard
+            ps2SendKbdCmd (PS2_COMMAND_START_SCANNING);
+            assert (ps2ReadData() == PS2_RESULT_ACK);
             // Set up keyboard parameters
             ps2SendKbdCmd (PS2_COMMAND_SET_DEFAULTS);
             assert (ps2ReadData() == PS2_RESULT_ACK);
             ps2SendKbdCmd (PS2_COMMAND_START_SCANNING);
             assert (ps2ReadData() == PS2_RESULT_ACK);
+            NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard found",
+                               NEXBOOT_LOGLEVEL_INFO);
             // Prepare device structure
             NbPs2Kbd_t* ps2Dev = params;
             ps2Dev->hdr.devSubType = NB_DEVICE_SUBTYPE_PS2KBD;
@@ -235,6 +244,7 @@ static bool Ps2Notify (void* objp, void* params)
         NbDriver_t* newDrv = notify->data;
         // Set new owner
         console->owner = newDrv;
+        NbObjSetOwner (obj, newDrv);
         // Attach it
         newDrv->entry (NB_DRIVER_ENTRY_ATTACHOBJ, obj);
     }

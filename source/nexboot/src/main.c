@@ -59,21 +59,17 @@ void NbMain (NbloadDetect_t* nbDetect)
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
-    NbObject_t* term1 = NbObjFind ("/Devices/Terminal0");
-    NbObject_t* term2 = NbObjFind ("/Devices/Terminal1");
-    for (int i = 0; i < 20; ++i)
-        NbObjCallSvc (term2, NB_TERMINAL_WRITE, "test string\n");
-    NbObjCallSvc (term2, NB_TERMINAL_WRITE, "\e[44;37mtest \e[0m\e[10D tring");
-    char buf[32];
-    NbTermRead_t termRead = {0};
-    termRead.buf = buf;
-    termRead.bufSz = 32;
-    while (1)
-    {
-        memset (buf, 0, 32);
-        NbObjCallSvc (term2, NB_TERMINAL_READ, &termRead);
-        NbObjCallSvc (term1, NB_TERMINAL_WRITE, (void*) buf);
-    }
+    // Start log
+    NbLogInit2 (nbDetect);
+    NbObject_t* log = NbObjFind ("/Interfaces/SysLog");
+    assert (log);
+    NbLogStr_t str = {0};
+    str.priority = NEXBOOT_LOGLEVEL_ERROR;
+    str.str = "Test string\n";
+    NbObjCallSvc (log, NB_LOG_WRITE, &str);
+    str.priority = NEXBOOT_LOGLEVEL_ERROR;
+    str.str = "test String 2\n";
+    NbObjCallSvc (log, NB_LOG_WRITE, &str);
     for (;;)
         ;
 }
