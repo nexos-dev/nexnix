@@ -61,15 +61,6 @@ void NbMain (NbloadDetect_t* nbDetect)
     }
     // Start log
     NbLogInit2 (nbDetect);
-    NbObject_t* log = NbObjFind ("/Interfaces/SysLog");
-    assert (log);
-    NbLogStr_t str = {0};
-    str.priority = NEXBOOT_LOGLEVEL_ERROR;
-    str.str = "Test string\n";
-    NbObjCallSvc (log, NB_LOG_WRITE, &str);
-    str.priority = NEXBOOT_LOGLEVEL_ERROR;
-    str.str = "test String 2\n";
-    NbObjCallSvc (log, NB_LOG_WRITE, &str);
     for (;;)
         ;
 }

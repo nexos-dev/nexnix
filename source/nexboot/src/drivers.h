@@ -27,11 +27,15 @@ extern NbDriver_t vgaConsoleDrv;
 extern NbDriver_t terminalDrv;
 extern NbDriver_t ps2KbdDrv;
 extern NbDriver_t uart16550Drv;
+extern NbDriver_t biosDiskDrv;
 
 // Driver tables
 
 // Drivers started as soon as possible for devices
-static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv, &ps2KbdDrv, &uart16550Drv};
+static NbDriver_t* nbPhase1DrvTab[] = {&vgaConsoleDrv,
+                                       &ps2KbdDrv,
+                                       &uart16550Drv,
+                                       &biosDiskDrv};
 static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv};
 
 #endif

@@ -281,11 +281,23 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     }
     free (dev);
     // Find VGA console driver
-    NbDriver_t* drv = NbFindDriver ("VgaConsole");
-    assert (drv);
-    dev = (NbHwDevice_t*) malloc (drv->devSize);
-    assert (NbSendDriverCode (drv, NB_DRIVER_ENTRY_DETECTHW, dev));
+    NbDriver_t* vgaDrv = NbFindDriver ("VgaConsole");
+    assert (vgaDrv);
+    dev = (NbHwDevice_t*) malloc (vgaDrv->devSize);
+    assert (NbSendDriverCode (vgaDrv, NB_DRIVER_ENTRY_DETECTHW, dev));
     // Attach device to driver
-    createDeviceObject ("/Devices/VgaConsole0", OBJ_INTERFACE_CONSOLE, drv, dev);
+    createDeviceObject ("/Devices/VgaConsole0", OBJ_INTERFACE_CONSOLE, vgaDrv, dev);
+    // Detect hard disks
+    NbDriver_t* biosDiskDrv = NbFindDriver ("BiosDisk");
+    assert (biosDiskDrv);
+    dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
+    while (NbSendDriverCode (biosDiskDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        char buf[64] = {0};
+        snprintf (buf, 64, "/Devices/BiosDisk%d", dev->devId);
+        createDeviceObject (buf, OBJ_INTERFACE_DISK, biosDiskDrv, dev);
+        dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
+    }
+    free (dev);
     return true;
 }

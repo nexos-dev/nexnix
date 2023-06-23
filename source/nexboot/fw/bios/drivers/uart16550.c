@@ -105,7 +105,8 @@ static bool Uart16550Entry (int code, void* params)
             if (!portBase)
                 return false;    // No COM port here
             dev->port = portBase;
-            NbLogMessageEarly ("nbuart16550: found port COM%d at port base %x",
+            NbLogMessageEarly ("nbuart16550: found port COM%d at port base %#X\r\n",
+                               NEXBOOT_LOGLEVEL_INFO,
                                curCom,
                                portBase);
             ++curCom;
@@ -149,6 +150,8 @@ static bool Uart16550Entry (int code, void* params)
                 dev,
                 UART_MODEM_CTRL_REG,
                 uartReadReg (dev, UART_MODEM_CTRL_REG) & ~(UART_MCR_LOOPBACK));
+            dev->hdr.devId = curCom;
+            dev->hdr.devSubType = 0;
             break;
         }
         case NB_DRIVER_ENTRY_ATTACHOBJ: {

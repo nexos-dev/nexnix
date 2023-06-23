@@ -40,6 +40,9 @@ void NbDisablePrintEarly();
 /// Logs a string to the log, pre console intialization
 void NbLogMessageEarly (const char* fmt, int level, ...);
 
+/// Logs a message to the log
+void NbLogMessage (const char* fmt, int level, ...);
+
 // Prints a string using NbFwPrintEarly
 void NbPrintEarly (const char* s);
 

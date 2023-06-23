@@ -30,5 +30,6 @@
 #define OBJ_INTERFACE_RS232         4
 #define OBJ_INTERFACE_TERMINAL      5
 #define OBJ_INTERFACE_LOG           6
+#define OBJ_INTERFACE_DISK          7
 
 #endif

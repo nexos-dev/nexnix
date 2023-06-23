@@ -92,8 +92,8 @@ NbStartDetect:
     mov es:[di], ecx
     pop es
     ; Save drive number
-    push dx
     mov bp, sp
+    push dx
     ; Zero out log
     mov di, NBLOAD_LOG_START
     mov cx, NBLOAD_LOG_SIZE
@@ -106,6 +106,8 @@ NbStartDetect:
     mov word es:[di+4], 0x600                      ; Set log start offset
     mov word es:[di+6], 0                          ; Set log start segment
     mov word es:[di+8], NBLOAD_LOG_SIZE            ; Set log size
+    mov ax, word [bp-2]
+    mov byte es:[di+18], al                        ; Set drive number
     ; CPU detection
     mov byte es:[di+12], NBLOAD_CPU_FAMILY_X86        ; Set CPU family
 %ifdef NEXNIX_ARCH_I386

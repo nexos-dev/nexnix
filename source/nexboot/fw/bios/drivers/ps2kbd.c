@@ -141,7 +141,7 @@ static void ps2ToggleLed (NbPs2Kbd_t* drv, int led)
 {
     if (!(drv->ledFlags & led))
     {
-        drv->ledFlags | led;
+        drv->ledFlags |= led;
         ps2SendKbdCmdParam (PS2_COMMAND_SET_LEDS, drv->ledFlags);
         assert (ps2ReadData() == PS2_RESULT_ACK);
     }
@@ -187,7 +187,7 @@ static bool Ps2KbdEntry (int code, void* params)
                 if (status & PS2_STATUS_TXTO || status & PS2_STATUS_TO)
                 {
                     // No keyboard exists
-                    NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard not found",
+                    NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard not found\r\n",
                                        NEXBOOT_LOGLEVEL_INFO);
                     return false;
                 }
@@ -204,7 +204,7 @@ static bool Ps2KbdEntry (int code, void* params)
             assert (ps2ReadData() == PS2_RESULT_ACK);
             ps2SendKbdCmd (PS2_COMMAND_START_SCANNING);
             assert (ps2ReadData() == PS2_RESULT_ACK);
-            NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard found",
+            NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard found\r\n",
                                NEXBOOT_LOGLEVEL_INFO);
             // Prepare device structure
             NbPs2Kbd_t* ps2Dev = params;

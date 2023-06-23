@@ -39,12 +39,10 @@ typedef struct _nbLogEnt
 
 // Temporary initialization log
 static nbLogEntryEarly_t logEntries[64] = {0};
-
 static short curEntry = 0;
-
 static int minSeverity = 0;
-
 static bool logInit = false;
+static NbObject_t* logObj = NULL;
 
 void NbLogInit()
 {
@@ -110,6 +108,19 @@ __assert_failed (const char* expr, const char* file, int line, const char* func)
             line,
             func);
     }
+    else
+    {
+        // Use object service
+        char buf[256];
+        snprintf (buf,
+                  256,
+                  "Assertion '%s' failed: file %s, line %d, function %s\r\n",
+                  expr,
+                  file,
+                  line,
+                  func);
+        NbObjCallSvc (logObj, NB_LOG_WRITE, buf);
+    }
     NbCrash();
     __builtin_unreachable();
 }
@@ -132,7 +143,7 @@ typedef struct _log
 {
     NbLogEntry_t* entries;        // List of log entries
     NbLogEntry_t* entriesEnd;     // End of entries list
-    NbObject_t* outputDevs[7];    // Output devices for each log level
+    NbObject_t* outputDevs[8];    // Output devices for each log level
     int logLevel;                 // Current log level
 } NbLog_t;
 
@@ -242,6 +253,8 @@ static bool LogObjInit (void* objp, void* unused)
             // Determine output device type
             if (term.outEnd->interface == OBJ_INTERFACE_CONSOLE)
             {
+                // Clear the terminal
+                // NbObjCallSvc (term.outEnd, NB_CONSOLEHW_CLEAR, NULL);
                 ++numConsoles;
                 // Determine where this would be best suited
                 if (numConsoles == 1)
@@ -280,6 +293,10 @@ static bool LogObjInit (void* objp, void* unused)
                     log->outputDevs[4] = iter;
                 if (!log->outputDevs[5])
                     log->outputDevs[5] = iter;
+                if (!log->outputDevs[6])
+                    log->outputDevs[6] = iter;
+                if (!log->outputDevs[7])
+                    log->outputDevs[7] = iter;
             }
         }
     }
@@ -304,13 +321,26 @@ NbObjSvcTab_t logSvcTab = {ARRAY_SIZE (logSvcs), logSvcs};
 
 void NbLogInit2 (NbloadDetect_t* detect)
 {
-    // Disable BIOS printing
-    NbDisablePrintEarly();
     nbDetect = detect;
     // Create object
     NbObjCreate ("/Interfaces", OBJ_TYPE_DIR, OBJ_INTERFACE_DIR);
-    NbObject_t* logObj =
-        NbObjCreate ("/Interfaces/SysLog", OBJ_TYPE_LOG, OBJ_INTERFACE_LOG);
+    logObj = NbObjCreate ("/Interfaces/SysLog", OBJ_TYPE_LOG, OBJ_INTERFACE_LOG);
     assert (logObj);
     NbObjInstallSvcs (logObj, &logSvcTab);
+    NbObjRef (logObj);
+    // Disable BIOS printing
+    NbDisablePrintEarly();
+}
+
+// Standard logging function
+void NbLogMessage (const char* fmt, int level, ...)
+{
+    va_list ap;
+    va_start (ap, level);
+    // Format it
+    char buf[256] = {0};
+    vsnprintf (buf, 256, fmt, ap);
+    // Log it
+    NbObjCallSvc (logObj, NB_LOG_WRITE, buf);
+    va_end (ap);
 }

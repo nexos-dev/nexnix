@@ -222,12 +222,21 @@ start2:
 .next:
     ; Check for EOF
     cmp ax, 0xFF8
-    jae .launchNexboot
     pop di
     pop es
+    jae .launchNexboot
     add sp, 2               ; Pop cluster number
     add di, cx              ; Move to next cluster in memory
-    jmp .readLoop
+    ; Check if we need to move to another segment
+    push eax
+    cmp di, 0                       ; Check for overflow
+    jne .cont
+    mov ax, es                      ; Get ES
+    add ax, 0x1000                  ; Move up 64 KiB
+    mov es, ax
+.cont:
+    pop eax
+    jmp .readLoop                   ; Move on
 .launchNexboot:
     mov ecx, [fileSize]
     mov dl, [driveNumber]

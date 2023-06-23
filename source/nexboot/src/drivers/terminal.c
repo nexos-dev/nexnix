@@ -590,8 +590,9 @@ static uint8_t terminalReadChar (NbObject_t* termObj)
         else if (in->interface == OBJ_INTERFACE_KBD)
         {
             // Read character from keyboard
+            NbKeyData_t keyData;
         readKey:
-            NbKeyData_t keyData = {0};
+            memset (&keyData, 0, sizeof (NbKeyData_t));
             NbObjCallSvc (term->inEnd, NB_KEYBOARD_READ_KEY, &keyData);
             if (keyData.isBreak)
                 goto readKey;

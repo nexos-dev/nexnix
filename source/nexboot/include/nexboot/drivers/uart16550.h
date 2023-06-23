@@ -23,7 +23,7 @@
 
 typedef struct _uart16550
 {
-    NbHwDevice_t dev;
+    NbHwDevice_t hdr;
     NbDriver_t* owner;
     uint16_t port;    // Base port of UART
 } NbUart16550Dev_t;

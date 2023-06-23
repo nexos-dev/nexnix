@@ -133,7 +133,7 @@ static bool VgaClearScreen (void* objp, void* unused)
 
 static bool VgaObjInit (void* obj, void* data)
 {
-    VgaClearScreen (obj, NULL);
+    // VgaClearScreen (obj, NULL);
     return true;
 }
 
@@ -246,6 +246,7 @@ static bool VgaMoveCursor (void* objp, void* data)
     NbObject_t* obj = objp;
     NbVgaConsole_t* console = obj->data;
     vgaMoveCursor (console, loc->col, loc->row);
+    return true;
 }
 
 static bool VgaGetSize (void* objp, void* data)

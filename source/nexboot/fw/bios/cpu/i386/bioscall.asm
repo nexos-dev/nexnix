@@ -99,6 +99,8 @@ bits 16
     push es
     pushf
     ; Back to protected mode
+    mov ax, 0
+    mov ds, ax              ; Ensure DS is correct
     lgdt [gdtStore]         ; Restore GDT
     lidt [idtStore]         ; Restore IDT
     mov eax, [cr3Val]

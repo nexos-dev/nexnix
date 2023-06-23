@@ -57,8 +57,8 @@ void memBlockInit (memPage_t* page, memBlock_t* block)
     block->magic = MEM_BLOCK_MAGIC;
     block->next = NULL;
     block->prev = NULL;
-    block->size = NEXBOOT_CPU_PAGE_SIZE;
-    block->page = pageList;
+    block->size = NEXBOOT_CPU_PAGE_SIZE - sizeof (memPage_t);
+    block->page = page;
     block->isFree = true;
     size_t* sizePtr = MEM_BLOCK_SIZE_END (block);
     *sizePtr = NEXBOOT_CPU_PAGE_SIZE;
@@ -69,7 +69,7 @@ void memPageInit (memPage_t* page)
     page->next = NULL;
     page->prev = NULL;
     page->magic = MEM_BLOCK_MAGIC;
-    page->freeSize = NEXBOOT_CPU_PAGE_SIZE;
+    page->freeSize = NEXBOOT_CPU_PAGE_SIZE - sizeof (memPage_t);
 }
 
 void NbMemInit()
@@ -248,17 +248,15 @@ void dumpData()
     memPage_t* pg = pageList;
     while (pg)
     {
-        NbLogMessageEarly ("Page free size: %u\r\n",
-                           NEXBOOT_LOGLEVEL_ERROR,
-                           pg->freeSize);
+        NbLogMessage ("Page free size: %u\r\n",
+                      NEXBOOT_LOGLEVEL_ERROR,
+                      pg->freeSize);
         memBlock_t* b = pg->blockList;
         while (b)
         {
-            NbLogMessageEarly ("Block size: %u\r\n",
-                               NEXBOOT_LOGLEVEL_ERROR,
-                               b->size);
-            NbLogMessageEarly ("Is free: %d\r\n", NEXBOOT_LOGLEVEL_ERROR, b->isFree);
-            NbLogMessageEarly ("\r\n", NEXBOOT_LOGLEVEL_ERROR);
+            NbLogMessage ("Block size: %u\r\n", NEXBOOT_LOGLEVEL_ERROR, b->size);
+            NbLogMessage ("Is free: %d\r\n", NEXBOOT_LOGLEVEL_ERROR, b->isFree);
+            NbLogMessage ("\r\n", NEXBOOT_LOGLEVEL_ERROR);
             b = b->next;
         }
         pg = pg->next;

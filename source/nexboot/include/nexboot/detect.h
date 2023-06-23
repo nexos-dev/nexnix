@@ -31,20 +31,6 @@ typedef struct _cpuDetect
                          // On x86, bit 0 = FPU exists
 } __attribute__ ((packed)) DetectCpuInfo_t;
 
-// System tables detected
-typedef struct _systabs
-{
-    uint32_t detected;    // Bit mask of detected tables
-    // HACK: on BIOS, these fields are 32 bit. Else, they are the size of uintptr_t
-    // This is OK because system table only will realistically be in the first 4GB of
-    // memory on BIOS systems
-#ifdef NEXNIX_FW_BIOS
-    uint32_t tabs[32];    // Detected tables
-#else
-    uintptr_t tabs[32];
-#endif
-} __attribute__ ((packed)) DetectSysTabs_t;
-
 #define NBLOAD_TABLE_ACPI    0
 #define NBLOAD_TABLE_PNP     1
 #define NBLOAD_TABLE_APM     2
@@ -74,13 +60,13 @@ typedef struct _systabs
 // Main detection structure
 typedef struct _detect
 {
-    uint32_t sig;               // Contains 0xDEADBEEF
-    uint16_t logOffset;         // Offset of log
-    uint16_t logSeg;            // Segment of log
-    uint16_t logSize;           // Size of log
-    uint8_t pad1[2];            // Padding
-    DetectCpuInfo_t cpu;        // CPU detection results
-    DetectSysTabs_t sysTabs;    // System tables
+    uint32_t sig;           // Contains 0xDEADBEEF
+    uint16_t logOffset;     // Offset of log
+    uint16_t logSeg;        // Segment of log
+    uint16_t logSize;       // Size of log
+    uint8_t pad1[2];        // Padding
+    DetectCpuInfo_t cpu;    // CPU detection results
+    uint8_t bootDrive;      // BIOS boot disk
 } __attribute__ ((packed)) NbloadDetect_t;
 #endif
 

@@ -324,6 +324,7 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type)
     memmap[memEntry].flags = 0;
     memmap[memEntry].type = type;
     ++memEntry;
+    return true;
 }
 
 // Performs memory detection
