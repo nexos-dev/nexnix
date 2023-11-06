@@ -57,7 +57,8 @@ list(APPEND NEXBOOT_SOURCES
             src/memmgr.c
             src/object.c
             src/driver.c
-            src/drivers/terminal.c)
+            src/drivers/terminal.c
+            src/drivers/volmanager.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
 
 # Find libk and libnex

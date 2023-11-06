@@ -217,6 +217,10 @@ Valid arguments:
   -group group
                         The package group to build
                         Mutually exclusdive with -pkg
+  -target target
+                        Target architecture of NexNix to build
+  -conf conf
+                        Target's configuration to build
   -imgaction action
                         Specifies the aciton for nnimage to run
                         Valid arguments include "all", "create", "partition", 
@@ -235,6 +239,7 @@ Valid arguments:
                         By default, image path and appropiate boot device
                         are selected
 Run './configure.sh -help' to see additional options.
+Run './configure.sh -archs' to see valid targets and configurations
 Any option passable to configure.sh is passable to buildrun.sh
 Note that -installpkgs is always passed to configure.sh
 Valid arguments for action include "all", "configure", "confbuild", "build", 
@@ -294,15 +299,15 @@ then
     panic "package and group specification are mutually exclusive"
 fi
 
-# If no configuration was specified, then figure out the default
+# Check configuration and target
 if [ -z "$conf" ]
 then
-    conf=$(./configure.sh -archs | awk -v target=$target '$2 == "configuration" && $4 == target { print $6 }')
+    panic "Configuration not specified"
 fi
 
 if [ -z "$target" ]
 then
-    target=i386-pc
+    panic "Target not specified"
 fi
 
 # Set buildconf, if need be

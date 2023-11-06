@@ -715,7 +715,7 @@ then
     then
         echo "    defaultFile: '$NNCONFROOT/nndisk.img';" >> nnimage.conf
         echo "    sizeMul: MiB;" >> nnimage.conf
-        echo "    size: 1024;" >> nnimage.conf
+        echo "    size: 128;" >> nnimage.conf
         echo "    format: mbr;" >> nnimage.conf
         # Ensure boot mode is BIOS
         if [ "$NNIMGBOOTMODE" != "bios" ]
@@ -730,7 +730,7 @@ then
         echo "partition boot" >> nnimage.conf
         echo "{" >> nnimage.conf
         echo "    start: 1;" >> nnimage.conf
-        echo "    size: 128;" >> nnimage.conf
+        echo "    size: 15;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
         echo "    prefix: '/System/Core';" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
@@ -739,8 +739,8 @@ then
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf
         echo "{" >> nnimage.conf
-        echo "    start: 130;" >> nnimage.conf
-        echo "    size: 893;" >> nnimage.conf
+        echo "    start: 18;" >> nnimage.conf
+        echo "    size: 108;" >> nnimage.conf
         echo "    format: ext2;" >> nnimage.conf
         echo "    prefix: '/';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
@@ -749,7 +749,7 @@ then
     then
         echo "    defaultFile: '$NNCONFROOT/nndisk.img';" >> nnimage.conf
         echo "    sizeMul: MiB;" >> nnimage.conf
-        echo "    size: 1024;" >> nnimage.conf
+        echo "    size: 128;" >> nnimage.conf
         echo "    format: gpt;" >> nnimage.conf
         # Check for valid boot mode
         if [ "$NNIMGBOOTMODE" = "isofloppy" ] || [ "$NNIMGBOOTMODE" = "none" ]
@@ -767,7 +767,7 @@ then
         echo "partition boot" >> nnimage.conf
         echo "{" >> nnimage.conf
         echo "    start: 1;" >> nnimage.conf
-        echo "    size: 128;" >> nnimage.conf
+        echo "    size: 23;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
         if [ "$NNIMGBOOTMODE" = "bios" ]
         then
@@ -785,8 +785,8 @@ then
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf
         echo "{" >> nnimage.conf
-        echo "    start: 130;" >> nnimage.conf
-        echo "    size: 893;" >> nnimage.conf
+        echo "    start: 25;" >> nnimage.conf
+        echo "    size: 100;" >> nnimage.conf
         echo "    format: ext2;" >> nnimage.conf
         echo "    prefix: '/';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf

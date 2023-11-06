@@ -206,12 +206,15 @@ findprog()
         elif [ "$1" = "lld" ]
         then
             pkg="llvm lld"
+        elif [ "$1" = "m4" ]
+        then
+            pkg="m4"
         elif [ "$1" = "nasm" ]
         then
             pkg="nasm"
         elif [ "$1" = "tex" ]
         then
-            pkg="texlive-binaries texlive-latex-extra"
+            pkg="texlive-binaries texlive-latex-extra texinfo"
         elif [ "$1" = "xz" ]
         then
             if [ "$hostos" = "debain" ]
@@ -411,17 +414,10 @@ HELPEND
         ;;
     -archs)
         # Print out all targets in target table
-        echo "Valid targets:"
-        echo $targets
-        echo "Valid configurations for i386-pc:"
-        echo $confs_i386_pc
+        echo "Valid targets: $targets"
+        echo "Valid configurations for i386-pc: $confs_i386_pc"
         echo "Default configuration for i386-pc is: acpi"
         echo "Default image type for i386-pc is: mbr"
-        echo ""
-        echo "Valid configurations for x86_64-pc:"
-        echo $confs_x86_64_pc
-        echo "Default configuration for x86_64-pc is: acpi"
-        echo "Default image type for x86_64-pc is: gpt"
         exit 0
         ;;
     -debug)
@@ -739,6 +735,8 @@ findprog "iasl"
 findprog "bash"
 findprog "nasm"
 findprog "gzip"
+findprog "gettext"
+findprog "m4"
 findlib "guestfs"
 findlib "uuid"
 # Check if the check succeeded

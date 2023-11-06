@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 // Headers
 typedef struct _memblock
@@ -70,6 +71,7 @@ void memPageInit (memPage_t* page)
     page->prev = NULL;
     page->magic = MEM_BLOCK_MAGIC;
     page->freeSize = NEXBOOT_CPU_PAGE_SIZE - sizeof (memPage_t);
+    page->blockList = NULL;
 }
 
 void NbMemInit()
@@ -167,6 +169,7 @@ static void* allocBlockInPage (memPage_t* pg, size_t sz)
         void* data = (void*) ((uintptr_t) curBlock) + MEM_BLOCK_DATA_OFFSET;
         memBlock_t* oldBlock = curBlock;
         curBlock = (memBlock_t*) (((uintptr_t) curBlock) + sz);
+        memset (curBlock, 0, sizeof (memBlock_t));
         curBlock->magic = MEM_BLOCK_MAGIC;
         curBlock->next = oldBlock->next;
         curBlock->prev = oldBlock->prev;
@@ -218,7 +221,11 @@ void* malloc (size_t sz)
         }
         // Check if have enough space
         if (curPage->freeSize >= sz)
-            return allocBlockInPage (curPage, sz);
+        {
+            void* base = allocBlockInPage (curPage, sz);
+            if (base)
+                return base;
+        }
         curPage = curPage->next;
     }
     // If we get here, there was no page large enough. Allocate a new page

@@ -301,6 +301,27 @@ then
         EMU_USBDRIVE=0
         [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
         EMU_SMP=1
+    elif [ "$NNTARGETCONF" = "isa" ]
+    then
+        # Prepare defaults
+        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=512
+        EMU_CPUCOUNT=1
+        [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE=ata
+        EMU_BUSTYPE=isa
+        EMU_USBTYPE=
+        [ -z "$EMU_NETDEV" ] && EMU_NETDEV="ne2k"
+        EMU_INPUTDEV="ps2"
+        [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
+        [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="sb16"
+        [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
+        [ -z "$EMU_CPU" ] && EMU_CPU="486"
+        EMU_MACHINETYPE="isapc"
+        [ -z "$EMU_CDROM" ] && EMU_CDROM=0
+        [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
+        EMU_FLOPPY=1
+        EMU_USBDRIVE=0
+        EMU_SMP=0
+        [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
     elif [ "$NNTARGETCONF" = "qemu" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
@@ -334,7 +355,7 @@ then
             QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw"
         elif [ "$EMU_DRIVETYPE" = "ata" ]
         then
-            if [ "$NNTARGETCONF" = "pnp" ]
+            if [ "$NNTARGETCONF" = "pnp" ] || [ "$NNTARGETCONF" = "isa" ]
             then
                 QEMUARGS="${QEMUARGS} -device isa-ide -device ide-hd,drive=hd0"
             else
@@ -507,7 +528,7 @@ then
         QEMUARGS="${QEMUARGS} -device ati-vga"
     elif [ "$EMU_DISPLAYTYPE" = "vga" ]
     then
-        if [ "$NNTARGETCONF" = "pnp" ]
+        if [ "$NNTARGETCONF" = "pnp" ] || [ "$NNTARGETCONF" = "isa" ]
         then
             QEMUARGS="${QEMUARGS} -device isa-cirrus-vga"
         else

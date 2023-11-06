@@ -40,10 +40,11 @@
 #define PS2_STATUS_TO      (1 << 6)
 
 // PS/2 controller commands
-#define PS2_COMMAND_DISABLE_KBD 0xAD
-#define PS2_COMMAND_ENABLE_KBD  0xAE
-#define PS2_COMMAND_READ_CCB    0x20
-#define PS2_COMMAND_WRITE_CCB   0x60
+#define PS2_COMMAND_DISABLE_KBD  0xAD
+#define PS2_COMMAND_DISABLE_DEV2 0xA7
+#define PS2_COMMAND_ENABLE_KBD   0xAE
+#define PS2_COMMAND_READ_CCB     0x20
+#define PS2_COMMAND_WRITE_CCB    0x60
 
 // PS/2 keyboard commands
 #define PS2_COMMAND_RESET               0xFF
@@ -117,14 +118,14 @@ static void ps2SendCtrlCmdParam (uint8_t cmd, uint8_t param)
 static uint8_t ps2ReadData()
 {
     ps2WaitOutputBuf();
-    return NbInb (PS2_PORT_INPUT);
+    return NbInb (PS2_PORT_OUTPUT);
 }
 
 // Sends command to keyboard
 static void ps2SendKbdCmd (uint8_t cmd)
 {
     ps2WaitInputBuf();
-    NbOutb (PS2_PORT_OUTPUT, cmd);
+    NbOutb (PS2_PORT_INPUT, cmd);
 }
 
 // Sends command to keyboard with parameter
@@ -158,17 +159,17 @@ static bool Ps2KbdEntry (int code, void* params)
     switch (code)
     {
         case NB_DRIVER_ENTRY_DETECTHW: {
+
             if (kbdFound)
                 return false;
             ps2SendCtrlCmd (PS2_COMMAND_DISABLE_KBD);
-            while (NbInb (PS2_PORT_STATUS) & PS2_STATUS_OBF)
-                ps2ReadData();    // Read data to flush output buffer
-            // Disable translation, interupts, and put in PC mode
+            ps2SendCtrlCmd (PS2_COMMAND_DISABLE_DEV2);
+            NbInb (PS2_PORT_OUTPUT);    // Flush output buffer
+            // Disable translation, interrupts
             ps2SendCtrlCmd (PS2_COMMAND_READ_CCB);
             uint8_t ccb = ps2ReadData();
             ccb &= ~PS2_CCB_INTS;
             ccb &= ~PS2_CCB_XLAT;
-            ccb |= PS2_CCB_PC;
             ps2SendCtrlCmdParam (PS2_COMMAND_WRITE_CCB, ccb);
             ps2SendCtrlCmd (PS2_COMMAND_ENABLE_KBD);
             // Detect if a keyboard exists. To do this, we send the read ID
@@ -194,15 +195,16 @@ static bool Ps2KbdEntry (int code, void* params)
                 status = NbInb (PS2_PORT_STATUS);
             }
             // Check ID
-            if (ps2ReadData() != PS2_RESULT_ACK || ps2ReadData() != PS2_ID_BYTE1 ||
-                ps2ReadData() != PS2_ID_BYTE2)
-                return false;    // No keyboard
+            if (ps2ReadData() != PS2_RESULT_ACK)
+                return false;              // No keyboard
+            uint8_t id = ps2ReadData();    // There will be at least one ID byte
+            // Empty any remaining bytes
+            if (id == 0xAB || id == 0xAC)
+                ps2ReadData();
             ps2SendKbdCmd (PS2_COMMAND_START_SCANNING);
             assert (ps2ReadData() == PS2_RESULT_ACK);
-            // Set up keyboard parameters
+            //  Set up keyboard parameters
             ps2SendKbdCmd (PS2_COMMAND_SET_DEFAULTS);
-            assert (ps2ReadData() == PS2_RESULT_ACK);
-            ps2SendKbdCmd (PS2_COMMAND_START_SCANNING);
             assert (ps2ReadData() == PS2_RESULT_ACK);
             NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard found\r\n",
                                NEXBOOT_LOGLEVEL_INFO);

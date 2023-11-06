@@ -16,6 +16,7 @@
 */
 
 #include <assert.h>
+#include <nexboot/bios/bios.h>
 #include <nexboot/detect.h>
 #include <nexboot/driver.h>
 #include <nexboot/drivers/terminal.h>
@@ -26,13 +27,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// BIOS DAP
+typedef struct _dap
+{
+    uint8_t sz;    // Size of DAP
+    uint8_t resvd;
+    uint8_t count;    // Sectors to read
+    uint8_t resvd1;
+    uint16_t bufOffset;    // Offset to read to
+    uint16_t bufSeg;       // Segment to read to
+    uint64_t sector;       // Sector to start reading from
+} __attribute__ ((packed)) NbBiosDap_t;
+
 // The main entry point into nexboot
 void NbMain (NbloadDetect_t* nbDetect)
 {
+    NbBiosRegs_t in = {0}, out = {0};
+    NbBiosDap_t* dap = (NbBiosDap_t*) 0x6000;
     // So, we are loaded by nbload, and all it has given us is the nbdetect
     // structure. It's our job to create a usable environment.
-
-    // Initialize logging
+    dap->sz = 16;
+    dap->count = 1;
+    dap->bufOffset = 0;
+    dap->bufSeg = 0x1000;
+    dap->sector = 0;
+    in.ah = 0x42;
+    in.dl = nbDetect->bootDrive;
+    in.si = (uint16_t) dap;
+    NbBiosCall (0x13, &in, &out);
+    asm("cli; hlt");
+    //  Initialize logging
     NbLogInit();
     // Initialize memory allocation
     NbMemInit();

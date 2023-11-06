@@ -66,5 +66,6 @@ bool NbSendDriverCode (NbDriver_t* drv, int code, void* data);
 #define NB_DRIVER_ENTRY_DETACHOBJ 3
 #define NB_DRIVER_ENTRY_STOP      4
 #define NB_DRIVER_ENTRY_DETECTHW  5
+#define NB_DRIVER_USER            32
 
 #endif

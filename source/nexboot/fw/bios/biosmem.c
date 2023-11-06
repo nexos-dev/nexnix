@@ -48,15 +48,16 @@ static short e820ToNb[] = {0,
 
 bool nbMemWithE820()
 {
-    nbE820Ent_t curEntry;
+    nbE820Ent_t* curEntry = (nbE820Ent_t*) NEXBOOT_BIOSBUF_BASE;
+    memset (curEntry, 0, sizeof (nbE820Ent_t));
     // Call E820
     NbBiosRegs_t in = {0}, out = {0};
     in.eax = 0xE820;
     in.edx = 0x534D4150;
     in.ebx = 0x0;
     in.ecx = sizeof (nbE820Ent_t);
-    in.es = ((uintptr_t) &curEntry) >> 4;
-    in.di = ((uintptr_t) &curEntry) & 0x0F;
+    in.es = ((uintptr_t) curEntry) >> 4;
+    in.di = ((uintptr_t) curEntry) & 0x0F;
     NbBiosCall (0x15, &in, &out);
     // Check results
     if ((out.flags & NEXBOOT_CPU_CARRY_FLAG) == NEXBOOT_CPU_CARRY_FLAG)
@@ -270,21 +271,19 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type)
                 return false;
             // Figure out how much space should be left in this region
             memmap[i].base = base + sz;
-            if ((int) (memmap[i].sz - sz) < 0)
+            if ((int64_t) (memmap[i].sz - sz) < 0)
             {
                 memmap[i].base = 0;
                 memmap[i].sz = 0;
             }
             else
-                memmap[i].sz = memmap[i].sz - sz;
+                memmap[i].sz -= sz;
         }
         // Maybe the base of the new region is inside the base of the old?
         else if (base > memmap[i].base && base < (memmap[i].base + memmap[i].sz))
         {
             if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
                 return false;
-            // Contract current region's size
-            memmap[i].sz = base - memmap[i].base;
             // Check if we need to split this region
             if ((memmap[i].base + memmap[i].sz) < (base + sz))
             {
@@ -296,6 +295,8 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type)
                 ++memEntry;
                 ++i;
             }
+            // Contract current region's size
+            memmap[i].sz = base - memmap[i].base;
         }
         // Maybe the size of the new region protrudes into the new
         else if (memmap[i].base > base &&
@@ -346,6 +347,7 @@ void NbFwMemDetect()
     NbLogMessageEarly ("Error: not supported memory map found",
                        NEXBOOT_LOGLEVEL_EMERGENCY);
 bootResv:
+    NbLogMessageEarly ("\r\n", NEXBOOT_LOGLEVEL_DEBUG);
     // Reserve some memory regions
     NbFwResvMem (0x0, 0x100000, NEXBOOT_MEM_RESVD);
     NbFwResvMem (0x100000, 0x200000, NEXBOOT_MEM_BOOT_RECLAIM);
@@ -353,8 +355,8 @@ bootResv:
     for (int i = 0; i < memEntry; ++i)
     {
         NbLogMessageEarly (
-            "Found memory region: Base %#llX, size %#llX, type %u\r\n",
-            NEXBOOT_LOGLEVEL_INFO,
+            "nexboot: Found memory region: base %#llX, size %#llX, type %u\r\n",
+            NEXBOOT_LOGLEVEL_DEBUG,
             memmap[i].base,
             memmap[i].sz,
             memmap[i].type);

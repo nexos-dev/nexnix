@@ -29,7 +29,7 @@ PHDRS
 
 SECTIONS
 {
-    . = 0x2000;
+    . = 0x1000;
     .realmode : {
         *(.realmode)
     } :realmode

@@ -13,11 +13,11 @@
 ; See the License for the specific language governing permissions and
 ; limitations under the License.
 
-org 0x2000
+org 0x1000
 section .realmode
 bits 32
 
-%define BIOS_STACK_TOP 0x8000
+%define BIOS_STACK_TOP 0xDFF0
 
 NbBiosCall:
     ; Save stack frame
@@ -70,6 +70,8 @@ bits 16
     mov ax, 0
     mov ds, ax
     mov es, ax
+    mov fs, ax
+    mov gs, ax
     mov ss, ax
     ; Adjust interrupt number
     pop ecx
@@ -85,9 +87,14 @@ bits 16
     pop ecx
     pop ebx
     pop eax
+    sti
     ; Execute interrupt
 .int:
     int 0                   ; Modified to right interrupt
+    mov al, 'h'
+    mov ah, 0x0e
+    int 10h
+    cli
     ; Push output
     push eax
     push ebx
@@ -115,6 +122,8 @@ bits 32
     mov ax, 0x20
     mov ds, ax
     mov es, ax
+    mov fs, ax
+    mov gs, ax
     mov ss, ax
     ; Enable paging again
     mov eax, cr0

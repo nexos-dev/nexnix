@@ -240,6 +240,7 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     sysInfo.cpuInfo.flags = nbDetect->cpu.flags;
     sysInfo.cpuInfo.version = nbDetect->cpu.version;
     sysInfo.sysFwType = NB_FW_TYPE_BIOS;
+    sysInfo.bootDrive = nbDetect->bootDrive;
     // Create sysinfo object
     NbObject_t* sysInfoObj = NbObjCreate ("/Devices/Sysinfo", OBJ_TYPE_SYSINFO, 0);
     NbObjSetData (sysInfoObj, &sysInfo);
@@ -265,7 +266,6 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
         createDeviceObject (buf, OBJ_INTERFACE_KBD, keyDrv, dev);
         dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
     }
-    // Free last allocated device
     free (dev);
     // Find serial ports
     NbDriver_t* serialDrv = NbFindDriver ("Rs232_16550");
@@ -294,7 +294,7 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     while (NbSendDriverCode (biosDiskDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
     {
         char buf[64] = {0};
-        snprintf (buf, 64, "/Devices/BiosDisk%d", dev->devId);
+        snprintf (buf, 64, "/Devices/Disk%d", dev->devId);
         createDeviceObject (buf, OBJ_INTERFACE_DISK, biosDiskDrv, dev);
         dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
     }

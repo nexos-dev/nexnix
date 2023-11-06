@@ -62,7 +62,7 @@ HdMbrEntry:
     mov bp, sp
     ; Save DL
     push dx
-    ;sti
+    sti
     ; Find active partition
     mov si, HDMBR_PARTTAB_START
     mov cx, 4

@@ -72,7 +72,6 @@ extern NbObjSvcTab_t uart16550SvcTab;
 static inline void uartWriteReg (NbUart16550Dev_t* dev, uint8_t reg, uint8_t data)
 {
     NbOutb (dev->port + reg, data);
-    NbIoWait();
 }
 
 static inline uint8_t uartReadReg (NbUart16550Dev_t* dev, uint8_t reg)

@@ -34,7 +34,7 @@ typedef struct _nbLogEnt
     short minute;     // Minute since boot of message
     short second;     // Seconds since boot of message
     short ms;         // Milliseconds since boot of message
-    char msg[128];    // Message itself
+    char msg[256];    // Message itself
 } nbLogEntryEarly_t;
 
 // Temporary initialization log
@@ -64,7 +64,7 @@ void NbLogMessageEarly (const char* fmt, int level, ...)
     va_list ap;
     va_start (ap, level);
     // snprintf it
-    vsnprintf (logEntries[curEntry].msg, 128, fmt, ap);
+    vsnprintf (logEntries[curEntry].msg, 256, fmt, ap);
     // Log it
     logEntries[curEntry].priority = level;
     // Check if we should print it
@@ -213,6 +213,7 @@ static bool LogObjInit (void* objp, void* unused)
 {
     NbObject_t* obj = objp;
     NbLog_t* log = malloc (sizeof (NbLog_t));
+    memset (log, 0, sizeof (NbLog_t));
     NbObjSetData (obj, log);
     log->logLevel = levelToPriority[NEXNIX_LOGLEVEL];
     // Copy old logs
@@ -259,10 +260,9 @@ static bool LogObjInit (void* objp, void* unused)
                 // Determine where this would be best suited
                 if (numConsoles == 1)
                 {
-                    // If this is the first console, set highest levels only
-                    log->outputDevs[0] = iter;
-                    log->outputDevs[1] = iter;
-                    log->outputDevs[2] = iter;
+                    // If this is the first console, set as much as log level allows
+                    for (int i = 0; i < minSeverity; ++i)
+                        log->outputDevs[i] = iter;
                 }
                 else if (numConsoles == 2)
                 {
@@ -340,7 +340,10 @@ void NbLogMessage (const char* fmt, int level, ...)
     // Format it
     char buf[256] = {0};
     vsnprintf (buf, 256, fmt, ap);
+    NbLogStr_t str = {0};
+    str.priority = level;
+    str.str = buf;
     // Log it
-    NbObjCallSvc (logObj, NB_LOG_WRITE, buf);
+    NbObjCallSvc (logObj, NB_LOG_WRITE, &str);
     va_end (ap);
 }

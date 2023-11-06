@@ -30,6 +30,12 @@ NbDriver_t* NbFindDriver (const char* name)
         if (!strcmp (nbPhase1DrvTab[i]->name, name))
             return nbPhase1DrvTab[i];
     }
+    size_t numP2Drvs = ARRAY_SIZE (nbPhase2DrvTab);
+    for (int i = 0; i < numP2Drvs; ++i)
+    {
+        if (!strcmp (nbPhase2DrvTab[i]->name, name))
+            return nbPhase2DrvTab[i];
+    }
     return NULL;
 }
 

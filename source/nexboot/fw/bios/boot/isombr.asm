@@ -43,7 +43,7 @@ NbloadMain:
     ; Set stack and BP
     mov sp, NBLOAD_STACK_TOP
     mov bp, sp
-    sti
+    ;sti
     call NbloadInitDisk         ; Initialize disk system
     ; Print welcome banner
     mov si, welcomeBanner       ; Get welcome banner
@@ -135,7 +135,6 @@ NbloadMain:
     mov ebx, [di+2]         ; Obtain extent
     mov eax, [di+10]        ; Obtain size
     mov [fileSize], eax
-    
     ; Round up
     xor ecx, ecx
     mov cx, [bp-2]          ; Get size of a block
@@ -152,6 +151,7 @@ NbloadMain:
     mov dx, NBLOAD_NEXBOOT_SEG    ; Load segment and offset
     mov es, dx
     mov di, 0
+    xchg bx, bx
     call NbloadReadBlocks
     ; Re-load drive number
     mov dl, [driveNumber]
@@ -184,7 +184,16 @@ NbloadReadBlocks:
     push cx
     mov cx, NBLOAD_ISO9660_SECTSZ
     mul cx                      ; Multiply sector size by sectors in block
+    cmp di, 0xF800              ; Check if next move will wrap segment
+    jne .noSeg
+    mov bx, es
+    add bx, 0x1000              ; Move to next segment
+    mov es, bx
+    mov di, 0
+    jmp .continue
+.noSeg:
     add di, ax                  ; Move to next spot
+.continue:
     pop cx
     pop eax
     loop .readLoop

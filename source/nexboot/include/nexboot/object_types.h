@@ -31,5 +31,6 @@
 #define OBJ_INTERFACE_TERMINAL      5
 #define OBJ_INTERFACE_LOG           6
 #define OBJ_INTERFACE_DISK          7
+#define OBJ_INTERFACE_VOLUME        8
 
 #endif

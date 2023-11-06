@@ -77,6 +77,7 @@ typedef struct _hwresults
     uint32_t detectedComps;    /// Detected architecture components
     uintptr_t comps[32];       /// Component table pointers
                                /// NOTE: some have no table and only BIOS ints
+    uint8_t bootDrive;         /// Bios drive number
 } NbSysInfo_t;
 
 // Firmware types

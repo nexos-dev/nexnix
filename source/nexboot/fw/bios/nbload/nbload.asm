@@ -19,7 +19,7 @@ section .text
 ; Start of bootloader detection data
 %define NBLOAD_DETECT_RESULT 0x700
 ; Top of stack
-%define NBLOAD_STACK_TOP 0xFFFF
+%define NBLOAD_STACK_TOP 0x60000
 ; Log-related bits
 %define NBLOAD_LOG_START 0x612
 %define NBLOAD_LOG_SIZE 0x100
@@ -83,7 +83,7 @@ NbStartDetect:
     mov ax, 0
     mov ss, ax
     mov es, ax
-    mov sp, NBLOAD_STACK_TOP
+    mov sp, 0xFFF0
     ; Save size
     push es
     mov ax, NBLOAD_BASE_SEG
@@ -228,23 +228,29 @@ NbStartDetect:
     call NbloadPanic
 .a20Enable:
 %endif
+    cli
     ; Now we must enable the A20 gate
     call NbloadWaitInputBuf     ; Wait for input buffer to be empty
     mov al, 0xAD                ; Command 0xAD disables keyboard
     out 0x64, al                ; Disable it
+
     call NbloadWaitInputBuf     ; Wait for input buffer to be empty
     mov al, 0xD0                ; Command 0xD0 reads configuration byte
     out 0x64, al                ; Grab configuration byte
+
     call NbloadWaitOutputBuf    ; Wait for output buffer to be full
     in al, 0x60                 ; Read in configuration byte
     mov dl, al
     or dl, 1 << 1               ; Set A20 bit
+
     call NbloadWaitInputBuf     ; Wait for input buffer
     mov al, 0xD1                ; Command 0xD1 writes configuration byte
     out 0x64, al                ; Set command to write conf byte
+
     call NbloadWaitInputBuf     ; Wait for input buffer
     mov al, dl
     out 0x60, al                ; Write new byte
+    
     call NbloadWaitInputBuf
     mov al, 0xAE                ; Command 0xAE enables keyboard
     out 0x64, al                ; Enable it
@@ -258,6 +264,10 @@ NbStartDetect:
     je .a20failed               ; If equal, A20 check failed
 %ifdef NEXNIX_ARCH_I386
     ; Now we must enter protected mode...
+    mov si, biosDap
+    mov ah, 0x42
+    mov dl, 0x80
+    int 0x13
     cli                             ; Disable interrupts
     lgdt [gdtPtr]                   ; Load the GDT
     mov eax, cr0                    ; Grab CR0
@@ -413,6 +423,15 @@ NbloadLogMsg:
 .logDone:
     popa
     ret
+
+biosDap:
+    db 16
+    db 0
+    db 1
+    db 0
+    dw 0x800          ; Offset to load into
+    dw 0          ; Segment to load into
+    dq 0         ; Sector to read
 
 ; Size of nexboot file
 nexbootSz: dd 0
@@ -591,7 +610,7 @@ NbloadStartPmode:
     pop esi
     mov ebx, [esi+24]
     mov ebp, 0                      ; Set up zero frame
-    mov esp, 0x7FFF0
+    mov esp, NBLOAD_STACK_TOP
     ; Find end of ndecomp
     mov edx, 0
     mov edi, [esi+0x20]

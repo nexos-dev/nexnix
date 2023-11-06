@@ -18,6 +18,7 @@
 #ifndef _DISK_H
 #define _DISK_H
 
+#include <nexboot/driver.h>
 #include <stdint.h>
 
 // Geometry structure
@@ -34,6 +35,7 @@ typedef struct _diskinf
     uint64_t size;        // Size of disk in sectors
     uint16_t sectorSz;    // Size of a sector
     uint16_t type;        // Type of disk
+    void* internal;       // Internal disk info
 } NbDiskInfo_t;
 
 #define DISK_FLAG_LBA       (1 << 0)
@@ -44,5 +46,18 @@ typedef struct _diskinf
 #define DISK_TYPE_HDD   1
 #define DISK_TYPE_FDD   2
 #define DISK_TYPE_CDROM 3
+
+// Disk functions
+#define NB_DISK_REPORT_ERROR 5
+#define NB_DISK_READ_SECTORS 6
+
+// Read sector packet
+typedef struct _readsect
+{
+    uint64_t sector;    // Sector to read
+    int count;          // Number to read
+    void* buf;          // Buffer to read into
+    int error;          // Error code result
+} NbReadSector_t;
 
 #endif

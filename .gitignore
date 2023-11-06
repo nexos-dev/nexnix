@@ -8,3 +8,4 @@ fakeinc
 *.code-workspace
 *.po~
 .vscode/settings.json
+.gdbinit
