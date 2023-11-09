@@ -265,9 +265,13 @@ static bool diskGetType (NbBiosDisk_t* disk, uint8_t num)
             disk->flags |= DISK_FLAG_REMOVABLE;    // Disk is removable
         disk->size = out.dx;
         disk->size |= (out.cx << 16);
+        disk->type = DISK_TYPE_HDD;
     }
     else
+    {
+        disk->type = DISK_TYPE_FDD;
         disk->flags |= DISK_FLAG_REMOVABLE;
+    }
     return true;
 }
 
@@ -283,10 +287,10 @@ static bool diskGetGeometry (NbBiosDisk_t* disk, uint8_t num)
     NbBiosCall (0x13, &in, &out);
     if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
         return false;
-    disk->hpc = out.dh + 1;
+    disk->hpc = out.dh;
     disk->spt = out.cl & 0x3F;
-    uint32_t numCyls = ((out.cl << 8) || out.ch) + 1;
-    disk->size = (uint64_t) (disk->spt * disk->hpc * numCyls);
+    uint32_t numCyls = ((out.cl >> 6) | out.ch) + 1;
+    disk->size = (uint64_t) ((disk->spt * disk->hpc * numCyls)) * 1024;
     return true;
 }
 
@@ -306,7 +310,7 @@ static bool diskGetDptInfo (NbBiosDisk_t* disk, uint8_t num)
     assert (dpt->sz == sizeof (NbDriveParamTab_t));
     // Set fields
     disk->sectorSz = dpt->bytesPerSector;
-    disk->size = dpt->diskSz;
+    disk->size = dpt->diskSz * disk->sectorSz;
     if (dpt->flags & DPT_FLAG_MEDIA_REMOVABLE)
         disk->flags |= DISK_FLAG_REMOVABLE;
     // Check the media type
@@ -383,9 +387,6 @@ static bool BiosDiskEntry (int code, void* params)
                 }
                 else
                 {
-                    NbLogMessageEarly ("%d\r\n",
-                                       NEXBOOT_LOGLEVEL_INFO,
-                                       diskCheckLba (disk, curDisk));
                     // Read using LBA
                     if (diskReadSectorLba (curDisk, (void*) NEXBOOT_BIOSBUF_BASE, 0))
                     {
@@ -427,21 +428,12 @@ static bool BiosDiskEntry (int code, void* params)
                     ++curDisk;
                     goto checkDisk;
                 }
-                disk->sectorSz = 512;
                 if (!diskGetGeometry (disk, curDisk))
                 {
                     ++curDisk;
                     goto checkDisk;
                 }
-                NbLogMessageEarly ("biosdisk: Found disk %#X with size %u, sector "
-                                   "size %d, flags %d, HPC %d, SPT %d\r\n",
-                                   NEXBOOT_LOGLEVEL_DEBUG,
-                                   curDisk,
-                                   disk->size,
-                                   disk->sectorSz,
-                                   disk->flags,
-                                   disk->hpc,
-                                   disk->spt);
+                disk->sectorSz = 512;
             }
             else
             {
@@ -455,16 +447,16 @@ static bool BiosDiskEntry (int code, void* params)
                     ++curDisk;
                     goto checkDisk;    // Retry
                 }
-                NbLogMessageEarly (
-                    "biosdisk: BIOS disk %#X found and working, size %llu, "
-                    "type %d, flags %#X, sector size %u\r\n",
-                    NEXBOOT_LOGLEVEL_DEBUG,
-                    curDisk,
-                    disk->size,
-                    disk->type,
-                    disk->flags,
-                    disk->sectorSz);
             }
+            NbLogMessageEarly (
+                "biosdisk: BIOS disk %#X found and working, size %llu, "
+                "type %d, flags %#X, sector size %u\r\n",
+                NEXBOOT_LOGLEVEL_DEBUG,
+                curDisk,
+                disk->size,
+                disk->type,
+                disk->flags,
+                disk->sectorSz);
             NbLogMessageEarly ("biosdisk: Disk %#X found\r\n",
                                NEXBOOT_LOGLEVEL_INFO,
                                curDisk);

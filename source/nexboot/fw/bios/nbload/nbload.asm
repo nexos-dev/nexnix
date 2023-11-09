@@ -264,10 +264,6 @@ NbStartDetect:
     je .a20failed               ; If equal, A20 check failed
 %ifdef NEXNIX_ARCH_I386
     ; Now we must enter protected mode...
-    mov si, biosDap
-    mov ah, 0x42
-    mov dl, 0x80
-    int 0x13
     cli                             ; Disable interrupts
     lgdt [gdtPtr]                   ; Load the GDT
     mov eax, cr0                    ; Grab CR0

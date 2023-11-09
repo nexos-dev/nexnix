@@ -154,6 +154,8 @@ static void ps2ToggleLed (NbPs2Kbd_t* drv, int led)
     }
 }
 
+static bool Ps2ReadKey (void* objp, void* params);
+
 static bool Ps2KbdEntry (int code, void* params)
 {
     switch (code)
@@ -172,40 +174,8 @@ static bool Ps2KbdEntry (int code, void* params)
             ccb &= ~PS2_CCB_XLAT;
             ps2SendCtrlCmdParam (PS2_COMMAND_WRITE_CCB, ccb);
             ps2SendCtrlCmd (PS2_COMMAND_ENABLE_KBD);
-            // Detect if a keyboard exists. To do this, we send the read ID
-            // command If we get a timeout error when sending it, a keyboard
-            // isn't plugged in
-            ps2SendKbdCmd (PS2_COMMAND_DISABLE_SCANNING);
-            assert (ps2ReadData() == PS2_RESULT_ACK);
-            ps2SendKbdCmd (PS2_COMMAND_READ_ID);
-            // Read status port, and check for OBF and TXTO
-            uint8_t status = NbInb (PS2_PORT_STATUS);
-            while (1)
-            {
-                if (status & PS2_STATUS_OBF)
-                    break;
-                // Check TO and TXTO
-                if (status & PS2_STATUS_TXTO || status & PS2_STATUS_TO)
-                {
-                    // No keyboard exists
-                    NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard not found\r\n",
-                                       NEXBOOT_LOGLEVEL_INFO);
-                    return false;
-                }
-                status = NbInb (PS2_PORT_STATUS);
-            }
-            // Check ID
-            if (ps2ReadData() != PS2_RESULT_ACK)
-                return false;              // No keyboard
-            uint8_t id = ps2ReadData();    // There will be at least one ID byte
-            // Empty any remaining bytes
-            if (id == 0xAB || id == 0xAC)
-                ps2ReadData();
-            ps2SendKbdCmd (PS2_COMMAND_START_SCANNING);
-            assert (ps2ReadData() == PS2_RESULT_ACK);
-            //  Set up keyboard parameters
             ps2SendKbdCmd (PS2_COMMAND_SET_DEFAULTS);
-            assert (ps2ReadData() == PS2_RESULT_ACK);
+            ps2ReadData();
             NbLogMessageEarly ("nbps2kbd: PS/2 Keyboard found\r\n",
                                NEXBOOT_LOGLEVEL_INFO);
             // Prepare device structure

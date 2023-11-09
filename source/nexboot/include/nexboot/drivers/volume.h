@@ -18,9 +18,12 @@
 #ifndef _VOLUME_H
 #define _VOLUME_H
 
+#include <nexboot/drivers/disk.h>
 #include <nexboot/nexboot.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+typedef NbReadSector_t NbReadBlock_t;
 
 // Volume structure
 typedef struct _vol
@@ -29,7 +32,7 @@ typedef struct _vol
     bool isPartition;    // Wheter this volume represents a partition or a whole disk
     bool isActive;       // If this volume is active
     uint32_t volStart;      // Start sector of volume
-    uint32_t volSize;       // Size of volume
+    uint64_t volSize;       // Size of volume
     uint32_t volFileSys;    // Filesystem of volume
 } NbVolume_t;
 
@@ -37,9 +40,14 @@ typedef struct _vol
 #define VOLUME_ADD_DISK (NB_DRIVER_USER)
 
 // Volume filesystems
-#define VOLUME_FS_FAT12 1
-#define VOLUME_FS_FAT16 2
-#define VOLUME_FS_FAT32 3
-#define VOLUME_FS_EXT2  4
+#define VOLUME_FS_FAT12   1
+#define VOLUME_FS_FAT16   2
+#define VOLUME_FS_FAT32   3
+#define VOLUME_FS_EXT2    4
+#define VOLUME_FS_FAT     5
+#define VOLUME_FS_ISO9660 6
+
+// Volume object services
+#define NB_VOLUME_READ_BLOCKS 5
 
 #endif

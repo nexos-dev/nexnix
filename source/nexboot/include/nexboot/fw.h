@@ -56,6 +56,9 @@ NbMemEntry_t* NbGetMemMap (int* size);
 /// Allocates a page for nexboot
 uintptr_t NbFwAllocPage();
 
+// Allocate multiple pages
+uintptr_t NbFwAllocPages (int count);
+
 /// Detects system hardware for bootloader
 bool NbFwDetectHw (NbloadDetect_t* nbDetect);
 

@@ -37,29 +37,32 @@ NbBiosCall:
     and eax, ~(0x80000000)
     mov cr0, eax
     ; Get register input
-    mov eax, [ebp+12]
+    mov edx, [ebp+12]
     mov ebx, [ebp+16]
     mov ecx, [ebp+8]
-    ; Load up 16 bit stack
-    mov esp, BIOS_STACK_TOP
-    mov ebp, esp
     ; Copy to new stack
+    mov esp, BIOS_STACK_TOP
     push dword [cr3Val]
     push gdtStore
-    push dword [eax]
-    push dword [eax+4]
-    push dword [eax+8]
-    push dword [eax+12]
-    push dword [eax+16]
-    push dword [eax+20]
-    push word [eax+24]
-    push word [eax+26]
+    push dword [edx]
+    push dword [edx+4]
+    push dword [edx+8]
+    push dword [edx+12]
+    push dword [edx+16]
+    push dword [edx+20]
+    push word [edx+24]
+    push word [edx+26]
     push ebx
-    push ecx
+    mov edi, esp
     ; Jump to 16 bit mode protected mode
     jmp 0x08:.16bitpmode
 bits 16
 .16bitpmode:
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, BIOS_STACK_TOP
     ; Clear PE bit
     mov eax, cr0
     and eax, ~(1 << 0)
@@ -73,8 +76,7 @@ bits 16
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    ; Adjust interrupt number
-    pop ecx
+    mov esp, edi
     mov [.int+1], cl
     ; Store output
     pop ebp
@@ -87,13 +89,11 @@ bits 16
     pop ecx
     pop ebx
     pop eax
+    mov esp, BIOS_STACK_TOP
     sti
     ; Execute interrupt
 .int:
     int 0                   ; Modified to right interrupt
-    mov al, 'h'
-    mov ah, 0x0e
-    int 10h
     cli
     ; Push output
     push eax

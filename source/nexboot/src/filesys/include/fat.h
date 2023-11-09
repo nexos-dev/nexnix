@@ -1,5 +1,5 @@
 /*
-    object_types.h - contains object type definitions
+    fat.h - contains FAT driver
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,22 +15,12 @@
     limitations under the License.
 */
 
-#ifndef _OBJECT_TYPES_H
-#define _OBJECT_TYPES_H
+#ifndef _FAT_H
+#define _FAT_H
 
-#define OBJ_TYPE_DIR     0
-#define OBJ_TYPE_DEVICE  1
-#define OBJ_TYPE_SYSINFO 2
-#define OBJ_TYPE_LOG     3
-#define OBJ_TYPE_FS      4
+#include <nexboot/nexboot.h>
 
-#define OBJ_INTERFACE_DIR           0
-#define OBJ_INTERFACE_CONSOLE       1
-#define OBJ_INTERFACE_KBD           2
-#define OBJ_INTERFACE_GENERIC_TIMER 3
-#define OBJ_INTERFACE_RS232         4
-#define OBJ_INTERFACE_TERMINAL      5
-#define OBJ_INTERFACE_DISK          7
-#define OBJ_INTERFACE_VOLUME        8
+bool FatMountFs (NbObject_t* fs);
+bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file);
 
 #endif

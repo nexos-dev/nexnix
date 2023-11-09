@@ -255,7 +255,7 @@ static bool LogObjInit (void* objp, void* unused)
             if (term.outEnd->interface == OBJ_INTERFACE_CONSOLE)
             {
                 // Clear the terminal
-                // NbObjCallSvc (term.outEnd, NB_CONSOLEHW_CLEAR, NULL);
+                NbObjCallSvc (term.outEnd, NB_CONSOLEHW_CLEAR, NULL);
                 ++numConsoles;
                 // Determine where this would be best suited
                 if (numConsoles == 1)
@@ -323,8 +323,7 @@ void NbLogInit2 (NbloadDetect_t* detect)
 {
     nbDetect = detect;
     // Create object
-    NbObjCreate ("/Interfaces", OBJ_TYPE_DIR, OBJ_INTERFACE_DIR);
-    logObj = NbObjCreate ("/Interfaces/SysLog", OBJ_TYPE_LOG, OBJ_INTERFACE_LOG);
+    logObj = NbObjCreate ("/Interfaces/SysLog", OBJ_TYPE_LOG, 0);
     assert (logObj);
     NbObjInstallSvcs (logObj, &logSvcTab);
     NbObjRef (logObj);

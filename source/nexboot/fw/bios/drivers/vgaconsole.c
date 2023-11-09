@@ -108,11 +108,6 @@ static bool VgaObjDestroy (void* objp, void* data)
     return true;
 }
 
-static bool VgaObjRef (void* obj, void* data)
-{
-    return true;
-}
-
 static bool VgaObjDumpData (void* obj, void* data)
 {
     return true;
@@ -262,8 +257,8 @@ static bool VgaGetSize (void* objp, void* data)
 
 // Object interface
 static NbObjSvc vgaServices[] = {VgaObjInit,
+                                 NULL,
                                  VgaObjDestroy,
-                                 VgaObjRef,
                                  VgaObjDumpData,
                                  VgaObjNotify,
                                  VgaClearScreen,

@@ -231,8 +231,6 @@ static bool createDeviceObject (const char* name,
 bool NbFwDetectHw (NbloadDetect_t* nbDetect)
 {
     assert (nbDetect);
-    // Create devices directory
-    NbObjCreate ("/Devices", OBJ_TYPE_DIR, OBJ_INTERFACE_DIR);
     // Set string in sysInfo
     strcpy (sysInfo.sysType, "PC-AT compatible system");
     sysInfo.cpuInfo.arch = nbDetect->cpu.arch;

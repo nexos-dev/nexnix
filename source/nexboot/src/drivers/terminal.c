@@ -43,8 +43,8 @@ static void createTerminal (int termNum,
     terms[curTerm] = term;
     ++curTerm;
     assert (curTerm < 32);
-    term->outEnd = outEnd;
-    term->inEnd = inEnd;
+    term->outEnd = NbObjRef (outEnd);
+    term->inEnd = NbObjRef (inEnd);
     NbObjNotify_t notify = {0};
     notify.data = &terminalDrv;
     // Get console size

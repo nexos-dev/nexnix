@@ -16,6 +16,7 @@
 */
 
 #include <nexboot/fw.h>
+#include <string.h>
 
 // Location of bioscall blob
 #define NEXBOOT_BIOSCALL_BLOB 0x1000
@@ -45,7 +46,23 @@ uintptr_t NbFwAllocPage()
     uintptr_t ret = curMemLocation;
     curMemLocation += NEXBOOT_CPU_PAGE_SIZE;
     if (curMemLocation >= NEXBOOT_BIOS_BASE)
+    {
+        curMemLocation -= NEXBOOT_CPU_PAGE_SIZE;
         return 0;
+    }
     memset ((void*) ret, 0, NEXBOOT_CPU_PAGE_SIZE);
+    return ret;
+}
+
+uintptr_t NbFwAllocPages (int count)
+{
+    uintptr_t ret = curMemLocation;
+    curMemLocation += (NEXBOOT_CPU_PAGE_SIZE * count);
+    if (curMemLocation >= NEXBOOT_BIOS_BASE)
+    {
+        curMemLocation -= (NEXBOOT_CPU_PAGE_SIZE * count);
+        return 0;
+    }
+    memset ((void*) ret, 0, (NEXBOOT_CPU_PAGE_SIZE * count));
     return ret;
 }

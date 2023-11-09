@@ -354,3 +354,11 @@ void free (void* ptr)
         *szEnd = block->size;
     }
 }
+
+void* calloc (size_t blocks, size_t blkSz)
+{
+    size_t sz = blocks * blkSz;
+    void* p = malloc (sz);
+    memset (p, 0, sz);
+    return p;
+}

@@ -43,7 +43,7 @@ NbloadMain:
     ; Set stack and BP
     mov sp, NBLOAD_STACK_TOP
     mov bp, sp
-    ;sti
+    sti
     call NbloadInitDisk         ; Initialize disk system
     ; Print welcome banner
     mov si, welcomeBanner       ; Get welcome banner

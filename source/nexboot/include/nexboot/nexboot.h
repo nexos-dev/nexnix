@@ -20,6 +20,7 @@
 
 #include <libnex/stringref.h>
 #include <nexboot/object.h>
+#include <nexboot/vfs.h>
 
 /// Log levels
 #define NEXBOOT_LOGLEVEL_EMERGENCY 1
