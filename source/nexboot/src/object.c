@@ -170,7 +170,7 @@ NbObject_t* NbObjFind (const char* name)
 NbObject_t* NbObjRef (NbObject_t* obj)
 {
     assert (obj);
-    // ObjRef (&obj->obj);
+    ObjRef (&obj->obj);
     if (obj->services[OBJ_SERVICE_REF])
         obj->services[OBJ_SERVICE_REF](obj, NULL);
     return obj;

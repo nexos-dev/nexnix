@@ -195,7 +195,10 @@ static uint8_t diskReadSector (uint8_t drive,
 
         NbBiosCall (0x13, &in, &out);
         if (!(out.flags & NEXBOOT_CPU_CARRY_FLAG))
+        {
             success = true;
+            break;
+        }
     }
     if (!success)
         return out.ah;
@@ -287,10 +290,10 @@ static bool diskGetGeometry (NbBiosDisk_t* disk, uint8_t num)
     NbBiosCall (0x13, &in, &out);
     if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
         return false;
-    disk->hpc = out.dh;
+    disk->hpc = out.dh + 1;
     disk->spt = out.cl & 0x3F;
     uint32_t numCyls = ((out.cl >> 6) | out.ch) + 1;
-    disk->size = (uint64_t) ((disk->spt * disk->hpc * numCyls)) * 1024;
+    disk->size = (uint64_t) ((disk->spt * (disk->hpc - 1) * numCyls)) * 1024;
     return true;
 }
 

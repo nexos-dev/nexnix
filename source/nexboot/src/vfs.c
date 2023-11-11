@@ -24,6 +24,8 @@
 
 extern NbObjSvcTab_t fsSvcTab;
 
+static int id = 0;
+
 // Converts file system type to driver
 static int fsTypeToDriver (int type)
 {
@@ -98,15 +100,94 @@ static bool VfsFsOpenFile (void* obj, void* params)
         return false;
     ObjCreate ("NbFile_t", &file->obj);
     strcpy (file->name, op->name);
-    file->fileSys = fs;
+    file->fileSys = NbObjRef (fs);
     file->pos = 0;
-    // Call FS driver
-    if (!FsOpenFile (filesys->driver, fs, file))
+    file->blockBuf = malloc (filesys->blockSz);
+    if (!file->blockBuf)
     {
         free (file);
         return false;
     }
+    file->fileId = ++id;
+    // Call FS driver
+    if (!FsOpenFile (filesys->driver, fs, file))
+    {
+        free (file->blockBuf);
+        free (file);
+        return false;
+    }
     op->file = file;
+    ListAddBack (filesys->files, file, file->fileId);
+    return true;
+}
+
+static bool VfsFsCloseFile (void* obj, void* params)
+{
+    NbObject_t* fs = obj;
+    NbFileSys_t* filesys = NbObjGetData (fs);
+    NbFile_t* file = params;
+    assert (file);
+    FsCloseFile (filesys->driver, fs, file);
+    NbObjDeRef (file->fileSys);
+    ObjDestroy (&file->obj);
+    ListRemove (filesys->files, ListFind (filesys->files, file->fileId));
+    free (file->blockBuf);
+    return true;
+}
+
+static bool VfsFsSeekFile (void* obj, void* params)
+{
+    NbObject_t* fs = obj;
+    NbFileSys_t* filesys = NbObjGetData (fs);
+    NbSeekOp_t* seek = params;
+    assert (seek && seek->file);
+    if (seek->relative)
+        seek->file->pos += seek->pos;
+    else
+        seek->file->pos = seek->pos;
+    if (seek->file->pos >= seek->file->size)
+        return false;
+    return true;
+}
+
+static bool VfsFsReadFile (void* obj, void* params)
+{
+    NbObject_t* fsObj = obj;
+    NbFileSys_t* fs = fsObj->data;
+    NbReadOp_t* op = params;
+    assert (op->file && op->buf);
+    void* buf = op->buf;
+    op->bytesRead = 0;
+    // Get number of blocks to read
+    uint32_t numBlocks = (op->count + (fs->blockSz - 1)) / fs->blockSz;
+    for (int i = 0; i < numBlocks; ++i)
+    {
+        // Read in block
+        if (!FsReadBlock (fs->driver, fsObj, op->file, op->file->pos))
+            return false;
+        // Figure out number of bytes to copy
+        uint32_t bytesRead = 0;
+        uint32_t base = 0;
+        if ((op->file->pos + fs->blockSz) > op->file->size)
+            bytesRead = op->file->size - op->file->pos;
+        else if ((op->bytesRead + fs->blockSz) > op->count)
+            bytesRead = op->count - op->bytesRead;
+        else
+        {
+            bytesRead = fs->blockSz;
+            // Check if file position is block aligned, and correct it if not
+            if (op->file->pos % fs->blockSz)
+            {
+                bytesRead -= op->file->pos % fs->blockSz;
+                base += op->file->pos % fs->blockSz;
+            }
+        }
+        // Copy them to buffer
+        memcpy (buf, op->file->blockBuf + base, bytesRead);
+        buf += bytesRead;
+        op->bytesRead += bytesRead;
+        op->file->pos += bytesRead;
+    }
     return true;
 }
 
@@ -120,7 +201,14 @@ static bool VfsFsNotify (void* objp, void* params)
     return true;
 }
 
-static NbObjSvc fsSvcs[] =
-    {NULL, NULL, NULL, VfsFsDumpData, VfsFsNotify, VfsFsOpenFile};
+static NbObjSvc fsSvcs[] = {NULL,
+                            NULL,
+                            NULL,
+                            VfsFsDumpData,
+                            VfsFsNotify,
+                            VfsFsOpenFile,
+                            VfsFsCloseFile,
+                            VfsFsReadFile,
+                            VfsFsSeekFile};
 
 NbObjSvcTab_t fsSvcTab = {ARRAY_SIZE (fsSvcs), fsSvcs};

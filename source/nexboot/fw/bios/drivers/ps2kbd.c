@@ -171,7 +171,7 @@ static bool Ps2KbdEntry (int code, void* params)
             ps2SendCtrlCmd (PS2_COMMAND_READ_CCB);
             uint8_t ccb = ps2ReadData();
             ccb &= ~PS2_CCB_INTS;
-            ccb &= ~PS2_CCB_XLAT;
+            // ccb &= ~PS2_CCB_XLAT;
             ps2SendCtrlCmdParam (PS2_COMMAND_WRITE_CCB, ccb);
             ps2SendCtrlCmd (PS2_COMMAND_ENABLE_KBD);
             ps2SendKbdCmd (PS2_COMMAND_SET_DEFAULTS);
@@ -245,10 +245,10 @@ static bool Ps2ReadKey (void* objp, void* params)
     while (!isFinished)
     {
         uint8_t scanCode = ps2ReadData();
-        if (scanCode == 0xF0)
+        if (scanCode & (1 << 7))
         {
+            scanCode &= ~(1 << 7);
             isBreak = true;
-            continue;
         }
         else if (scanCode == 0xE0)
         {
@@ -258,7 +258,10 @@ static bool Ps2ReadKey (void* objp, void* params)
         // Get character
         uint8_t c = 0;
         if (isExtCode)
-            c = scanToEnUs2[scanCode];
+        {
+            if (scanCode >= 0x47)
+                c = scanToEnUs2[scanCode];
+        }
         else
             c = scanToEnUs[scanCode];
         // Defer caps lock handling until break code

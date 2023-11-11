@@ -398,34 +398,9 @@ static bool updateRegFile (guestfs_h* guestFs,
 // Copies out a whole subdirectory
 bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
 {
-    // Strip host prefix
-    const char* dirSrc = srcDir + strlen (hostPrefix);
-    char* fullDestDir = malloc_s (255);
-    if (!fullDestDir)
-        return false;
-    if (strlcpy (fullDestDir, destDir, 255) >= 255)
-    {
-        error ("buffer overflow detected");
-        return false;
-    }
-    // Check if we need to add a trailing '/' as a seperator
-    size_t destDirLen = strlen (dirSrc);
-    if (fullDestDir[destDirLen - 1] != '/')
-    {
-        fullDestDir[destDirLen] = '/';
-        fullDestDir[destDirLen + 1] = 0;
-    }
-    if (strlcat (fullDestDir, dirSrc, 255) >= 255)
-    {
-        error ("buffer overflow detected");
-        return false;
-    }
-    // Create directory if needed
+    const char* fullDestDir = destDir;
     if (guestfs_mkdir_p (guestFs, fullDestDir) == -1)
-    {
-        free (fullDestDir);
         return false;
-    }
     DIR* src = opendir (srcDir);
     if (!src)
     {
@@ -443,13 +418,11 @@ bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
         char* fullDest = malloc_s (255);
         if (!fullDest)
         {
-            free (fullDestDir);
             closedir (src);
             return false;
         }
         if (strlcpy (fullDest, fullDestDir, 255) >= 255)
         {
-            free (fullDestDir);
             free (fullDest);
             closedir (src);
             error ("buffer overflow detected");
@@ -464,7 +437,6 @@ bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
         }
         if (strlcat (fullDest, curDir->d_name, 255) >= 255)
         {
-            free (fullDestDir);
             free (fullDest);
             closedir (src);
             error ("buffer overflow detected");
@@ -474,14 +446,12 @@ bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
         char* fullSrc = malloc_s (255);
         if (!fullSrc)
         {
-            free (fullDestDir);
             free (fullDest);
             closedir (src);
             return false;
         }
         if (strlcpy (fullSrc, srcDir, 255) >= 255)
         {
-            free (fullDestDir);
             free (fullDest);
             free (fullSrc);
             closedir (src);
@@ -497,7 +467,6 @@ bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
         }
         if (strlcat (fullSrc, curDir->d_name, 255) >= 255)
         {
-            free (fullDestDir);
             free (fullDest);
             free (fullSrc);
             closedir (src);
@@ -506,7 +475,6 @@ bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
         }
         if (!updateFile (guestFs, fullSrc, fullDest))
         {
-            free (fullDestDir);
             free (fullDest);
             free (fullSrc);
             closedir (src);
@@ -517,7 +485,6 @@ bool updateSubDir (guestfs_h* guestFs, const char* srcDir, const char* destDir)
     nextDirEnt:
         curDir = readdir (src);
     }
-    free (fullDestDir);
     closedir (src);
     return true;
 }

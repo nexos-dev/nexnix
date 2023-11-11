@@ -683,17 +683,15 @@ then
         then
             echo "System" >> $NNCONFROOT/nnimage-list.lst
             echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
-            mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/nexboot
+            mv $NNDESTDIR/System/Core/Boot/nexboot $NNDESTDIR/nexboot
         elif [ "$NIMGBOOTEMU" = "hdd" ] || [ "$NNIMGBOOTEMU" = "fdd" ]
         then
             echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
-            mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
         elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
         then
             echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
-            mv $NNDESTDIR/System/Core/nexboot $NNDESTDIR/System/Core/Boot/nexboot
         else
-            echo "/System/Core" >> $NNCONFROOT/nnimage-list.lst
+            echo "/System/Core/Boot" >> $NNCONFROOT/nnimage-list.lst
         fi
     elif [ "$NNIMGBOOTMODE" = "efi" ]
     then
@@ -732,7 +730,7 @@ then
         echo "    start: 1;" >> nnimage.conf
         echo "    size: 15;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
-        echo "    prefix: '/System/Core';" >> nnimage.conf
+        echo "    prefix: '/System/Core/Bot';" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
         echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
@@ -769,13 +767,7 @@ then
         echo "    start: 1;" >> nnimage.conf
         echo "    size: 23;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
-        if [ "$NNIMGBOOTMODE" = "bios" ]
-        then
-            echo "    prefix: '/System/Core';" >> nnimage.conf
-        elif [ "$NNIMGBOOTMODE" = "efi" ]
-        then
-            echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
-        fi
+        echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
         if [ "$NNIMGBOOTMODE" != "efi" ]
@@ -847,7 +839,7 @@ then
                 echo "    size: 131050;" >> nnimage.conf
                 echo "    format: fat32;" >> nnimage.conf
                 echo "    isBoot: true;"  >> nnimage.conf
-                echo "    prefix: '/System/Core';" >> nnimage.conf
+                echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
                 echo "    image: nnimg;" >> nnimage.conf
                 echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
                 echo "}" >> nnimage.conf

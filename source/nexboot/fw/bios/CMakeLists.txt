@@ -106,4 +106,4 @@ add_custom_command(OUTPUT ${NEXBOOT_OUTPUT}
                    ${NEXBOOT_OUTPUT} DEPENDS ${NBLOAD_OUTPUT} ndecomp znexboot2 nexboot-bios-1)
 add_custom_target(nexboot-bios ALL DEPENDS ${NEXBOOT_OUTPUT})
 # Install to root of boot partition
-install(FILES ${NEXBOOT_OUTPUT} DESTINATION ..)
+install(FILES ${NEXBOOT_OUTPUT} DESTINATION .)

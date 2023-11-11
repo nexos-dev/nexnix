@@ -187,13 +187,6 @@ static bool LogWrite (void* objp, void* strp)
     if (str->priority <= log->logLevel)
     {
         NbTerminal_t* term = log->outputDevs[str->priority - 1]->data;
-        // If this is the primary display, clear the screen
-        if (term->isPrimary)
-        {
-            NbObjCallSvc (log->outputDevs[str->priority - 1],
-                          NB_TERMINAL_CLEAR,
-                          NULL);
-        }
         NbObjCallSvc (log->outputDevs[str->priority - 1],
                       NB_TERMINAL_WRITE,
                       (void*) str->str);

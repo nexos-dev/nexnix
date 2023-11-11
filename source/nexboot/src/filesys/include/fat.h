@@ -22,5 +22,7 @@
 
 bool FatMountFs (NbObject_t* fs);
 bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file);
+bool FatCloseFile (NbObject_t* fs, NbFile_t* file);
+bool FatReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos);
 
 #endif

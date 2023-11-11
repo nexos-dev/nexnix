@@ -18,11 +18,13 @@
 #include <assert.h>
 #include <nexboot/detect.h>
 #include <nexboot/driver.h>
+#include <nexboot/drivers/terminal.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // The main entry point into nexboot
 void NbMain (NbloadDetect_t* nbDetect)
@@ -63,10 +65,24 @@ void NbMain (NbloadDetect_t* nbDetect)
     }
     // Start log
     NbLogInit2 (nbDetect);
+    NbObject_t* term = NbObjFind ("/Devices/Terminal0");
+    char file[32];
+    NbTermRead_t read;
+    read.buf = file;
+    read.bufSz = 32;
+    NbObjCallSvc (term, NB_TERMINAL_READ, &read);
     NbObject_t* fs = NbVfsMountFs (NbObjFind ("/Volumes/Disk0/Volume0"), "boot");
     NbOpenFileOp_t op;
-    op.name = "/Boot/nexboot.ty";
+    op.name = "/test.txt";
     NbObjCallSvc (fs, NB_VFS_OPEN_FILE, &op);
+    NbReadOp_t readOp;
+    uint8_t buf[600];
+    memset (&buf, 0, 600);
+    readOp.buf = &buf;
+    readOp.count = 600;
+    readOp.file = op.file;
+    NbObjCallSvc (fs, NB_VFS_READ_FILE, &readOp);
+    NbObjCallSvc (term, NB_TERMINAL_WRITE, buf);
     for (;;)
         ;
 }

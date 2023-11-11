@@ -28,7 +28,8 @@ typedef struct _memblock
     uint32_t magic;
     uint32_t size;
     bool isFree;
-    struct _mempage* page;
+    bool isLarge;             // Is this a large allocation
+    struct _mempage* page;    // Parent page
     struct _memblock* prev;
     struct _memblock* next;
 } __attribute__ ((packed)) memBlock_t;
@@ -38,18 +39,21 @@ typedef struct _mempage
     uint32_t magic;           // Magic size
     uint32_t freeSize;        // Free number of bytes
     memBlock_t* blockList;    // List of blocks
+    uint32_t numPages;    // For large allocation, the number of pages represented
+                          // here
     struct _mempage* next;
     struct _mempage* prev;
 } __attribute__ ((packed)) memPage_t;
 
 #define MEM_BLOCK_MAGIC 0xF9125937
 
-#define MEM_PG_BLOCK_OFFSET   32
-#define MEM_BLOCK_DATA_OFFSET 32
+#define MEM_PG_BLOCK_OFFSET   64
+#define MEM_BLOCK_DATA_OFFSET 64
 
 #define MEM_BLOCK_ALIGN 16
 
-#define MEM_BLOCK_SIZE_END(block) (size_t*) ((uintptr_t) (block) + (block)->size - 4)
+#define MEM_BLOCK_SIZE_END(block) \
+    (size_t*) ((uintptr_t) (block) + (block)->size - sizeof (size_t))
 
 static memPage_t* pageList = NULL;
 
@@ -58,11 +62,12 @@ void memBlockInit (memPage_t* page, memBlock_t* block)
     block->magic = MEM_BLOCK_MAGIC;
     block->next = NULL;
     block->prev = NULL;
-    block->size = NEXBOOT_CPU_PAGE_SIZE - sizeof (memPage_t);
+    block->size = NEXBOOT_CPU_PAGE_SIZE - MEM_PG_BLOCK_OFFSET;
     block->page = page;
     block->isFree = true;
+    block->isLarge = false;
     size_t* sizePtr = MEM_BLOCK_SIZE_END (block);
-    *sizePtr = NEXBOOT_CPU_PAGE_SIZE;
+    *sizePtr = NEXBOOT_CPU_PAGE_SIZE - MEM_PG_BLOCK_OFFSET;
 }
 
 void memPageInit (memPage_t* page)
@@ -70,7 +75,7 @@ void memPageInit (memPage_t* page)
     page->next = NULL;
     page->prev = NULL;
     page->magic = MEM_BLOCK_MAGIC;
-    page->freeSize = NEXBOOT_CPU_PAGE_SIZE - sizeof (memPage_t);
+    page->freeSize = NEXBOOT_CPU_PAGE_SIZE - MEM_PG_BLOCK_OFFSET;
     page->blockList = NULL;
 }
 
@@ -168,23 +173,33 @@ static void* allocBlockInPage (memPage_t* pg, size_t sz)
         *szEnd = 0;    // Set to 0 so free knows
         void* data = (void*) ((uintptr_t) curBlock) + MEM_BLOCK_DATA_OFFSET;
         memBlock_t* oldBlock = curBlock;
-        curBlock = (memBlock_t*) (((uintptr_t) curBlock) + sz);
-        memset (curBlock, 0, sizeof (memBlock_t));
-        curBlock->magic = MEM_BLOCK_MAGIC;
-        curBlock->next = oldBlock->next;
-        curBlock->prev = oldBlock->prev;
-        if (curBlock->next)
-            curBlock->next->prev = curBlock;
-        if (curBlock->prev)
-            curBlock->prev->next = curBlock;
-        if (pg->blockList == oldBlock)
-            pg->blockList = curBlock;
-        curBlock->size = splitSize;
-        curBlock->page = pg;
-        curBlock->isFree = true;
-        // Copy size to end
-        size_t* curSzEnd = MEM_BLOCK_SIZE_END (curBlock);
-        *curSzEnd = splitSize;
+        // If size is less than MEM_BLOCK_DATA_OFFSET, than don't even worry about it
+        if (splitSize < MEM_BLOCK_DATA_OFFSET)
+        {
+            // Ensure list is still valid
+            if (curBlock->prev)
+                curBlock->prev->next = curBlock->next;
+        }
+        else
+        {
+            curBlock = (memBlock_t*) (((uintptr_t) curBlock) + sz);
+            memset (curBlock, 0, sizeof (memBlock_t));
+            curBlock->magic = MEM_BLOCK_MAGIC;
+            curBlock->next = oldBlock->next;
+            curBlock->prev = oldBlock->prev;
+            if (curBlock->next)
+                curBlock->next->prev = curBlock;
+            if (curBlock->prev)
+                curBlock->prev->next = curBlock;
+            if (pg->blockList == oldBlock)
+                pg->blockList = curBlock;
+            curBlock->size = splitSize;
+            curBlock->page = pg;
+            curBlock->isFree = true;
+            // Copy size to end
+            size_t* curSzEnd = MEM_BLOCK_SIZE_END (curBlock);
+            *curSzEnd = splitSize;
+        }
         return data;
     }
 }
@@ -208,6 +223,30 @@ void* malloc (size_t sz)
     if (!sz)
         return NULL;
     sz = alignSize (sz);
+    // If size is greater than page size, allocation method is different
+    if (sz > NEXBOOT_CPU_PAGE_SIZE)
+    {
+        sz += 64;    // Reserve space for memPage_t struct
+        // Determine number of pages to allocate
+        uint32_t numPages =
+            (sz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+        uintptr_t base = NbFwAllocPages (numPages);
+        if (!base)
+            return NULL;
+        memPage_t* page = (memPage_t*) base;
+        memPageInit (page);
+        page->freeSize = 0;
+        page->numPages = numPages;
+        // Initialize memory block
+        memBlock_t* block = (memBlock_t*) (base + MEM_PG_BLOCK_OFFSET);
+        memBlockInit (page, block);
+        block->size = (numPages * NEXBOOT_CPU_PAGE_SIZE) - MEM_PG_BLOCK_OFFSET;
+        block->isLarge = true;
+        size_t* sizePtr = MEM_BLOCK_SIZE_END (block);
+        *sizePtr = block->size;
+        void* data = ((void*) block) + MEM_BLOCK_DATA_OFFSET;
+        return data;
+    }
     // NOTE: this algorithm is not optimized at all currently
     // It suffers fragmentation and poor performance
     // Find a free block
@@ -279,6 +318,31 @@ void free (void* ptr)
     memBlock_t* block = ptr;
     if (block->magic != MEM_BLOCK_MAGIC || block->page == NULL)
         memCorrupted();
+    // Check if this is a large block
+    if (block->isLarge)
+    {
+        // Simple add the pages to the free list
+        memPage_t* page = (memPage_t*) ((void*) block - MEM_PG_BLOCK_OFFSET);
+        if (page->magic != MEM_BLOCK_MAGIC)
+            memCorrupted();
+        void* curPage = page;
+        for (int i = 0; i < page->numPages; ++i)
+        {
+            memPage_t* pageInfo = (memPage_t*) curPage;
+            memPageInit (pageInfo);
+            // Add to list
+            pageInfo->next = pageList;
+            pageInfo->prev = NULL;
+            pageList->prev = pageInfo;
+            pageList = pageInfo;
+            memBlock_t* block =
+                (memBlock_t*) (((uintptr_t) curPage) + MEM_PG_BLOCK_OFFSET);
+            memBlockInit (curPage, block);
+            pageInfo->blockList = block;
+            curPage += NEXBOOT_CPU_PAGE_SIZE;
+        }
+        return;
+    }
     block->page->freeSize += block->size;
     // Determine if last block is free. If so, merge us
     // First check if there is a last block
@@ -287,7 +351,8 @@ void free (void* ptr)
     memBlock_t* nextBlock = (memBlock_t*) ((void*) block + block->size);
     // Check if a next block exists. If nextBlock is page aligned, that means we are
     // at the end
-    if (((uintptr_t) nextBlock & (NEXBOOT_CPU_PAGE_SIZE - 1)) != 0)
+    if (((uintptr_t) nextBlock + MEM_BLOCK_DATA_OFFSET) <
+        ((uintptr_t) block->page + NEXBOOT_CPU_PAGE_SIZE))
     {
         if (nextBlock->magic != MEM_BLOCK_MAGIC || block->page == NULL)
             memCorrupted();

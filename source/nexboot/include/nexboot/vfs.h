@@ -27,10 +27,13 @@
 typedef struct _file
 {
     Object_t obj;               // Libnex object
+    int fileId;                 // ID of file
     NbObject_t* fileSys;        // Filesystem object
     char name[VFS_NAME_MAX];    // Name of file
     uint32_t pos;               // Position pointer
+    uint32_t size;              // Size of file
     void* internal;             // Internal data
+    void* blockBuf;             // Buffer for one read block
 } NbFile_t;
 
 // Filesystem structure
@@ -51,12 +54,30 @@ NbObject_t* NbVfsMountFs (NbObject_t* volume, const char* name);
 bool NbVfsUnMountFs (NbObject_t* fs);
 
 // Object opertaions
-#define NB_VFS_OPEN_FILE 5
+#define NB_VFS_OPEN_FILE  5
+#define NB_VFS_CLOSE_FILE 6
+#define NB_VFS_READ_FILE  7
+#define NB_VFS_SEEK_FILE  8
 
 typedef struct _openfile
 {
     NbFile_t* file;
     const char* name;
 } NbOpenFileOp_t;
+
+typedef struct _seekfile
+{
+    NbFile_t* file;
+    uint32_t pos;
+    bool relative;
+} NbSeekOp_t;
+
+typedef struct _readfile
+{
+    NbFile_t* file;
+    uint32_t count;
+    void* buf;
+    size_t bytesRead;
+} NbReadOp_t;
 
 #endif

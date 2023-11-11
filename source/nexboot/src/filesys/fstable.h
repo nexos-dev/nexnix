@@ -30,12 +30,18 @@
 // Filesystem function types
 typedef bool (*FsMountT) (NbObject_t*);
 typedef bool (*FsOpenFileT) (NbObject_t*, NbFile_t*);
+typedef bool (*FsCloseFileT) (NbObject_t*, NbFile_t*);
+typedef bool (*FsReadBlockT) (NbObject_t*, NbFile_t*, uint32_t);
 
 // Function tables
 FsMountT mountTable[] = {FatMountFs};
 FsOpenFileT openFileTable[] = {FatOpenFile};
+FsCloseFileT closeFileTable[] = {FatCloseFile};
+FsReadBlockT readBlockTable[] = {FatReadFileBlock};
 
-#define FsMount(type, fs)          (mountTable[(type)](fs))
-#define FsOpenFile(type, fs, file) (openFileTable[(type)](fs, file))
+#define FsMount(type, fs)                (mountTable[(type)](fs))
+#define FsOpenFile(type, fs, file)       (openFileTable[(type)](fs, file))
+#define FsCloseFile(type, fs, file)      (closeFileTable[(type)](fs, file))
+#define FsReadBlock(type, fs, file, pos) (readBlockTable[(type)](fs, file, pos))
 
 #endif
