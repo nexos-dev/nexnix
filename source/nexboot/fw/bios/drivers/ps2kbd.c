@@ -260,7 +260,7 @@ static bool Ps2ReadKey (void* objp, void* params)
         if (isExtCode)
         {
             if (scanCode >= 0x47)
-                c = scanToEnUs2[scanCode];
+                c = scanToEnUs2[scanCode - 0x47];
         }
         else
             c = scanToEnUs[scanCode];

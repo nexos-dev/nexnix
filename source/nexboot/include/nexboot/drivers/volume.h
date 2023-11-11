@@ -48,6 +48,6 @@ typedef struct _vol
 #define VOLUME_FS_ISO9660 6
 
 // Volume object services
-#define NB_VOLUME_READ_BLOCKS 5
+#define NB_VOLUME_READ_SECTORS 5
 
 #endif

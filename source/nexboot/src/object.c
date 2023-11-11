@@ -36,13 +36,13 @@ extern NbObjSvcTab_t objDirSvcs;
 typedef struct _pathpart
 {
     const char* oldName;    // Original name
-    char name[32];          // Component name
+    char name[80];          // Component name
     bool isLastPart;        // Is this the last part?
 } pathPart_t;
 
 static void _parsePath (pathPart_t* part)
 {
-    memset (part->name, 0, 32);
+    memset (part->name, 0, 80);
     // Check if we need to skip over a '/'
     if (*part->oldName == '/')
         ++part->oldName;

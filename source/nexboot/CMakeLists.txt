@@ -60,7 +60,8 @@ list(APPEND NEXBOOT_SOURCES
             src/vfs.c
             src/drivers/terminal.c
             src/drivers/volmanager.c
-            src/filesys/fat.c)
+            src/filesys/fat.c
+            src/filesys/iso9660.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
 
 # Find libk and libnex

@@ -1,5 +1,5 @@
 /*
-    fat.h - contains FAT driver
+    iso9660.h - contains ISO9660 driver
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,15 +15,15 @@
     limitations under the License.
 */
 
-#ifndef _FAT_H
-#define _FAT_H
+#ifndef _ISO9660_H
+#define _ISO9660_H
 
 #include <nexboot/nexboot.h>
 
-bool FatMountFs (NbObject_t* fs);
-bool FatUnmountFs (NbObject_t* fs);
-bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file);
-bool FatCloseFile (NbObject_t* fs, NbFile_t* file);
-bool FatReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos);
+bool IsoMountFs (NbObject_t* fs);
+bool IsoUnmountFs (NbObject_t* fs);
+bool IsoOpenFile (NbObject_t* fsObj, NbFile_t* file);
+bool IsoCloseFile (NbObject_t* fs, NbFile_t* file);
+bool IsoReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos);
 
 #endif

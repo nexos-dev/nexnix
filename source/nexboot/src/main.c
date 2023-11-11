@@ -73,7 +73,7 @@ void NbMain (NbloadDetect_t* nbDetect)
     NbObjCallSvc (term, NB_TERMINAL_READ, &read);
     NbObject_t* fs = NbVfsMountFs (NbObjFind ("/Volumes/Disk0/Volume0"), "boot");
     NbOpenFileOp_t op;
-    op.name = "/test.txt";
+    op.name = "/System/test.txt";
     NbObjCallSvc (fs, NB_VFS_OPEN_FILE, &op);
     NbReadOp_t readOp;
     uint8_t buf[600];

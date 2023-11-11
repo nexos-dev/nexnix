@@ -36,12 +36,10 @@ static int fsTypeToDriver (int type)
         case VOLUME_FS_FAT16:
         case VOLUME_FS_FAT32:
             return FS_DRIVER_FAT;
-        case VOLUME_FS_EXT2:
-            return FS_DRIVER_EXT2;
         case VOLUME_FS_ISO9660:
             return FS_DRIVER_ISO9660;
         default:
-            assert (0);
+            return 0xFF;
     }
 }
 
@@ -79,6 +77,13 @@ NbObject_t* NbVfsMountFs (NbObject_t* volObj, const char* name)
     fs->type = vol->volFileSys;
     fs->volume = NbObjRef (volObj);
     fs->driver = fsTypeToDriver (fs->type);
+    if (fs->driver == 0xFF)
+    {
+        NbObjDeRef (fsObj);
+        ListDestroy (fs->files);
+        free (fs);
+        return NULL;
+    }
     // Initialize FS driver
     if (!FsMount (fs->driver, fsObj))
     {
@@ -188,6 +193,23 @@ static bool VfsFsReadFile (void* obj, void* params)
         op->bytesRead += bytesRead;
         op->file->pos += bytesRead;
     }
+    return true;
+}
+
+// Unmounts a volume
+bool NbVfsUnmount (NbObject_t* fsObj)
+{
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    // Close all open files
+    ListEntry_t* curFile = NULL;
+    while ((curFile = ListIterate (curFile)))
+    {
+        NbFile_t* file = ListEntryData (curFile);
+        VfsFsCloseFile (fsObj, file);
+    }
+    ListDestroy (fs->files);
+    FsUnmount (fs->driver, fsObj);
+    NbObjDeRef (fs->volume);
     return true;
 }
 

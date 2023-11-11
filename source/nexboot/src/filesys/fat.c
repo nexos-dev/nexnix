@@ -21,7 +21,7 @@
 #include <nexboot/vfs.h>
 #include <string.h>
 
-// Validate characters for FAT file name
+// Valid characters for FAT file name
 static uint8_t fatValidChars[] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1,
@@ -157,7 +157,7 @@ typedef struct _fatfile
 typedef struct _pathpart
 {
     const char* oldName;    // Original name
-    char name[32];          // Component name
+    char name[80];          // Component name
     bool isLastPart;        // Is this the last part?
 } pathPart_t;
 
@@ -212,13 +212,13 @@ static void fileTo83 (const char* in, char* out)
 
 static void _parsePath (pathPart_t* part)
 {
-    memset (part->name, 0, 32);
+    memset (part->name, 0, 80);
     // Check if we need to skip over a '/'
     if (*part->oldName == '/')
         ++part->oldName;
     // Copy characters name until we reach a '/'
     int i = 0;
-    char name[32] = {0};
+    char name[80] = {0};
     while (*part->oldName != '/' && *part->oldName != '\0')
     {
         name[i] = *part->oldName;
@@ -242,7 +242,7 @@ static bool fatReadCluster (NbFileSys_t* filesys, void* buf, uint32_t cluster)
     sector.buf = buf;
     sector.count = fs->sectPerCluster;
     sector.sector = sectorNum;
-    return NbObjCallSvc (filesys->volume, NB_VOLUME_READ_BLOCKS, &sector);
+    return NbObjCallSvc (filesys->volume, NB_VOLUME_READ_SECTORS, &sector);
 }
 
 // Reads next cluster in FAT
@@ -268,7 +268,7 @@ static uint32_t fatReadNextCluster (NbFileSys_t* fs, uint32_t cluster)
     sector.buf = fat;
     sector.count = 1;
     sector.sector = fatSector;
-    if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_BLOCKS, &sector))
+    if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_SECTORS, &sector))
         return UINT32_MAX;
     // Read in value
     if (fs->type == VOLUME_FS_FAT32)
@@ -291,7 +291,7 @@ static uint32_t fatReadNextCluster (NbFileSys_t* fs, uint32_t cluster)
             sector.buf = fat + mountInfo->sectorSz;
             sector.count = 1;
             sector.sector = fatSector + 1;
-            if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_BLOCKS, &sector))
+            if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_SECTORS, &sector))
                 return UINT32_MAX;
         }
         uint16_t fatVal = *((uint16_t*) (fat + fatSectOff));
@@ -417,7 +417,7 @@ static FatDirEntry_t* fatFindRootDir (NbFileSys_t* fs, const char* name)
         sector.sector = rootDir;
         do
         {
-            if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_BLOCKS, &sector))
+            if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_SECTORS, &sector))
                 return NULL;
             // Find path in read sector
             ent = fatFindInDir (dir, name, mountInf->sectorSz);
@@ -461,6 +461,13 @@ bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file)
         {
             // Make sure this is a file we found
             if (curDir->attr & FAT_DIR_IS_DIR)
+                return false;
+            break;
+        }
+        else
+        {
+            // Make sure this is a directory we found
+            if (!(curDir->attr & FAT_DIR_IS_DIR))
                 return false;
             break;
         }
@@ -531,7 +538,7 @@ bool FatMountFs (NbObject_t* fsObj)
     sector.buf = mbrData;
     sector.count = 1;
     sector.sector = 0;
-    if (!NbObjCallSvc (volObj, NB_VOLUME_READ_BLOCKS, &sector))
+    if (!NbObjCallSvc (volObj, NB_VOLUME_READ_SECTORS, &sector))
     {
         free (mbrData);
         free (mountInfo);
@@ -667,5 +674,15 @@ bool FatMountFs (NbObject_t* fsObj)
         }
     }
     fs->internal = mountInfo;
+    return true;
+}
+
+bool FatUnmountFs (NbObject_t* fsObj)
+{
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    FatMountInfo_t* mountInf = fs->internal;
+    free (mountInf->cachedDir.data);
+    free (mountInf->cachedFat.data);
+    free (mountInf);
     return true;
 }
