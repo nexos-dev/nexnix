@@ -122,9 +122,11 @@ static int curPart = 0;    // Current partition being initialized
 static void addVolume (NbVolume_t* vol)
 {
     NbLogMessageEarly ("volmanager: Found volume %d on disk %d\r\n",
-                       NEXBOOT_LOGLEVEL_DEBUG,
+                       NEXBOOT_LOGLEVEL_INFO,
                        curPart,
                        curDisk);
+    // Set volume number
+    vol->number = curPart;
     // Create object
     char buf[64] = {0};
     snprintf (buf, 64, "/Volumes/Disk%d/Volume%d", curDisk, curPart);
@@ -132,6 +134,26 @@ static void addVolume (NbVolume_t* vol)
     NbObjSetData (obj, vol);
     NbObjInstallSvcs (obj, &volManagerSvcTab);
     ++curPart;    // Update curPart
+    // Check if this is the boot volume; if so, create a special file for it
+    if (vol->isActive)
+    {
+        snprintf (buf, 64, "/Volumes/Disk%d/BootVolume", curDisk, curPart);
+        // Check if one exists
+        if ((obj = NbObjFind (buf)))
+        {
+            NbVolume_t* vol = NbObjGetData (obj);
+            NbLogMessageEarly ("volmanager: Disk %d contains multiple boot volumes, "
+                               "selecting volume %d\r\n",
+                               NEXBOOT_LOGLEVEL_WARNING,
+                               vol->number);
+        }
+        else
+        {
+            obj = NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_VOLUME);
+            NbObjSetData (obj, vol);
+            NbObjInstallSvcs (obj, &volManagerSvcTab);
+        }
+    }
 }
 
 // Converts MBR partition type to volume type
@@ -402,4 +424,25 @@ static NbObjSvc volManagerSvcs[] =
 
 NbObjSvcTab_t volManagerSvcTab = {ARRAY_SIZE (volManagerSvcs), volManagerSvcs};
 
-NbDriver_t volManagerDrv = {"VolManager", VolManagerEntry, {0}, 0, false, 0};
+NbDriver_t volManagerDrv =
+    {"VolManager", VolManagerEntry, {0}, 0, false, sizeof (NbVolume_t)};
+
+// Helper routine to get boot volume from disk object
+NbObject_t* NbGetBootVolume (NbObject_t* disk)
+{
+    // Iterate through /Volumes folder
+    NbObject_t* diskIter = NULL;
+    NbObject_t* volDir = NbObjFind ("/Volumes");
+    while ((diskIter = NbObjEnumDir (volDir, diskIter)))
+    {
+        // Iterate and look for a BootPart object
+        NbObject_t* volIter = NULL;
+        while ((volIter = NbObjEnumDir (diskIter, volIter)))
+        {
+            NbVolume_t* vol = NbObjGetData (volIter);
+            if (vol->disk == disk && !strcmp (volIter->name, "BootVolume"))
+                return volIter;
+        }
+    }
+    return NULL;
+}

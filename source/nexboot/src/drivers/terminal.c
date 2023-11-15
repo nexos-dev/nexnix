@@ -631,6 +631,12 @@ static uint8_t terminalReadChar (NbObject_t* termObj)
                 ;
             else
             {
+                // Check if this character cannot be echoed
+                if (c == '\b' && term->echoc & TERM_NO_ECHO_BACKSPACE)
+                {
+                    terminalWriteChar (termObj, '^');
+                    terminalWriteChar (termObj, '?');
+                }
                 if (!terminalWriteChar (termObj, c))
                     return 0;
             }
@@ -668,9 +674,12 @@ static bool TerminalRead (void* objp, void* params)
         c = terminalReadChar (termObj);
         if (!c)
             return false;
+        if (c == '\n' || c == '\f')
+            break;
         readData->buf[charsWritten] = (char) c;
         ++charsWritten;
-    } while (c != '\n' && c != '\f' && readData->bufSz > (charsWritten - 1));
+    } while (readData->bufSz > (charsWritten - 1));
+    readData->buf[charsWritten] = 0;
     return true;
 }
 
@@ -681,6 +690,7 @@ static bool TerminalSetOpts (void* objp, void* params)
     NbTerminal_t* in = params;
     assert (in);
     term->echo = in->echo;
+    term->echoc = in->echoc;
     return true;
 }
 
@@ -697,6 +707,7 @@ static bool TerminalGetOpts (void* objp, void* params)
     out->numCols = term->numCols;
     out->numRows = term->numRows;
     out->echo = term->echo;
+    out->echoc = term->echoc;
     out->isPrimary = term->isPrimary;
     return true;
 }
@@ -727,4 +738,5 @@ static NbObjSvc terminalSvcs[] = {NULL,
 
 NbObjSvcTab_t terminalSvcTab = {ARRAY_SIZE (terminalSvcs), terminalSvcs};
 
-NbDriver_t terminalDrv = {"Terminal", TerminalEntry, {0}, 0, false, 0};
+NbDriver_t terminalDrv =
+    {"Terminal", TerminalEntry, {0}, 0, false, sizeof (NbTerminal_t)};

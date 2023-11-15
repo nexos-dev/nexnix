@@ -141,10 +141,11 @@ typedef struct _logEntry
 
 typedef struct _log
 {
-    NbLogEntry_t* entries;        // List of log entries
-    NbLogEntry_t* entriesEnd;     // End of entries list
-    NbObject_t* outputDevs[8];    // Output devices for each log level
-    int logLevel;                 // Current log level
+    NbLogEntry_t* entries;          // List of log entries
+    NbLogEntry_t* entriesEnd;       // End of entries list
+    NbObject_t* outputDevs[8];      // Output devices for each log level
+    NbTerminal_t outputInfos[8];    // Terminal options for each terminal
+    int logLevel;                   // Current log level
 } NbLog_t;
 
 // Main log functions
@@ -186,12 +187,32 @@ static bool LogWrite (void* objp, void* strp)
     // Determine wheter to print it
     if (str->priority <= log->logLevel)
     {
-        NbTerminal_t* term = log->outputDevs[str->priority - 1]->data;
-        NbObjCallSvc (log->outputDevs[str->priority - 1],
-                      NB_TERMINAL_WRITE,
-                      (void*) str->str);
+        // Determine if console has a new owner
+        NbTerminal_t* term = &log->outputInfos[str->priority - 1];
+        if (term->outEnd)
+        {
+            NbDriver_t* termDrv = NbFindDriver ("Terminal");
+            if (NbObjGetOwner (term->outEnd) != termDrv &&
+                str->priority <= NEXBOOT_LOGLEVEL_CRITICAL)
+            {
+                // Inform it of it's new owner
+                NbObjNotify_t notify;
+                notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+                notify.data = termDrv;
+                NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
+            }
+        }
+        NbObject_t* termObj = log->outputDevs[str->priority - 1];
+        NbObjCallSvc (termObj, NB_TERMINAL_WRITE, (void*) str->str);
     }
     return true;
+}
+
+// Helper to set output device
+static void logSetOutputDevice (NbLog_t* log, int level, NbObject_t* dev)
+{
+    log->outputDevs[level] = dev;
+    NbObjCallSvc (dev, NB_TERMINAL_GETOPTS, &log->outputInfos[level]);
 }
 
 extern NbObjSvcTab_t logSvcTab;
@@ -255,41 +276,41 @@ static bool LogObjInit (void* objp, void* unused)
                 {
                     // If this is the first console, set as much as log level allows
                     for (int i = 0; i < minSeverity; ++i)
-                        log->outputDevs[i] = iter;
+                        logSetOutputDevice (log, i, iter);
                 }
                 else if (numConsoles == 2)
                 {
                     // Set warning, notice and info levels
-                    log->outputDevs[3] = iter;
-                    log->outputDevs[4] = iter;
-                    log->outputDevs[5] = iter;
+                    logSetOutputDevice (log, 3, iter);
+                    logSetOutputDevice (log, 4, iter);
+                    logSetOutputDevice (log, 5, iter);
                 }
                 else if (numConsoles == 3)
                 {
                     // Set notice and info levels
-                    log->outputDevs[4] = iter;
-                    log->outputDevs[5] = iter;
+                    logSetOutputDevice (log, 4, iter);
+                    logSetOutputDevice (log, 5, iter);
                 }
             }
             else if (term.outEnd->interface == OBJ_INTERFACE_RS232)
             {
                 // If this is the first console, set highest levels only
                 if (!log->outputDevs[0])
-                    log->outputDevs[0] = iter;
+                    logSetOutputDevice (log, 0, iter);
                 if (!log->outputDevs[1])
-                    log->outputDevs[1] = iter;
+                    logSetOutputDevice (log, 1, iter);
                 if (!log->outputDevs[2])
-                    log->outputDevs[2] = iter;
+                    logSetOutputDevice (log, 2, iter);
                 if (!log->outputDevs[3])
-                    log->outputDevs[3] = iter;
+                    logSetOutputDevice (log, 3, iter);
                 if (!log->outputDevs[4])
-                    log->outputDevs[4] = iter;
+                    logSetOutputDevice (log, 4, iter);
                 if (!log->outputDevs[5])
-                    log->outputDevs[5] = iter;
+                    logSetOutputDevice (log, 5, iter);
                 if (!log->outputDevs[6])
-                    log->outputDevs[6] = iter;
+                    logSetOutputDevice (log, 6, iter);
                 if (!log->outputDevs[7])
-                    log->outputDevs[7] = iter;
+                    logSetOutputDevice (log, 7, iter);
             }
         }
     }

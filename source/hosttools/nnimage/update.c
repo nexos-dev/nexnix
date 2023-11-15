@@ -183,7 +183,7 @@ static bool copyFile (guestfs_h* guestFs,
     for (int i = 0; i < blocks; ++i)
     {
         // Read in data from src
-        ssize_t bytesRead = read (srcFd, buf, BLKSIZE);
+        int32_t bytesRead = read (srcFd, buf, BLKSIZE);
         if (bytesRead == -1)
         {
             free (buf);

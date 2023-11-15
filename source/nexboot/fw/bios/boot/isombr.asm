@@ -71,7 +71,7 @@ NbloadMain:
     ; We now need to read a file named nexboot
     ; Print load message first
     mov si, loadMsg
-    mov cx, 4
+    mov cx, 3
     call NbloadLogMsg
     ; Read in PVD
     mov eax, [primaryVolDesc]

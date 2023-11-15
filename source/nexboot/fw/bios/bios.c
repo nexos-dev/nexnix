@@ -15,7 +15,9 @@
     limitations under the License.
 */
 
+#include <nexboot/drivers/disk.h>
 #include <nexboot/fw.h>
+#include <nexboot/object.h>
 #include <string.h>
 
 // Location of bioscall blob
@@ -65,4 +67,28 @@ uintptr_t NbFwAllocPages (int count)
     }
     memset ((void*) ret, 0, (NEXBOOT_CPU_PAGE_SIZE * count));
     return ret;
+}
+
+// Find which disk is the boot disk
+NbObject_t* NbFwGetBootDisk()
+{
+    // Get boot drive
+    NbSysInfo_t* sysInfo = NbObjGetData (NbObjFind ("/Devices/Sysinfo"));
+    // Iterate through all disk objects
+    NbObject_t* iter = NULL;
+    NbObject_t* devDir = NbObjFind ("/Devices");
+    while ((iter = NbObjEnumDir (devDir, iter)))
+    {
+        if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_DISK)
+        {
+            // Get drive number
+            NbDiskInfo_t* diskInf = NbObjGetData (iter);
+            NbBiosDisk_t* disk = diskInf->internal;
+            if (disk->biosNum == sysInfo->bootDrive)
+            {
+                // This is it
+                return iter;
+            }
+        }
+    }
 }

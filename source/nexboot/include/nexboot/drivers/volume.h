@@ -19,7 +19,7 @@
 #define _VOLUME_H
 
 #include <nexboot/drivers/disk.h>
-#include <nexboot/nexboot.h>
+#include <nexboot/object.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -28,6 +28,7 @@ typedef NbReadSector_t NbReadBlock_t;
 // Volume structure
 typedef struct _vol
 {
+    int number;          // Volume number
     NbObject_t* disk;    // Disk this volume is attached to
     bool isPartition;    // Wheter this volume represents a partition or a whole disk
     bool isActive;       // If this volume is active
@@ -49,5 +50,8 @@ typedef struct _vol
 
 // Volume object services
 #define NB_VOLUME_READ_SECTORS 5
+
+// Helper routine to get boot volume from disk object
+NbObject_t* NbGetBootVolume (NbObject_t* disk);
 
 #endif

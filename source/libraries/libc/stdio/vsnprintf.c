@@ -37,5 +37,6 @@ int vsnprintf (char* restrict str, size_t n, const char* fmt, va_list ap)
     out.buf = str;
     out.bufSize = n;
     out.bufPos = 0;
+    out.charsPrinted = 0;
     return vprintfCore (&out, fmt, ap);
 }

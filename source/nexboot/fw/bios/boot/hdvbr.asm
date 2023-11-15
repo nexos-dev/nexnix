@@ -119,7 +119,7 @@ start2:
 
     ; Print loading message
     mov si, loadMsg
-    mov cx, 4
+    mov cx, 3
     call NbloadLogMsg
 
     ; To read a cluster, we need the first sector in the volume's data area

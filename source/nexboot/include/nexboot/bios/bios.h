@@ -106,4 +106,17 @@ void NbFwEarlyPrint (char c);
 #define NB_ARCH_COMP_BIOS32  8
 #define NB_ARCH_COMP_TCG_TPM 10
 
+// BIOS disk info structure
+typedef struct _biosDisk
+{
+    NbHwDevice_t hdr;     // Standard header
+    uint8_t biosNum;      // BIOS disk number of this drive
+    uint8_t flags;        // Disk flags
+    int type;             // Media type of disk
+    uint64_t size;        // Size of disk in sectors
+    uint16_t sectorSz;    // Size of one sector
+    uint16_t hpc;         // Heads per cylinder
+    uint8_t spt;          // Sectors per track
+} NbBiosDisk_t;
+
 #endif

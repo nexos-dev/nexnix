@@ -53,6 +53,7 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 # Create object library of portable nexboot sources
 list(APPEND NEXBOOT_SOURCES 
             src/main.c
+            src/shell.c
             src/log.c
             src/memmgr.c
             src/object.c
@@ -61,7 +62,9 @@ list(APPEND NEXBOOT_SOURCES
             src/drivers/terminal.c
             src/drivers/volmanager.c
             src/filesys/fat.c
-            src/filesys/iso9660.c)
+            src/filesys/iso9660.c
+            src/conf/lex.c
+            src/conf/parse.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
 
 # Find libk and libnex

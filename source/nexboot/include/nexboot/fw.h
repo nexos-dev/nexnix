@@ -19,6 +19,7 @@
 #define _FW_H
 
 #include <nexboot/detect.h>
+#include <nexboot/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -61,6 +62,9 @@ uintptr_t NbFwAllocPages (int count);
 
 /// Detects system hardware for bootloader
 bool NbFwDetectHw (NbloadDetect_t* nbDetect);
+
+// Get disk system booted from
+NbObject_t* NbFwGetBootDisk();
 
 /// Data structure of /Devices/Sysinfo object
 typedef struct _cpuInfo

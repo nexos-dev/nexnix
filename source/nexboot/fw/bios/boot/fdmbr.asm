@@ -106,7 +106,7 @@ start2:
     ; It's in the root directory. Reading in the root directory
     ; is a difficult matter. For this reason, we only load one sector
     mov si, loadMsg
-    mov cx, 4
+    mov cx, 3
     call NbloadLogMsg
     mov bp, sp            ; Save frame pointer
     ; First, compute FAT base

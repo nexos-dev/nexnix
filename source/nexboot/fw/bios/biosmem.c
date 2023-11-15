@@ -344,8 +344,9 @@ void NbFwMemDetect()
     if (nbMemWith88())
         goto bootResv;
     // That's an error
-    NbLogMessageEarly ("Error: not supported memory map found",
+    NbLogMessageEarly ("nexboot: error: not supported memory map found",
                        NEXBOOT_LOGLEVEL_EMERGENCY);
+    NbCrash();
 bootResv:
     NbLogMessageEarly ("\r\n", NEXBOOT_LOGLEVEL_DEBUG);
     // Reserve some memory regions

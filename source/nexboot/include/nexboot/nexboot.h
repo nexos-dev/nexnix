@@ -50,6 +50,21 @@ void NbPrintEarly (const char* s);
 /// Initializes memory manager
 void NbMemInit();
 
+// Opens a file
+NbFile_t* NbVfsOpenFile (NbObject_t* fs, const char* name);
+
+// Closes a file
+void NbVfsCloseFile (NbObject_t* fs, NbFile_t* file);
+
+// Seeks to position
+bool NbVfsSeekFile (NbObject_t* fs, NbFile_t* file, uint32_t pos, bool relative);
+
+// Reads from file
+int32_t NbVfsReadFile (NbObject_t* fs, NbFile_t* file, void* buf, uint32_t count);
+
+// Launches shell
+bool NbShellLaunch (NbFile_t* confFile);
+
 // Minimum amount of memory NexNix requires (in MiB)
 #define NEXBOOT_MIN_MEM 8
 

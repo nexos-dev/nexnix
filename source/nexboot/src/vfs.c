@@ -163,6 +163,9 @@ static bool VfsFsReadFile (void* obj, void* params)
     assert (op->file && op->buf);
     void* buf = op->buf;
     op->bytesRead = 0;
+    // Check if this is even needed
+    if ((op->file->pos + 1) == op->file->size)
+        return false;
     // Get number of blocks to read
     uint32_t numBlocks = (op->count + (fs->blockSz - 1)) / fs->blockSz;
     for (int i = 0; i < numBlocks; ++i)
@@ -234,3 +237,43 @@ static NbObjSvc fsSvcs[] = {NULL,
                             VfsFsSeekFile};
 
 NbObjSvcTab_t fsSvcTab = {ARRAY_SIZE (fsSvcs), fsSvcs};
+
+// Wrapper functions
+
+// Opens a file
+NbFile_t* NbVfsOpenFile (NbObject_t* fs, const char* name)
+{
+    NbOpenFileOp_t op;
+    op.name = name;
+    if (!NbObjCallSvc (fs, NB_VFS_OPEN_FILE, &op))
+        return NULL;
+    return op.file;
+}
+
+// Closes a file
+void NbVfsCloseFile (NbObject_t* fs, NbFile_t* file)
+{
+    NbObjCallSvc (fs, NB_VFS_CLOSE_FILE, file);
+}
+
+// Seeks to position
+bool NbVfsSeekFile (NbObject_t* fs, NbFile_t* file, uint32_t pos, bool relative)
+{
+    NbSeekOp_t op;
+    op.file = file;
+    op.pos = pos;
+    op.relative = relative;
+    return NbObjCallSvc (fs, NB_VFS_SEEK_FILE, &op);
+}
+
+// Reads from file
+int32_t NbVfsReadFile (NbObject_t* fs, NbFile_t* file, void* buf, uint32_t count)
+{
+    NbReadOp_t op;
+    op.buf = buf;
+    op.count = count;
+    op.file = file;
+    if (!NbObjCallSvc (fs, NB_VFS_READ_FILE, &op))
+        return -1;
+    return op.bytesRead;
+}

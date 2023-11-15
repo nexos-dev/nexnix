@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <nexboot/detect.h>
 #include <nexboot/driver.h>
-#include <nexboot/drivers/terminal.h>
+#include <nexboot/drivers/volume.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdbool.h>
@@ -26,10 +26,50 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define NEXBOOT_CONF_FILE "nexboot.cfg"
+
+void nbLaunchConf()
+{
+    // Find boot disk
+    NbObject_t* bootDisk = NbFwGetBootDisk();
+    if (!bootDisk)
+    {
+        // Error
+        NbLogMessage ("nexboot: error: unable to find boot disk\n",
+                      NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbShellLaunch (NULL);
+    }
+    // Find boot volume on this disk
+    NbObject_t* bootVol = NbGetBootVolume (bootDisk);
+    if (!bootVol)
+    {
+        // Error
+        NbLogMessage ("nexboot: error: unable to find boot volume\n",
+                      NEXBOOT_LOGLEVEL_CRITICAL);
+        NbShellLaunch (NULL);
+    }
+    // Mount boot filesystem
+    NbObject_t* fsObj = NbVfsMountFs (bootVol, "Boot");
+    if (!fsObj)
+    {
+        // Error
+        NbLogMessage ("nexboot: error: unable to mount boot partition\n",
+                      NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbShellLaunch (NULL);
+    }
+    // Attempt to open configuration file
+    NbFile_t* confFile = NbVfsOpenFile (fsObj, NEXBOOT_CONF_FILE);
+    // Launch shell. Based on if parameter is NULL, it will either dump to shell
+    // or run file
+    NbShellLaunch (confFile);
+    // If we get here, shell failed
+    NbLogMessage ("nexboot: error: shell returned", NEXBOOT_LOGLEVEL_EMERGENCY);
+    NbCrash();
+}
+
 // The main entry point into nexboot
 void NbMain (NbloadDetect_t* nbDetect)
 {
-    NbBiosRegs_t in = {0}, out = {0};
     // So, we are loaded by nbload, and all it has given us is the nbdetect
     // structure. It's our job to create a usable environment.
     //   Initialize logging
@@ -45,44 +85,27 @@ void NbMain (NbloadDetect_t* nbDetect)
     // Start phase 1 drivers
     if (!NbStartPhase1Drvs())
     {
-        NbLogMessageEarly ("Error: Unable to start phase 1 drivers",
+        NbLogMessageEarly ("nexboot: error: Unable to start phase 1 drivers",
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
     // Detect hardware devices and add them to object database
     if (!NbFwDetectHw (nbDetect))
     {
-        NbLogMessageEarly ("Error: Unable to detect hardware devices",
+        NbLogMessageEarly ("nexboot: error: Unable to detect hardware devices",
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
     // Start phase 2 of drivers
     if (!NbStartPhase2Drvs())
     {
-        NbLogMessageEarly ("Error: Unable to start phase 2 drivers",
+        NbLogMessageEarly ("nexboot: error: Unable to start phase 2 drivers",
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
     // Start log
     NbLogInit2 (nbDetect);
-    NbObject_t* term = NbObjFind ("/Devices/Terminal0");
-    char file[32];
-    NbTermRead_t read;
-    read.buf = file;
-    read.bufSz = 32;
-    NbObjCallSvc (term, NB_TERMINAL_READ, &read);
-    NbObject_t* fs = NbVfsMountFs (NbObjFind ("/Volumes/Disk0/Volume0"), "boot");
-    NbOpenFileOp_t op;
-    op.name = "/System/test.txt";
-    NbObjCallSvc (fs, NB_VFS_OPEN_FILE, &op);
-    NbReadOp_t readOp;
-    uint8_t buf[600];
-    memset (&buf, 0, 600);
-    readOp.buf = &buf;
-    readOp.count = 600;
-    readOp.file = op.file;
-    NbObjCallSvc (fs, NB_VFS_READ_FILE, &readOp);
-    NbObjCallSvc (term, NB_TERMINAL_WRITE, buf);
-    for (;;)
-        ;
+    // Find boot partition and launch configuration script
+    nbLaunchConf();
+    assert (!"Shouldn't be here!");
 }

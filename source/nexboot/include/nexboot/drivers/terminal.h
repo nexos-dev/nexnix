@@ -129,6 +129,9 @@ typedef struct _term
     int escPos;           // Escape array current position
     int numSize;          // Number of digits in current number
     int backMax[2];    // Row column describing max spot to backspace to during read
+    uint32_t echoc;    // Flags specifying certain characters not to echo
 } NbTerminal_t;
+
+#define TERM_NO_ECHO_BACKSPACE (1 << 0)
 
 #endif

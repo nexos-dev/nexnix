@@ -101,13 +101,17 @@ void NbMemInit()
     if (memSz < NEXBOOT_MIN_MEM)
     {
         // That's an error
-        NbLogMessageEarly ("Error: NexNix requires at least %d MiB of memory. Only "
-                           "%d MiB were detected",
-                           NEXBOOT_LOGLEVEL_ERROR,
-                           NEXBOOT_MIN_MEM,
-                           memSz);
+        NbLogMessageEarly (
+            "nexboot: error: nexboot requires at least %d MiB of memory. Only "
+            "%d MiB were detected",
+            NEXBOOT_LOGLEVEL_CRITICAL,
+            NEXBOOT_MIN_MEM,
+            memSz);
         NbCrash();
     }
+    NbLogMessageEarly ("nexboot: detected %d MiB of memory\r\n",
+                       NEXBOOT_LOGLEVEL_INFO,
+                       memSz);
     // Allocate initial page
     uintptr_t initPage = NbFwAllocPage();
     pageList = (memPage_t*) initPage;
@@ -120,8 +124,8 @@ void NbMemInit()
 
 void __attribute__ ((noreturn)) memCorrupted()
 {
-    NbLogMessageEarly ("FATAL ERROR: Memory corruption detected",
-                       NEXBOOT_LOGLEVEL_EMERGENCY);
+    NbLogMessage ("nexboot: fatal error: Memory corruption detected",
+                  NEXBOOT_LOGLEVEL_EMERGENCY);
     NbCrash();
     __builtin_unreachable();
 }
@@ -401,6 +405,8 @@ void free (void* ptr)
                     block->prev->next = block->next;
                 if (block->next)
                     block->next->prev = block->prev;
+                if (block == block->page->blockList)
+                    block->page->blockList = block->next;
             }
             merged = true;
         }
