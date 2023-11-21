@@ -43,6 +43,7 @@ typedef struct _obj
     struct _obj* nextChild;    /// Next child object
     struct _obj* prevChild;    /// Previous child object
     NbDriver_t* owner;         /// Owner of this object
+    NbDriver_t* manager;       /// Managing driver
 } NbObject_t;
 
 typedef struct _svcTab
@@ -105,6 +106,12 @@ NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter);
 
 /// Get owner of object
 #define NbObjGetOwner(obj) ((obj)->owner)
+
+/// Set manager of object
+#define NbObjSetManager(obj, nmanager) ((obj)->manager = (nmanager))
+
+/// Get manager of object
+#define NbObjGetManager(obj) ((obj)->manager)
 
 #define OBJDIR_ADD_CHILD    5
 #define OBJDIR_REMOVE_CHILD 6

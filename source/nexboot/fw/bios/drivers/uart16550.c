@@ -67,6 +67,7 @@
 static int curCom = 0;
 
 extern NbObjSvcTab_t uart16550SvcTab;
+extern NbDriver_t uart16550Drv;
 
 // UART helper functions
 static inline void uartWriteReg (NbUart16550Dev_t* dev, uint8_t reg, uint8_t data)
@@ -156,6 +157,7 @@ static bool Uart16550Entry (int code, void* params)
         case NB_DRIVER_ENTRY_ATTACHOBJ: {
             NbObject_t* obj = params;
             NbObjInstallSvcs (obj, &uart16550SvcTab);
+            NbObjSetManager (obj, &uart16550Drv);
             break;
         }
     }

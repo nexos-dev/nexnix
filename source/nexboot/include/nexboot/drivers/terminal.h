@@ -95,11 +95,13 @@ typedef struct _keyData
 #define NB_CONSOLE_COLOR_WHITE   7
 
 // Terminal functions
-#define NB_TERMINAL_WRITE   5
-#define NB_TERMINAL_READ    6
-#define NB_TERMINAL_SETOPTS 7
-#define NB_TERMINAL_GETOPTS 8
-#define NB_TERMINAL_CLEAR   9
+#define NB_TERMINAL_WRITE     5
+#define NB_TERMINAL_READ      6
+#define NB_TERMINAL_SETOPTS   7
+#define NB_TERMINAL_GETOPTS   8
+#define NB_TERMINAL_CLEAR     9
+#define NB_TERMINAL_WRITECHAR 10
+#define NB_TERMINAL_READCHAR  11
 
 // Terminal read argument
 typedef struct _termRead
@@ -117,9 +119,10 @@ typedef struct _term
     int numRows;           // Number of rows
     bool echo;             // Wheter read characters are echoed to console
     bool isPrimary;        // Is primary terminal
+    int col;               // Column number
+    int row;               // Current row
+    uint32_t echoc;        // Flags specifying certain characters not to echo
     // State fields. All zeroed by TerminalGetOpts
-    int col;           // Column number
-    int row;           // Current row
     char inBuf[16];    // Characters buffered to read
     int bufPos;
     bool foundCr;    // If serial abstractor read a CR, this flag is set so the code
@@ -129,7 +132,6 @@ typedef struct _term
     int escPos;           // Escape array current position
     int numSize;          // Number of digits in current number
     int backMax[2];    // Row column describing max spot to backspace to during read
-    uint32_t echoc;    // Flags specifying certain characters not to echo
 } NbTerminal_t;
 
 #define TERM_NO_ECHO_BACKSPACE (1 << 0)

@@ -17,6 +17,7 @@
 
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
+#include <nexboot/shell.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -122,10 +123,11 @@ void NbMemInit()
     pageList->blockList = block;
 }
 
-void __attribute__ ((noreturn)) memCorrupted()
+void __attribute__ ((noreturn)) memCorrupted (void* block)
 {
-    NbLogMessage ("nexboot: fatal error: Memory corruption detected",
-                  NEXBOOT_LOGLEVEL_EMERGENCY);
+    NbLogMessage ("nexboot: fatal error: Memory corruption detected on address %p\n",
+                  NEXBOOT_LOGLEVEL_EMERGENCY,
+                  block);
     NbCrash();
     __builtin_unreachable();
 }
@@ -137,7 +139,7 @@ static void* allocBlockInPage (memPage_t* pg, size_t sz)
     {
         // Check if we fit in this block
         if (curBlock->magic != MEM_BLOCK_MAGIC)
-            memCorrupted();
+            memCorrupted (curBlock);
         if (curBlock->size >= sz)
         {
             // Use this block
@@ -177,12 +179,23 @@ static void* allocBlockInPage (memPage_t* pg, size_t sz)
         *szEnd = 0;    // Set to 0 so free knows
         void* data = (void*) ((uintptr_t) curBlock) + MEM_BLOCK_DATA_OFFSET;
         memBlock_t* oldBlock = curBlock;
-        // If size is less than MEM_BLOCK_DATA_OFFSET, than don't even worry about it
+        // If size is less than MEM_BLOCK_DATA_OFFSET, than add size back to
+        // allocated block
         if (splitSize < MEM_BLOCK_DATA_OFFSET)
         {
-            // Ensure list is still valid
+            // Remove curBlock from list
             if (curBlock->prev)
                 curBlock->prev->next = curBlock->next;
+            if (curBlock->next)
+                curBlock->next->prev = curBlock->prev;
+            if (curBlock == pg->blockList)
+                pg->blockList = curBlock->next;
+            // Add this space to curBlock so it doesn't get lost
+            curBlock->size += splitSize;
+            curBlock->page->freeSize -= splitSize;    // Remove from page
+            // Ensure size is correct
+            size_t* szEnd = MEM_BLOCK_SIZE_END (curBlock);
+            *szEnd = 0;
         }
         else
         {
@@ -228,9 +241,9 @@ void* malloc (size_t sz)
         return NULL;
     sz = alignSize (sz);
     // If size is greater than page size, allocation method is different
-    if (sz > NEXBOOT_CPU_PAGE_SIZE)
+    if ((sz + MEM_PG_BLOCK_OFFSET) > NEXBOOT_CPU_PAGE_SIZE)
     {
-        sz += 64;    // Reserve space for memPage_t struct
+        sz += MEM_PG_BLOCK_OFFSET;    // Reserve space for memPage_t struct
         // Determine number of pages to allocate
         uint32_t numPages =
             (sz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
@@ -246,6 +259,7 @@ void* malloc (size_t sz)
         memBlockInit (page, block);
         block->size = (numPages * NEXBOOT_CPU_PAGE_SIZE) - MEM_PG_BLOCK_OFFSET;
         block->isLarge = true;
+        block->isFree = false;
         size_t* sizePtr = MEM_BLOCK_SIZE_END (block);
         *sizePtr = block->size;
         void* data = ((void*) block) + MEM_BLOCK_DATA_OFFSET;
@@ -260,7 +274,7 @@ void* malloc (size_t sz)
         if (curPage->magic != MEM_BLOCK_MAGIC)
         {
             // Something is corrupted...
-            memCorrupted();
+            memCorrupted (curPage);
         }
         // Check if have enough space
         if (curPage->freeSize >= sz)
@@ -293,26 +307,6 @@ void* malloc (size_t sz)
     return allocBlockInPage (newPage, sz);
 }
 
-void dumpData()
-{
-    memPage_t* pg = pageList;
-    while (pg)
-    {
-        NbLogMessage ("Page free size: %u\r\n",
-                      NEXBOOT_LOGLEVEL_ERROR,
-                      pg->freeSize);
-        memBlock_t* b = pg->blockList;
-        while (b)
-        {
-            NbLogMessage ("Block size: %u\r\n", NEXBOOT_LOGLEVEL_ERROR, b->size);
-            NbLogMessage ("Is free: %d\r\n", NEXBOOT_LOGLEVEL_ERROR, b->isFree);
-            NbLogMessage ("\r\n", NEXBOOT_LOGLEVEL_ERROR);
-            b = b->next;
-        }
-        pg = pg->next;
-    }
-}
-
 void free (void* ptr)
 {
     if (!ptr)
@@ -320,15 +314,15 @@ void free (void* ptr)
     // Get block header from ptr
     ptr -= MEM_BLOCK_DATA_OFFSET;
     memBlock_t* block = ptr;
-    if (block->magic != MEM_BLOCK_MAGIC || block->page == NULL)
-        memCorrupted();
+    if (block->magic != MEM_BLOCK_MAGIC || block->page == NULL || block->isFree)
+        memCorrupted (block);
     // Check if this is a large block
     if (block->isLarge)
     {
         // Simple add the pages to the free list
         memPage_t* page = (memPage_t*) ((void*) block - MEM_PG_BLOCK_OFFSET);
         if (page->magic != MEM_BLOCK_MAGIC)
-            memCorrupted();
+            memCorrupted (page);
         void* curPage = page;
         for (int i = 0; i < page->numPages; ++i)
         {
@@ -358,8 +352,8 @@ void free (void* ptr)
     if (((uintptr_t) nextBlock + MEM_BLOCK_DATA_OFFSET) <
         ((uintptr_t) block->page + NEXBOOT_CPU_PAGE_SIZE))
     {
-        if (nextBlock->magic != MEM_BLOCK_MAGIC || block->page == NULL)
-            memCorrupted();
+        if (nextBlock->magic != MEM_BLOCK_MAGIC || nextBlock->page == NULL)
+            memCorrupted (nextBlock);
         // Check if block is free
         if (nextBlock->isFree)
         {
@@ -389,18 +383,21 @@ void free (void* ptr)
         {
             // Block is free. Absorb into previous block
             memBlock_t* prevBlock = (memBlock_t*) (ptr - *sz);
-            if (prevBlock->magic != MEM_BLOCK_MAGIC || block->page == NULL)
-                memCorrupted();
+            if (prevBlock->magic != MEM_BLOCK_MAGIC || prevBlock->page == NULL ||
+                !prevBlock->isFree)
+            {
+                memCorrupted (prevBlock);
+            }
             prevBlock->size += block->size;
             // Re-write size
             sz = MEM_BLOCK_SIZE_END (prevBlock);
             *sz = prevBlock->size;
             // Update magic number in original block to avoid confusion
             block->magic = 0;
-            if (block->isFree)
+            if (merged)
             {
-                // This means that a block was merged in case 1, and needs case 2 as
-                // well. To handle that, remove block from list
+                //  This means that a block was merged in case 1, and needs case 2 as
+                //  well. To handle that, remove block from list
                 if (block->prev)
                     block->prev->next = block->next;
                 if (block->next)
@@ -417,8 +414,8 @@ void free (void* ptr)
     {
         block->isFree = true;
         block->next = block->page->blockList;
-        block->prev = NULL;
         block->page->blockList->prev = block;
+        block->prev = NULL;
         block->page->blockList = block;
         // Re-write size
         size_t* szEnd = MEM_BLOCK_SIZE_END (block);
@@ -432,4 +429,55 @@ void* calloc (size_t blocks, size_t blkSz)
     void* p = malloc (sz);
     memset (p, 0, sz);
     return p;
+}
+
+void NbMmDumpData()
+{
+    memPage_t* pg = pageList;
+    uint32_t totalFreeSize = 0;
+    while (pg)
+    {
+        NbShellWritePaged ("Page base: %p; Page free size: %u\n", pg, pg->freeSize);
+        memBlock_t* b = pg->blockList;
+        while (b)
+        {
+            NbShellWritePaged (
+                "Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
+                b,
+                b->size,
+                b->isFree,
+                b->isLarge);
+            b = b->next;
+        }
+        totalFreeSize += pg->freeSize;
+        pg = pg->next;
+    }
+    NbShellWritePaged ("Total heap free size: %u\n", totalFreeSize);
+}
+
+static const char* mmapTypeTable[] = {"",
+                                      "free",
+                                      "reserved",
+                                      "ACPI reclaim",
+                                      "ACPI NVS",
+                                      "MMIO",
+                                      "firmware reclaim",
+                                      "boot reclaim"};
+
+void NbMmapDumpData()
+{
+    int size = 0;
+    NbMemEntry_t* entries = NbGetMemMap (&size);
+    NbShellWritePaged ("System memory map entries:\n");
+    for (int i = 0; i < size; ++i)
+    {
+        // Ignore zero-sized regions
+        if (entries[i].sz == 0)
+            continue;
+        NbShellWritePaged (
+            "Memory region found: base %#llX, size %llu KiB, type %s\n",
+            entries[i].base,
+            entries[i].sz / 1024,
+            mmapTypeTable[entries[i].type]);
+    }
 }

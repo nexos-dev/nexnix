@@ -520,7 +520,7 @@ NbloadStartPmode:
     mov esi, NBLOAD_PDPT_BASE       ; Get PDPT address
     mov edi, esi                    ; Prepare to zero it
     mov al, 0
-    mov ecx, 24                     ; 24 bytes to 0
+    mov ecx, 32                     ; 32 bytes to 0
     rep stosb
     ; Map directory in PDPT
     mov ebx, NBLOAD_PDIR_BASE       ; Get address of page directory
@@ -605,8 +605,6 @@ NbloadStartPmode:
     ; Get entry point
     pop esi
     mov ebx, [esi+24]
-    mov ebp, 0                      ; Set up zero frame
-    mov esp, NBLOAD_STACK_TOP
     ; Find end of ndecomp
     mov edx, 0
     mov edi, [esi+0x20]
@@ -621,6 +619,8 @@ NbloadStartPmode:
     mov eax, edi            ; Get base of nexboot
     sub eax, NBLOAD_BASE    ; Subtract base of base
     sub ecx, eax            ; Subtract ndecomp and and nbload size
+    mov ebp, 0                      ; Set up zero frame
+    mov esp, NBLOAD_STACK_TOP
     push ecx
     push edi
     push dword NBLOAD_DETECT_RESULT

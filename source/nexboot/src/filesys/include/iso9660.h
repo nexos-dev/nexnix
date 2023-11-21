@@ -24,6 +24,7 @@ bool IsoMountFs (NbObject_t* fs);
 bool IsoUnmountFs (NbObject_t* fs);
 bool IsoOpenFile (NbObject_t* fsObj, NbFile_t* file);
 bool IsoCloseFile (NbObject_t* fs, NbFile_t* file);
+bool IsoGetFileInfo (NbObject_t* fs, NbFileInfo_t* fileInf);
 bool IsoReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos);
 
 #endif

@@ -164,6 +164,17 @@ typedef struct _pathpart
 // Converts file name to 8.3
 static void fileTo83 (const char* in, char* out)
 {
+    // Handle . and ..
+    if (!strcmp (in, "."))
+    {
+        strcpy (out, ".");
+        return;
+    }
+    else if (!strcmp (in, ".."))
+    {
+        strcpy (out, "..");
+        return;
+    }
     size_t i = 0;
     memset (out, ' ', 11);
     // Convert name part
@@ -360,9 +371,10 @@ static FatDirEntry_t* fatFindInDir (FatDirEntry_t* dir,
                                     uint32_t dirSz)
 {
     int i = 0;
+    size_t nameLen = strlen (name);
     while (dir[i].name[0] && (dirSz > (i * sizeof (FatDirEntry_t))))
     {
-        if (!memcmp (dir[i].name, name, 11))
+        if (!memcmp (dir[i].name, name, nameLen))
             return &dir[i];
         ++i;
     }
@@ -435,6 +447,9 @@ static FatDirEntry_t* fatFindDir (NbFileSys_t* fs,
                                   const char* name)
 {
     uint32_t cluster = parent->clusterLow | (parent->clusterHigh << 16);
+    // If cluster equals 0, than this is root directory. This case can up with ..
+    if (!cluster)
+        return fatFindRootDir (fs, name);
     return fatFindDirCluster (fs, cluster, name);
 }
 
@@ -469,7 +484,6 @@ bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file)
             // Make sure this is a directory we found
             if (!(curDir->attr & FAT_DIR_IS_DIR))
                 return false;
-            break;
         }
     }
     FatDirEntry_t* foundFile = curDir;
@@ -485,6 +499,43 @@ bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file)
 bool FatCloseFile (NbObject_t* fsObj, NbFile_t* file)
 {
     free (file->internal);
+    return true;
+}
+
+bool FatGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
+{
+    const char* name = fileInf->name;
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    // Parse path into components
+    pathPart_t part;
+    memset (&part, 0, sizeof (pathPart_t));
+    part.oldName = name;
+    FatDirEntry_t* curDir = NULL;
+    while (1)
+    {
+        _parsePath (&part);
+        // Find this part. If curDir is NULL, use root directory
+        if (!curDir)
+            curDir = fatFindRootDir (fs, part.name);
+        else
+            curDir = fatFindDir (fs, curDir, part.name);
+        if (!curDir)
+            return false;
+        if (part.isLastPart)
+            break;
+        else
+        {
+            // Make sure this is a directory we found
+            if (!(curDir->attr & FAT_DIR_IS_DIR))
+                return false;
+        }
+    }
+    // Set output
+    fileInf->size = curDir->fileSz;
+    if (curDir->attr & FAT_DIR_IS_DIR)
+        fileInf->type = NB_FILE_DIR;
+    else
+        fileInf->type = NB_FILE_FILE;
     return true;
 }
 

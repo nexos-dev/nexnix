@@ -140,6 +140,16 @@ static bool VfsFsCloseFile (void* obj, void* params)
     return true;
 }
 
+static bool VfsFsGetFileInfo (void* obj, void* params)
+{
+    NbObject_t* fs = obj;
+    NbFileSys_t* filesys = NbObjGetData (fs);
+    NbFileInfo_t* out = params;
+    out->fileSys = fs;
+    // Call internal routine
+    return FsGetFileInfo (filesys->driver, fs, out);
+}
+
 static bool VfsFsSeekFile (void* obj, void* params)
 {
     NbObject_t* fs = obj;
@@ -204,20 +214,34 @@ bool NbVfsUnmount (NbObject_t* fsObj)
 {
     NbFileSys_t* fs = NbObjGetData (fsObj);
     // Close all open files
-    ListEntry_t* curFile = NULL;
-    while ((curFile = ListIterate (curFile)))
+    ListEntry_t* curFile = ListFront (fs->files);
+    while (curFile)
     {
         NbFile_t* file = ListEntryData (curFile);
         VfsFsCloseFile (fsObj, file);
+        curFile = ListIterate (curFile);
     }
     ListDestroy (fs->files);
     FsUnmount (fs->driver, fsObj);
     NbObjDeRef (fs->volume);
+    NbObjDeRef (fsObj);
     return true;
 }
 
+// Filesystem name table
+static const char* volFsNames[] =
+    {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
+
 static bool VfsFsDumpData (void* objp, void* params)
 {
+    NbObject_t* vfsObj = objp;
+    NbFileSys_t* vfs = NbObjGetData (vfsObj);
+    void (*writeData) (const char* fmt, ...) = params;
+    writeData ("Parent volume: %s\n", vfs->volume->name);
+    NbVolume_t* vol = NbObjGetData (vfs->volume);
+    writeData ("Parent disk: %s\n", vol->disk->name);
+    writeData ("Filesystem type: %s\n", volFsNames[vfs->type]);
+    writeData ("Block size: %u\n", vfs->blockSz);
     return true;
 }
 
@@ -234,7 +258,8 @@ static NbObjSvc fsSvcs[] = {NULL,
                             VfsFsOpenFile,
                             VfsFsCloseFile,
                             VfsFsReadFile,
-                            VfsFsSeekFile};
+                            VfsFsSeekFile,
+                            VfsFsGetFileInfo};
 
 NbObjSvcTab_t fsSvcTab = {ARRAY_SIZE (fsSvcs), fsSvcs};
 
@@ -254,6 +279,12 @@ NbFile_t* NbVfsOpenFile (NbObject_t* fs, const char* name)
 void NbVfsCloseFile (NbObject_t* fs, NbFile_t* file)
 {
     NbObjCallSvc (fs, NB_VFS_CLOSE_FILE, file);
+}
+
+// Gets file info
+bool NbVfsGetFileInfo (NbObject_t* fs, NbFileInfo_t* out)
+{
+    NbObjCallSvc (fs, NB_VFS_GET_FILE_INFO, out);
 }
 
 // Seeks to position

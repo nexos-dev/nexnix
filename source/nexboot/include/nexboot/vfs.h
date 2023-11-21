@@ -36,6 +36,26 @@ typedef struct _file
     void* blockBuf;             // Buffer for one read block
 } NbFile_t;
 
+// File into
+typedef struct _fileInfo
+{
+    NbObject_t* fileSys;        // Filesystem of file
+    char name[VFS_NAME_MAX];    // Name of file
+    uint32_t size;              // Size of file
+    int type;                   // File type
+} NbFileInfo_t;
+
+#define NB_FILE_FILE 0
+#define NB_FILE_DIR  1
+
+// Directory iterator
+typedef struct _diriter
+{
+    char name[VFS_NAME_MAX];    // Name of entry
+    int type;                   // Type of entry
+    uint8_t internal[16];       // Internal info
+} NbDirIter_t;
+
 // Filesystem structure
 typedef struct _fs
 {
@@ -51,19 +71,28 @@ typedef struct _fs
 NbObject_t* NbVfsMountFs (NbObject_t* volume, const char* name);
 
 // Unmounts filesystem
-bool NbVfsUnMountFs (NbObject_t* fs);
+bool NbVfsUnmount (NbObject_t* fs);
 
 // Object opertaions
-#define NB_VFS_OPEN_FILE  5
-#define NB_VFS_CLOSE_FILE 6
-#define NB_VFS_READ_FILE  7
-#define NB_VFS_SEEK_FILE  8
+#define NB_VFS_OPEN_FILE     5
+#define NB_VFS_CLOSE_FILE    6
+#define NB_VFS_READ_FILE     7
+#define NB_VFS_SEEK_FILE     8
+#define NB_VFS_GET_FILE_INFO 9
+#define NB_VFS_GET_DIR       10
+#define NB_VFS_READ_DIR      11
 
 typedef struct _openfile
 {
     NbFile_t* file;
     const char* name;
 } NbOpenFileOp_t;
+
+typedef struct _getdir
+{
+    const char* path;     // Path of directory
+    NbDirIter_t* iter;    // Iterator to file out
+} NbGetDir_t;
 
 typedef struct _seekfile
 {

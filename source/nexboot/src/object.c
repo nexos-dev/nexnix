@@ -121,7 +121,7 @@ NbObject_t* NbObjCreate (const char* name, int type, int interface)
             return NULL;
     }
     // Allocate a new object
-    NbObject_t* obj = (NbObject_t*) malloc (sizeof (NbObject_t));
+    NbObject_t* obj = (NbObject_t*) calloc (1, sizeof (NbObject_t));
     if (!obj)
         return NULL;
     ObjCreate ("NbObject_t", &obj->obj);
@@ -147,6 +147,9 @@ void NbObjInitDb()
 
 NbObject_t* NbObjFind (const char* name)
 {
+    // Edge case: if name is "/", return rootDir
+    if (!strcmp (name, "/"))
+        return rootDir;
     // Parse path into components
     pathPart_t part;
     memset (&part, 0, sizeof (pathPart_t));
@@ -213,7 +216,8 @@ void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab)
 
 NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter)
 {
-    assert (dir->type == OBJ_TYPE_DIR);
+    if (dir->type != OBJ_TYPE_DIR)
+        return NULL;
     ObjDirOp_t op;
     op.enumStat = iter;
     NbObjCallSvc (dir, OBJDIR_ENUM_CHILD, &op);

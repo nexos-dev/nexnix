@@ -62,8 +62,14 @@ bool NbVfsSeekFile (NbObject_t* fs, NbFile_t* file, uint32_t pos, bool relative)
 // Reads from file
 int32_t NbVfsReadFile (NbObject_t* fs, NbFile_t* file, void* buf, uint32_t count);
 
+// Gets file info
+bool NbVfsGetFileInfo (NbObject_t* fs, NbFileInfo_t* out);
+
 // Launches shell
 bool NbShellLaunch (NbFile_t* confFile);
+
+// Adds a menu entry
+void NbMenuAddEntry (StringRef_t* name, ListHead_t* cmdLine);
 
 // Minimum amount of memory NexNix requires (in MiB)
 #define NEXBOOT_MIN_MEM 8

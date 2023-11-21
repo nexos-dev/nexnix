@@ -79,6 +79,7 @@
 #define PS2_CCB_PC      (1 << 5)
 
 extern NbObjSvcTab_t ps2KbdSvcTab;
+extern NbDriver_t ps2KbdDrv;
 
 static bool kbdFound = false;
 
@@ -190,6 +191,7 @@ static bool Ps2KbdEntry (int code, void* params)
         case NB_DRIVER_ENTRY_ATTACHOBJ: {
             NbObject_t* obj = params;
             NbObjInstallSvcs (obj, &ps2KbdSvcTab);
+            NbObjSetManager (obj, &ps2KbdDrv);
             break;
         }
     }

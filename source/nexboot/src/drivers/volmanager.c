@@ -152,6 +152,7 @@ static void addVolume (NbVolume_t* vol)
             obj = NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_VOLUME);
             NbObjSetData (obj, vol);
             NbObjInstallSvcs (obj, &volManagerSvcTab);
+            NbObjSetManager (obj, &volManagerDrv);
         }
     }
 }
@@ -394,8 +395,30 @@ static bool VolManagerEntry (int code, void* params)
     return true;
 }
 
+// Filesystem name table
+static const char* volFsNames[] =
+    {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
+
 static bool VolManagerDumpData (void* objp, void* params)
 {
+    NbObject_t* volObj = objp;
+    NbVolume_t* vol = NbObjGetData (volObj);
+    // Get dump function
+    void (*writeData) (const char* fmt, ...) = params;
+    // Dump it
+    writeData ("Volume number: %d\n", vol->number);
+    writeData ("Parent disk: %s\n", vol->disk->name);
+    writeData ("Is partition: ");
+    if (vol->isPartition)
+        writeData ("true\n");
+    else
+        writeData ("false\n");
+    writeData ("Is active: ");
+    if (vol->isActive)
+        writeData ("true\n");
+    else
+        writeData ("false\n");
+    writeData ("Volume filesystem: %s\n", volFsNames[vol->volFileSys]);
     return true;
 }
 

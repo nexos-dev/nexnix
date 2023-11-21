@@ -65,7 +65,7 @@ static void parseError (ConfContext_t* ctx, confToken_t* tok, int err)
             buf += snprintf (buf, ERRBUFSZ - (buf - obuf), "internal error");
             break;
     }
-    NbLogMessage (buf, NEXBOOT_LOGLEVEL_ERROR);
+    NbLogMessage (obuf, NEXBOOT_LOGLEVEL_ERROR);
     NbLogMessage ("\n", NEXBOOT_LOGLEVEL_ERROR);
 }
 

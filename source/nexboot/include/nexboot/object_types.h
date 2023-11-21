@@ -23,6 +23,7 @@
 #define OBJ_TYPE_SYSINFO 2
 #define OBJ_TYPE_LOG     3
 #define OBJ_TYPE_FS      4
+#define OBJ_MAX_TYPE     4
 
 #define OBJ_INTERFACE_DIR           0
 #define OBJ_INTERFACE_CONSOLE       1
@@ -30,7 +31,8 @@
 #define OBJ_INTERFACE_GENERIC_TIMER 3
 #define OBJ_INTERFACE_RS232         4
 #define OBJ_INTERFACE_TERMINAL      5
-#define OBJ_INTERFACE_DISK          7
-#define OBJ_INTERFACE_VOLUME        8
+#define OBJ_INTERFACE_DISK          6
+#define OBJ_INTERFACE_VOLUME        7
+#define OBJ_MAX_INTERFACE           7
 
 #endif

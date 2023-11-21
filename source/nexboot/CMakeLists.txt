@@ -54,6 +54,7 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 list(APPEND NEXBOOT_SOURCES 
             src/main.c
             src/shell.c
+            src/menu.c
             src/log.c
             src/memmgr.c
             src/object.c
@@ -64,7 +65,10 @@ list(APPEND NEXBOOT_SOURCES
             src/filesys/fat.c
             src/filesys/iso9660.c
             src/conf/lex.c
-            src/conf/parse.c)
+            src/conf/parse.c
+            src/cmds/shellbase.c
+            src/cmds/objcmd.c
+            src/cmds/mountcmd.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
 
 # Find libk and libnex

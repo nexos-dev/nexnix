@@ -57,6 +57,7 @@ void NbLogInit()
         minSeverity = NEXBOOT_LOGLEVEL_INFO;
     else
         minSeverity = NEXBOOT_LOGLEVEL_DEBUG;
+    NbLogMessageEarly ("\r\n", NEXBOOT_LOGLEVEL_INFO);
 }
 
 void NbLogMessageEarly (const char* fmt, int level, ...)
@@ -74,7 +75,7 @@ void NbLogMessageEarly (const char* fmt, int level, ...)
     ++curEntry;
 }
 
-static bool printEarlyDisabled = false;
+bool printEarlyDisabled = false;
 
 void NbDisablePrintEarly()
 {

@@ -134,6 +134,7 @@ const char* diskErrorStrs[] = {"No error",
                                "Disk write failed"};
 
 extern NbObjSvcTab_t biosDiskSvcTab;
+extern NbDriver_t biosDiskDrv;
 
 static uint8_t curDisk = 0;    // Current disk being checked
 static uint8_t curIter = 0;
@@ -231,8 +232,6 @@ static bool diskCheckLba (NbBiosDisk_t* disk, uint8_t num)
         return false;
     disk->flags |= DISK_FLAG_LBA;
     // Check interfaces
-    if (out.cx & BIOS_LBA_INTERFACE_EJECTING)
-        disk->flags |= DISK_FLAG_EJECTABLE;
     if (out.cx & BIOS_LBA_INTERFACE_64BIT)
         disk->flags |= DISK_FLAG_64BIT;
     return true;
@@ -476,6 +475,7 @@ static bool BiosDiskEntry (int code, void* params)
             diskInf->type = curDiskInfo->type;
             diskInf->internal = curDiskInfo;
             NbObjSetData (obj, diskInf);
+            NbObjSetManager (obj, &biosDiskDrv);
             // Create the volumes
             NbDriver_t* volMgr = NbFindDriver ("VolManager");
             assert (volMgr);
@@ -526,6 +526,34 @@ static bool BiosDiskReadSectors (void* obj, void* data)
 
 static bool BiosDiskDumpData (void* objp, void* data)
 {
+    NbObject_t* obj = objp;
+    NbDiskInfo_t* disk = NbObjGetData (obj);
+    void (*writeData) (const char* fmt, ...) = data;
+    writeData ("Disk type: ");
+    if (disk->type == DISK_TYPE_HDD)
+        writeData ("hard disk\n");
+    else if (disk->type == DISK_TYPE_FDD)
+        writeData ("floppy disk\n");
+    else if (disk->type == DISK_TYPE_CDROM)
+        writeData ("CD-ROM\n");
+    writeData ("Disk size (MiB): %u\n", (disk->size / 1024) / 1024);
+    writeData ("Sector size: %d\n", disk->sectorSz);
+    writeData ("Flags: ");
+    if (disk->flags & DISK_FLAG_64BIT)
+        writeData ("64-bit ");
+    if (disk->flags & DISK_FLAG_EJECTABLE)
+        writeData ("ejectable ");
+    if (disk->flags & DISK_FLAG_LBA)
+        writeData ("LBA-compliant ");
+    if (disk->flags & DISK_FLAG_REMOVABLE)
+        writeData ("removable ");
+    writeData ("\n");
+    NbBiosDisk_t* biosDisk = disk->internal;
+    if (biosDisk->hpc)
+    {
+        writeData ("Heads per cylinder: %d\n", biosDisk->hpc);
+        writeData ("Sectors per track: %d\n", biosDisk->spt);
+    }
     return true;
 }
 

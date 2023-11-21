@@ -24,6 +24,7 @@
 #include <string.h>
 
 extern NbObjSvcTab_t vgaSvcTab;
+extern NbDriver_t vgaConsoleDrv;
 
 // This driver always runs (currently) in mode 03h, which 80x25, with 16 colors
 // Note that in this mode, the buffer starts at 0xB8000, and operates in planar mode
@@ -68,6 +69,7 @@ static bool VgaConsoleEntry (int code, void* params)
         // Set the interface
         NbObject_t* obj = params;
         NbObjInstallSvcs (obj, &vgaSvcTab);
+        NbObjSetManager (obj, &vgaConsoleDrv);
     }
     return true;
 }
@@ -110,6 +112,13 @@ static bool VgaObjDestroy (void* objp, void* data)
 
 static bool VgaObjDumpData (void* obj, void* data)
 {
+    NbObject_t* vgaObj = obj;
+    NbVgaConsole_t* vga = NbObjGetData (vgaObj);
+    void (*writeData) (const char* fmt, ...) = data;
+    if (vga->owner)
+        writeData ("Owner driver: %s", vga->owner->name);
+    writeData ("Number of columns: %d\n", vga->cols);
+    writeData ("Number of rows: %d\n", vga->rows);
     return true;
 }
 

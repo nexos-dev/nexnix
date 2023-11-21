@@ -16,10 +16,42 @@
 */
 
 #include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
+
+extern bool printEarlyDisabled;
+
+// Prints a stack trace
+static void nbTraceStack()
+{
+    // Get EBP
+    uint32_t curFrame = 0;
+    asm volatile("mov %%ebp, %0" : "=r"(curFrame));
+    if (printEarlyDisabled)
+        NbLogMessage ("\nStack trace:\n", NEXBOOT_LOGLEVEL_DEBUG);
+    else
+        NbLogMessageEarly ("\nStack trace:\n", NEXBOOT_LOGLEVEL_DEBUG);
+    while (curFrame)
+    {
+        // Print out frame info
+        uint32_t* stackFrame = (uint32_t*) curFrame;
+        if (printEarlyDisabled)
+            NbLogMessage ("%#X: %#X\n",
+                          NEXBOOT_LOGLEVEL_DEBUG,
+                          *stackFrame,
+                          *(stackFrame + 1));
+        else
+            NbLogMessageEarly ("%#X: %#X\r\n",
+                               NEXBOOT_LOGLEVEL_DEBUG,
+                               *stackFrame,
+                               *(stackFrame + 1));
+        curFrame = *stackFrame;
+    }
+}
 
 void NbCrash()
 {
-    // Halt system
+    nbTraceStack();
+    //  Halt system
     asm("cli; hlt");
 }
 

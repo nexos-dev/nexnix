@@ -40,6 +40,7 @@ static void createTerminal (int termNum,
     NbObject_t* obj = NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_TERMINAL);
     NbObjSetData (obj, term);
     NbObjInstallSvcs (obj, &terminalSvcTab);
+    NbObjSetManager (obj, &terminalDrv);
     terms[curTerm] = term;
     ++curTerm;
     assert (curTerm < 32);
@@ -215,6 +216,22 @@ static bool TerminalEntry (int code, void* params)
 
 static bool TerminalDumpData (void* objp, void* params)
 {
+    NbObject_t* termObj = objp;
+    NbTerminal_t* term = NbObjGetData (termObj);
+    // Get dump function
+    void (*writeData) (const char* fmt, ...) = params;
+    // Begin dumping
+    if (term->outEnd)
+        writeData ("Output end: %s\n", term->outEnd->name);
+    if (term->inEnd)
+        writeData ("Input end: %s\n", term->inEnd->name);
+    writeData ("Number of columns: %d\n", term->numCols);
+    writeData ("Number of rows: %d\n", term->numRows);
+    writeData ("Is primary terminal: ");
+    if (term->isPrimary)
+        writeData ("true\n");
+    else
+        writeData ("false\n");
     return true;
 }
 
@@ -645,6 +662,25 @@ static uint8_t terminalReadChar (NbObject_t* termObj)
     return c;
 }
 
+static bool TerminalWriteChar (void* objp, void* params)
+{
+    NbObject_t* obj = objp;
+    char* c = params;
+    return terminalWriteChar (obj, *c);
+}
+
+static bool TerminalReadChar (void* objp, void* params)
+{
+    NbObject_t* obj = objp;
+    char* c = params;
+    // Ensure backspacing doesn't overwrite previous printing
+    NbTerminal_t* term = NbObjGetData (obj);
+    term->backMax[0] = term->row;
+    term->backMax[1] = term->col;
+    *c = (char) terminalReadChar (obj);
+    return true;
+}
+
 static bool TerminalWrite (void* objp, void* params)
 {
     NbObject_t* obj = objp;
@@ -691,6 +727,8 @@ static bool TerminalSetOpts (void* objp, void* params)
     assert (in);
     term->echo = in->echo;
     term->echoc = in->echoc;
+    term->row = in->row;
+    term->col = in->col;
     return true;
 }
 
@@ -706,6 +744,8 @@ static bool TerminalGetOpts (void* objp, void* params)
     out->inEnd = term->inEnd;
     out->numCols = term->numCols;
     out->numRows = term->numRows;
+    out->row = term->row;
+    out->col = term->col;
     out->echo = term->echo;
     out->echoc = term->echoc;
     out->isPrimary = term->isPrimary;
@@ -734,7 +774,9 @@ static NbObjSvc terminalSvcs[] = {NULL,
                                   TerminalRead,
                                   TerminalSetOpts,
                                   TerminalGetOpts,
-                                  TerminalClear};
+                                  TerminalClear,
+                                  TerminalWriteChar,
+                                  TerminalReadChar};
 
 NbObjSvcTab_t terminalSvcTab = {ARRAY_SIZE (terminalSvcs), terminalSvcs};
 

@@ -32,6 +32,7 @@ typedef bool (*FsMountT) (NbObject_t*);
 typedef bool (*FsUnmountT) (NbObject_t*);
 typedef bool (*FsOpenFileT) (NbObject_t*, NbFile_t*);
 typedef bool (*FsCloseFileT) (NbObject_t*, NbFile_t*);
+typedef bool (*FsGetFileInfoT) (NbObject_t*, NbFileInfo_t*);
 typedef bool (*FsReadBlockT) (NbObject_t*, NbFile_t*, uint32_t);
 
 // Function tables
@@ -39,12 +40,14 @@ FsMountT mountTable[] = {FatMountFs, IsoMountFs};
 FsUnmountT unmountTable[] = {FatUnmountFs, IsoUnmountFs};
 FsOpenFileT openFileTable[] = {FatOpenFile, IsoOpenFile};
 FsCloseFileT closeFileTable[] = {FatCloseFile, IsoCloseFile};
+FsGetFileInfoT getInfoTable[] = {FatGetFileInfo, IsoGetFileInfo};
 FsReadBlockT readBlockTable[] = {FatReadFileBlock, IsoReadFileBlock};
 
 #define FsMount(type, fs)                (mountTable[(type)](fs))
 #define FsUnmount(type, fs)              (unmountTable[(type)](fs))
 #define FsOpenFile(type, fs, file)       (openFileTable[(type)](fs, file))
 #define FsCloseFile(type, fs, file)      (closeFileTable[(type)](fs, file))
+#define FsGetFileInfo(type, fs, info)    (getInfoTable[(type)](fs, info));
 #define FsReadBlock(type, fs, file, pos) (readBlockTable[(type)](fs, file, pos))
 
 #endif

@@ -327,6 +327,46 @@ bool IsoOpenFile (NbObject_t* fsObj, NbFile_t* file)
     return true;
 }
 
+bool IsoGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
+{
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    IsoMountInfo_t* mountInf = fs->internal;
+    // Search directory hierarchy for file
+    // Parse path into components
+    pathPart_t part;
+    memset (&part, 0, sizeof (pathPart_t));
+    part.oldName = fileInf->name;
+    // Make search start at root
+    IsoDirRecord_t* curDir = &mountInf->rootDir;
+    while (1)
+    {
+        _parsePath (&part);
+        // Find this part
+        curDir = isoFindDir (fs, curDir, part.name);
+        if (!curDir)
+            return false;
+        if (part.isLastPart)
+        {
+            // Make sure this is a file we found
+            if (curDir->flags & ISO_DIRREC_ISDIR)
+                return false;
+            break;
+        }
+        else
+        {
+            // Make sure this is a directory we found
+            if (!(curDir->flags & ISO_DIRREC_ISDIR))
+                return false;
+        }
+    }
+    fileInf->size = curDir->lengthL;
+    if (curDir->flags & ISO_DIRREC_ISDIR)
+        fileInf->type = NB_FILE_DIR;
+    else
+        fileInf->type = NB_FILE_FILE;
+    return true;
+}
+
 bool IsoCloseFile (NbObject_t* fs, NbFile_t* file)
 {
     free (file->internal);

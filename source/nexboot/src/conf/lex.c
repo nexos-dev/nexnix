@@ -355,6 +355,8 @@ static inline bool lexIsToken (char c)
         case '{':
         case '}':
         case '$':
+        case '"':
+        case '\'':
             return true;
     }
     return false;
@@ -566,6 +568,7 @@ confToken_t* confLex (ConfContext_t* ctx)
                                     // Read first character from line
                                     c = lexReadChar (ctx);
                                 }
+                                break;
                             }
                             else
                             {
