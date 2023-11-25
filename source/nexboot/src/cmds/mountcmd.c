@@ -78,6 +78,11 @@ bool NbUnmountMain (Array_t* args)
     char buf[256];
     snprintf (buf, 256, "/Interfaces/FileSys/%s", StrRefGet (*mountName));
     NbObject_t* fs = NbObjFind (buf);
+    if (!fs)
+    {
+        NbShellWrite ("unmount: Filesystem \"%s\" doesn't exist\n", buf);
+        return false;
+    }
     NbVfsUnmount (fs);
     return true;
 }

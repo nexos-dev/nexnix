@@ -238,8 +238,11 @@ IsoDirRecord_t* isoFindInDir (NbFileSys_t* fs,
     while (dir->recSize)
     {
         // Buffer entry
-        if (!isoAddBuffer (fs->internal, dir, parent))
-            return NULL;
+        if (!isoFindBuffer (fs->internal, parent->extentL, name))
+        {
+            if (!isoAddBuffer (fs->internal, dir, parent))
+                return NULL;
+        }
         // Compare names
         if (dir->nameLen &&
             !memcmp ((void*) dir + sizeof (IsoDirRecord_t), name, dir->nameLen))
@@ -364,6 +367,16 @@ bool IsoGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
         fileInf->type = NB_FILE_DIR;
     else
         fileInf->type = NB_FILE_FILE;
+    return true;
+}
+
+bool IsoGetDir (NbObject_t* fsObj, const char* path, NbDirIter_t* iter)
+{
+    return true;
+}
+
+bool IsoReadDir (NbObject_t* fsObj, NbDirIter_t* iter)
+{
     return true;
 }
 

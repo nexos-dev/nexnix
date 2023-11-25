@@ -26,5 +26,7 @@ bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file);
 bool FatCloseFile (NbObject_t* fs, NbFile_t* file);
 bool FatGetFileInfo (NbObject_t* fs, NbFileInfo_t* fileInf);
 bool FatReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos);
+bool FatGetDir (NbObject_t* fsObj, const char* path, NbDirIter_t* iter);
+bool FatReadDir (NbObject_t* fsObj, NbDirIter_t* iter);
 
 #endif

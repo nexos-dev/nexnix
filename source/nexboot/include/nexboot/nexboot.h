@@ -65,6 +65,14 @@ int32_t NbVfsReadFile (NbObject_t* fs, NbFile_t* file, void* buf, uint32_t count
 // Gets file info
 bool NbVfsGetFileInfo (NbObject_t* fs, NbFileInfo_t* out);
 
+// Gets a directory
+// NOTE: no other filesystem calls may occur between a call to NbVfsGetDir and until
+// caller is done calling NbVfsReadDir
+bool NbVfsGetDir (NbObject_t* fs, const char* dir, NbDirIter_t* iter);
+
+// Iterates a directory
+bool NbVfsReadDir (NbObject_t* fs, NbDirIter_t* iter);
+
 // Launches shell
 bool NbShellLaunch (NbFile_t* confFile);
 

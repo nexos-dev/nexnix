@@ -228,6 +228,23 @@ bool NbVfsUnmount (NbObject_t* fsObj)
     return true;
 }
 
+static bool VfsFsGetDir (void* objp, void* params)
+{
+    NbObject_t* fsObj = objp;
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    NbGetDirOp_t* op = params;
+    // Call FS
+    return FsGetDir (fs->driver, fsObj, op->path, op->iter);
+}
+
+static bool VfsFsReadDir (void* objp, void* params)
+{
+    NbObject_t* fsObj = objp;
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    NbDirIter_t* iter = params;
+    return FsReadDir (fs->driver, fsObj, iter);
+}
+
 // Filesystem name table
 static const char* volFsNames[] =
     {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
@@ -259,7 +276,9 @@ static NbObjSvc fsSvcs[] = {NULL,
                             VfsFsCloseFile,
                             VfsFsReadFile,
                             VfsFsSeekFile,
-                            VfsFsGetFileInfo};
+                            VfsFsGetFileInfo,
+                            VfsFsGetDir,
+                            VfsFsReadDir};
 
 NbObjSvcTab_t fsSvcTab = {ARRAY_SIZE (fsSvcs), fsSvcs};
 
@@ -307,4 +326,19 @@ int32_t NbVfsReadFile (NbObject_t* fs, NbFile_t* file, void* buf, uint32_t count
     if (!NbObjCallSvc (fs, NB_VFS_READ_FILE, &op))
         return -1;
     return op.bytesRead;
+}
+
+// Gets a directory
+bool NbVfsGetDir (NbObject_t* fs, const char* dir, NbDirIter_t* iter)
+{
+    NbGetDirOp_t op = {0};
+    op.iter = iter;
+    op.path = dir;
+    return NbObjCallSvc (fs, NB_VFS_GET_DIR, &op);
+}
+
+// Iterates a directory
+bool NbVfsReadDir (NbObject_t* fs, NbDirIter_t* iter)
+{
+    return NbObjCallSvc (fs, NB_VFS_READ_DIR, iter);
 }

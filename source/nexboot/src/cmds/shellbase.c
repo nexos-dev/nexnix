@@ -166,7 +166,7 @@ bool NbReadMain (Array_t* args)
     // Begin reading and dumping
     char buf[512] = {0};
     int32_t bytesRead = NbVfsReadFile (rootFs, file, buf, 512);
-    do
+    while (bytesRead)
     {
         NbShellWritePaged (buf);
         bytesRead = NbVfsReadFile (rootFs, file, buf, 512);
@@ -176,8 +176,48 @@ bool NbReadMain (Array_t* args)
                           StrRefGet (*fileName));
             return false;
         }
-    } while (bytesRead);
+    }
     NbVfsCloseFile (rootFs, file);
+    return true;
+}
+
+// ls entry
+bool NbLsMain (Array_t* args)
+{
+    // Get argument
+    StringRef_t** dirPtr = ArrayGetElement (args, 0);
+    StringRef_t* dir = NULL;
+    if (!dirPtr)
+    {
+        dir = StrRefCreate ("");
+        StrRefNoFree (dir);
+    }
+    else
+        dir = *dirPtr;
+    // Ensure root directory is valid
+    NbObject_t* rootFs = NbShellGetRootFs();
+    if (!rootFs)
+    {
+        NbShellWrite ("ls: No valid root directory\n");
+        return false;
+    }
+    // Open directory
+    NbDirIter_t iter = {0};
+    StringRef_t* fullDir = NbShellGetFullPath (StrRefGet (dir));
+    if (!NbVfsGetDir (rootFs, StrRefGet (fullDir), &iter))
+    {
+        NbShellWrite ("ls: unable to read directory \"%s\"\n", StrRefGet (dir));
+        return false;
+    }
+    while (iter.name[0])
+    {
+        NbShellWrite ("%s\n", iter.name);
+        if (!NbVfsReadDir (rootFs, &iter))
+        {
+            NbShellWrite ("ls: unable to read directory \"%s\"\n", StrRefGet (dir));
+            return false;
+        }
+    }
     return true;
 }
 

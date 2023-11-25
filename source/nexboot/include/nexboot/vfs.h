@@ -92,7 +92,7 @@ typedef struct _getdir
 {
     const char* path;     // Path of directory
     NbDirIter_t* iter;    // Iterator to file out
-} NbGetDir_t;
+} NbGetDirOp_t;
 
 typedef struct _seekfile
 {

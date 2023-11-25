@@ -16,6 +16,7 @@
 */
 
 #include <assert.h>
+#include <libnex/array.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <nexboot/vfs.h>
@@ -123,6 +124,34 @@ typedef struct _fatdir
 #define FAT_DIR_SYSTEM (1 << 2)
 #define FAT_DIR_VOL_ID (1 << 3)
 #define FAT_DIR_IS_DIR (1 << 4)
+#define FAT_DIR_LFN    (FAT_DIR_RO | FAT_DIR_HIDDEN | FAT_DIR_SYSTEM | FAT_DIR_VOL_ID)
+
+// LFN structure
+typedef struct _lfnentry
+{
+    uint8_t order;        // Index of LFN entry
+    uint16_t name1[5];    // First 5 five characters
+    uint8_t attr;         // Must be FAT_DIR_LFN
+    uint8_t type;         // Unused
+    uint8_t checksum;     // Checksum of short name
+    uint16_t name2[6];    // Second six characters
+    uint16_t unused;
+    uint16_t name3[2];    // Third two characters
+} __attribute__ ((packed)) FatLfnEntry_t;
+
+#define FAT_LFN_IS_LAST 0x40
+#define FAT_NAMELEN     256
+
+// Buffered directory entry
+typedef struct _dirbuf
+{
+    FatDirEntry_t dirEnt;         // Internal info
+    uint8_t name[FAT_NAMELEN];    // Name of this entry
+    uint32_t cluster;             // Cluster of parent directory
+} FatDirBuffer_t;
+
+#define FAT_DIRBUF_GROWSZ 64
+#define FAT_DIRBUF_MAX    256
 
 // Cached data structure
 typedef struct _cacheEnt
@@ -136,6 +165,7 @@ typedef struct _fatmount
 {
     FatCacheEnt_t cachedDir;    // Cached directory cluster
     FatCacheEnt_t cachedFat;    // Cached FAT sector
+    Array_t* dirBuffer;         // Buffered directory entries
     uint64_t fatBase;           // Base of fat
     uint32_t fatSz;             // FAT size in sectors
     uint64_t dataBase;          // Base of data area
@@ -156,10 +186,20 @@ typedef struct _fatfile
 // Pathname parser structure
 typedef struct _pathpart
 {
-    const char* oldName;    // Original name
-    char name[80];          // Component name
-    bool isLastPart;        // Is this the last part?
+    const char* oldName;       // Original name
+    char name[FAT_NAMELEN];    // Component name
+    bool isLastPart;           // Is this the last part?
 } pathPart_t;
+
+// Directory iterator internals
+typedef struct _fatdiriter
+{
+    FatDirEntry_t* dir;     // Directory pointer
+    uint32_t curCluster;    // Cluster last entry was on
+    uint32_t curIdx;        // Current index in directory
+} FatDirIter_t;
+
+#define FAT_SEARCH_FINISHED (void*) -1
 
 // Converts file name to 8.3
 static void fileTo83 (const char* in, char* out)
@@ -167,12 +207,12 @@ static void fileTo83 (const char* in, char* out)
     // Handle . and ..
     if (!strcmp (in, "."))
     {
-        strcpy (out, ".");
+        strcpy (out, ".          ");
         return;
     }
     else if (!strcmp (in, ".."))
     {
-        strcpy (out, "..");
+        strcpy (out, "..         ");
         return;
     }
     size_t i = 0;
@@ -221,24 +261,67 @@ static void fileTo83 (const char* in, char* out)
     out[11] = 0;
 }
 
+// Converts 8.3 to regular name
+static void file83ToName (const char* in, char* out)
+{
+    memset (out, 0, 12);
+    // Handle dot and dot-dot
+    if (!memcmp (in, "..", 2))
+    {
+        strcpy (out, "..");
+        return;
+    }
+    else if (!memcmp (in, ".", 1))
+    {
+        strcpy (out, ".");
+        return;
+    }
+    const char* oin = in;
+    // Copy all of in until we reach a space
+    while (*in != ' ')
+    {
+        *out = *in;
+        ++in;
+        ++out;
+    }
+    // Go to next character in in
+    while (*in == ' ')
+    {
+        ++in;
+        if ((in - oin) >= 11)
+            return;    // Return, as there is no extension
+    }
+    // Add a period to out for extension
+    *out = '.';
+    ++out;
+    // Copy any remaining characters
+    memcpy (out, in, 11 - (in - oin));
+    out += 11 - (in - oin);
+    // Add a null terminator
+    *out = 0;
+}
+
 static void _parsePath (pathPart_t* part)
 {
-    memset (part->name, 0, 80);
+    memset (part->name, 0, FAT_NAMELEN);
     // Check if we need to skip over a '/'
     if (*part->oldName == '/')
         ++part->oldName;
     // Copy characters name until we reach a '/'
     int i = 0;
-    char name[80] = {0};
+    char name[FAT_NAMELEN] = {0};
     while (*part->oldName != '/' && *part->oldName != '\0')
     {
         name[i] = *part->oldName;
         ++i;
         ++part->oldName;
     }
-    // Convert to 8.3
-    fileTo83 (name, part->name);
-    // If we reached a null terminator, finish
+    // Copy out
+    strcpy (part->name, name);
+    // Skip over any slash
+    if (*part->oldName == '/')
+        ++part->oldName;
+    // Check if this is the end
     if (*part->oldName == '\0')
         part->isLastPart = true;
 }
@@ -365,16 +448,155 @@ static uint32_t fatFollowClusterChain (NbFileSys_t* fs,
     return cluster;
 }
 
+// Places directory entry in directory buffer
+static bool fatBufferDirEnt (FatMountInfo_t* mountInf,
+                             const char* name,
+                             FatDirEntry_t* ent,
+                             uint32_t cluster)
+{
+    FatDirBuffer_t* buf = NULL;
+    // Check if we need to replace an entry
+    if (mountInf->dirBuffer->allocatedElems == mountInf->dirBuffer->totalElems)
+    {
+        // Replace first element
+        buf = ArrayGetElement (mountInf->dirBuffer, 0);
+    }
+    else
+    {
+        // Get from array
+        size_t pos = ArrayFindFreeElement (mountInf->dirBuffer);
+        if (pos == ARRAY_ERROR)
+            return false;
+        buf = ArrayGetElement (mountInf->dirBuffer, pos);
+    }
+    // Write out fields
+    size_t nameLen = strlen (name);
+    memcpy (buf->name, name, nameLen);
+    buf->name[nameLen] = 0;
+    memcpy (&buf->dirEnt, ent, sizeof (FatDirEntry_t));
+    buf->cluster = cluster;
+    return true;
+}
+
+// Finds directory entry in buffer
+static FatDirEntry_t* fatFindBufferDir (FatMountInfo_t* mountInf,
+                                        const char* name,
+                                        uint32_t cluster)
+{
+    // Iterate through buffer
+    ArrayIter_t iterSt = {0};
+    ArrayIter_t* iter = ArrayIterate (mountInf->dirBuffer, &iterSt);
+    while (iter)
+    {
+        // Check if we match
+        FatDirBuffer_t* buf = iter->ptr;
+        if (buf->cluster == cluster && !memcmp (buf->name, name, 11))
+            return &buf->dirEnt;    // We have a match
+        iter = ArrayIterate (mountInf->dirBuffer, iter);
+    }
+    return NULL;
+}
+
+// Checks if entry is valid file
+static inline bool fatIsValidFile (FatDirEntry_t* dir)
+{
+    if (dir[0].name[0] == 0xE5 || dir[0].attr & FAT_DIR_HIDDEN ||
+        dir[0].attr & FAT_DIR_VOL_ID)
+    {
+        return false;
+    }
+    return true;
+}
+
+// Checks if entry is an LFN
+static inline bool fatIsLfn (FatDirEntry_t* dir)
+{
+    if ((dir->attr & FAT_DIR_LFN) == FAT_DIR_LFN)
+        return true;
+    return false;
+}
+
+// Parses LFN
+static int fatParseLfn (FatDirEntry_t* dir, char* lfnName)
+{
+    int i = 0;
+    while (fatIsLfn (&dir[i]))
+    {
+        // Get sequence number
+        FatLfnEntry_t* lfnEnt = (FatLfnEntry_t*) &dir[i];
+        uint8_t order = lfnEnt->order & (FAT_LFN_IS_LAST - 1);
+        order--;
+        // Set appropriate character in name
+        // NOTE: we currently truncate the character to 8 bits.
+        // This is not the best way
+        for (int j = 0; j < 5; ++j)
+        {
+            lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name1[j];
+        }
+        for (int j = 5; j < 12; ++j)
+        {
+            lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name2[j - 5];
+        }
+        for (int j = 12; j < 14; ++j)
+        {
+            lfnName[(order * 14) + j] = (uint8_t) lfnEnt->name3[j - 11];
+        }
+        ++i;
+    }
+    return i;
+}
+
 // Finds a directory entry in a read directory
-static FatDirEntry_t* fatFindInDir (FatDirEntry_t* dir,
+static FatDirEntry_t* fatFindInDir (FatMountInfo_t* mountInf,
+                                    FatDirEntry_t* dir,
                                     const char* name,
+                                    uint32_t cluster,
                                     uint32_t dirSz)
 {
     int i = 0;
     size_t nameLen = strlen (name);
+    // LFN parsing state
+    uint8_t lfnName[FAT_NAMELEN] = {0};
+    bool foundLfn = false;
+    // Get 8.3 version of name
+    char name83[12] = {0};
+    fileTo83 (name, name83);
     while (dir[i].name[0] && (dirSz > (i * sizeof (FatDirEntry_t))))
     {
-        if (!memcmp (dir[i].name, name, nameLen))
+        // Check if this is an LFN
+        if (fatIsLfn (&dir[i]))
+        {
+            foundLfn = true;
+            i += fatParseLfn (&dir[i], lfnName);
+            continue;
+        }
+        // Check if we found an LFN for this
+        const char* validName = NULL;
+        const char* nameToCheck = NULL;
+        size_t len = nameLen;
+        if (foundLfn)
+        {
+            foundLfn = false;
+            nameToCheck = lfnName;
+            validName = name;
+        }
+        else
+        {
+            nameToCheck = &dir[i].name;
+            validName = name83;
+            len = 11;
+        }
+        // If this is a valid file, buffer it
+        if (fatIsValidFile (&dir[i]))
+        {
+            if (!fatFindBufferDir (mountInf, nameToCheck, cluster))
+            {
+                if (!fatBufferDirEnt (mountInf, nameToCheck, &dir[i], cluster))
+                    return NULL;
+            }
+        }
+        // Compare names
+        if (!memcmp (nameToCheck, validName, len))
             return &dir[i];
         ++i;
     }
@@ -389,6 +611,7 @@ static FatDirEntry_t* fatFindDirCluster (NbFileSys_t* fs,
     if (!cluster)
         return NULL;    // Empty directory
     FatMountInfo_t* mountInf = fs->internal;
+    uint32_t ocluster = cluster;    // Store first cluster of directory
     uint32_t clusterSz = mountInf->sectPerCluster * mountInf->sectorSz;
     FatDirEntry_t* dir = mountInf->cachedDir.data;
     FatDirEntry_t* ent = NULL;
@@ -398,7 +621,7 @@ static FatDirEntry_t* fatFindDirCluster (NbFileSys_t* fs,
         if (!fatReadCluster (fs, dir, cluster))
             return NULL;
         // Find path in read cluster
-        ent = fatFindInDir (dir, name, clusterSz);
+        ent = fatFindInDir (mountInf, dir, name, ocluster, clusterSz);
         // Read next cluster
         cluster = fatReadNextCluster (fs, cluster);
         if (cluster == UINT32_MAX)
@@ -416,9 +639,19 @@ static FatDirEntry_t* fatFindRootDir (NbFileSys_t* fs, const char* name)
 {
     FatMountInfo_t* mountInf = fs->internal;
     if (fs->type == VOLUME_FS_FAT32)
+    {
+        // Check buffer first
+        FatDirEntry_t* ent = fatFindBufferDir (mountInf, name, mountInf->rootDir);
+        if (ent)
+            return ent;
         return fatFindDirCluster (fs, mountInf->rootDir, name);
+    }
     else
     {
+        // Check buffer first
+        FatDirEntry_t* bufEnt = fatFindBufferDir (mountInf, name, 0);
+        if (bufEnt)
+            return bufEnt;
         // Get root directory base
         uint32_t rootDir = mountInf->rootDir;
         FatDirEntry_t* dir = mountInf->cachedDir.data;
@@ -432,7 +665,7 @@ static FatDirEntry_t* fatFindRootDir (NbFileSys_t* fs, const char* name)
             if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_SECTORS, &sector))
                 return NULL;
             // Find path in read sector
-            ent = fatFindInDir (dir, name, mountInf->sectorSz);
+            ent = fatFindInDir (mountInf, dir, name, 0, mountInf->sectorSz);
             ++sector.sector;
             // Check if we are at the end
             if ((sector.sector - rootDir) == mountInf->rootDirSz)
@@ -447,10 +680,141 @@ static FatDirEntry_t* fatFindDir (NbFileSys_t* fs,
                                   const char* name)
 {
     uint32_t cluster = parent->clusterLow | (parent->clusterHigh << 16);
-    // If cluster equals 0, than this is root directory. This case can up with ..
+    // If cluster equals 0, than this is root directory. This case can happen with ..
     if (!cluster)
         return fatFindRootDir (fs, name);
+    // Attempt to find in buffer
+    FatDirEntry_t* ent = fatFindBufferDir (fs->internal, name, cluster);
+    if (ent)
+        return ent;
     return fatFindDirCluster (fs, cluster, name);
+}
+
+// Reads next directory entry after dirIdx in FAT12/FAT16 root directory
+// Assumes dir is base of current sector dirIdx is in
+static FatDirEntry_t* fatNextEntryRootDir (NbFileSys_t* fs,
+                                           FatDirEntry_t* dir,
+                                           int* dirIdx)
+{
+    FatMountInfo_t* mountInf = fs->internal;
+    // Get entries in sector
+    uint32_t entInSect = mountInf->sectorSz / sizeof (FatDirEntry_t);
+    // Get base sector and offset to read from in dir
+    uint32_t sector = mountInf->rootDir + ((*dirIdx) / entInSect);
+    uint32_t offset = (*dirIdx) % entInSect;
+    FatDirEntry_t* foundDir = NULL;
+    while (!foundDir)
+    {
+        *dirIdx += 1;
+        ++offset;
+        // Check if we need to read in another sector
+        if (offset >= entInSect)
+        {
+            // Read it in
+            NbReadSector_t sect;
+            sect.buf = dir;
+            sect.count = 1;
+            sect.sector = ++sector;
+            if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_SECTORS, &sect))
+                return NULL;
+            offset = 0;
+        }
+        // Check if entry is valid
+        if (fatIsValidFile (&dir[offset]))
+            foundDir = &dir[offset];    // Entry found
+        if (dir[offset].name[0] == 0)
+            return FAT_SEARCH_FINISHED;    // End of directory
+    }
+    return foundDir;
+}
+
+static FatDirEntry_t* fatNextEntry (NbFileSys_t* fs,
+                                    FatDirEntry_t* dir,
+                                    int* dirIdx,
+                                    uint32_t* cluster,
+                                    char* nameOut)
+{
+    // Check if we are examining root directory on FAT12/FAT16 volume
+    if (!(*cluster))
+        return fatNextEntryRootDir (fs, dir, dirIdx);
+    // Get entries in cluster
+    uint32_t entInCluster = fs->blockSz / sizeof (FatDirEntry_t);
+    // Get offset in cluster
+    uint32_t offset = (*dirIdx) % entInCluster;
+    // Search in dir
+    FatDirEntry_t* foundDir = NULL;
+    while (!foundDir)
+    {
+        *dirIdx += 1;
+        ++offset;
+        // Check if we need to read in another cluster
+        if (offset >= entInCluster)
+        {
+            // Read it in
+            *cluster = fatReadNextCluster (fs, *cluster);
+            // Check for bad cluster and EOF
+            if (fatIsClusterBad (fs, *cluster))
+                return NULL;
+            else if (fatIsClusterEof (fs, *cluster))
+                return FAT_SEARCH_FINISHED;
+            if (!fatReadCluster (fs, dir, *cluster))
+                return NULL;
+            offset = 0;
+        }
+        // Check if entry is valid
+        if (dir[offset].name[0] == 0)
+            return FAT_SEARCH_FINISHED;    // End of directory
+        // Handle LFNs
+        bool foundLfn = false;
+        if (fatIsLfn (&dir[offset]))
+        {
+            // FIXME: If LFN spans cluster, this will fail
+            int res = fatParseLfn (&dir[offset], nameOut);
+            offset += res;
+            *dirIdx += res;
+            foundLfn = true;
+        }
+        if (fatIsValidFile (&dir[offset]))
+        {
+            foundDir = &dir[offset];    // Entry found
+            // Convert name away from 8.3 if needed
+            if (!foundLfn)
+                file83ToName (&dir[offset].name, nameOut);
+        }
+    }
+    return foundDir;
+}
+
+// Reads in first part of directory
+static FatDirEntry_t* fatStartReadDir (NbFileSys_t* fs, uint32_t* dirCluster)
+{
+    FatMountInfo_t* mountInf = fs->internal;
+    // Allocate directory space
+    FatDirEntry_t* dir = (FatDirEntry_t*) malloc (fs->blockSz);
+    if (!dir)
+        return NULL;
+    if (!(*dirCluster))
+    {
+        if (fs->type != VOLUME_FS_FAT32)
+        {
+            // Read root directory, FAT12 / FAT16 style
+            NbReadSector_t sector;
+            sector.buf = dir;
+            sector.count = 1;
+            if (!NbObjCallSvc (fs->volume, NB_VOLUME_READ_SECTORS, &sector))
+                return NULL;
+            return dir;
+        }
+        else
+        {
+            // Set dirCluster to root directory
+            *dirCluster = mountInf->rootDir;
+        }
+    }
+    // Read in cluster
+    if (!fatReadCluster (fs, dir, *dirCluster))
+        return NULL;
+    return dir;
 }
 
 bool FatOpenFile (NbObject_t* fsObj, NbFile_t* file)
@@ -539,6 +903,132 @@ bool FatGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
     return true;
 }
 
+bool FatGetDir (NbObject_t* fsObj, const char* path, NbDirIter_t* iter)
+{
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    FatMountInfo_t* mountInf = fs->internal;
+    // Parse path into components
+    pathPart_t part = {0};
+    part.oldName = path;
+    FatDirEntry_t* curDir = NULL;
+    // Cluster directory is on
+    uint32_t dirCluster = 0;
+    // Loop through each component until we find correct one
+    while (!part.isLastPart)
+    {
+        _parsePath (&part);
+        // Find this part. If curDir is NULL, use root directory
+        if (!curDir)
+        {
+            // If this is true and part is empty, just get the root directory
+            // base
+            if (part.isLastPart && !part.name[0])
+            {
+                // On FAT32, set dirCluster
+                if (fs->type == VOLUME_FS_FAT32)
+                    dirCluster = mountInf->rootDir;
+                break;
+            }
+            else
+                curDir = fatFindRootDir (fs, part.name);
+        }
+        else
+        {
+            curDir = fatFindDir (fs, curDir, part.name);
+        }
+        if (!curDir)
+            return false;
+        dirCluster = (curDir->clusterHigh << 16) | curDir->clusterLow;
+        // Make sure this is a directory we found
+        if (!(curDir->attr & FAT_DIR_IS_DIR))
+            return false;
+    }
+    // We have the directory, fill out first entry
+    // Initialize iterator internal data
+    FatDirIter_t* iterInt = (FatDirIter_t*) &iter->internal;
+    iterInt->curCluster = dirCluster;
+    iterInt->curIdx = 0;
+    // Read in directory first sector / cluster
+    FatDirEntry_t* dir = fatStartReadDir (fs, &dirCluster);
+    if (!dir)
+        return false;
+    iterInt->dir = dir;
+    // First check if directory is empty
+    if (!dir[0].name[0])
+    {
+        // This directory is empty, fill out emptry iterator
+        iter->name[0] = 0;
+        free (iterInt->dir);
+        return true;
+    }
+    // Check if this directory entry is actually a file
+    if (fatIsLfn (dir))
+    {
+        int res = fatParseLfn (dir, iter->name);
+        iterInt->curIdx += res;
+        dir += res;
+    }
+    else if (!fatIsValidFile (dir))
+    {
+        // Go to next valid directory entry
+        dir = fatNextEntry (fs,
+                            dir,
+                            &iterInt->curIdx,
+                            &iterInt->curCluster,
+                            iter->name);
+        if (dir == FAT_SEARCH_FINISHED)
+        {
+            // This directory is empty, fill out emptry iterator
+            iter->name[0] = 0;
+            free (iterInt->dir);
+            return true;
+        }
+        else if (!dir)
+            return false;    // Error occurred
+    }
+    else
+    {
+        // Convert 8.3 to normal name
+        file83ToName (dir->name, iter->name);
+    }
+    // Set type
+    if (dir->attr & FAT_DIR_IS_DIR)
+        iter->type = NB_FILE_DIR;
+    else
+        iter->type = NB_FILE_FILE;
+    return true;
+}
+
+bool FatReadDir (NbObject_t* fsObj, NbDirIter_t* iter)
+{
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    FatMountInfo_t* mountInf = fs->internal;
+    FatDirIter_t* intIter = (FatDirIter_t*) &iter->internal;
+    // Grab directory
+    FatDirEntry_t* dir = intIter->dir;
+    // Get next entry
+    FatDirEntry_t* nextEnt =
+        fatNextEntry (fs, dir, &intIter->curIdx, &intIter->curCluster, iter->name);
+    // Check if it's valid
+    if (!nextEnt)
+        return NULL;
+    else if (nextEnt == FAT_SEARCH_FINISHED)
+    {
+        // Let caller know we finsihed
+        iter->name[0] = 0;
+        free (dir);    // Ensure directory is freed
+    }
+    else
+    {
+        // Set type
+        if (nextEnt->attr & FAT_DIR_IS_DIR)
+            iter->type = NB_FILE_DIR;
+        else
+            iter->type = NB_FILE_FILE;
+    }
+    return true;
+}
+
 bool FatReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos)
 {
     NbFileSys_t* fs = NbObjGetData (fsObj);
@@ -548,7 +1038,8 @@ bool FatReadFileBlock (NbObject_t* fsObj, NbFile_t* file, uint32_t pos)
     uint32_t fileClusterNum = pos / fs->blockSz;
     // Now we need to find the actual cluster number behind the relative cluster
     // number. We could parse the FAT from the beginning, but that's REALLY slow
-    // Instead, we mantain a hint of where the last read was and base it off of that
+    // Instead, we mantain a hint of where the last read cluster was and base it
+    // off of that
     if (fileClusterNum == fileInt->lastReadPos && fileInt->lastReadCluster)
     {
         // Read in that cluster
@@ -642,7 +1133,8 @@ bool FatMountFs (NbObject_t* fsObj)
             }
         }
     }
-    // Now we split depending on wheter this is a FAT 12 / FAT 16 or FAT 32 volume
+    // Now we split depending on wheter this is a FAT 12 / FAT 16 or FAT 32
+    // volume
     if (fs->type == VOLUME_FS_FAT32)
     {
         MbrFat32_t* mbr = mbrData;
@@ -721,9 +1213,21 @@ bool FatMountFs (NbObject_t* fsObj)
         {
             free (mbr);
             free (mountInfo);
+            free (mountInfo->cachedDir.data);
             return false;
         }
     }
+    // Initialize directory buffer
+    mountInfo->dirBuffer =
+        ArrayCreate (FAT_DIRBUF_GROWSZ, FAT_DIRBUF_MAX, sizeof (FatDirBuffer_t));
+    if (!mountInfo->dirBuffer)
+    {
+        free (mbrData);
+        free (mountInfo->cachedDir.data);
+        free (mountInfo->cachedFat.data);
+        free (mountInfo);
+    }
+    free (mbrData);
     fs->internal = mountInfo;
     return true;
 }
@@ -732,6 +1236,7 @@ bool FatUnmountFs (NbObject_t* fsObj)
 {
     NbFileSys_t* fs = NbObjGetData (fsObj);
     FatMountInfo_t* mountInf = fs->internal;
+    ArrayDestroy (mountInf->dirBuffer);
     free (mountInf->cachedDir.data);
     free (mountInf->cachedFat.data);
     free (mountInf);

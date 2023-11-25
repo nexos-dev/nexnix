@@ -35,6 +35,7 @@ bool NbMmDumpMain (Array_t*);
 bool NbMmapDumpMain (Array_t*);
 bool NbMountMain (Array_t*);
 bool NbUnmountMain (Array_t*);
+bool NbLsMain (Array_t*);
 
 typedef bool (*NbCmdMain) (Array_t*);
 
@@ -57,7 +58,8 @@ ShellCmd_t shellCmdTab[] = {
     {.name = "mmdump",   .entry = NbMmDumpMain  },
     {.name = "mmapdump", .entry = NbMmapDumpMain},
     {.name = "mount",    .entry = NbMountMain   },
-    {.name = "unmount",  .entry = NbUnmountMain }
+    {.name = "unmount",  .entry = NbUnmountMain },
+    {.name = "ls",       .entry = NbLsMain      }
 };
 
 #endif
