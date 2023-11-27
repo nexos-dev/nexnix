@@ -174,8 +174,11 @@ static bool VfsFsReadFile (void* obj, void* params)
     void* buf = op->buf;
     op->bytesRead = 0;
     // Check if this is even needed
-    if ((op->file->pos + 1) == op->file->size)
-        return false;
+    if (op->file->pos >= op->file->size)
+    {
+        op->bytesRead = 0;
+        return true;
+    }
     // Get number of blocks to read
     uint32_t numBlocks = (op->count + (fs->blockSz - 1)) / fs->blockSz;
     for (int i = 0; i < numBlocks; ++i)
@@ -186,25 +189,29 @@ static bool VfsFsReadFile (void* obj, void* params)
         // Figure out number of bytes to copy
         uint32_t bytesRead = 0;
         uint32_t base = 0;
-        if ((op->file->pos + fs->blockSz) > op->file->size)
+        if ((op->file->pos + ((op->count > fs->blockSz) ? fs->blockSz : op->count)) >
+            op->file->size)
+        {
             bytesRead = op->file->size - op->file->pos;
-        else if ((op->bytesRead + fs->blockSz) > op->count)
-            bytesRead = op->count - op->bytesRead;
+        }
+        else if (fs->blockSz > op->count)
+            bytesRead = op->count;
         else
         {
             bytesRead = fs->blockSz;
             // Check if file position is block aligned, and correct it if not
             if (op->file->pos % fs->blockSz)
-            {
                 bytesRead -= op->file->pos % fs->blockSz;
-                base += op->file->pos % fs->blockSz;
-            }
         }
+        base += op->file->pos % fs->blockSz;
         // Copy them to buffer
         memcpy (buf, op->file->blockBuf + base, bytesRead);
         buf += bytesRead;
         op->bytesRead += bytesRead;
         op->file->pos += bytesRead;
+        // If we didn't read in a full block, than don't go to next block
+        if (bytesRead != fs->blockSz)
+            break;
     }
     return true;
 }
@@ -303,7 +310,7 @@ void NbVfsCloseFile (NbObject_t* fs, NbFile_t* file)
 // Gets file info
 bool NbVfsGetFileInfo (NbObject_t* fs, NbFileInfo_t* out)
 {
-    NbObjCallSvc (fs, NB_VFS_GET_FILE_INFO, out);
+    return NbObjCallSvc (fs, NB_VFS_GET_FILE_INFO, out);
 }
 
 // Seeks to position

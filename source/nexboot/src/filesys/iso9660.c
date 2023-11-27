@@ -38,7 +38,7 @@ typedef struct _isodir
     uint8_t nameLen;    // Length of name
 } __attribute__ ((packed)) IsoDirRecord_t;
 
-#define ISO_DIRREC_EXISTS   (1 << 0)
+#define ISO_DIRREC_NOEXISTS (1 << 0)
 #define ISO_DIRREC_ISDIR    (1 << 1)
 #define ISO_DIRREC_MULTIEXT (1 << 7)
 
@@ -121,6 +121,15 @@ typedef struct _isofile
     uint32_t startBlock;    // Start block of file
 } IsoFile_t;
 
+// Directory iterator internal
+typedef struct _isoiter
+{
+    IsoDirRecord_t* dir;    // Directory we are working in
+    uint32_t block;         // Base block of directory
+    uint32_t curPos;        // Current offset we are at
+    uint32_t dirLen;        // Size of directory
+} IsoDirIter_t;
+
 // Pathname parser structure
 typedef struct _pathpart
 {
@@ -149,24 +158,49 @@ static void _parsePath (pathPart_t* part)
     // If we reached a null terminator, finish
     if (*part->oldName == '\0')
         part->isLastPart = true;
-    if (part->isLastPart)
+}
+
+// Strips version from file
+static void isoStripVersion (char* path)
+{
+    while (*path != ';' && *path)
+        ++path;
+    *path = 0;
+    // Check if there is a lone . at end
+    if (*(path - 1) == '.')
+        *(path - 1) = 0;    // Remove it
+}
+
+// Copies name from ISO directory entry to buffer, accounting for various gotchas
+static void isoCopyName (IsoDirRecord_t* dir, char* nameOut)
+{
+    uint8_t* entryName = ((uint8_t*) dir) + sizeof (IsoDirRecord_t);
+    if (dir->nameLen == 1 && *entryName == 0)
     {
-        // Add version and dot
-        if (!hasExt)
-        {
-            part->name[i] = '.';
-            ++i;
-        }
-        part->name[i] = ';';
-        part->name[i + 1] = '1';
+        nameOut[0] = '.';
+        nameOut[1] = 0;
+    }
+    else if (dir->nameLen == 1 && *entryName == 1)
+    {
+        nameOut[0] = '.';
+        nameOut[1] = '.';
+        nameOut[2] = 0;
+    }
+    else
+    {
+        memcpy (nameOut, ((void*) dir) + sizeof (IsoDirRecord_t), dir->nameLen);
+        isoStripVersion (nameOut);
+        // Strip version probably null terminated, but if there was no version, then
+        // it didn't. Play it safe
+        nameOut[dir->nameLen] = 0;
     }
 }
 
 // Reads a block from the volume
 static bool isoReadBlock (NbFileSys_t* fs, void* buf, uint32_t block)
 {
-    IsoMountInfo_t* mountInf = fs->internal;
-    uint16_t blockSectors = mountInf->blockSz;
+    IsoMountInfo_t* mountInfo = fs->internal;
+    uint16_t blockSectors = mountInfo->blockSz;
     NbReadSector_t sector;
     sector.buf = buf;
     sector.count = blockSectors;
@@ -175,11 +209,11 @@ static bool isoReadBlock (NbFileSys_t* fs, void* buf, uint32_t block)
 }
 
 // Attempts to find buffered directory entry
-IsoDirRecord_t* isoFindBuffer (IsoMountInfo_t* mountInf,
+IsoDirRecord_t* isoFindBuffer (IsoMountInfo_t* mountInfo,
                                uint32_t parentExt,
                                const char* name)
 {
-    IsoDirBuffer_t* curBuf = mountInf->dirBuf;
+    IsoDirBuffer_t* curBuf = mountInfo->dirBuf;
     while (curBuf)
     {
         // Check parent extent and name
@@ -194,9 +228,9 @@ IsoDirRecord_t* isoFindBuffer (IsoMountInfo_t* mountInf,
 }
 
 // Buffers a directory entry
-bool isoAddBuffer (IsoMountInfo_t* mountInf,
-                   IsoDirRecord_t* entry,
-                   IsoDirRecord_t* parent)
+static bool isoAddBuffer (IsoMountInfo_t* mountInfo,
+                          IsoDirRecord_t* entry,
+                          IsoDirRecord_t* parent)
 {
     IsoDirBuffer_t* buf = (IsoDirBuffer_t*) calloc (sizeof (IsoDirBuffer_t), 1);
     if (!buf)
@@ -208,33 +242,55 @@ bool isoAddBuffer (IsoMountInfo_t* mountInf,
         free (buf);
         return true;
     }
-    memcpy (buf->name, (uint8_t*) entry + sizeof (IsoDirRecord_t), entry->nameLen);
     memcpy (&buf->dir, entry, sizeof (IsoDirRecord_t));
+    // Name special cases: if name is '\0', actual name is '.'
+    // If name is '\1', acutal name is '..'
+    uint8_t* entryName = (uint8_t*) entry + sizeof (IsoDirRecord_t);
+    if (*entryName == 0)
+    {
+        memcpy (buf->name, ".", 1);
+        buf->dir.nameLen = 1;    // XXX, shouldn't edit directory entry
+    }
+    else if (*entryName == 1)
+    {
+        memcpy (buf->name, "..", 2);
+        buf->dir.nameLen = 2;
+    }
+    memcpy (buf->name, (uint8_t*) entryName, entry->nameLen);
     buf->parentExt = parent->extentL;
     // Check if something needs to be evicted
-    if (mountInf->numBuffered == ISO_DIR_BUFFERED_MAX)
+    if (mountInfo->numBuffered == ISO_DIR_BUFFERED_MAX)
     {
-        buf->next = mountInf->dirBuf->next;
-        free (mountInf->dirBuf);
-        mountInf->dirBuf = buf;
+        buf->next = mountInfo->dirBuf->next;
+        free (mountInfo->dirBuf);
+        mountInfo->dirBuf = buf;
     }
     else
     {
         // Add to list
-        buf->next = mountInf->dirBuf;
-        mountInf->dirBuf = buf;
-        ++mountInf->numBuffered;
+        buf->next = mountInfo->dirBuf;
+        mountInfo->dirBuf = buf;
+        ++mountInfo->numBuffered;
     }
     return true;
 }
 
+// Checks if directory record is a showable file
+static bool isoDirIsShowable (IsoDirRecord_t* dir)
+{
+    if (dir->flags & ISO_DIRREC_NOEXISTS)
+        return false;
+    return true;
+}
+
 // Finds entry in directory sector
-IsoDirRecord_t* isoFindInDir (NbFileSys_t* fs,
-                              void* buf,
-                              IsoDirRecord_t* parent,
-                              const char* name)
+static IsoDirRecord_t* isoFindInDir (NbFileSys_t* fs,
+                                     void* buf,
+                                     IsoDirRecord_t* parent,
+                                     const char* name)
 {
     IsoDirRecord_t* dir = buf;
+    size_t nameLen = strlen (name);
     while (dir->recSize)
     {
         // Buffer entry
@@ -243,32 +299,34 @@ IsoDirRecord_t* isoFindInDir (NbFileSys_t* fs,
             if (!isoAddBuffer (fs->internal, dir, parent))
                 return NULL;
         }
-        // Compare names
-        if (dir->nameLen &&
-            !memcmp ((void*) dir + sizeof (IsoDirRecord_t), name, dir->nameLen))
-        {
+        // Compare names, accounting for '.' and '..' cases
+        uint8_t* entryName = (uint8_t*) dir + sizeof (IsoDirRecord_t);
+        if (*entryName == 0 && !strcmp (name, "."))
             return dir;
-        }
+        else if (*entryName == 1 && !strcmp (name, ".."))
+            return dir;
+        else if (dir->nameLen && !memcmp (entryName, name, nameLen))
+            return dir;
         buf += dir->recSize;
         dir = buf;
     }
     return NULL;
 }
 
-IsoDirRecord_t* isoFindDir (NbFileSys_t* fs,
-                            IsoDirRecord_t* parent,
-                            const char* name)
+static IsoDirRecord_t* isoFindDir (NbFileSys_t* fs,
+                                   IsoDirRecord_t* parent,
+                                   const char* name)
 {
     IsoDirRecord_t* rec = NULL;
-    IsoMountInfo_t* mountInf = fs->internal;
+    IsoMountInfo_t* mountInfo = fs->internal;
     // Search buffer for record first
-    rec = isoFindBuffer (mountInf, parent->extentL, name);
+    rec = isoFindBuffer (mountInfo, parent->extentL, name);
     if (rec)
         return rec;
     // Not in buffer, search parent's data area
-    IsoDirRecord_t* dir = mountInf->curDir;
+    IsoDirRecord_t* dir = mountInfo->curDir;
     // Get size of data area
-    uint32_t dataAreaSz = parent->lengthL / mountInf->sectorSz;
+    uint32_t dataAreaSz = parent->lengthL / mountInfo->sectorSz;
     uint32_t block = parent->extentL;
     while (block < (parent->extentL + dataAreaSz))
     {
@@ -288,17 +346,58 @@ IsoDirRecord_t* isoFindDir (NbFileSys_t* fs,
     return NULL;
 }
 
+#define ISO_SEARCH_FINISHED (void*) -1
+
+static IsoDirRecord_t* isoDirNext (NbFileSys_t* fs,
+                                   IsoDirIter_t* iter,
+                                   char* nameOut)
+{
+    IsoMountInfo_t* mountInfo = fs->internal;
+    // Get block and offset we are at
+    uint32_t block = iter->block + (iter->curPos / fs->blockSz);
+    uint32_t offset = iter->curPos % fs->blockSz;
+    // Search
+    IsoDirRecord_t* foundDir = NULL;
+    void* curDirP = ((void*) iter->dir) + offset;
+    IsoDirRecord_t* curDir = curDirP;
+    while (!foundDir)
+    {
+        // Advance to next entry
+        offset += curDir->recSize;
+        curDirP += curDir->recSize;
+        iter->curPos += curDir->recSize;
+        curDir = curDirP;
+        // Check if we need to read in another block
+        if (offset >= fs->blockSz)
+        {
+            if (offset >= iter->dirLen)
+                return ISO_SEARCH_FINISHED;    // We reached end
+            if (!isoReadBlock (fs, iter->dir, ++block))
+                return NULL;
+            curDir = curDirP = iter->dir;
+            offset = 0;
+        }
+        // Check for end
+        if (curDir->recSize == 0)
+            return ISO_SEARCH_FINISHED;
+        if (isoDirIsShowable (curDir))
+            foundDir = curDir;
+    }
+    // Copy name
+    isoCopyName (curDir, nameOut);
+    return foundDir;
+}
+
 bool IsoOpenFile (NbObject_t* fsObj, NbFile_t* file)
 {
     NbFileSys_t* fs = NbObjGetData (fsObj);
-    IsoMountInfo_t* mountInf = fs->internal;
+    IsoMountInfo_t* mountInfo = fs->internal;
     // Search directory hierarchy for file
     // Parse path into components
-    pathPart_t part;
-    memset (&part, 0, sizeof (pathPart_t));
+    pathPart_t part = {0};
     part.oldName = file->name;
     // Make search start at root
-    IsoDirRecord_t* curDir = &mountInf->rootDir;
+    IsoDirRecord_t* curDir = &mountInfo->rootDir;
     while (1)
     {
         _parsePath (&part);
@@ -333,14 +432,13 @@ bool IsoOpenFile (NbObject_t* fsObj, NbFile_t* file)
 bool IsoGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
 {
     NbFileSys_t* fs = NbObjGetData (fsObj);
-    IsoMountInfo_t* mountInf = fs->internal;
+    IsoMountInfo_t* mountInfo = fs->internal;
     // Search directory hierarchy for file
     // Parse path into components
-    pathPart_t part;
-    memset (&part, 0, sizeof (pathPart_t));
+    pathPart_t part = {0};
     part.oldName = fileInf->name;
     // Make search start at root
-    IsoDirRecord_t* curDir = &mountInf->rootDir;
+    IsoDirRecord_t* curDir = &mountInfo->rootDir;
     while (1)
     {
         _parsePath (&part);
@@ -372,11 +470,99 @@ bool IsoGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
 
 bool IsoGetDir (NbObject_t* fsObj, const char* path, NbDirIter_t* iter)
 {
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    IsoMountInfo_t* mountInfo = fs->internal;
+    // Parse path
+    pathPart_t part = {0};
+    part.oldName = path;
+    // Start at root directory
+    IsoDirRecord_t* curDir = &mountInfo->rootDir;
+    while (!part.isLastPart)
+    {
+        _parsePath (&part);
+        // Find this part
+        curDir = isoFindDir (fs, curDir, part.name);
+        if (!curDir)
+            return false;
+        // Make sure this is a directory we found
+        if (!(curDir->flags & ISO_DIRREC_ISDIR))
+            return false;
+    }
+    // Initialize internal iterator
+    IsoDirIter_t* iterInt = (IsoDirIter_t*) &iter->internal;
+    iterInt->curPos = 0;
+    iterInt->block = curDir->extentL;
+    iterInt->dirLen = curDir->lengthL;
+    iterInt->dir = (IsoDirRecord_t*) malloc (curDir->lengthL);
+    if (!iterInt->dir)
+        return false;
+    curDir = iterInt->dir;
+    // Start directory read
+    if (!isoReadBlock (fs, iterInt->dir, iterInt->block))
+    {
+        free (iterInt->dir);
+        return false;
+    }
+    if (!curDir->recSize)
+    {
+        // Directory is empty
+        iter->name[0] = 0;
+        free (iterInt->dir);
+        return true;
+    }
+    if (!isoDirIsShowable (curDir))
+    {
+        // Go to next showable entry
+        curDir = isoDirNext (fs, iterInt, (char*) &iter->name);
+        if (!curDir)
+        {
+            free (iterInt->dir);
+            return false;
+        }
+        else if (curDir == ISO_SEARCH_FINISHED)
+        {
+            // Directory is empty
+            iter->name[0] = 0;
+            free (iterInt->dir);
+            return true;
+        }
+    }
+    else
+    {
+        // Copy name
+        isoCopyName (curDir, iter->name);
+    }
+    // Set type
+    if (curDir->flags & ISO_DIRREC_ISDIR)
+        iter->type = NB_FILE_DIR;
+    else
+        iter->type = NB_FILE_FILE;
     return true;
 }
 
 bool IsoReadDir (NbObject_t* fsObj, NbDirIter_t* iter)
 {
+    NbFileSys_t* fs = NbObjGetData (fsObj);
+    IsoDirIter_t* iterInt = (IsoDirIter_t*) &iter->internal;
+    // Find next entry
+    IsoDirRecord_t* nextRec = isoDirNext (fs, iterInt, &iter->name);
+    if (nextRec == ISO_SEARCH_FINISHED)
+    {
+        // Empty iterator
+        iter->name[0] = 0;
+        free (iterInt->dir);
+        return true;
+    }
+    else if (!nextRec)
+    {
+        free (iterInt->dir);
+        return false;
+    }
+    // Set type
+    if (nextRec->flags & ISO_DIRREC_ISDIR)
+        iter->type = NB_FILE_DIR;
+    else
+        iter->type = NB_FILE_FILE;
     return true;
 }
 
@@ -427,28 +613,28 @@ bool IsoMountFs (NbObject_t* fsObj)
         }
         sector.sector++;
     }
-    IsoMountInfo_t* mountInf = (IsoMountInfo_t*) malloc (sizeof (IsoMountInfo_t));
-    if (!mountInf)
+    IsoMountInfo_t* mountInfo = (IsoMountInfo_t*) malloc (sizeof (IsoMountInfo_t));
+    if (!mountInfo)
     {
         free (buf);
         return false;
     }
     // Allocate directory buffer
-    mountInf->curDir = malloc (disk->sectorSz);
-    if (!mountInf->curDir)
+    mountInfo->curDir = malloc (disk->sectorSz);
+    if (!mountInfo->curDir)
     {
         free (buf);
-        free (mountInf);
+        free (mountInfo);
         return false;
     }
-    mountInf->dirBuf = NULL;
+    mountInfo->dirBuf = NULL;
     // Set PVD fields in mount info
     IsoPvd_t* pvd = buf;
-    mountInf->blockSz = pvd->blockSzL / disk->sectorSz;
+    mountInfo->blockSz = pvd->blockSzL / disk->sectorSz;
     fs->blockSz = pvd->blockSzL;
-    mountInf->sectorSz = disk->sectorSz;
-    memcpy (&mountInf->rootDir, &pvd->rootDir, sizeof (IsoDirRecord_t));
-    fs->internal = mountInf;
+    mountInfo->sectorSz = disk->sectorSz;
+    memcpy (&mountInfo->rootDir, &pvd->rootDir, sizeof (IsoDirRecord_t));
+    fs->internal = mountInfo;
     free (buf);
     return true;
 }
@@ -456,14 +642,14 @@ bool IsoMountFs (NbObject_t* fsObj)
 bool IsoUnmountFs (NbObject_t* fsObj)
 {
     NbFileSys_t* fs = NbObjGetData (fsObj);
-    IsoMountInfo_t* mountInf = fs->internal;
-    IsoDirBuffer_t* curBuf = mountInf->dirBuf;
+    IsoMountInfo_t* mountInfo = fs->internal;
+    IsoDirBuffer_t* curBuf = mountInfo->dirBuf;
     while (curBuf)
     {
         free (curBuf);
         curBuf = curBuf->next;
     }
-    free (mountInf->curDir);
-    free (mountInf);
+    free (mountInfo->curDir);
+    free (mountInfo);
     return true;
 }

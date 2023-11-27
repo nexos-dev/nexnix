@@ -192,12 +192,15 @@ static uint8_t diskReadSector (uint8_t drive,
     if (!success)
         return out.ah;
     // Copy buffer
-    memcpy (buf, (void*) NEXBOOT_BIOSBUF_BASE, 512);
+    memcpy (buf, (void*) NEXBOOT_BIOSBUF_BASE, disk->sectorSz);
     return out.ah;
 }
 
 // Reads a sector using LBA extensions
-static uint8_t diskReadSectorLba (uint8_t biosNum, void* buf, uint32_t sector)
+static uint8_t diskReadSectorLba (NbBiosDisk_t* disk,
+                                  uint8_t biosNum,
+                                  void* buf,
+                                  uint32_t sector)
 {
     NbBiosRegs_t in = {0}, out = {0};
     NbBiosDap_t* dap = (NbBiosDap_t*) NEXBOOT_BIOSBUF2_BASE;
@@ -213,7 +216,7 @@ static uint8_t diskReadSectorLba (uint8_t biosNum, void* buf, uint32_t sector)
     if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
         return out.ah;
     // Copy buffer
-    memcpy (buf, (void*) NEXBOOT_BIOSBUF_BASE, 512);
+    memcpy (buf, (void*) NEXBOOT_BIOSBUF_BASE, disk->sectorSz);
     return out.ah;
 }
 
@@ -378,7 +381,10 @@ static bool BiosDiskEntry (int code, void* params)
                 else
                 {
                     // Read using LBA
-                    if (diskReadSectorLba (curDisk, (void*) NEXBOOT_BIOSBUF_BASE, 0))
+                    if (diskReadSectorLba (disk,
+                                           curDisk,
+                                           (void*) NEXBOOT_BIOSBUF_BASE,
+                                           0))
                     {
                         // Try without LBA
                         memset (&in, 0, sizeof (NbBiosRegs_t));
@@ -499,7 +505,10 @@ static bool BiosDiskReadSectors (void* obj, void* data)
         if (biosDisk->flags & DISK_FLAG_LBA)
         {
             int res = 0;
-            if ((res = diskReadSectorLba (biosDisk->biosNum, buf, readInf->sector)))
+            if ((res = diskReadSectorLba (biosDisk,
+                                          biosDisk->biosNum,
+                                          buf,
+                                          readInf->sector)))
             {
                 readInf->error = res;
                 return false;

@@ -683,15 +683,10 @@ then
         then
             echo "System" >> $NNCONFROOT/nnimage-list.lst
             echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
+            echo "nexboot.cfg" >> $NNCONFROOT/nnimage-list.lst
             mv $NNDESTDIR/System/Core/Boot/nexboot $NNDESTDIR/nexboot
-        elif [ "$NIMGBOOTEMU" = "hdd" ] || [ "$NNIMGBOOTEMU" = "fdd" ]
-        then
-            echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
-        elif [ "$NNIMGBOOTMODE" = "isofloppy" ]
-        then
-            echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
         else
-            echo "/System/Core/Boot" >> $NNCONFROOT/nnimage-list.lst
+            echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
         fi
     elif [ "$NNIMGBOOTMODE" = "efi" ]
     then

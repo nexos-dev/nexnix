@@ -160,19 +160,20 @@ bool NbReadMain (Array_t* args)
     NbFile_t* file = NbShellOpenFile (rootFs, StrRefGet (*fileName));
     if (!file)
     {
-        NbShellWrite ("read: Unable to open file \"%s\"", StrRefGet (*fileName));
+        NbShellWrite ("read: Unable to open file \"%s\"\n", StrRefGet (*fileName));
         return false;
     }
     // Begin reading and dumping
-    char buf[512] = {0};
-    int32_t bytesRead = NbVfsReadFile (rootFs, file, buf, 512);
+    char buf[4096] = {0};
+    int32_t bytesRead = NbVfsReadFile (rootFs, file, buf, 4096);
     while (bytesRead)
     {
         NbShellWritePaged (buf);
-        bytesRead = NbVfsReadFile (rootFs, file, buf, 512);
+        memset (buf, 0, 4096);
+        bytesRead = NbVfsReadFile (rootFs, file, buf, 4096);
         if (bytesRead == -1)
         {
-            NbShellWrite ("read: Error occurred while reading file \"%s\"",
+            NbShellWrite ("read: Error occurred while reading file \"%s\"\n",
                           StrRefGet (*fileName));
             return false;
         }
