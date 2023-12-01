@@ -679,7 +679,7 @@ bool confLexInit (ConfContext_t* ctx)
     }
     else
     {
-        ctx->lexer.buf = StrRefNew (ctx->line);
+        ctx->lexer.buf = ctx->line;
         ctx->lexer.bufSz = ctx->bufSz;
     }
     return true;

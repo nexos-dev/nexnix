@@ -479,6 +479,7 @@ static void nbShellLoop()
         ConfContext_t ctx = {0};
         ctx.isFile = false;
         ctx.line = StrRefCreate (keyInput);
+        StrRefNoFree (ctx.line);
         ctx.readCallback = nbShellPrompt2;
         ctx.bufSz = bytesRead;
         ctx.maxBufSz = KEYBUFSZ;
@@ -492,7 +493,6 @@ static void nbShellLoop()
             break;
         ListDestroy (blocks);
     }
-    free (keyInput);
 }
 
 // Main shell routine

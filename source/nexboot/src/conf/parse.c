@@ -421,5 +421,11 @@ ListHead_t* NbConfParse (ConfContext_t* ctx)
         ListDestroy (blocks);
         return NULL;
     }
-    return parseInternal (ctx, blocks, &tok, LEX_TOKEN_EOF);
+    ListHead_t* res = parseInternal (ctx, blocks, &tok, LEX_TOKEN_EOF);
+    // Free state
+    confLexDestroy (ctx);
+    free (tok);
+    if (ctx->lastToken)
+        free (ctx->lastToken);
+    return res;
 }
