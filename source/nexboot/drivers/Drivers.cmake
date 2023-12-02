@@ -1,5 +1,5 @@
 #[[
-    arch.cmake - contains i386 CMake stuff
+    Drivers.cmake - decides what drivers to build
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,4 +15,13 @@
     limitations under the License.
 ]]
 
-list(APPEND NEXBOOT_SOURCE_FILES cpu/i386/cpu.c)
+# Append drivers for FW type
+if(NEXBOOT_FW STREQUAL "bios")
+    list(APPEND NEXBOOT_FW_DRIVERS drivers/vgaconsole.c 
+                                   drivers/ps2kbd.c
+                                   drivers/uart16550.c
+                                   drivers/biosdisk.c)
+endif()
+
+list(APPEND NEXBOOT_DRIVERS drivers/terminal.c
+                            drivers/volmanager.c)

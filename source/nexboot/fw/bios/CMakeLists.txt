@@ -30,8 +30,6 @@ endif()
 
 # Include boot record rules
 include(boot/bootrec.cmake)
-include(drivers/BiosDrivers.cmake)
-include(cpu/${NEXNIX_ARCH}/arch.cmake)
 
 # Determine bit number
 if(${NEXNIX_ARCH} STREQUAL "i386")
@@ -59,9 +57,9 @@ add_subdirectory(nbload)
 # Build bioscall
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bioscall.bin
                    COMMAND nasm -fbin 
-                           ${CMAKE_CURRENT_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/bioscall.asm
+                           ${CMAKE_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/bioscall.asm
                            -o ${CMAKE_CURRENT_BINARY_DIR}/bioscall.bin
-                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/bioscall.asm)
+                    DEPENDS ${CMAKE_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/bioscall.asm)
 set(NEXBOOT_BIOSCALL_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/bioscall.bin)
 
 # Generate source file wrapper
@@ -75,10 +73,10 @@ list(APPEND NEXBOOT_SOURCE_FILES
             biosmem.c
             hwdetect.c
             ${CMAKE_CURRENT_BINARY_DIR}/bioscall.asm)
-add_executable(nexboot-bios-1 ${NEXBOOT_SOURCE_FILES} ${NEXBOOT_BIOS_DRIVERS})
+add_executable(nexboot-bios-1 ${NEXBOOT_SOURCE_FILES})
 # Set linker script
 target_link_options(nexboot-bios-1 PRIVATE -Wl,-no-pie -T 
-                                   ${CMAKE_CURRENT_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/link.ld)
+                                   ${CMAKE_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/link.ld)
 target_link_libraries(nexboot-bios-1 PRIVATE nexboot)
 
 # Compress nexboot
@@ -94,7 +92,7 @@ add_executable(ndecomp decomp/decomp.c decomp/tinf/tinflate.c
                        decomp/tinf/adler32.c decomp/tinf/crc32.c)
 # Set linker script
 target_link_options(ndecomp PRIVATE -Wl,-no-pie -T 
-                            ${CMAKE_CURRENT_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/decomp_link.ld)
+                            ${CMAKE_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/decomp_link.ld)
 target_link_libraries(ndecomp PRIVATE ${NEXBOOT_LK_LOCATION})
 
 # Add a custom command to concatenate nexboot-bios and nbload

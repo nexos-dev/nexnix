@@ -364,14 +364,13 @@ static ListHead_t* parseInternal (ConfContext_t* ctx,
                 return NULL;
             }
             ListHead_t* menuBlocks = ListCreate ("ConfBlock_t", false, 0);
-            ListSetDestroy (blocks, destroyBlock);
+            ListSetDestroy (menuBlocks, destroyBlock);
             if (!menuBlocks)
             {
                 StrRefDestroy (block->name);
                 ListDestroy (blocks);
                 return NULL;
             }
-            block->blocks = menuBlocks;
             if (!parseInternal (ctx, menuBlocks, &tok, LEX_TOKEN_EBRACE))
             {
                 destroyMenuEnt (block);

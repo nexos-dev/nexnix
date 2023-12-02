@@ -1,5 +1,5 @@
 #[[
-    BiosDrivers.cmake - contains BIOS drivers source declarations
+    arch.cmake - contains i386 CMake stuff
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +15,8 @@
     limitations under the License.
 ]]
 
-list(APPEND NEXBOOT_BIOS_DRIVERS drivers/vgaconsole.c 
-                                 drivers/ps2kbd.c
-                                 drivers/uart16550.c
-                                 drivers/biosdisk.c)
+# Option for PAE
+nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
+
+# CPU related sources
+list(APPEND NEXBOOT_SOURCES cpu/i386/cpu.c)

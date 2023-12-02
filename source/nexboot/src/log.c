@@ -224,6 +224,10 @@ static int levelToPriority[] = {0,
                                 NEXBOOT_LOGLEVEL_INFO,
                                 NEXBOOT_LOGLEVEL_DEBUG};
 
+#ifndef NEXNIX_FW_BIOS
+#error test
+#endif
+
 static bool LogObjInit (void* objp, void* unused)
 {
     NbObject_t* obj = objp;

@@ -29,11 +29,6 @@ include(GNUInstallDirs)
 nexnix_add_parameter(NEXNIX_LOGLEVEL 
                      "Value that defines what should and shouldn't be logged"
                      2)
-if(NEXNIX_ARCH STREQUAL "i386")
-    nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
-elseif(NEXNIX_ARCH STREQUAL "x86_64")
-    nexnix_add_option(NEXNIX_X86_64_LA57 "Specifies if 5-level paging should be used" OFF)
-endif()
 
 # Add definition based off firmware type
 if(${NEXBOOT_FW} STREQUAL "bios")
@@ -50,6 +45,12 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 # but I don't know it
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
+# Include CPU files
+include(cpu/${NEXNIX_ARCH}/arch.cmake)
+
+# Include driver files
+include(drivers/Drivers.cmake)
+
 # Create object library of portable nexboot sources
 list(APPEND NEXBOOT_SOURCES 
             src/main.c
@@ -60,8 +61,6 @@ list(APPEND NEXBOOT_SOURCES
             src/object.c
             src/driver.c
             src/vfs.c
-            src/drivers/terminal.c
-            src/drivers/volmanager.c
             src/filesys/fat.c
             src/filesys/iso9660.c
             src/conf/lex.c
@@ -69,7 +68,8 @@ list(APPEND NEXBOOT_SOURCES
             src/cmds/shellbase.c
             src/cmds/objcmd.c
             src/cmds/mountcmd.c)
-add_library(nexboot OBJECT ${NEXBOOT_SOURCES})
+
+add_library(nexboot OBJECT ${NEXBOOT_SOURCES} ${NEXBOOT_FW_DRIVERS} ${NEXBOOT_DRIVERS})
 
 # Find libk and libnex
 find_library(NEXBOOT_LK_LOCATION k REQUIRED)

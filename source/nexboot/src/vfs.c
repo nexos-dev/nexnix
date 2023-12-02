@@ -137,6 +137,7 @@ static bool VfsFsCloseFile (void* obj, void* params)
     ObjDestroy (&file->obj);
     ListRemove (filesys->files, ListFind (filesys->files, file->fileId));
     free (file->blockBuf);
+    free (file);
     return true;
 }
 

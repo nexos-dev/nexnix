@@ -279,7 +279,7 @@ bool NbShellExecuteCmd (StringRef_t* cmd, Array_t* args)
 static void nbShellArgDestroy (void* p)
 {
     StringRef_t** ref = p;
-    StrRefDestroy ((*ref));
+    StrRefDestroy (*ref);
 }
 
 // Executes a block list
