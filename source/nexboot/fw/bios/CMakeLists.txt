@@ -52,7 +52,9 @@ add_boot_record(isombr1 ${CMAKE_CURRENT_SOURCE_DIR}/boot/isombr.asm
                       ${CMAKE_CURRENT_BINARY_DIR}/isombr "-DIS_NOFLOPPY")
 
 # Add nbload
-add_subdirectory(nbload)
+get_property(defines GLOBAL PROPERTY NEXNIX_ARCH_MACROS)
+add_boot_record(nbload ${CMAKE_CURRENT_SOURCE_DIR}/nbload/nbload.asm
+                       ${CMAKE_CURRENT_BINARY_DIR}/nbload "${defines}")
 
 # Build bioscall
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bioscall.bin
@@ -97,7 +99,7 @@ target_link_libraries(ndecomp PRIVATE ${NEXBOOT_LK_LOCATION})
 
 # Add a custom command to concatenate nexboot-bios and nbload
 set(NEXBOOT_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/nexboot")
-get_target_property(NBLOAD_OUTPUT nbload1 OUTPUT)
+get_target_property(NBLOAD_OUTPUT nbload OUTPUT)
 add_custom_command(OUTPUT ${NEXBOOT_OUTPUT}
                    COMMAND cat ${NBLOAD_OUTPUT} $<TARGET_FILE:ndecomp>
                    ${CMAKE_CURRENT_BINARY_DIR}/znexboot >

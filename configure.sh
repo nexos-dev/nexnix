@@ -954,7 +954,7 @@ Run $0 -l to see supported targets"
         echo "export NNMOUNTDIR=\"$output/conf/$target/$conf/fsdir/\"" >> nexnix-conf.sh
         echo "export NNTARGETISMP=$targetismp" >> nexnix-conf.sh
         echo "export NNFIRMWARE=\"$fwtype\"" >> nexnix-conf.sh
-        echo "export NNPKGROOT=\"$olddir/scripts/packages\"" >> nexnix-conf.sh
+        echo "export NNPKGROOT=\"$olddir/packages\"" >> nexnix-conf.sh
         if [ "$imagetype" = "iso9660" ]
         then
             echo "export NNIMGBOOTEMU=\"$imgbootemu\"" >> nexnix-conf.sh
@@ -975,7 +975,7 @@ Run $0 -l to see supported targets"
             echo "export NNISLA57=$isla57" >> nexnix-conf.sh
         fi
         # Link nnbuild.conf to configuration directory
-        ln -sf $olddir/scripts/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
+        ln -sf $olddir/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi
     # Check if libguestfs image needs to be decompressed
     if [ ! -f $olddir/scripts/guestfs_root.img ]

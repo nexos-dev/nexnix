@@ -71,6 +71,7 @@ then
 elif [ "$action" = "build" ]
 then
     build
+    [ ! -z "$(type writeconf | grep "function")" ] && writeconf           # Writes out configuration files
     if [ -f $NNPKGROOT/${pkg_name}/nnpkg-pkg.conf ]
     then
         nnpkg add $NNPKGROOT/${pkg_name}/nnpkg-pkg.conf -c $NNCONFROOT/nnpkg.conf \

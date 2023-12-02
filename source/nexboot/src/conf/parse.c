@@ -373,7 +373,7 @@ static ListHead_t* parseInternal (ConfContext_t* ctx,
             }
             if (!parseInternal (ctx, menuBlocks, &tok, LEX_TOKEN_EBRACE))
             {
-                destroyMenuEnt (block);
+                StrRefDestroy (block->name);
                 ListDestroy (blocks);
                 return NULL;
             }
@@ -423,8 +423,11 @@ ListHead_t* NbConfParse (ConfContext_t* ctx)
     ListHead_t* res = parseInternal (ctx, blocks, &tok, LEX_TOKEN_EOF);
     // Free state
     confLexDestroy (ctx);
-    free (tok);
-    if (ctx->lastToken)
-        free (ctx->lastToken);
+    if (res)
+    {
+        free (tok);
+        if (ctx->lastToken)
+            free (ctx->lastToken);
+    }
     return res;
 }

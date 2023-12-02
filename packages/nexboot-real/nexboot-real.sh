@@ -36,3 +36,16 @@ then
         pkg_confopts="$pkg_confopts -DNEXNIX_X86_64_LA57=OFF"
     fi
 fi
+
+# writeconf function
+writeconf()
+{
+    # First, evaulate all variables in template
+    file=$(envsubst < $NNPKGROOT/nexboot/conf/nexboot.cfg.in)
+    # Now replace all occurences of '| with '$'. This is because in the template, where
+    # where there should be a '$' in the actual file there is a '|' to prevent envsubst
+    # from messing with it
+    result=$(printf "%s" "$file" | sed -e 's/|/$/g')
+    # Print result to nexboot.cfg
+    printf "%s" "$result" > $NNDESTDIR/System/Core/Boot/nexboot.cfg
+}
