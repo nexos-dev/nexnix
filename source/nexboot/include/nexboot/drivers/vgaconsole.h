@@ -25,7 +25,7 @@
 typedef struct _vgaConsole
 {
     NbHwDevice_t hdr;     // Device header
-    NbDriver_t* owner;    // Driver who currently owns console
+    NbDriver_t* owner;    // Driver who currently owns device
     int rows;             // Console row amount
     int cols;             // Console column amount
     int mode;             // Console mode (currently on 80x25, 16 colors)

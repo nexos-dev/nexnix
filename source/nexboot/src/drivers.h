@@ -29,6 +29,7 @@ extern NbDriver_t ps2KbdDrv;
 extern NbDriver_t uart16550Drv;
 extern NbDriver_t biosDiskDrv;
 extern NbDriver_t volManagerDrv;
+extern NbDriver_t textUiDrv;
 
 // Driver tables
 
@@ -38,6 +39,6 @@ static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv,
                                        &ps2KbdDrv,
                                        &uart16550Drv,
                                        &biosDiskDrv};
-static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv};
+static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv, &textUiDrv};
 
 #endif

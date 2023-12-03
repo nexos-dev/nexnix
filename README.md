@@ -1,5 +1,5 @@
 # NexNix
-NexNix is an attempt to create a modern, multi-server, microkernel based Unix. It is based off the POSIX API and will be compatible with the Unix programs we know and love, but would will be more modern in design.
+NexNix is an attempt to create a modern, multi-server, microkernel based Unix. It is based off the POSIX API and will be compatible with the Unix programs we know and love, but will be more modern in design.
 
 In the use of a microkernel based system, we will achieve the following goals:
 

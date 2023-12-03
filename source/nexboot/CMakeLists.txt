@@ -67,7 +67,9 @@ list(APPEND NEXBOOT_SOURCES
             src/conf/parse.c
             src/cmds/shellbase.c
             src/cmds/objcmd.c
-            src/cmds/mountcmd.c)
+            src/cmds/mountcmd.c
+            src/ui/ui.c
+            src/ui/textui.c)
 
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES} ${NEXBOOT_FW_DRIVERS} ${NEXBOOT_DRIVERS})
 

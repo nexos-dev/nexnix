@@ -120,7 +120,7 @@ __assert_failed (const char* expr, const char* file, int line, const char* func)
                   file,
                   line,
                   func);
-        NbObjCallSvc (logObj, NB_LOG_WRITE, buf);
+        NbLogMessage (buf, NEXBOOT_LOGLEVEL_EMERGENCY);
     }
     NbCrash();
     __builtin_unreachable();
@@ -190,21 +190,24 @@ static bool LogWrite (void* objp, void* strp)
     {
         // Determine if console has a new owner
         NbTerminal_t* term = &log->outputInfos[str->priority - 1];
-        if (term->outEnd)
+        if (term)
         {
-            NbDriver_t* termDrv = NbFindDriver ("Terminal");
-            if (NbObjGetOwner (term->outEnd) != termDrv &&
-                str->priority <= NEXBOOT_LOGLEVEL_CRITICAL)
+            if (term->outEnd)
             {
-                // Inform it of it's new owner
-                NbObjNotify_t notify;
-                notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
-                notify.data = termDrv;
-                NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
+                NbDriver_t* termDrv = NbFindDriver ("Terminal");
+                if (NbObjGetOwner (term->outEnd) != termDrv &&
+                    str->priority <= NEXBOOT_LOGLEVEL_CRITICAL)
+                {
+                    // Inform it of it's new owner
+                    NbObjNotify_t notify;
+                    notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+                    notify.data = termDrv;
+                    NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
+                }
             }
+            NbObject_t* termObj = log->outputDevs[str->priority - 1];
+            NbObjCallSvc (termObj, NB_TERMINAL_WRITE, (void*) str->str);
         }
-        NbObject_t* termObj = log->outputDevs[str->priority - 1];
-        NbObjCallSvc (termObj, NB_TERMINAL_WRITE, (void*) str->str);
     }
     return true;
 }
@@ -348,6 +351,7 @@ void NbLogInit2 (NbloadDetect_t* detect)
     NbObjRef (logObj);
     // Disable BIOS printing
     NbDisablePrintEarly();
+    logInit = true;
 }
 
 // Standard logging function

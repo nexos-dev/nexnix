@@ -23,7 +23,8 @@
 #define OBJ_TYPE_SYSINFO 2
 #define OBJ_TYPE_LOG     3
 #define OBJ_TYPE_FS      4
-#define OBJ_MAX_TYPE     4
+#define OBJ_TYPE_UI      5
+#define OBJ_MAX_TYPE     5
 
 #define OBJ_INTERFACE_DIR           0
 #define OBJ_INTERFACE_CONSOLE       1
@@ -33,6 +34,7 @@
 #define OBJ_INTERFACE_TERMINAL      5
 #define OBJ_INTERFACE_DISK          6
 #define OBJ_INTERFACE_VOLUME        7
-#define OBJ_MAX_INTERFACE           7
+#define OBJ_INTERFACE_TEXTUI        8
+#define OBJ_MAX_INTERFACE           8
 
 #endif

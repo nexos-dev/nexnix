@@ -185,8 +185,6 @@ static bool Uart16550Notify (void* objp, void* params)
         // Set new owner
         console->owner = newDrv;
         NbObjSetOwner (obj, newDrv);
-        // Attach it
-        newDrv->entry (NB_DRIVER_ENTRY_ATTACHOBJ, obj);
     }
     return true;
 }

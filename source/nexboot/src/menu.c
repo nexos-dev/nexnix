@@ -17,8 +17,10 @@
 
 #include <assert.h>
 #include <libnex/array.h>
+#include <libnex/base.h>
 #include <nexboot/nexboot.h>
 #include <nexboot/shell.h>
+#include <nexboot/ui.h>
 
 // Array of menu entries
 static Array_t* menuEntries = NULL;
@@ -44,4 +46,14 @@ void NbMenuAddEntry (StringRef_t* name, ListHead_t* cmdLine)
     // Initialize
     ent->name = StrRefNew (name);
     ent->cmdLine = cmdLine;
+}
+
+// Initializes menu UI
+bool NbMenuInitUi (Array_t* args)
+{
+    UNUSED (args);
+    // Initialize UI backend
+    NbUiInit();
+    NbUiDestroy();
+    return true;
 }

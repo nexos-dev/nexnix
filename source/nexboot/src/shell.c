@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <libnex/array.h>
 #include <nexboot/drivers/terminal.h>
+#include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -71,13 +72,16 @@ uint32_t NbShellRead (char* buf, uint32_t bufSz)
 // Writes to terminal
 void NbShellWrite (const char* fmt, ...)
 {
-    va_list ap;
-    va_start (ap, fmt);
-    // Parse format string
-    char buf[512] = {0};
-    vsnprintf (buf, 512, fmt, ap);
-    va_end (ap);
-    NbObjCallSvc (shellTerm, NB_TERMINAL_WRITE, buf);
+    if (shellTerm)
+    {
+        va_list ap;
+        va_start (ap, fmt);
+        // Parse format string
+        char buf[512] = {0};
+        vsnprintf (buf, 512, fmt, ap);
+        va_end (ap);
+        NbObjCallSvc (shellTerm, NB_TERMINAL_WRITE, buf);
+    }
 }
 
 static NbObject_t* nbFindPrimaryTerm()
@@ -135,27 +139,30 @@ static void nbEnableEcho()
 // Printf out function NbShellWritePaged
 static int pagedOut (_printfOut_t* out, char c)
 {
-    // Write it
-    NbShellWriteChar (c);
-    ++out->charsPrinted;
-    // If we are on last row, prompt to stop
-    NbTerminal_t term;
-    NbObjCallSvc (shellTerm, NB_TERMINAL_GETOPTS, &term);
-    if (term.row == (term.numRows - 1) && c == '\n')
+    if (shellTerm)
     {
-        // We are on last row, prompt to continue
-        NbShellWrite ("Press a key to continue...");
-        nbDisableEcho();
-        char c = 0;
-        NbObjCallSvc (shellTerm, NB_TERMINAL_READCHAR, &c);
-        nbEnableEcho();
-        // Overwrite prompt
-        term.col = 0;
-        NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
-        NbShellWrite ("                          ");
-        // Reset column back to zero again
-        term.col = 0;
-        NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
+        // Write it
+        NbShellWriteChar (c);
+        ++out->charsPrinted;
+        // If we are on last row, prompt to stop
+        NbTerminal_t term;
+        NbObjCallSvc (shellTerm, NB_TERMINAL_GETOPTS, &term);
+        if (term.row == (term.numRows - 1) && c == '\n')
+        {
+            // We are on last row, prompt to continue
+            NbShellWrite ("Press a key to continue...");
+            nbDisableEcho();
+            char c = 0;
+            NbObjCallSvc (shellTerm, NB_TERMINAL_READCHAR, &c);
+            nbEnableEcho();
+            // Overwrite prompt
+            term.col = 0;
+            NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
+            NbShellWrite ("                          ");
+            // Reset column back to zero again
+            term.col = 0;
+            NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
+        }
     }
     return 0;
 }
@@ -469,6 +476,9 @@ static void nbShellPrompt2 (ConfContext_t* ctx)
 
 static void nbShellLoop()
 {
+    // If there is no terminal, crash
+    if (!shellTerm)
+        NbCrash();
 #define KEYBUFSZ 256
     char* keyInput = malloc (KEYBUFSZ);
     while (1)
@@ -500,7 +510,15 @@ bool NbShellLaunch (NbFile_t* confFile)
 {
     // Grab terminal
     shellTerm = nbFindPrimaryTerm();
-    assert (shellTerm);
+    if (shellTerm)
+    {
+        // Ensure backspaces aren't echoed
+        NbTerminal_t term = {0};
+        NbObjCallSvc (shellTerm, NB_TERMINAL_GETOPTS, &term);
+        term.echo = true;
+        term.echoc = TERM_NO_ECHO_BACKSPACE;
+        NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
+    }
     // Initialize context
     shellVars =
         ArrayCreate (SHELLVAR_GROW_SIZE, SHELLVAR_MAX_SIZE, sizeof (ShellVar_t));
@@ -508,16 +526,9 @@ bool NbShellLaunch (NbFile_t* confFile)
     ArraySetDestroy (shellVars, nbShellVarDestroy);
     // Welcome
     NbShellWrite ("Welcome to nexboot!\n\n");
-    // Ensure backspaces aren't echoed
-    NbTerminal_t term = {0};
-    NbObjCallSvc (shellTerm, NB_TERMINAL_GETOPTS, &term);
-    term.echo = true;
-    term.echoc = TERM_NO_ECHO_BACKSPACE;
-    NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
     if (!confFile)
     {
         NbShellWrite ("nexboot: no nexboot.cfg found\n");
-        // Launch shell loop
         nbShellLoop();
     }
     else

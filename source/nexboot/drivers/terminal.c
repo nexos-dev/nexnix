@@ -169,6 +169,100 @@ static bool TerminalEntry (int code, void* params)
             }
             break;
         }
+        case NB_DRIVER_ENTRY_ATTACHOBJ: {
+            NbObject_t* dev = params;
+            // Find terminal which is compatible with this device
+            bool termFound = false;
+            int i = 0;
+            for (; i < curTerm; ++i)
+            {
+                // Check if this terminal needs an output device
+                if (!terms[i]->outEnd)
+                {
+                    bool doSet = false;
+                    // Check if input is compatible with device
+                    if (terms[i]->inEnd)
+                    {
+                        if (dev->interface == OBJ_INTERFACE_CONSOLE &&
+                            terms[i]->inEnd->interface == OBJ_INTERFACE_KBD)
+                        {
+                            doSet = true;
+                        }
+                        if (dev->interface == OBJ_INTERFACE_RS232 &&
+                            terms[i]->inEnd->interface == OBJ_INTERFACE_RS232)
+                        {
+                            doSet = true;
+                        }
+                    }
+                    else
+                        doSet = true;
+                    if (doSet)
+                    {
+                        // Set it
+                        terms[i]->outEnd = dev;
+                        // Notify driver
+                        NbObjNotify_t notify = {0};
+                        if (dev->interface == OBJ_INTERFACE_CONSOLE)
+                        {
+                            NbConsoleSz_t sz = {0};
+                            NbObjCallSvc (terms[i]->outEnd,
+                                          NB_CONSOLEHW_GET_SIZE,
+                                          &sz);
+                            terms[i]->numCols = sz.cols;
+                            terms[i]->numRows = sz.rows;
+                            terms[i]->col = 0;
+                            terms[i]->row = 0;
+                            terms[i]->echo = true;
+                            // Clear screen
+                            NbObjCallSvc (terms[i]->outEnd,
+                                          NB_CONSOLEHW_CLEAR,
+                                          NULL);
+                            notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+                        }
+                        else if (dev->interface == OBJ_INTERFACE_RS232)
+                            notify.code = NB_SERIAL_NOTIFY_SETOWNER;
+                        notify.data = &terminalDrv;
+                        NbObjCallSvc (dev, OBJ_SERVICE_NOTIFY, &notify);
+                    }
+                    break;
+                }
+            }
+            if (!terms[i]->inEnd)
+            {
+                bool doSet = false;
+                // Check if output is compatible with device
+                if (terms[i]->outEnd)
+                {
+                    if (dev->interface == OBJ_INTERFACE_KBD &&
+                        terms[i]->outEnd->interface == OBJ_INTERFACE_CONSOLE)
+                    {
+                        doSet = true;
+                    }
+                    if (dev->interface == OBJ_INTERFACE_RS232 &&
+                        terms[i]->outEnd->interface == OBJ_INTERFACE_RS232)
+                    {
+                        doSet = true;
+                    }
+                }
+                else
+                    doSet = true;
+                if (doSet)
+                {
+                    // Set it
+                    terms[i]->inEnd = dev;
+                    // Notify driver
+                    NbObjNotify_t notify = {0};
+                    if (dev->interface == OBJ_INTERFACE_KBD)
+                        notify.code = NB_KEYBOARD_NOTIFY_SETOWNER;
+                    else if (dev->interface == OBJ_INTERFACE_RS232)
+                        notify.code = NB_SERIAL_NOTIFY_SETOWNER;
+                    notify.data = &terminalDrv;
+                    NbObjCallSvc (dev, OBJ_SERVICE_NOTIFY, &notify);
+                    break;
+                }
+            }
+            break;
+        }
         case NB_DRIVER_ENTRY_DETACHOBJ: {
             NbObject_t* obj = params;
             // Determine if this is an output or input device
