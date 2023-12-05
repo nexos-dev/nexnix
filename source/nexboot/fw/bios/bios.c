@@ -22,6 +22,7 @@
 
 // Location of bioscall blob
 #define NEXBOOT_BIOSCALL_BLOB 0x1000
+#define NEXBOOT_MBRCALL_BLOB  0x2000
 
 // Calls NbBiosCall in binary blob
 void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out)
@@ -30,6 +31,13 @@ void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out)
     void (*bioscall) (uint32_t, NbBiosRegs_t*, NbBiosRegs_t*) =
         (void*) NEXBOOT_BIOSCALL_BLOB;
     bioscall (intNo, in, out);
+}
+
+// Calls NbBiosCall
+void NbBiosCallMbr (uint8_t driveNum)
+{
+    void (*mbrcall) (uint32_t) = (void*) NEXBOOT_MBRCALL_BLOB;
+    mbrcall (driveNum);
 }
 
 // Print a character to the BIOS screen
@@ -91,4 +99,5 @@ NbObject_t* NbFwGetBootDisk()
             }
         }
     }
+    return NULL;
 }

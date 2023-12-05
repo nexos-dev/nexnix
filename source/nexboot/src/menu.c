@@ -135,7 +135,7 @@ bool NbPayloadMain (Array_t* args)
     // Get element
     StringRef_t** elem = ArrayGetElement (args, 0);
     assert (elem);
-    os->payload = StrRefGet (*elem);
+    os->payload = StrRefNew (*elem);
     return true;
 }
 
@@ -290,6 +290,7 @@ static void nbMenuBootOs()
         ArrayDestroy (os->mods);
     free (os);             // If we get here, boot failed, free OS structure
     selectedEnt = NULL;    // De-select OS
+    os = NULL;
 }
 
 // Selects a menu entry

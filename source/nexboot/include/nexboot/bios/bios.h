@@ -82,6 +82,9 @@ typedef struct _biosregFrame
 /// Calls BIOS function with specified register state
 void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out);
 
+/// Calls MBR. Used for chainloading
+void NbBiosCallMbr (uint8_t driveNum);
+
 /// Prints a character to screen using int 0x10. Used during early phases
 void NbFwEarlyPrint (char c);
 
@@ -91,6 +94,8 @@ void NbFwEarlyPrint (char c);
 
 #define NEXBOOT_BIOSBUF_BASE  0xE000
 #define NEXBOOT_BIOSBUF2_BASE 0xF000
+
+#define NEXBOOT_BIOS_MBR_BASE 0x7C00
 
 // System detection macros
 

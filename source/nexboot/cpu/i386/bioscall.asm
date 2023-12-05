@@ -156,3 +156,41 @@ pmodeStack: dd 0
 ivt:
     dw 0x3FF
     dd 0
+
+times 0x1000 - ($$-$) db 0
+
+NbBiosCallMbr:
+    push ebp
+    mov ebp, esp
+    ; Grab drive number
+    mov edx, [ebp+8]
+    ; Set stack
+    mov esp, BIOS_STACK_TOP
+    ; Turn off paging
+    mov eax, cr0
+    and eax, ~(0x80000000)
+    mov cr0, eax
+    ; To 16 bit
+    jmp 0x08:.16bit
+bits 16
+.16bit:
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, BIOS_STACK_TOP
+    ; Clear PE bit
+    mov eax, cr0
+    and eax, ~(1 << 0)
+    mov cr0, eax
+    ; And to real mode
+    jmp 0:.rm
+.rm:
+    ; Set segments / stack
+    mov ax, 0
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, BIOS_STACK_TOP
+    ; To the MBR
+    jmp 0:0x7C00
