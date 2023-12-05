@@ -74,6 +74,7 @@ list(APPEND NEXBOOT_SOURCE_FILES
             bios.c
             biosmem.c
             hwdetect.c
+            chainload.c
             ${CMAKE_CURRENT_BINARY_DIR}/bioscall.asm)
 add_executable(nexboot-bios-1 ${NEXBOOT_SOURCE_FILES})
 # Set linker script

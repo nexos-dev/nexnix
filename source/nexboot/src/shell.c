@@ -401,7 +401,15 @@ int NbShellExecute (ListHead_t* blocks)
             }
             else
             {
-                NbShellExecuteCmd (cmdName, args);
+                // If fail is set, fail on failure
+                bool res = NbShellExecuteCmd (cmdName, args);
+                StringRef_t* fail = NbShellGetVar ("fail");
+                if (fail && !strcmp (StrRefGet (fail), "1"))
+                {
+                    // Check for failute
+                    if (!res)
+                        return false;
+                }
             }
             ArrayDestroy (args);
         }

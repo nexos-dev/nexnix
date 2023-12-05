@@ -24,6 +24,11 @@ typedef struct _uielem
     int type;                  /// Type of element being represented
     int x;                     /// X position of top left corner
     int y;                     /// Y position of top left corner
+    int width;                 /// Width of element
+    int height;                /// Height of element
+    int fgColor;               /// Foreground color
+    int bgColor;               /// Background color. -1 for transparent
+    bool invalid;              /// Does element need to be redrawn?
     struct _uielem* parent;    /// Parent UI element
     struct _uielem* child;     /// First child element
     struct _uielem* left;      /// Left UI element in tree
@@ -35,22 +40,20 @@ typedef struct _uitext
 {
     NbUiElement_t elem;    /// Element header
     StringRef_t* text;     /// Internal text
-    int fgColor;           /// Foreground color
-    int bgColor;           /// Background color. -1 for transparent
 } NbUiText_t;
 
 /// UI menubox element
 typedef struct _uimenubox
 {
     NbUiElement_t elem;    /// Element header
-    int color;             /// Color of border
+    int numElems;
 } NbUiMenuBox_t;
 
 /// UI menubox entry element
 typedef struct _uimenuentry
 {
-    NbUiElement_t header;    /// Element header
-    bool isSelected;         /// Is it selected?
+    NbUiElement_t elem;    /// Element header
+    bool isSelected;       /// Is it selected?
 } NbUiMenuEntry_t;
 
 /// UI info
@@ -82,17 +85,25 @@ void NbUiDestroy();
 /// Creates a UI text box
 NbUiText_t* NbUiCreateText (NbUiElement_t* parent,
                             StringRef_t* str,
+                            int x,
+                            int y,
+                            int width,
+                            int height,
                             int fgColor,
                             int bgColor);
 
 /// Creates a UI menu box
-NbUiMenuBox_t* NbUiCreateMenuBox (NbUiElement_t* parent, int color);
+NbUiMenuBox_t* NbUiCreateMenuBox (NbUiElement_t* parent,
+                                  int x,
+                                  int y,
+                                  int width,
+                                  int height);
 
 /// Adds a menu entry to a menu box
-NbUiMenuEntry_t* NbUiAddMenuEntry (NbUiMenuBox_t* menu, NbUiText_t* text);
+NbUiMenuEntry_t* NbUiAddMenuEntry (NbUiMenuBox_t* menu);
 
 /// Destroys a UI element
-void NbUiDestroyElement (NbUiElement_t* elem);
+bool NbUiDestroyElement (NbUiElement_t* elem);
 
 /// Draws a UI element
 void NbUiDrawElement (NbUiElement_t* elem);
@@ -100,6 +111,15 @@ void NbUiDrawElement (NbUiElement_t* elem);
 /// Helper to compute absolute coordinates
 void NbUiComputeCoords (NbUiElement_t* elem, int* x, int* y);
 
+/// Invalidates a UI element
+#define NbUiInvalidate(elem) ((elem)->invalid = true)
+
 // UI driver stuff
+#define NB_UI_ELEMENT_TEXT    1
+#define NB_UI_ELEMENT_MENU    2
+#define NB_UI_ELEMENT_MENUENT 3
+
+#define NB_UIDRV_DRAWELEM    5
+#define NB_UIDRV_DESTROYELEM 6
 
 #endif

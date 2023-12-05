@@ -61,6 +61,7 @@ list(APPEND NEXBOOT_SOURCES
             src/object.c
             src/driver.c
             src/vfs.c
+            src/nexnix.c
             src/filesys/fat.c
             src/filesys/iso9660.c
             src/conf/lex.c

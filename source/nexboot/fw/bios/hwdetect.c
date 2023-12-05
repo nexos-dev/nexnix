@@ -292,7 +292,7 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     while (NbSendDriverCode (biosDiskDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
     {
         char buf[64] = {0};
-        snprintf (buf, 64, "/Devices/Disk%d", dev->devId);
+        snprintf (buf, 64, "/Devices/BiosDisk%d", dev->devId);
         createDeviceObject (buf, OBJ_INTERFACE_DISK, biosDiskDrv, dev);
         dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
     }

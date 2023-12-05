@@ -377,7 +377,7 @@ static ListHead_t* parseInternal (ConfContext_t* ctx,
                 ListDestroy (blocks);
                 return NULL;
             }
-            block->blocks = menuBlocks;
+            block->blocks = (ListHead_t*) ListRef (menuBlocks);
             ctx->insideMenu = false;
             ListAddBack (blocks, block, 0);
         }

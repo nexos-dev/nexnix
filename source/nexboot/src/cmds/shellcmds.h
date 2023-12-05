@@ -37,6 +37,11 @@ bool NbMountMain (Array_t*);
 bool NbUnmountMain (Array_t*);
 bool NbLsMain (Array_t*);
 bool NbMenuInitUi (Array_t*);
+bool NbBootTypeMain (Array_t*);
+bool NbPayloadMain (Array_t*);
+bool NbBootArgsMain (Array_t*);
+bool NbBootModMain (Array_t*);
+bool NbBootMain (Array_t*);
 
 typedef bool (*NbCmdMain) (Array_t*);
 
@@ -61,7 +66,12 @@ ShellCmd_t shellCmdTab[] = {
     {.name = "mount",    .entry = NbMountMain   },
     {.name = "unmount",  .entry = NbUnmountMain },
     {.name = "ls",       .entry = NbLsMain      },
-    {.name = "showui",   .entry = NbMenuInitUi  }
+    {.name = "showui",   .entry = NbMenuInitUi  },
+    {.name = "boottype", .entry = NbBootTypeMain},
+    {.name = "payload",  .entry = NbPayloadMain },
+    {.name = "bootargs", .entry = NbBootArgsMain},
+    {.name = "bootmod",  .entry = NbBootModMain },
+    {.name = "boot",     .entry = NbBootMain    }
 };
 
 #endif

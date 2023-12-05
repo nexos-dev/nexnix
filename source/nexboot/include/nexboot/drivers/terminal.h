@@ -64,20 +64,32 @@ typedef struct _consoleLoc
 // Key structure
 typedef struct _keyData
 {
-    union
-    {
-        uint8_t c;              // Key character in ASCII
-        const char* escCode;    // VT-100 escape code of key
-    };
-    bool isEscCode;    // Wheter this is an escape code or not
-    bool isBreak;      // Key was released, not pressed
-    int flags;         // Contains state of capitals, CTRL, SHIFT, and ALT
+    uint8_t c;              // Key character in ASCII
+    const char* escCode;    // VT-100 escape code of key
+    bool isEscCode;         // Wheter this is an escape code or not
+    bool isBreak;           // Key was released, not pressed
+    int flags;              // Contains state of capitals, CTRL, SHIFT, and ALT
 } NbKeyData_t;
 
 #define NB_KEY_FLAG_CTRL  (1 << 0)
 #define NB_KEY_FLAG_ALT   (1 << 1)
 #define NB_KEY_FLAG_CAPS  (1 << 2)
 #define NB_KEY_FLAG_SHIFT (1 << 3)
+
+#define NB_KEY_ALT       0xFF
+#define NB_KEY_SHIFT     0xFE
+#define NB_KEY_CTRL      0xFD
+#define NB_KEY_CAPS_LOCK 0xFC
+#define NB_KEY_NUM_LOCK  0xFA
+#define NB_KEY_END       0xF9
+#define NB_KEY_LEFT      0xF8
+#define NB_KEY_HOME      0xF7
+#define NB_KEY_DELETE    0xF6
+#define NB_KEY_DOWN      0xF5
+#define NB_KEY_RIGHT     0xF4
+#define NB_KEY_UP        0xF3
+#define NB_KEY_PGDN      0xF2
+#define NB_KEY_PGUP      0xF1
 
 // Serial port stuff
 #define NB_SERIAL_WRITE 5

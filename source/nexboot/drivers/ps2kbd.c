@@ -247,15 +247,15 @@ static bool Ps2ReadKey (void* objp, void* params)
     while (!isFinished)
     {
         uint8_t scanCode = ps2ReadData();
-        if (scanCode & (1 << 7))
-        {
-            scanCode &= ~(1 << 7);
-            isBreak = true;
-        }
-        else if (scanCode == 0xE0)
+        if (scanCode == 0xE0)
         {
             isExtCode = true;
             continue;
+        }
+        else if (scanCode & (1 << 7))
+        {
+            scanCode &= ~(1 << 7);
+            isBreak = true;
         }
         // Get character
         uint8_t c = 0;
@@ -267,7 +267,7 @@ static bool Ps2ReadKey (void* objp, void* params)
         else
             c = scanToEnUs[scanCode];
         // Defer caps lock handling until break code
-        if (c == PS2_KEY_CAPS_LOCK)
+        if (c == NB_KEY_CAPS_LOCK)
         {
             if (isBreak)
             {
@@ -292,7 +292,7 @@ static bool Ps2ReadKey (void* objp, void* params)
             continue;
         }
         // Handle num lock
-        else if (c == PS2_KEY_NUM_LOCK)
+        else if (c == NB_KEY_NUM_LOCK)
         {
             if (isBreak)
                 ps2ToggleLed (kbd, PS2_LED_NUM_LOCK);
@@ -303,7 +303,7 @@ static bool Ps2ReadKey (void* objp, void* params)
             continue;
         }
         // Handle shift
-        else if (c == PS2_KEY_SHIFT)
+        else if (c == NB_KEY_SHIFT)
         {
             // Turn flag on or off
             if (isBreak)
@@ -323,7 +323,7 @@ static bool Ps2ReadKey (void* objp, void* params)
             continue;
         }
         // Handle CTRL and ALT
-        else if (c == PS2_KEY_CTRL)
+        else if (c == NB_KEY_CTRL)
         {
             if (isBreak)
             {
@@ -341,7 +341,7 @@ static bool Ps2ReadKey (void* objp, void* params)
                 isExtCode = false;
             continue;
         }
-        else if (c == PS2_KEY_ALT)
+        else if (c == NB_KEY_ALT)
         {
             if (isBreak)
             {
@@ -373,7 +373,7 @@ static bool Ps2ReadKey (void* objp, void* params)
         keyData->isBreak = isBreak;
         keyData->c = c;
         // Maybe this is an escape code
-        if (c >= 0xF0 && c <= PS2_KEY_END)
+        if (c >= 0xF0 && c <= NB_KEY_END)
         {
             // Convert to escape code
             keyData->isEscCode = true;

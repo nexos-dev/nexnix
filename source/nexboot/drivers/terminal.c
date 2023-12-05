@@ -213,6 +213,13 @@ static bool TerminalEntry (int code, void* params)
                             terms[i]->col = 0;
                             terms[i]->row = 0;
                             terms[i]->echo = true;
+                            // Set colors
+                            NbObjCallSvc (terms[i]->outEnd,
+                                          NB_CONSOLEHW_SET_BGCOLOR,
+                                          (void*) NB_CONSOLE_COLOR_BLACK);
+                            NbObjCallSvc (terms[i]->outEnd,
+                                          NB_CONSOLEHW_SET_FGCOLOR,
+                                          (void*) NB_CONSOLE_COLOR_WHITE);
                             // Clear screen
                             NbObjCallSvc (terms[i]->outEnd,
                                           NB_CONSOLEHW_CLEAR,
