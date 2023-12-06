@@ -1,0 +1,60 @@
+#[[
+    CMakeLists.txt - contains build system for nexke
+    Copyright 2023 The NexNix Project
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+]]
+
+cmake_minimum_required(VERSION 3.7)
+project(nexke C ASM_NASM)
+
+include(SystemBuild/ArchToMacro)
+include(SystemBuild/Options)
+include(GNUInstallDirs)
+
+# Check for options
+if(NOT NEXNIX_ARCH)
+    set(NEXNIX_ARCH i386)
+endif()
+
+if(NOT NEXNIX_BOARD)
+    set(NEXNIX_BOARD pc)
+endif()
+
+if(NOT NEXNIX_TOOLCHAIN)
+    message(FATAL_ERROR "toolchain not specified")
+endif()
+
+if(NOT NEXNIX_TARGETCONF)
+    if(NEXNIX_BOARD STREQUAL "pc")
+        set(NEXNIX_TARGETCONF "acpi")
+    endif()
+endif()
+
+if(NOT NEXNIX_BASEARCH)
+    if(NEXNIX_ARCH STREQUAL "i386")
+        set(NEXNIX_BASEARCH "x86")
+    endif()
+endif()
+
+nexnix_add_parameter(NEXNIX_LOGLEVEL 
+                     "Value that defines what should and shouldn't be logged"
+                     2)
+
+
+# Install header files
+# HACK ALERT: we install directly to /usr/include. There probably is a better way of doing this,
+# but I don't know it
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
+
+#
