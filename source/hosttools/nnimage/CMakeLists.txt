@@ -27,6 +27,7 @@ list(APPEND NNIMAGE_SOURCES
      update.c)
 
 # Include libguestfs
+set(CMAKE_PREFIX_PATH "/usr/local")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GUESTFS REQUIRED IMPORTED_TARGET libguestfs)
 

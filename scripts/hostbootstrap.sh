@@ -285,64 +285,6 @@ then
             make check -j$NNJOBCOUNT
             checkerr $? "libmpc test suite failed"
         fi
-
-        # Download libisl
-        if [ ! -d $NNEXTSOURCEROOT/tools/libraries/isl-${islver} ] || [ "$rebuild" = "1" ]
-        then
-            mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
-            wget https://libisl.sourceforge.io/isl-0.24.tar.gz
-            checkerr $? "unable to download libisl"
-            cd ../libraries
-            echo "Extracting libisl..."
-            tar xf ../tarballs/isl-${islver}.tar.gz
-        fi
-        # Build it
-        if [ ! -f $NNBUILDROOT/tools/lib/libisl.a ] || [ "$rebuild" = "1" ]
-        then
-            islroot="$NNEXTSOURCEROOT/tools/libraries/isl-${islver}"
-            mkdir -p $NNBUILDROOT/build/tools/libisl-build
-            cd $NNBUILDROOT/build/tools/libisl-build
-            $islroot/configure --disable-shared --prefix=$NNBUILDROOT/tools \
-                                --with-gmp-prefix=$NNBUILDROOT/tools CFLAGS="-O2 -DNDEBUG" \
-                                CXXFLAGS="-O2 -DNDEBUG"
-            checkerr $? "unable to configure libisl"
-            make -j$NNJOBCOUNT
-            checkerr $? "unable to build libisl"
-            make install -j$NNJOBCOUNT
-            checkerr $? "unable to install libisl"
-            make check -j$NNJOBCOUNT
-            checkerr $? "libisl test suite failed"
-        fi
-
-        # Download libcloog
-        if [ ! -d $NNEXTSOURCEROOT/tools/libraries/cloog-${cloogver} ] || [ "$rebuild" = "1" ]
-        then
-            mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
-            wget https://github.com/periscop/cloog/releases/download/cloog-${cloogver}/cloog-${cloogver}.tar.gz
-            checkerr $? "unable to download libcloog"
-            cd ../libraries
-            echo "Extracting libcloog..."
-            tar xf ../tarballs/cloog-${cloogver}.tar.gz
-        fi
-        # Build it
-        if [ ! -f $NNBUILDROOT/tools/lib/libcloog-isl.a ] || [ "$rebuild" = "1" ]
-        then
-            cloogroot="$NNEXTSOURCEROOT/tools/libraries/cloog-${cloogver}"
-            mkdir -p $NNBUILDROOT/build/tools/libcloog-build
-            cd $NNBUILDROOT/build/tools/libcloog-build
-            $cloogroot/configure --disable-shared --prefix=$NNBUILDROOT/tools \
-                                --with-gmp-prefix=$NNBUILDROOT/tools \
-                                --with-isl-prefix=$NNBUILDROOT/tools \
-                                --with-osl=bundled CFLAGS="-O2 -DNDEBUG" \
-                                CXXFLAGS="-O2 -DNDEBUG"
-            checkerr $? "unable to configure libcloog"
-            make -j$NNJOBCOUNT
-            checkerr $? "unable to build libcloog"
-            make install -j$NNJOBCOUNT
-            checkerr $? "unable to install libcloog"
-            make check -j$NNJOBCOUNT
-            checkerr $? "libcloog test suite failed"
-        fi
     fi
 elif [ "$component" = "nasm" ] && [ "$NNCOMMONARCH" = "x86" ]
 then
@@ -397,8 +339,8 @@ then
             mkdir -p $NNBUILDROOT/build/tools/binutils-build
             cd $NNBUILDROOT/build/tools/binutils-build
             $binroot/configure --prefix=$NNBUILDROOT/tools/$NNTOOLCHAIN --disable-nls \
-                               --disable-shared --disable-werror --with-sysroot\
-                               --enable-gold=default --target=$NNARCH-elf CFLAGS="-O2 -DNDEBUG" \
+                               --disable-shared --disable-werror --with-sysroot \
+                                --target=$NNARCH-elf CFLAGS="-O2 -DNDEBUG" \
                                 CXXFLAGS="-O2 -DNDEBUG"
             checkerr $? "unable to configure binutils"
             make -j$NNJOBCOUNT
@@ -428,8 +370,7 @@ then
                                --disable-nls --disable-shared \
                                 --without-headers --enable-languages=c,c++ \
                                 --with-gmp=$NNBUILDROOT/tools --with-mpfr=$NNBUILDROOT/tools \
-                                --with-mpc=$NNBUILDROOT/tools --with-isl=$NNBUILDROOT/tools \
-                                --with-cloog=$NNBUILDROOT/tools \
+                                --with-mpc=$NNBUILDROOT/tools \
                                 CFLAGS="-O2 -DNDEBUG" CXXFLAGS="-O2 -DNDEBUG"\
                                 --prefix=$NNTOOLCHAINPATH/..
             checkerr $? "unable to configure GCC"
@@ -517,7 +458,7 @@ then
 elif [ "$component" = "firmware" ]
 then
     echo "Building firmware images..."
-    if [ ! -d $NNEXTSOURCEROOT/tools/edk2 ] || [ "$rebuild" = "1" ]
+    if ([ ! -d $NNEXTSOURCEROOT/tools/edk2 ] || [ "$rebuild" = "1" ])
     then
         rm -rf $NNEXTSOURCEROOT/tools/edk2 $NNEXTSOURCEROOT/tools/edk2-platforms \
                $NNEXTSOURCEROOT/tools/edk2-non-osi
@@ -536,44 +477,47 @@ then
         git submodule update --init
         checkerr $? "unable to download EDK2"
     fi
-    if [ ! -f $NNBUILDROOT/tools/firmware/fw${NNARCH}done ] || [ "$rebuild" = "1" ]
+    if [ ! -f $NNBUILDROOT/tools/firmware/fw${NNARCH}done ] || [ "$rebuild" = "1" ] && [ "$BUILDFW" = "1" ]
     then
-        edk2root="$NNEXTSOURCEROOT/tools"
-        export WORKSPACE=$edk2root/edk2
-        export EDK_TOOLS_PATH="$WORKSPACE/BaseTools"
-        export PACKAGES_PATH="$edk2root/edk2:$edk2root/edk2-platforms:$edk2root/edk2-non-osi"
-        export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-        export GCC5_RISCV64_PREFIX=riscv64-linux-gnu-
-        export GCC5_X64_PREFIX=x86_64-linux-gnu-
-        export GCC5_IA32_PREFIX=i686-linux-gnu-
-        cd $edk2root
-        . edk2/edksetup.sh
-        make -C edk2/BaseTools -j $NNJOBCOUNT
-        # Build it
-        if [ "$NNARCH" = "i386" ]
+        if [ "$NNFIRMWARE" = "efi" ]
         then
-            ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
-            mkdir -p $NNBUILDROOT/tools/firmware
-            build -a IA32 -t GCC5 -p OvmfPkg/OvmfPkgIa32.dsc
-            checkerr $? "unable to build EDK2"
-            echo "Installing EDK2..."
-            cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_CODE.fd \
-               $NNBUILDROOT/tools/firmware/OVMF_CODE_i386.fd
-            cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_VARS.fd \
-               $NNBUILDROOT/tools/firmware/OVMF_VARS_i386.fd
-            touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
-        elif [ "$NNARCH" = "x86_64" ]
-        then
-            ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
-            mkdir -p $NNBUILDROOT/tools/firmware
-            build -a X64 -t GCC5 -p OvmfPkg/OvmfPkgX64.dsc
-            checkerr $? "unable to build EDK2"
-            echo "Installing EDK2..."
-            cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_CODE.fd \
-               $NNBUILDROOT/tools/firmware/OVMF_CODE_X64.fd
-            cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_VARS.fd \
-               $NNBUILDROOT/tools/firmware/OVMF_VARS_X64.fd
-            touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+            edk2root="$NNEXTSOURCEROOT/tools"
+            export WORKSPACE=$edk2root/edk2
+            export EDK_TOOLS_PATH="$WORKSPACE/BaseTools"
+            export PACKAGES_PATH="$edk2root/edk2:$edk2root/edk2-platforms:$edk2root/edk2-non-osi"
+            export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
+            export GCC5_RISCV64_PREFIX=riscv64-linux-gnu-
+            export GCC5_X64_PREFIX=x86_64-linux-gnu-
+            export GCC5_IA32_PREFIX=i686-linux-gnu-
+            cd $edk2root
+            . edk2/edksetup.sh
+            make -C edk2/BaseTools -j $NNJOBCOUNT
+            # Build it
+            if [ "$NNARCH" = "i386" ]
+            then
+                ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
+                mkdir -p $NNBUILDROOT/tools/firmware
+                build -a IA32 -t GCC5 -p OvmfPkg/OvmfPkgIa32.dsc
+                checkerr $? "unable to build EDK2"
+                echo "Installing EDK2..."
+                cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_CODE.fd \
+                   $NNBUILDROOT/tools/firmware/OVMF_CODE_i386.fd
+                cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_VARS.fd \
+                   $NNBUILDROOT/tools/firmware/OVMF_VARS_i386.fd
+                touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+            elif [ "$NNARCH" = "x86_64" ]
+            then
+                ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
+                mkdir -p $NNBUILDROOT/tools/firmware
+                build -a X64 -t GCC5 -p OvmfPkg/OvmfPkgX64.dsc
+                checkerr $? "unable to build EDK2"
+                echo "Installing EDK2..."
+                cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_CODE.fd \
+                    $NNBUILDROOT/tools/firmware/OVMF_CODE_X64.fd
+                cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_VARS.fd \
+                    $NNBUILDROOT/tools/firmware/OVMF_VARS_X64.fd
+                touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+            fi
         fi
     fi
 elif [ "$component" = "nnpkg-host" ]
@@ -596,7 +540,7 @@ then
         mkdir -p $NNBUILDROOT/build/tools/nnpkg-build
         cd $NNBUILDROOT/build/tools/nnpkg-build
         cmake $nnpkgroot -DCMAKE_INSTALL_PREFIX="$NNBUILDROOT/tools" -DCMAKE_BUILD_TYPE=Debug \
-              -DBUILD_SHARED_LIBS=OFF $cmakeargs
+              -DBUILD_SHARED_LIBS=OFF -DNNPKG_ENABLE_NLS=OFF $cmakeargs
         checkerr $? "unable to build nnpkg"
         $cmakegen -j $NNJOBCOUNT
         checkerr $? "unable to build nnpkg"
@@ -725,7 +669,7 @@ then
         echo "    start: 1;" >> nnimage.conf
         echo "    size: 15;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
-        echo "    prefix: '/System/Core/Bot';" >> nnimage.conf
+        echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
         echo "    vbrFile: '$NNDESTDIR/System/Core/Boot/bootrec/hdvbr';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
