@@ -334,7 +334,7 @@ static bool updateRegFile (guestfs_h* guestFs,
     }
 
     // Check if we need to update this file
-    if (!destExist || (srcSt->st_mtim.tv_sec > destSt->st_mtime_sec))
+    if (!destExist || (srcSt->st_mtime > destSt->st_mtime_sec))
     {
         // Create directories
         // Backup dest
@@ -601,20 +601,20 @@ bool updatePartition (Image_t* img,
 bool updateVbr (Image_t* img, Partition_t* part)
 {
     // Get start of VBR. If this is an ISO9660 boot image, skip this
-    loff_t vbrBase = 0;
+    off_t vbrBase = 0;
     const char* file = NULL;
     if (img->format == IMG_FORMAT_ISO9660)
     {
         file = getenv ("NNBOOTIMG");
         if (img->bootEmu == IMG_BOOTEMU_HDD)
-            vbrBase = IMG_MUL_TO_SECT (part->start) * (loff_t) IMG_SECT_SZ;
+            vbrBase = IMG_MUL_TO_SECT (part->start) * (off_t) IMG_SECT_SZ;
     }
     else if (img->format == IMG_FORMAT_FLOPPY)
         file = img->file;
     else
     {
         file = img->file;
-        vbrBase = IMG_MUL_TO_SECT (part->start) * (loff_t) IMG_SECT_SZ;
+        vbrBase = IMG_MUL_TO_SECT (part->start) * (off_t) IMG_SECT_SZ;
     }
     assert (file);
     // Open up image

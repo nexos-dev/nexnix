@@ -727,7 +727,7 @@ findprog "ld" "lld"
 findprog "ar"
 if [ "$toolchain" = "gnu" ] || [ $useninja -eq 0 ]
 then
-    findprog "gmake"
+    findprog "make"
 fi
 findprog "xz"
 findprog "python"
@@ -738,7 +738,6 @@ findprog "gzip"
 findprog "gettext"
 findprog "m4"
 findlib "guestfs"
-findlib "uuid"
 # Check if the check succeeded
 if [ $depcheckfail -eq 1 ]
 then

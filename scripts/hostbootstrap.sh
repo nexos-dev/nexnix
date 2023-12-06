@@ -82,7 +82,7 @@ then
     cmakeargs="-G Ninja"
     cmakegen=ninja
 else
-    cmakegen=gmake
+    cmakegen=make
     makeargs="--no-print-directory"
 fi
 
@@ -179,7 +179,7 @@ then
         mkdir -p $builddir/$cmakegen
         cd $builddir/$cmakegen
         # So libuuid is found
-        export PKG_CONFIG_PATH="$NNBUILDROOT/tools/lib/pkgconfig"
+        export PKG_CONFIG_PATH="$NNBUILDROOT/tools/lib/pkgconfig /usr/local/lib/pkgconfig"
         cmake $NNSOURCEROOT/hosttools \
               -DCMAKE_BUILD_TYPE=Debug \
               -DCMAKE_INSTALL_PREFIX="$NNBUILDROOT/tools" $tools_cmakeargs

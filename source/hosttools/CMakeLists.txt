@@ -48,6 +48,7 @@ include(SdkCompilerTest)
 check_library_visibility(HAVE_DECLSPEC_EXPORT HAVE_VISIBILITY)
 configure_file(include/config.in.h ${CMAKE_BINARY_DIR}/config.h)
 include_directories(${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_INSTALL_PREFIX}/include)
 
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/include/config.in.h)
 
