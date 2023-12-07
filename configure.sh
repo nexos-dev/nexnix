@@ -309,6 +309,7 @@ usesu=0
 hostos=
 pkgs=
 fwtype=
+buildfw=1
 
 # System configuration options
 loglevel=4
@@ -375,6 +376,9 @@ Build system configuration options:
   -su
                         Use su(1) to run commands as root
                         By default, sudo(1) is used
+
+   -nobuildfw
+                        Don't build firmware images
 Image output options:
   -imgformat imagetype
                         Specifies the type of the disk image
@@ -558,6 +562,10 @@ HELPEND
         ;;
     -installpkgs)
         installpkgs=1
+        shift
+        ;;
+    -nobuildfw)
+        buildfw=0
         shift
         ;;
     -su)
@@ -966,6 +974,7 @@ Run $0 -l to see supported targets"
         echo "export NNALTBOOTIMG=\"$output/conf/$target/$conf/nnboot2.img\"" >> nexnix-conf.sh
         echo "export NNTARGETCONF=$tarconf" >> nexnix-conf.sh
         echo "export NNEFIARCH=$efiarch" >> nexnix-conf.sh
+        echo "export NNBUILDFW=$buildfw" >> nexnix-conf.sh
         if [ "$arch" = "i386" ]
         then
             echo "export NNISPAE=$ispae" >> nexnix-conf.sh

@@ -477,7 +477,7 @@ then
         git submodule update --init
         checkerr $? "unable to download EDK2"
     fi
-    if [ ! -f $NNBUILDROOT/tools/firmware/fw${NNARCH}done ] || [ "$rebuild" = "1" ] && [ "$BUILDFW" = "1" ]
+    if [ ! -f $NNBUILDROOT/tools/firmware/fw${NNARCH}done ] || [ "$rebuild" = "1" ] && [ "$NNBUILDFW" = "1" ]
     then
         if [ "$NNFIRMWARE" = "efi" ]
         then
@@ -629,6 +629,7 @@ then
             echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
             echo "nexboot.cfg" >> $NNCONFROOT/nnimage-list.lst
             mv $NNDESTDIR/System/Core/Boot/nexboot $NNDESTDIR/nexboot
+            cp $NNDESTDIR/System/Core/Boot/nexboot.cfg $NNDESTDIR/nexboot.cfg
         else
             echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
         fi

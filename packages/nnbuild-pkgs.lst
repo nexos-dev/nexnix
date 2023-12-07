@@ -25,3 +25,4 @@ group baselib
 }
 
 include "$NNPKGROOT/nexboot-real/nexboot.conf"
+include "$NNPKGROOT/nexke/nexke.conf"

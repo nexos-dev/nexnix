@@ -47,14 +47,45 @@ if(NOT NEXNIX_BASEARCH)
     endif()
 endif()
 
+# Include modules
+include(SystemBuild/ArchToMacro)
+include(SystemBuild/Options)
+include(GNUInstallDirs)
+
 nexnix_add_parameter(NEXNIX_LOGLEVEL 
                      "Value that defines what should and shouldn't be logged"
                      2)
 
+# Include includes directory
+include_directories(include)
+
+# Include CPU build stuff
+include(cpu/${NEXNIX_ARCH}/arch.cmake)
 
 # Install header files
 # HACK ALERT: we install directly to /usr/include. There probably is a better way of doing this,
 # but I don't know it
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
-#
+# nexke source files
+list(APPEND NEXKE_SOURCES 
+            core/main.c)
+
+# Create kernel
+add_executable(nexke ${NEXKE_SOURCES})
+
+# Add link options
+target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT})
+
+# Find libk and libnex
+find_library(NEXKE_LK_LOCATION k REQUIRED)
+find_library(NEXKE_LNEX_LOCATION nex REQUIRED)
+get_filename_component(NEXKE_LK_LOCATION ${NEXKE_LK_LOCATION} REALPATH)
+get_filename_component(NEXKE_LNEX_LOCATION ${NEXKE_LNEX_LOCATION} REALPATH)
+add_custom_target(libk DEPENDS ${NEXKE_LK_LOCATION})
+add_custom_target(libnex DEPENDS ${NEXKE_LNEX_LOCATION})
+
+target_link_libraries(nexke PUBLIC ${NEXKE_LNEX_LOCATION} ${NEXKE_LK_LOCATION})
+add_dependencies(nexke libk libnex)
+
+install(TARGETS nexke DESTINATION .)
