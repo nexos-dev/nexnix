@@ -1,5 +1,5 @@
-#[[
-    arch.cmake - contains x86_64 CMake stuff
+/*
+    as.c - contains address space management code
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,13 +13,18 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-# Option for PAE
-nexnix_add_option(NEXNIX_X86_64_LA57 "Specifies if LA57 is supported" ON)
+#include <assert.h>
+#include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
+#include <string.h>
 
-# CPU related sources
-list(APPEND NEXBOOT_SOURCES 
-            cpu/x86_64/cpu.c
-            cpu/x86_64/cpu.asm
-            cpu/x86_64/as.c)
+void NbCpuAsInit()
+{
+}
+
+bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
+{
+    return true;
+}

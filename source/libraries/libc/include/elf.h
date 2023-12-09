@@ -57,6 +57,24 @@ typedef struct _ehdr32
     Elf32_Half e_shstrndx;
 } Elf32_Ehdr;
 
+typedef struct _ehdr64
+{
+    unsigned char e_ident[EI_NIDENT];
+    Elf64_Half e_type;
+    Elf64_Half e_machine;
+    Elf64_Word e_version;
+    Elf64_Addr e_entry;
+    Elf64_Off e_phoff;
+    Elf64_Off e_shoff;
+    Elf64_Word e_flags;
+    Elf64_Half e_ehsize;
+    Elf64_Half e_phentsize;
+    Elf64_Half e_phnum;
+    Elf64_Half e_shentsize;
+    Elf64_Half e_shnum;
+    Elf64_Half e_shstrndx;
+} Elf64_Ehdr;
+
 #define ET_NONE   0
 #define ET_REL    1
 #define ET_EXEC   2
@@ -65,7 +83,8 @@ typedef struct _ehdr32
 #define ET_LOPROC 0xFF00
 #define ET_HIPROC 0xFFFF
 
-#define EM_386 3
+#define EM_386    3
+#define EM_X86_64 62
 
 #define EV_NONE    0
 #define EV_CURRENT 1
@@ -92,7 +111,7 @@ typedef struct _ehdr32
 #define ELFDATA2LSB 1
 #define ELFDATA2MSB 2
 
-typedef struct _ephdr
+typedef struct _ephdr32
 {
     Elf32_Word p_type;
     Elf32_Off p_offset;
@@ -103,6 +122,18 @@ typedef struct _ephdr
     Elf32_Word p_flags;
     Elf32_Word p_align;
 } Elf32_Phdr;
+
+typedef struct _ephdr64
+{
+    Elf64_Word p_type;
+    Elf64_Word p_flags;
+    Elf64_Off p_offset;
+    Elf64_Addr p_vaddr;
+    Elf64_Addr p_paddr;
+    Elf64_Xword p_filesz;
+    Elf64_Xword p_memsz;
+    Elf64_Xword p_align;
+} Elf64_Phdr;
 
 #define PT_NULL    0
 #define PT_LOAD    1

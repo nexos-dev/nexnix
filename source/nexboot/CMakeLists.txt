@@ -74,6 +74,7 @@ list(APPEND NEXBOOT_SOURCES
             src/ui/textui.c)
 
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES} ${NEXBOOT_FW_DRIVERS} ${NEXBOOT_DRIVERS})
+target_compile_options(nexboot PUBLIC -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast)
 
 # Find libk and libnex
 find_library(NEXBOOT_LK_LOCATION k REQUIRED)

@@ -317,12 +317,19 @@ NbStartDetect:
     mov ebx, 0x83                       ; Set physical address to 0, present and
                                         ; writable bits to 0, and size bit to 1
     mov [edi], ebx                      ; Put in directory
+    mov ebx, 0x200083                   ; Map another 2M
+    mov [edi+8], ebx
     ; Enable PAE
     mov eax, cr4
     or eax, 1 << 5                      ; Set PAE bit
     mov cr4, eax
     ; Load saved PML4 or PML5 from EBP
     mov cr3, ebp                        ; Load top-level paging structure
+    ; Store nexbootSz
+    mov ax, NBLOAD_BASE_SEG
+    mov es, ax
+    mov di, nexbootSz
+    mov esi, es:[di]
     ; Set the LME bit in EFER
     mov ecx, 0xC0000080                 ; Load MSR to read
     rdmsr                               ; Read MSR
@@ -332,7 +339,7 @@ NbStartDetect:
     mov eax, cr0
     or eax, 0x80000001                  ; Set both bits
     mov cr0, eax                        ; Activate long mode
-    jmp dword 0x18:NBLOAD_LMODE_ENTRY   ; Far jump to flush CS
+    jmp dword 0x28:NBLOAD_LMODE_ENTRY   ; Far jump to flush CS
 %endif
 .a20failed:
     mov si, a20failMessage
@@ -627,6 +634,23 @@ gdtBase:
     db 0x92                  ; Read-write data segment
     db 0                     ; Reserved
     db 0                     ; Reserved
+    ; 32 bit code segment descriptor
+    dw 0xFFFF                ; Low 16 bits of limit
+    dw 0                     ; Low 16 bits of base
+    db 0                     ; Middle 8 bits of base
+    db 0x98                  ; Access byte. Execute-only code segment
+                             ; that is non-conforming and present
+    db 0xCF                  ; Top 4 bits of limit = 0xF, granularity = 4K,
+                             ; D bit = 1, indicating a 32 bit code segment
+    db 0                     ; Top 8 bits of base
+    ; 32 bit data segment descriptor
+    dw 0xFFFF                ; Low 16 bits of limit
+    dw 0                     ; Low 16 bits of base
+    db 0                     ; Middle 8 bits of base
+    db 0x92                  ; Read write data segment
+    db 0xCF                  ; Top 4 bits of limit = 0xF, granularity = 4K,
+                             ; B bit = 1, indicating 32 bit stack when in SS
+    db 0                     ; Top 8 bits of base
     ; 64 bit code segment descriptor
     dw 0                     ; Low 16 bits of limit
     dw 0                     ; Low 16 bits of base
@@ -658,8 +682,10 @@ bits 64
 %define NBLOAD_NEXBOOT_BASE 0x50000
 
 NbloadStartLmode:
+    ; Store nexbootSz
+    mov r8, rsi
     ; Load data segments
-    mov ax, 0x20
+    mov ax, 0x30
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -667,17 +693,17 @@ NbloadStartLmode:
     mov ss, ax
     mov rsp, NBLOAD_LMODE_STACK     ; Load stack pointer
     ; Now we must load up the ELF bootloader
-    ; Get base of it
     mov rsi, end                    ; Get end of this part
     add rsi, NBLOAD_BASE
+    mov rbp, rsi
     mov rbx, [rsi+32]               ; Get program header offset
     add rbx, rsi                    ; Add base of ELF
-    push rsi                        ; Save base
-    mov edx, [rbx+8]                ; Get program header data offset from phdr
+    push rsi
+    mov rdx, [rbx+8]                ; Get program header data offset from phdr
     add rdx, rsi
     mov rsi, rdx                    ; So we can use it rep movsb
     mov rcx, [rbx+32]               ; Get section file size
-    mov rdi, NBLOAD_NEXBOOT_BASE    ; Get nexboot base address
+    mov rdi, [rbx+16]                ; Get nexboot base address
     rep movsb                       ; Copy out
     ; Get difference between memory and file size, and zero that out
     mov rdx, [rbx+40]               ; Get memory size
@@ -688,10 +714,29 @@ NbloadStartLmode:
     mov rcx, rdx                    ; Set loop counter to memory-file difference
     mov al, 0                       ; Store a zero
     rep stosb                       ; Store it
+    xchg bx, bx
     ; Get entry point
     pop rsi
     mov rbx, [rsi+24]
+    ; Find end of ndecomp
+    mov rdx, 0
+    mov rdi, [rsi+40]
+    add rdi, rsi
+    ; Get size of table
+    movzx rax, word [rsi+58]
+    movzx rcx, word [rsi+60]
+    mul rcx
+    add rdi, rax
+    ; Get size of nexboot
+    mov rcx, r8
+    mov rax, rdi            ; Get base of nexboot
+    sub rax, NBLOAD_BASE    ; Subtract base of base
+    sub rcx, rax            ; Subtract ndecomp and and nbload size
     mov rbp, 0                      ; Set up zero frame
-    jmp rbx                         ; Jump to it
+    mov rsp, NBLOAD_STACK_TOP
+    mov rdx, rcx
+    mov rsi, rdi
+    mov rdi, NBLOAD_DETECT_RESULT
+    call rbx                         ; Jump to it
 end:
 %endif

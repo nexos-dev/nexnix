@@ -26,6 +26,8 @@
 // Include CPU header
 #ifdef NEXNIX_ARCH_I386
 #include <nexboot/cpu/i386/cpu.h>
+#elif defined NEXNIX_ARCH_X86_64
+#include <nexboot/cpu/x86_64/cpu.h>
 #endif
 
 // Memory types

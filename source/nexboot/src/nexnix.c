@@ -157,9 +157,7 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     // Map in firmware-dictated memory regions
     NbFwMapRegions();
     // Load up the kernel into memory
-#ifdef NEXNIX_ARCH_I386
     uintptr_t entry = NbElfLoadFile (keFileBase);
-#endif
     // Call it
     NbCpuLaunchKernel (entry, (uintptr_t) bootInfo);
     return false;

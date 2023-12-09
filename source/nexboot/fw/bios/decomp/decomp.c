@@ -29,7 +29,7 @@
 
 #define HALT asm("cli; hlt")
 
-void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uint32_t nbSize)
+void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uintptr_t nbSize)
 {
     // Decompress it
     uint32_t size = NEXBOOT_MAX_SIZE;
@@ -49,17 +49,37 @@ void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uint32_t nbSize)
     {
         HALT;
     }
-    Elf32_Phdr* phdr = (Elf32_Phdr*) (NEXBOOT_BASE_ADDR + ehdr->e_phoff);
-    for (int i = 0; i < ehdr->e_phnum; ++i)
+    uintptr_t entry = 0;
+    if (ehdr->e_ident[EI_CLASS] == ELFCLASS32)
     {
-        memcpy ((void*) phdr[i].p_vaddr,
-                (void*) (phdr[i].p_offset + NEXBOOT_BASE_ADDR),
-                phdr[i].p_filesz);
-        memset ((void*) (phdr[i].p_vaddr + phdr[i].p_filesz),
-                0,
-                phdr[i].p_memsz - phdr[i].p_filesz);
+        Elf32_Phdr* phdr = (Elf32_Phdr*) (NEXBOOT_BASE_ADDR + ehdr->e_phoff);
+        for (int i = 0; i < ehdr->e_phnum; ++i)
+        {
+            memcpy ((void*) phdr[i].p_vaddr,
+                    (void*) (phdr[i].p_offset + NEXBOOT_BASE_ADDR),
+                    phdr[i].p_filesz);
+            memset ((void*) (phdr[i].p_vaddr + phdr[i].p_filesz),
+                    0,
+                    phdr[i].p_memsz - phdr[i].p_filesz);
+        }
+        entry = ehdr->e_entry;
     }
-    void (*NexBoot) (NbloadDetect_t*) = (void*) ehdr->e_entry;
+    else
+    {
+        Elf64_Ehdr* hdr64 = (Elf64_Ehdr*) ehdr;
+        Elf64_Phdr* phdr = (Elf64_Phdr*) (NEXBOOT_BASE_ADDR + hdr64->e_phoff);
+        for (int i = 0; i < hdr64->e_phnum; ++i)
+        {
+            memcpy ((void*) phdr[i].p_vaddr,
+                    (void*) (phdr[i].p_offset + NEXBOOT_BASE_ADDR),
+                    phdr[i].p_filesz);
+            memset ((void*) (phdr[i].p_vaddr + phdr[i].p_filesz),
+                    0,
+                    phdr[i].p_memsz - phdr[i].p_filesz);
+        }
+        entry = ehdr->e_entry;
+    }
+    void (*NexBoot) (NbloadDetect_t*) = (void*) entry;
     NexBoot (nbDetect);
     // Freeze if we return
     for (;;)
