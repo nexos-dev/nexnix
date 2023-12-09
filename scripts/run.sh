@@ -232,7 +232,7 @@ then
             [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
             [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
             [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="uefi"
-            [ -z "$EMU_CPU" ] && EMU_CPU="Icelake-Server-v5"
+            [ -z "$EMU_CPU" ] && EMU_CPU="qemu64,+la57"
             [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="q35"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0

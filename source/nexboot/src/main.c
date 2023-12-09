@@ -70,8 +70,6 @@ void nbLaunchConf()
 // The main entry point into nexboot
 void NbMain (NbloadDetect_t* nbDetect)
 {
-    for (;;)
-        ;
     //   So, we are loaded by nbload, and all it has given us is the nbdetect
     //   structure. It's our job to create a usable environment.
     //     Initialize logging

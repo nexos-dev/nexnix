@@ -163,9 +163,9 @@ void nbCpuAsmLaunch (uintptr_t stack, uintptr_t entry, uintptr_t bootInf);
 void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInf)
 {
     // Allocate and map a boot stack
-    /*uintptr_t stack = NbFwAllocPage();
+    uintptr_t stack = NbFwAllocPage();
     memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
     NbCpuAsMap (entry - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
     // Launch it
-    nbCpuAsmLaunch (entry - 16, entry, bootInf);*/
+    nbCpuAsmLaunch (entry - 16, entry, bootInf);
 }

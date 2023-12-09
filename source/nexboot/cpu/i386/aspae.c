@@ -57,16 +57,7 @@ void NbCpuAsInit()
     // Grab PDPT from CR3
     pdpt = (pdpte_t*) NbReadCr3();
     assert (pdpt);
-    // Set CR4.PGE and CR0.WP
-    uint32_t cr4 = NbReadCr4();
-    cr4 |= NB_CR4_PGE;
-    NbWriteCr4 (cr4);
-    uint32_t cr0 = NbReadCr0();
-    cr0 |= NB_CR0_WP;
-    NbWriteCr0 (cr0);
 }
-
-#include <nexboot/shell.h>
 
 static pte_t* cpuAsAllocTab (pde_t* pdir, uintptr_t virt, uint64_t flags)
 {
@@ -105,8 +96,6 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     uint64_t ptFlags = PT_P;
     if (flags & NB_CPU_AS_RW)
         ptFlags |= PT_RW;
-    if (flags & NB_CPU_AS_GLOBAL)
-        ptFlags |= PT_G;
     uint32_t pdptIdx = PG_ADDR_PDPT (virt);
     uint32_t dirIdx = PG_ADDR_DIR (virt);
     uint32_t tabIdx = PG_ADDR_TAB (virt);

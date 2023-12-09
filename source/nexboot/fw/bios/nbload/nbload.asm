@@ -282,7 +282,7 @@ NbStartDetect:
     cmp eax, 7
     jb .nola57
     ; CPUID supports function 0x7, now check for LA57
-    mov 7, eax
+    mov eax, 7
     mov ecx, 0
     cpuid
     test ecx, 1 << 16                   ; Test LA57 bit
@@ -714,7 +714,6 @@ NbloadStartLmode:
     mov rcx, rdx                    ; Set loop counter to memory-file difference
     mov al, 0                       ; Store a zero
     rep stosb                       ; Store it
-    xchg bx, bx
     ; Get entry point
     pop rsi
     mov rbx, [rsi+24]

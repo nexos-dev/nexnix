@@ -51,10 +51,7 @@ void NbCpuAsInit()
     // Grab dir from CR3
     pdir = (pde_t*) NbReadCr3();
     assert (pdir);
-    // Set CR4.PGE and CR0.WP
-    uint32_t cr4 = NbReadCr4();
-    cr4 |= NB_CR4_PGE;
-    NbWriteCr4 (cr4);
+    // Set CR0.WP
     uint32_t cr0 = NbReadCr0();
     cr0 |= NB_CR0_WP;
     NbWriteCr0 (cr0);
@@ -83,8 +80,6 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     uint32_t ptFlags = PT_P;
     if (flags & NB_CPU_AS_RW)
         ptFlags |= PT_RW;
-    if (flags & NB_CPU_AS_GLOBAL)
-        ptFlags |= PT_G;
     // Grab PDE
     uint32_t dirIdx = PG_ADDR_DIR (virt);
     uint32_t tabIdx = PG_ADDR_TAB (virt);

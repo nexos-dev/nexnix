@@ -28,7 +28,7 @@
 void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out)
 {
     // Create function pointer for bioscall
-    void (*bioscall) (uint32_t, NbBiosRegs_t*, NbBiosRegs_t*) =
+    void (*bioscall) (uintptr_t, NbBiosRegs_t*, NbBiosRegs_t*) =
         (void*) NEXBOOT_BIOSCALL_BLOB;
     bioscall (intNo, in, out);
 }

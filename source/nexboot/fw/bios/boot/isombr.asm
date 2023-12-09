@@ -151,7 +151,6 @@ NbloadMain:
     mov dx, NBLOAD_NEXBOOT_SEG    ; Load segment and offset
     mov es, dx
     mov di, 0
-    xchg bx, bx
     call NbloadReadBlocks
     ; Re-load drive number
     mov dl, [driveNumber]

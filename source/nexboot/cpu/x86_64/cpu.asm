@@ -12,3 +12,18 @@
 ; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ; See the License for the specific language governing permissions and
 ; limitations under the License.
+
+global nbCpuAsmLaunch
+
+nbCpuAsmLaunch:
+    xchg bx, bx
+    ; Set stack
+    mov rsp, rdi
+    mov rbp, 0          ; Set a new zero frame
+    ; Pass bootinfo as parameter
+    push rdx
+    call rsi
+    ; If we get here, halt
+    cli
+    hlt
+

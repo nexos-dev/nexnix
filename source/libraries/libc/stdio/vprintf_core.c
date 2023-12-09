@@ -578,6 +578,9 @@ static int __parseFormat (_printfOut_t* outData,
 
 int vprintfCore (_printfOut_t* outData, const char* fmt, va_list ap)
 {
+    // Copy va_list
+    va_list ap2;
+    va_copy (ap2, ap);
     while (*fmt)
     {
         // Determine what the current character does
@@ -597,7 +600,7 @@ int vprintfCore (_printfOut_t* outData, const char* fmt, va_list ap)
                 _printfFmt_t fmtParse = {0};
                 fmtParse.precision = 1;    // Default precision
                 fmtParse.precisionIsDefault = true;
-                int fmtOffset = __parseFormat (outData, &fmtParse, fmt, &ap);
+                int fmtOffset = __parseFormat (outData, &fmtParse, fmt, &ap2);
                 if (fmtOffset == EOF)
                     return EOF;
                 fmt += fmtOffset;

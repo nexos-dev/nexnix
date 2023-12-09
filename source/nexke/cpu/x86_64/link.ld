@@ -21,20 +21,20 @@ ENTRY(NkMain)
 
 SECTIONS
 {
-    . = 0xC0000000;
-    .text : {
+    . = 0xFFFFFFFF80000000;
+    .text ALIGN(4096) : {
         *(.text*)
     }
 
-    .data : {
+    .data ALIGN(4096) : {
         *(.data*)
     }
 
-    .rodata : {
+    .rodata ALIGN(4096) : {
         *(.rodata*)
     }
 
-    .bss : {
+    .bss ALIGN(4096) : {
         *(.bss*)
     }
 
@@ -51,5 +51,6 @@ SECTIONS
         *(.strtab)
         *(.rel*)
         *(.rela*)
+        *(.eh_frame)
     }
 }
