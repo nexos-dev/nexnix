@@ -114,4 +114,9 @@ typedef struct _ephdr
 #define PT_LOPROC  0x70000000
 #define PT_HIPROC  0x7FFFFFFF
 
+#define PF_X        0x1
+#define PF_W        0x2
+#define PF_R        0x4
+#define PF_MASKPROC 0xF0000000
+
 #endif

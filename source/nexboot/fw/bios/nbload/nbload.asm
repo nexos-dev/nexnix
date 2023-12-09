@@ -129,36 +129,11 @@ NbStartDetect:
     pop eax
     cmp eax, ecx                    ; Check if they're different
     je .isCpuid                     ; Nope, store that
-    ; We are on either or 486 or a 386.
-    ; How do we decide? Based on wheter EFLAGS.AC is modifiable
-    pushfd                          ; Get EFLAGS
-    pop eax
-    xor eax, 1 << 18                ; Change EFLAGS.AC
-    mov ecx, eax                    ; Store for reference
-    push eax                        ; Store new EFLAGS
-    popfd
-    pushfd                          ; Get new EFLAGS
-    pop eax
-    cmp eax, ecx
-    je .is486                       ; Nope, store that
-.is386:
-    mov word es:[di+14], NBLOAD_CPU_VERSION_386   ; Set it as 386
-    ; Print message
-    mov si, cpu386Message
-    mov cx, 4
+    ; Print out error, CPUID required
+    mov si, cpuOldMessage
+    mov cx, 1
     call NbloadLogMsg
-    jmp .cpuCheckDone
-.is486:
-    mov word es:[di+14], NBLOAD_CPU_VERSION_486   ; Set it as 486
-    ; Print message
-    mov si, cpu486Message
-    mov cx, 4
-    call NbloadLogMsg
-    ; Set CR0.WP
-    mov eax, cr0
-    or eax, 1 << 16
-    mov cr0, eax
-    jmp .cpuCheckDone
+    call NbloadPanic
 .isCpuid:
     mov word es:[di+14], NBLOAD_CPU_VERSION_CPUID ; Let other layers know to use CPUID
 %ifdef NEXNIX_I386_PAE
@@ -436,8 +411,7 @@ nexbootSz: dd 0
 logLocation: dw NBLOAD_LOG_START
 
 cpuCpuidMessage: db 0x0A, 0x0D, "nbload: detected CPU 486+", 0
-cpu486Message: db 0x0A, 0x0D, "nbload: detected CPU 486", 0
-cpu386Message: db 0x0A, 0x0D, "nbload: detected CPU 386", 0
+cpuOldMessage: db 0x0A, 0x0D, "nbload: CPU with CPUID required", 0
 fpuMessage: db 0x0A, 0x0D, "nbload: x87 FPU found", 0x0A, 0x0D, 0
 noFpuMessage: db 0x0A, 0x0D, "nbload: no x87 FPU found", 0
 a20failMessage: db 0x0A, 0x0D, "nbload: unable to enable A20 gate", 0

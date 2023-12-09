@@ -662,6 +662,7 @@ const char* confGetTokName (confToken_t* tok)
         default:
             return "";
     }
+    return "";
 }
 
 // Initializes lexer

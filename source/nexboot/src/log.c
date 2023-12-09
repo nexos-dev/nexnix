@@ -144,9 +144,9 @@ typedef struct _log
 {
     NbLogEntry_t* entries;          // List of log entries
     NbLogEntry_t* entriesEnd;       // End of entries list
+    int logLevel;                   // Current log level
     NbObject_t* outputDevs[8];      // Output devices for each log level
     NbTerminal_t outputInfos[8];    // Terminal options for each terminal
-    int logLevel;                   // Current log level
 } NbLog_t;
 
 // Main log functions
@@ -196,7 +196,7 @@ static bool LogWrite (void* objp, void* strp)
             {
                 NbDriver_t* termDrv = NbFindDriver ("Terminal");
                 if (NbObjGetOwner (term->outEnd) != termDrv &&
-                    str->priority <= NEXBOOT_LOGLEVEL_CRITICAL)
+                    str->priority >= NEXBOOT_LOGLEVEL_CRITICAL)
                 {
                     // Inform it of it's new owner
                     NbObjNotify_t notify;
@@ -368,4 +368,11 @@ void NbLogMessage (const char* fmt, int level, ...)
     // Log it
     NbObjCallSvc (logObj, NB_LOG_WRITE, &str);
     va_end (ap);
+}
+
+// Returns log base address
+uintptr_t NbLogGetBase()
+{
+    assert (logObj);
+    return (uintptr_t) NbObjGetData (logObj);
 }

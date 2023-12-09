@@ -77,6 +77,11 @@ uintptr_t NbFwAllocPages (int count)
     return ret;
 }
 
+// Map in memory regions to address space
+void NbFwMapRegions()
+{
+}
+
 // Find which disk is the boot disk
 NbObject_t* NbFwGetBootDisk()
 {

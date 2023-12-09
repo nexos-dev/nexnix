@@ -59,4 +59,39 @@ uint8_t NbInb (uint16_t port);
 uint16_t NbInw (uint16_t port);
 uint32_t NbInl (uint16_t port);
 
+uint32_t NbReadCr0();
+void NbWriteCr0 (uint32_t val);
+uint32_t NbReadCr3();
+void NbWriteCr3 (uint32_t val);
+uint32_t NbReadCr4();
+void NbWriteCr4 (uint32_t val);
+
+void NbWrmsr (uint32_t msr, uint64_t val);
+uint64_t NbRdmsr (uint32_t msr);
+
+void NbInvlpg (uintptr_t addr);
+
+// CR0 bits
+#define NB_CR0_PE (1 << 0)
+#define NB_CR0_WP (1 << 16)
+#define NB_CR0_PG (1 << 31)
+
+// CR4 bits
+#define NB_CR4_PSE  (1 << 4)
+#define NB_CR4_PAE  (1 << 5)
+#define NB_CR4_PGE  (1 << 7)
+#define NB_CR4_LA57 (1 << 12)
+
+// EFER bits
+#define NB_EFER_MSR 0xC0000080
+#define NB_EFER_NXE (1 << 11)
+
+#ifdef NEXNIX_I386_PAE
+typedef uint64_t paddr_t;
+#else
+typedef uint32_t paddr_t;
+#endif
+
+void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInf);
+
 #endif

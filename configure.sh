@@ -330,7 +330,7 @@ targets="i386-pc x86_64-pc"
 # Valid image types
 imagetypes="mbr gpt iso9660"
 # Target configuration list
-confs_i386_pc="isa pnp mp acpi-up acpi"
+confs_i386_pc="pnp mp acpi-up acpi"
 confs_x86_64_pc="acpi acpi-up"
 
 # Loop through every argument
@@ -848,8 +848,7 @@ Run $0 -l to see supported targets"
                 [ -z "$ispae" ] && ispae=0
             fi
             targetismp=1
-        elif [ "$tarconf" = "acpi-up" ] || [ "$tarconf" = "pnp" ] || \
-             [ "$tarconf" = "isa" ]
+        elif [ "$tarconf" = "acpi-up" ] || [ "$tarconf" = "pnp" ]
         then
             # Ensure environment is valid
             if [ "$imgbootmode" = "none" ]

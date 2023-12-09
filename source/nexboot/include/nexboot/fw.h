@@ -117,4 +117,20 @@ typedef struct _hwdevice
 #include <nexboot/bios/bios.h>
 #endif
 
+// FIXME: Shouldn't be in fw.h
+
+/// Initializes address space manager
+void NbCpuAsInit();
+
+/// Maps address into space
+bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags);
+
+/// Maps firmware-dictated regions into address sace
+void NbFwMapRegions();
+
+// Flags for AS
+#define NB_CPU_AS_RW     (1 << 1)
+#define NB_CPU_AS_GLOBAL (1 << 2)
+#define NB_CPU_AS_NX     (1 << 3)
+
 #endif

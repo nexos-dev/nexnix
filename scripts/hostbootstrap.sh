@@ -627,9 +627,11 @@ then
         then
             echo "System" >> $NNCONFROOT/nnimage-list.lst
             echo "nexboot" >> $NNCONFROOT/nnimage-list.lst
+            echo "nexke" >> $NNCONFROOT/nnimage-list.lst
             echo "nexboot.cfg" >> $NNCONFROOT/nnimage-list.lst
             mv $NNDESTDIR/System/Core/Boot/nexboot $NNDESTDIR/nexboot
-            cp $NNDESTDIR/System/Core/Boot/nexboot.cfg $NNDESTDIR/nexboot.cfg
+            mv $NNDESTDIR/System/Core/Boot/nexboot.cfg $NNDESTDIR/nexboot.cfg
+            mv $NNDESTDIR/System/Core/Boot/nexke $NNDESTDIR/nexke
         else
             echo "/System/Core/Boot" >>  $NNCONFROOT/nnimage-list.lst
         fi

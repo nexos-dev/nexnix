@@ -44,6 +44,12 @@ void NbLogMessageEarly (const char* fmt, int level, ...);
 /// Logs a message to the log
 void NbLogMessage (const char* fmt, int level, ...);
 
+/// Returns log base address
+uintptr_t NbLogGetBase();
+
+/// Loads an ELF file into memory
+uintptr_t NbElfLoadFile (void* base);
+
 // Prints a string using NbFwPrintEarly
 void NbPrintEarly (const char* s);
 

@@ -19,15 +19,20 @@
 OUTPUT_FORMAT(elf64-x86_64)
 ENTRY(NbMain)
 
-NEXBOOT_LOADADDR = 0x50000;
+NEXBOOT_LOADADDR = 0x200000;
 
 PHDRS
 {
+    realmode PT_LOAD;
     nexboot PT_LOAD;
 }
 
 SECTIONS
 {
+    . = 0x1000;
+    .realmode : {
+        *(.realmode)
+    } :realmode
     . = NEXBOOT_LOADADDR;
     .text : {
         *(.text*)
@@ -53,9 +58,7 @@ SECTIONS
         *(.dynsym)
         *(.dynstr)
         *(.dynamic)
-        *(.eh_frame*)
         *(.comment)
-        *(.debug*)
         *(.symtab)
         *(.strtab)
         *(.rel*)

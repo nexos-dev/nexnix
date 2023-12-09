@@ -451,10 +451,12 @@ StringRef_t* NbShellGetFullPath (const char* dir)
 // Opens a file
 NbFile_t* NbShellOpenFile (NbObject_t* fs, const char* name)
 {
-    StringRef_t* fullDir = NbShellGetFullPath (name);
-    NbFile_t* file = NbVfsOpenFile (fs, StrRefGet (fullDir));
-    StrRefDestroy (fullDir);
-    return file;
+    const char* path = NULL;
+    if (*name != '/')
+        path = StrRefGet (NbShellGetFullPath (name));
+    else
+        path = name;
+    return NbVfsOpenFile (fs, path);
 }
 
 // Gets file info

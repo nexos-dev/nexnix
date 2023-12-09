@@ -1,5 +1,5 @@
 #[[
-    arch.cmake - contains i386 CMake stuff
+    arch.cmake - contains build system for nexke x86_64
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,17 +15,8 @@
     limitations under the License.
 ]]
 
-# Option for PAE
-nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
+# Option for LA57
+nexnix_add_option(NEXNIX_X86_64 "Specifies if LA57 is supported" OFF)
 
-# CPU related sources
-list(APPEND NEXBOOT_SOURCES 
-            cpu/i386/cpu.c
-            cpu/i386/cpu.asm)
-
-# Select AS file
-if(NEXNIX_I386_PAE)
-    list(APPEND NEXBOOT_SOURCES cpu/i386/aspae.c)
-else()
-    list(APPEND NEXBOOT_SOURCES cpu/i386/as.c)
-endif()
+# Set linker script
+set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/x86_64/link.ld")

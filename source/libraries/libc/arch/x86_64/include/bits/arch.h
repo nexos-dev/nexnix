@@ -1,5 +1,5 @@
-#[[
-    arch.cmake - contains i386 CMake stuff
+/*
+    arch.h - contains defines for i386
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,19 +13,20 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-# Option for PAE
-nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
+#ifndef _BITS_ARCH_H
+#define _BITS_ARCH_H
 
-# CPU related sources
-list(APPEND NEXBOOT_SOURCES 
-            cpu/i386/cpu.c
-            cpu/i386/cpu.asm)
+#define _saddr_t  long long
+#define _uaddr_t  unsigned long long
+#define _int64_t  long long
+#define _uint64_t unsigned long long
+#define _int32_t  int
+#define _uint32_t unsigned int
+#define _int16_t  short
+#define _uint16_t unsigned short
+#define _int8_t   char
+#define _uint8_t  unsigned char
 
-# Select AS file
-if(NEXNIX_I386_PAE)
-    list(APPEND NEXBOOT_SOURCES cpu/i386/aspae.c)
-else()
-    list(APPEND NEXBOOT_SOURCES cpu/i386/as.c)
-endif()
+#endif

@@ -887,10 +887,7 @@ then
     vboxdiskpath=$(echo "$diskpath" | sed 's/\.img/\.vdi/')
 
     # Delete old storage stuff
-    if [ ! -z "$docreate" ] && [ ! -z "$diskpath" ]
-    then
-        VBoxManage closemedium disk $vboxdiskpath > /dev/null 2>&1
-    fi
+    VBoxManage closemedium disk $vboxdiskpath
     VBoxManage storagectl "NexNix" --name "NexNix-storage" --remove
 
     # Setup storage device

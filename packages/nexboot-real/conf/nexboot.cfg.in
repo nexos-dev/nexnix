@@ -14,13 +14,12 @@
 # limitations under the License.
 
 set fail 1                                  # Ensure file fails on command failure
-#set autoboot 1
+set autoboot 1
 
 menuentry NexNix {
     set root Boot                           # Set root directory, Boot is mounted by default
     boottype nexnix
     payload /nexke
-    bootmod /init
     bootargs "-graphicsmode $NNGRAPHICSMODE -loglevel $NNLOGLEVEL"
     boot            # Boot it up!
 }

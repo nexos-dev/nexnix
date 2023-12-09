@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-OUTPUT_FORMAT(elf32-i386)
+OUTPUT_FORMAT(elf64-x86_64)
 ENTRY(NkMain)
 
 SECTIONS
