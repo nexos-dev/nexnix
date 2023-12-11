@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-OUTPUT_FORMAT(elf64-x86_64)
+OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(NbDecompMain)
 
 NEXBOOT_LOADADDR = 0x50000;

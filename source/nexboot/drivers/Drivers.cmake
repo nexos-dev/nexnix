@@ -20,7 +20,8 @@ if(NEXBOOT_FW STREQUAL "bios")
     list(APPEND NEXBOOT_FW_DRIVERS drivers/vgaconsole.c 
                                    drivers/ps2kbd.c
                                    drivers/uart16550.c
-                                   drivers/biosdisk.c)
+                                   drivers/biosdisk.c
+                                   drivers/vbe.c)
 endif()
 
 list(APPEND NEXBOOT_DRIVERS drivers/terminal.c

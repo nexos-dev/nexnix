@@ -203,6 +203,9 @@ static bool LogWrite (void* objp, void* strp)
                     notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
                     notify.data = termDrv;
                     NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
+                    NbSendDriverCode (termDrv,
+                                      NB_DRIVER_ENTRY_ATTACHOBJ,
+                                      term->outEnd);
                 }
             }
             NbObject_t* termObj = log->outputDevs[str->priority - 1];

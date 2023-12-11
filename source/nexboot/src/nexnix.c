@@ -152,8 +152,6 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     // We have now reached that point in loading.
     // It's time to launch the kernel. First, however, we must map the kernel
     // into the address space.
-    // Initialize address space manager
-    NbCpuAsInit();
     // Map in firmware-dictated memory regions
     NbFwMapRegions();
     // Load up the kernel into memory

@@ -383,7 +383,7 @@ static bool nbMenuSelectOs (NbUi_t* ui)
 {
     // Grab autoboot and check it
     StringRef_t* autoBoot = NbShellGetVar ("autoboot");
-    if (!keyboardObj || (autoBoot && !strcmp (StrRefGet (autoBoot), "1")))
+    if (!keyboardObj || !ui || (autoBoot && !strcmp (StrRefGet (autoBoot), "1")))
     {
         // Boot first menu entry
         selectedEnt = ArrayGetElement (menuEntries, 0);
@@ -437,14 +437,18 @@ bool NbMenuInitUi (Array_t* args)
     // NOTE: I would like to be portable to other have other UI backends, but for
     // right now we assume only TextUi exists
     NbObject_t* uiObj = NbObjFind ("/Interfaces/TextUi");
-    NbUi_t* ui = NbObjGetData (uiObj);
-    // Initialize UI
-    if (!nbMenuCreateUi (ui))
+    NbUi_t* ui = NULL;
+    if (uiObj)
     {
-        ArrayDestroy (menuEntries);
-        menuEntries = NULL;
-        NbUiDestroy();
-        return false;
+        ui = NbObjGetData (uiObj);
+        // Initialize UI
+        if (!nbMenuCreateUi (ui))
+        {
+            ArrayDestroy (menuEntries);
+            menuEntries = NULL;
+            NbUiDestroy();
+            return false;
+        }
     }
     // Select OS
     if (!nbMenuSelectOs (ui))
@@ -455,7 +459,8 @@ bool NbMenuInitUi (Array_t* args)
         return false;    // Return to shell
     }
     // Destroy UI
-    NbUiDestroy();
+    if (uiObj)
+        NbUiDestroy();
     // Boot the OS
     nbMenuBootOs();
     // Boot returned, go to shell

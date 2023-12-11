@@ -89,6 +89,8 @@ void NbMain (NbloadDetect_t* nbDetect)
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
+    // Initialize address space manager
+    NbCpuAsInit();
     // Detect hardware devices and add them to object database
     if (!NbFwDetectHw (nbDetect))
     {

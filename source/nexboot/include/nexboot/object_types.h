@@ -35,6 +35,7 @@
 #define OBJ_INTERFACE_DISK          6
 #define OBJ_INTERFACE_VOLUME        7
 #define OBJ_INTERFACE_TEXTUI        8
-#define OBJ_MAX_INTERFACE           8
+#define OBJ_INTERFACE_DISPLAY       9
+#define OBJ_MAX_INTERFACE           9
 
 #endif

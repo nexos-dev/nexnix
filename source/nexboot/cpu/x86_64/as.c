@@ -32,6 +32,7 @@ typedef uint64_t pmle_t;    // We use one type for all PMLs
 // Page table flags
 #define PT_P                   (1ULL << 0)
 #define PT_RW                  (1ULL << 1)
+#define PT_WT                  (1ULL << 3)
 #define PT_G                   (1ULL << 8)
 #define PT_FRAME               0x7FFFFFFFFFFFF000
 #define PT_GETFRAME(pt)        ((pt) & (PT_FRAME))
@@ -129,6 +130,8 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     uint64_t ptFlags = PT_P;
     if (flags & NB_CPU_AS_RW)
         ptFlags |= PT_RW;
+    if (flags & NB_CPU_AS_WT)
+        ptFlags |= PT_WT;
     //  De-canonicalize the address
     virt = cpuAsDecanonical (virt);
     // Loop through each level
@@ -145,7 +148,7 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
             {
                 // Adjust them
                 *ent &= PT_FRAME;
-                *ent |= (ptFlags & ~(PT_G));
+                *ent |= (ptFlags & ~(PT_G) & ~(PT_WT));
             }
             // Get structure
             curSt = (pmle_t*) PT_GETFRAME (*ent);

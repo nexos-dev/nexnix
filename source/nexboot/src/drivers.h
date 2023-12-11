@@ -30,6 +30,7 @@ extern NbDriver_t uart16550Drv;
 extern NbDriver_t biosDiskDrv;
 extern NbDriver_t volManagerDrv;
 extern NbDriver_t textUiDrv;
+extern NbDriver_t vbeDrv;
 
 // Driver tables
 
@@ -38,7 +39,8 @@ static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv,
                                        &vgaConsoleDrv,
                                        &ps2KbdDrv,
                                        &uart16550Drv,
-                                       &biosDiskDrv};
+                                       &biosDiskDrv,
+                                       &vbeDrv};
 static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv, &textUiDrv};
 
 #endif

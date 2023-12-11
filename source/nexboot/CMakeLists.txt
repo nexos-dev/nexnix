@@ -29,12 +29,24 @@ include(GNUInstallDirs)
 nexnix_add_parameter(NEXNIX_LOGLEVEL 
                      "Value that defines what should and shouldn't be logged"
                      2)
+nexnix_add_parameter(NEXNIX_GRAPHICS_MODE
+                    "Defines whether nexboot runs in text mode or graphical mode. Either 'text' or 'gui'"
+                    "text")
 
 # Add definition based off firmware type
 if(${NEXBOOT_FW} STREQUAL "bios")
     add_compile_definitions(NEXNIX_FW_BIOS)
 elseif(${NEXBOOT_FW} STREQUAL "efi")
     add_compile_definitions(NEXNIX_FW_EFI)
+endif()
+
+# Add graphics mode definition
+if(${NEXNIX_GRAPHICS_MODE} STREQUAL "text")
+    add_compile_definitions(NEXNIX_GRAPHICS_TEXT)
+elseif(${NEXNIX_GRAPHICS_MODE} STREQUAL "gui")
+    add_compile_definitions(NEXNIX_GRAPHICS_GRAPHICAL)
+else()
+    message(FATAL_ERROR "Invalid NEXNIX_GRAPHICS_MODE")
 endif()
 
 # Include main include directory
