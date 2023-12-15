@@ -23,17 +23,17 @@
 #include <nexboot/object.h>
 
 // Console hardware driver stuff
-#define NB_CONSOLEHW_NOTIFY_SETOWNER 32
+#define NB_CONSOLE_NOTIFY_SETOWNER 32
 
-#define NB_CONSOLEHW_CLEAR          5
-#define NB_CONSOLEHW_PRINTCHAR      6
-#define NB_CONSOLEHW_DISABLE_CURSOR 7
-#define NB_CONSOLEHW_ENABLE_CURSOR  8
-#define NB_CONSOLEHW_SET_FGCOLOR    9
-#define NB_CONSOLEHW_SET_BGCOLOR    10
-#define NB_CONSOLEHW_SCROLL_DOWN    11
-#define NB_CONSOLEHW_MOVE_CURSOR    12
-#define NB_CONSOLEHW_GET_SIZE       13
+#define NB_CONSOLE_CLEAR          5
+#define NB_CONSOLE_PRINTCHAR      6
+#define NB_CONSOLE_DISABLE_CURSOR 7
+#define NB_CONSOLE_ENABLE_CURSOR  8
+#define NB_CONSOLE_SET_FGCOLOR    9
+#define NB_CONSOLE_SET_BGCOLOR    10
+#define NB_CONSOLE_SCROLL_DOWN    11
+#define NB_CONSOLE_MOVE_CURSOR    12
+#define NB_CONSOLE_GET_SIZE       13
 
 typedef struct _consoleSz
 {
@@ -115,12 +115,21 @@ typedef struct _keyData
 #define NB_TERMINAL_WRITECHAR 10
 #define NB_TERMINAL_READCHAR  11
 
+#define NB_TERMINAL_NOTIFY_RESIZE 32
+
 // Terminal read argument
 typedef struct _termRead
 {
     char* buf;       // Buffer to read into
     size_t bufSz;    // Size of buffer
 } NbTermRead_t;
+
+// Terminal resize
+typedef struct _termResize
+{
+    void* console;
+    NbConsoleSz_t sz;
+} NbTermResize_t;
 
 // Terminal structure
 typedef struct _term

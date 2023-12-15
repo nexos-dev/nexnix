@@ -57,6 +57,9 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 # but I don't know it
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
+# Install fonts
+#install(DIRECTORY ${CMAKE_SOURCE_DIR}/fonts DESTINATION ${CMAKE_INSTALL_PREFIX})
+
 # Include CPU files
 include(cpu/${NEXNIX_ARCH}/arch.cmake)
 

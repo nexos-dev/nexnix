@@ -22,11 +22,50 @@ void* memcpy (void* restrict dest, const void* restrict src, size_t n)
 {
     const uint8_t* s = src;
     uint8_t* d = dest;
-    while (n--)
+    // Check if it is aligned
+    if (!((uintptr_t) d % 8) && !((uintptr_t) s % 8))
     {
-        *d = *s;
-        ++d;
-        ++s;
+        uint64_t* dw = dest;
+        const uint64_t* sw = src;
+        size_t numQwords = n >> 3;
+        size_t diff = n % 8;
+        while (numQwords--)
+            *dw++ = *sw++;
+        uint8_t* d2 = (uint8_t*) dw;
+        uint8_t* s2 = (uint8_t*) sw;
+        while (diff--)
+            *d2++ = *s2++;
+    }
+    else if (!((uintptr_t) d % 4) && !((uintptr_t) s % 4))
+    {
+        uint32_t* dw = dest;
+        const uint32_t* sw = src;
+        size_t numDwords = n >> 2;
+        size_t diff = n % 4;
+        while (numDwords--)
+            *dw++ = *sw++;
+        uint8_t* d2 = (uint8_t*) dw;
+        uint8_t* s2 = (uint8_t*) sw;
+        while (diff--)
+            *d2++ = *s2++;
+    }
+    else if (!((uintptr_t) d % 2) && !((uintptr_t) s % 2))
+    {
+        uint16_t* dw = dest;
+        const uint16_t* sw = src;
+        size_t numWords = n >> 1;
+        size_t diff = n % 2;
+        while (numWords--)
+            *dw++ = *sw++;
+        uint8_t* d2 = (uint8_t*) dw;
+        uint8_t* s2 = (uint8_t*) sw;
+        while (diff--)
+            *d2++ = *s2++;
+    }
+    else
+    {
+        while (n--)
+            *d++ = *s++;
     }
     return dest;
 }

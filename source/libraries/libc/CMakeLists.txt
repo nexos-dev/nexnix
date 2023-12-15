@@ -48,6 +48,7 @@ list(APPEND LIBC_SOURCE_ALWAYS
             string/strlen.c
             string/strcpy.c
             string/strcat.c
+            string/atoi.c
             stdio/vsnprintf.c
             stdio/vsprintf.c
             stdio/sprintf.c

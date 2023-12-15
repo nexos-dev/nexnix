@@ -51,4 +51,7 @@ _Noreturn void exit (int status);
 /// Gracefully exits program, but doesn't call atexit(3) handlers
 _Noreturn void _Exit (int status);
 
+// Converts string to integer
+int atoi (const char* s);
+
 #endif

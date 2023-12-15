@@ -231,7 +231,7 @@ static void vbeGetPreferredRes (int* width, int* height)
 // Maps frame buffer
 static void vbeMapBuffer (NbDisplayDev_t* display, void* buf)
 {
-    size_t lfbSize = display->bytesPerLine * display->height * (display->bpp / 8);
+    size_t lfbSize = display->bytesPerLine * display->height;
     size_t lfbPages =
         (lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     for (int i = 0; i < lfbPages; ++i)
@@ -252,6 +252,7 @@ static void vbeSetupDisplay (NbDisplayDev_t* display,
     display->width = modeInfo->width;
     display->height = modeInfo->height;
     display->bpp = modeInfo->bitsPerPixel;
+    display->bytesPerPx = display->bpp / 8;
     if (vbeVer == 3)
         display->bytesPerLine = modeInfo->lfbScanLine;
     else
@@ -309,13 +310,16 @@ static void vbeSetupDisplay (NbDisplayDev_t* display,
     vbeMapBuffer (display, display->frontBuffer);
     // Map back buffer. We put it at the end of nexboot
     display->backBuffer = (void*) NEXBOOT_BIOS_END;
+    display->backBufferLoc = display->backBuffer;
     vbeMapBuffer (display, display->backBuffer);
-    // Clear them
-    size_t lfbSize = display->bytesPerLine * display->height * (display->bpp / 8);
-    memset (display->backBuffer, 0, lfbSize);
-    memset (display->frontBuffer, 0, lfbSize);
+    // Set size
+    size_t lfbSize = display->bytesPerLine * display->height;
+    display->lfbSize = lfbSize;
     // Set VBE mode
     vbeSetMode (modeNum);
+    // Clear buffers
+    memset (display->backBuffer, 0, lfbSize);
+    memset (display->frontBuffer, 0, lfbSize);
 }
 
 // Querys availibilty of specified mode
@@ -348,11 +352,12 @@ static bool vbeQueryMode (uint16_t width,
         {
             goto next;
         }
-        if (modeInfo.bitsPerPixel == 24)
-            goto next;    // 24 bpp not supported
-        // If mode is identical and BPP is 32, use it
+        if (modeInfo.bitsPerPixel != 16 && modeInfo.bitsPerPixel != 32)
+            goto next;    // 24 and 8 bpp not supported
+        // If mode is identical and BPP is 16, we use it
+        // We want 16 BPP as it is considerably faster than 32 BPP
         if (modeInfo.width == width && modeInfo.height == height &&
-            modeInfo.bitsPerPixel == 32)
+            modeInfo.bitsPerPixel == 16)
         {
             // End it
             bestHeight = modeInfo.height;
@@ -441,6 +446,14 @@ static bool VbeDrvEntry (int code, void* params)
                 return false;
             // Set it
             vbeSetupDisplay (params, &modeInfo, bestModeNum);
+            NbDisablePrintEarly();
+            break;
+        }
+        case NB_DRIVER_ENTRY_ATTACHOBJ: {
+            // Set the interface
+            NbObject_t* obj = params;
+            NbObjInstallSvcs (obj, &vbeSvcTab);
+            NbObjSetManager (obj, &vbeDrv);
             break;
         }
     }
@@ -452,34 +465,122 @@ static bool VbeObjDumpData (void* objp, void* params)
     return true;
 }
 
-static bool VbeObjNotify (void* obp, void* params)
+static bool VbeObjNotify (void* objp, void* params)
 {
+    NbObject_t* obj = objp;
+    NbObjNotify_t* notify = params;
+    int code = notify->code;
+    if (code == NB_DISPLAY_NOTIFY_SETOWNER)
+    {
+        // Notify current owner that we are being deteached
+        if (obj->owner)
+            obj->owner->entry (NB_DRIVER_ENTRY_DETACHOBJ, obj);
+        NbDriver_t* newDrv = notify->data;
+        // Set new owner
+        NbObjSetOwner (obj, newDrv);
+    }
     return true;
 }
 
 static bool VbeObjInvalidate (void* objp, void* params)
 {
-    return true;
-}
-
-static bool VbeObjSwapBuf (void* objp, void* params)
-{
+    NbObject_t* obj = objp;
+    NbDisplayDev_t* display = NbObjGetData (obj);
+    NbInvalidRegion_t* region = params;
+    // Validate input
+    // Check to ensure startX + width is not greater than line size
+    if ((region->startX + region->width) > display->width)
+        return false;
+    // Ensure region is bounded within display
+    if ((region->startY + region->height) > display->height)
+        return false;
+    // Compute initial location in region
+    size_t startLoc = (region->startY * display->bytesPerLine) +
+                      (region->startX * display->bytesPerPx);
+    int bytesPerPx = display->bpp / 8;
+    size_t regionWidth = bytesPerPx * region->width;
+    size_t off = 0;
+    // Compute back-buffer specific things
+    void* backBufEnd =
+        display->backBuffer + (display->height * display->bytesPerLine);
+    void* backBuf = display->backBufferLoc + startLoc;
+    if (backBuf >= backBufEnd)
+    {
+        // Wrap around
+        size_t diff = backBuf - backBufEnd;
+        backBuf = display->backBuffer + diff;
+    }
+    // Go through each line in region
+    void* front = display->frontBuffer + startLoc;
+    for (int i = 0; i < region->height; ++i)
+    {
+        if (backBuf >= backBufEnd)
+        {
+            // Wrap around
+            size_t diff = backBuf - backBufEnd;
+            backBuf = display->backBuffer + diff;
+        }
+        // Copy width number of pixels
+        memcpy (front, backBuf, regionWidth);
+        // Move to next line
+        front += display->bytesPerLine;
+        backBuf += display->bytesPerLine;
+    }
     return true;
 }
 
 static bool VbeObjSetMode (void* objp, void* params)
 {
+    NbObject_t* obj = objp;
+    NbDisplayDev_t* display = NbObjGetData (obj);
+    NbDisplayMode_t* mode = params;
+    // Query mode
+    uint16_t modeNum = 0;
+    VbeModeInfo_t modeInfo = {0};
+    if (!vbeQueryMode (mode->width, mode->height, &modeNum, &modeInfo))
+        return false;
+    // Unmap current buffers
+    size_t lfbPages =
+        (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    for (int i = 0; i < lfbPages; ++i)
+    {
+        NbCpuAsUnmap ((uintptr_t) display->frontBuffer +
+                      (i * NEXBOOT_CPU_PAGE_SIZE));
+        NbCpuAsUnmap ((uintptr_t) display->backBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
+    }
+    // Set mode
+    vbeSetupDisplay (display, &modeInfo, modeNum);
+    // Notify owner
+    if (obj->owner)
+        obj->owner->entry (NB_DISPLAY_CODE_SETMODE, display);
+    return true;
+}
+
+static bool VbeObjSetRender (void* objp, void* params)
+{
+    NbObject_t* obj = objp;
+    NbDisplayDev_t* display = NbObjGetData (obj);
+    // Update back buffer by a line
+    void* end = display->backBuffer + display->lfbSize;
+    display->backBufferLoc += display->bytesPerLine;
+    if (display->backBufferLoc >= end)
+    {
+        // Wrap
+        size_t diff = display->backBufferLoc - end;
+        display->backBufferLoc = display->backBuffer - diff;
+    }
     return true;
 }
 
 // Object interface
 static NbObjSvc vbeServices[] = {NULL,
                                  NULL,
+                                 NULL,
                                  VbeObjDumpData,
                                  VbeObjNotify,
                                  VbeObjInvalidate,
-                                 VbeObjSwapBuf,
-                                 VbeObjSetMode};
+                                 VbeObjSetMode,
+                                 VbeObjSetRender};
 
 NbObjSvcTab_t vbeSvcTab = {ARRAY_SIZE (vbeServices), vbeServices};
 

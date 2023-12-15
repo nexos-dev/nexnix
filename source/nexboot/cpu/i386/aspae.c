@@ -144,3 +144,23 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     NbInvlpg (virt);
     return true;
 }
+
+void NbCpuAsUnmap (uintptr_t virt)
+{
+    uint32_t pdptIdx = PG_ADDR_PDPT (virt);
+    uint32_t dirIdx = PG_ADDR_DIR (virt);
+    uint32_t tabIdx = PG_ADDR_TAB (virt);
+    // Check if a directory is mapped
+    pdpte_t* pdpte = &pdpt[pdptIdx];
+    if (!(*pdpte))
+        return;
+    pde_t* pdir = (pde_t*) PT_GETFRAME (*pdpte);
+    pde_t* pde = &pdir[dirIdx];
+    // Check if a table is mapped
+    if (!(*pde))
+        return;
+    pte_t* pgTab = (pte_t*) PT_GETFRAME (*pde);
+    pte_t* pte = &pgTab[tabIdx];
+    *pte = 0;
+    NbInvlpg (virt);
+}

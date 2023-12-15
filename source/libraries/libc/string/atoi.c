@@ -1,5 +1,5 @@
-#[[
-    Drivers.cmake - decides what drivers to build
+/*
+    atoi.c - contains atoi function
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,17 +13,18 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-# Append drivers for FW type
-if(NEXBOOT_FW STREQUAL "bios")
-    list(APPEND NEXBOOT_FW_DRIVERS drivers/vgaconsole.c 
-                                   drivers/ps2kbd.c
-                                   drivers/uart16550.c
-                                   drivers/biosdisk.c
-                                   drivers/vbe.c)
-endif()
+#include <stdlib.h>
 
-list(APPEND NEXBOOT_DRIVERS drivers/terminal.c
-                            drivers/volmanager.c
-                            drivers/fbconsole.c)
+int atoi (const char* s)
+{
+    int num = 0;
+    while (*s)
+    {
+        num *= 10;
+        num += *s - '0';
+        ++s;
+    }
+    return num;
+}

@@ -168,3 +168,23 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     NbInvlpg (virt);
     return true;
 }
+
+void NbCpuAsUnmap (uintptr_t virt)
+{
+    // Decanonicalize
+    virt = cpuAsDecanonical (virt);
+    // Iterate through levels
+    pmle_t* curSt = pgBase;
+    for (int i = asMaxLevel; i > 1; --i)
+    {
+        // Get entry
+        pmle_t* ent = cpuAsGetEntry (curSt, virt, i);
+        if (!(*ent))
+            return;                              // Address not actually mapped
+        curSt = (pmle_t*) PT_GETFRAME (*ent);    // Get structure
+    }
+    // Grab last PML entry
+    pmle_t* lastEnt = cpuAsGetEntry (curSt, virt, 1);
+    *lastEnt = 0;    // Unmap
+    NbInvlpg (virt);
+}

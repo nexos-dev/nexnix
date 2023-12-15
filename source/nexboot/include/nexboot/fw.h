@@ -127,13 +127,16 @@ void NbCpuAsInit();
 /// Maps address into space
 bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags);
 
+/// Unmaps address from address space
+void NbCpuAsUnmap (uintptr_t virt);
+
 /// Maps firmware-dictated regions into address sace
 void NbFwMapRegions();
 
 // Flags for AS
-#define NB_CPU_AS_RW      (1 << 1)
-#define NB_CPU_AS_GLOBAL  (1 << 2)
-#define NB_CPU_AS_NX      (1 << 3)
-#define NB_CPU_AS_WT (1 << 4)
+#define NB_CPU_AS_RW     (1 << 1)
+#define NB_CPU_AS_GLOBAL (1 << 2)
+#define NB_CPU_AS_NX     (1 << 3)
+#define NB_CPU_AS_WT     (1 << 4)
 
 #endif

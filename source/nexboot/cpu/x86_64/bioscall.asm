@@ -32,7 +32,6 @@ NbBiosCall:
     mov rax, cr3
     mov [cr3Val], rax
     ; Step 2 - switch to real mode state
-    lidt [ivt]                  ; Load IVT
     ; Get register input
     mov rbx, rdx
     mov rcx, rdi
@@ -47,6 +46,10 @@ NbBiosCall:
     push qword .32bitmode
     retfq
 bits 32
+.idt16:
+    dw 0x3FF
+    dd 0
+align 16
 .32bitmode:
     ; Set segments
     mov ax, 0x20
@@ -54,6 +57,7 @@ bits 32
     mov es, ax
     mov ss, ax
     mov esp, edi        ; Restore saved ESP
+    lidt [.idt16]       ; Load IVT
     ; Load input registers
     push dword [edx]
     push dword [edx+4]
@@ -189,7 +193,7 @@ gdtStore: times 6 db 0
 cr3Val: dq 0
 pmodeStack: dq 0
 
-; Real mode IVT
-ivt:
-    dw 0x3FF
-    dd 0
+; IDT
+idtr64:
+    dw 0
+    dq 0

@@ -28,7 +28,6 @@ typedef struct _frameBufReg
     uint16_t startY;    // Y corner of region
     uint16_t width;     // Width and height of region
     uint16_t height;
-    struct _frameBufReg* next;
 } NbInvalidRegion_t;
 
 typedef struct _masksz
@@ -40,16 +39,19 @@ typedef struct _masksz
 typedef struct _nbDisplay
 {
     NbHwDevice_t dev;
-    int width;                // Width of seleceted mode
-    int height;               // Height of selected mode
-    int bytesPerLine;         // Bytes per scanline
-    char bpp;                 // Bits per pixel
+    int width;           // Width of seleceted mode
+    int height;          // Height of selected mode
+    int bytesPerLine;    // Bytes per scanline
+    char bpp;            // Bits per pixel
+    char bytesPerPx;
+    size_t lfbSize;
     NbPixelMask_t redMask;    // Masks
     NbPixelMask_t greenMask;
     NbPixelMask_t blueMask;
     NbPixelMask_t resvdMask;
     void* frontBuffer;                 // Base of front buffer
     void* backBuffer;                  // Base of back buffer
+    void* backBufferLoc;               // Current pointer to back buffer
     NbInvalidRegion_t* invalidList;    // Internal. List of regions to copy on buffer
                                        // invalidate
 } NbDisplayDev_t;
@@ -108,8 +110,30 @@ typedef struct _displayMode
 } NbDisplayMode_t;
 
 // Display object functions
-#define NB_DISPLAY_INVALIDATE 4
-#define NB_DISPLAY_SWAPBUF    5
-#define NB_DISPLAY_SETMODE    6
+#define NB_DISPLAY_INVALIDATE      5
+#define NB_DISPLAY_NOTIFY_SETOWNER 32
+
+#define NB_DISPLAY_SETMODE   6
+#define NB_DISPLAY_INCRENDER 7
+
+#define NB_DISPLAY_CODE_SETMODE NB_DRIVER_USER
+
+// Display manipulation macros
+#define DISPLAY_DECOMPOSE_RGB(rgb, r, g, b) \
+    ((r) = (((rgb) & (0xFF0000)) >> 16),    \
+     (g) = (((rgb) & (0xFF00)) >> 8),       \
+     (b) = (((rgb) & (0xFF))))
+
+#define DISPLAY_PLOT_8BPP(display, buf, color, x, y)       \
+    (*((uint8_t*) (buf + ((y) * (display)->bytesPerLine) + \
+                   ((x) * ((display)->bytesPerPx)))) = color)
+
+#define DISPLAY_PLOT_16BPP(display, buf, color, x, y)       \
+    (*((uint16_t*) (buf + ((y) * (display)->bytesPerLine) + \
+                    ((x) * ((display)->bytesPerPx)))) = color)
+
+#define DISPLAY_PLOT_32BPP(display, buf, color, x, y)       \
+    (*((uint32_t*) (buf + ((y) * (display)->bytesPerLine) + \
+                    ((x) * ((display)->bytesPerPx)))) = color)
 
 #endif

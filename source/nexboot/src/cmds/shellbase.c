@@ -16,8 +16,10 @@
 */
 
 #include <libnex/array.h>
+#include <nexboot/drivers/display.h>
 #include <nexboot/nexboot.h>
 #include <nexboot/shell.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Echo command
@@ -236,5 +238,60 @@ void NbMmapDumpData();
 bool NbMmapDumpMain (Array_t* args)
 {
     NbMmapDumpData();
+    return true;
+}
+
+// gfxmode command
+bool NbGfxModeMain (Array_t* args)
+{
+    // Grab argument
+    if (args->allocatedElems < 1)
+    {
+        NbShellWrite ("gfxmode: Argument required\n");
+        return false;
+    }
+    // Get argument
+    StringRef_t** modeRef = ArrayGetElement (args, 0);
+    if (!modeRef)
+    {
+        NbShellWrite ("gfxmode: Argument required\n");
+        return false;
+    }
+    char* modeStr = StrRefGet (*modeRef);
+    // Get individual parts
+    char width[5] = {0};
+    char height[5] = {0};
+    int idx = 0;
+    while (*modeStr != 'x')
+        width[idx] = *modeStr, ++modeStr, ++idx;
+    idx = 0;
+    ++modeStr;    // Skip 'x'
+    while (*modeStr)
+        height[idx] = *modeStr, ++modeStr, ++idx;
+    int widthInt = atoi (width);
+    int heightInt = atoi (height);
+    // Get first display
+    NbObject_t* iter = NULL;
+    bool found = false;
+    NbObject_t* devDir = NbObjFind ("/Devices");
+    while ((iter = NbObjEnumDir (devDir, iter)))
+    {
+        if (iter->type == OBJ_TYPE_DEVICE &&
+            iter->interface == OBJ_INTERFACE_DISPLAY)
+        {
+            found = true;
+            break;
+        }
+    }
+    if (!iter)
+    {
+        NbShellWrite ("gfxmode: No display found\n");
+        return false;
+    }
+    // Set mode
+    NbDisplayMode_t mode;
+    mode.width = widthInt;
+    mode.height = heightInt;
+    NbObjCallSvc (iter, NB_DISPLAY_SETMODE, &mode);
     return true;
 }

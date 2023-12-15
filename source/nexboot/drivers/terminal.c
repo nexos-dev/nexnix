@@ -51,9 +51,9 @@ static void createTerminal (int termNum,
     // Get console size
     if (outEnd->interface == OBJ_INTERFACE_CONSOLE)
     {
-        notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+        notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
         NbConsoleSz_t sz = {0};
-        NbObjCallSvc (term->outEnd, NB_CONSOLEHW_GET_SIZE, &sz);
+        NbObjCallSvc (term->outEnd, NB_CONSOLE_GET_SIZE, &sz);
         term->numCols = sz.cols;
         term->numRows = sz.rows;
         term->echo = true;
@@ -206,7 +206,7 @@ static bool TerminalEntry (int code, void* params)
                         {
                             NbConsoleSz_t sz = {0};
                             NbObjCallSvc (terms[i]->outEnd,
-                                          NB_CONSOLEHW_GET_SIZE,
+                                          NB_CONSOLE_GET_SIZE,
                                           &sz);
                             terms[i]->numCols = sz.cols;
                             terms[i]->numRows = sz.rows;
@@ -215,16 +215,14 @@ static bool TerminalEntry (int code, void* params)
                             terms[i]->echo = true;
                             // Set colors
                             NbObjCallSvc (terms[i]->outEnd,
-                                          NB_CONSOLEHW_SET_BGCOLOR,
+                                          NB_CONSOLE_SET_BGCOLOR,
                                           (void*) NB_CONSOLE_COLOR_BLACK);
                             NbObjCallSvc (terms[i]->outEnd,
-                                          NB_CONSOLEHW_SET_FGCOLOR,
+                                          NB_CONSOLE_SET_FGCOLOR,
                                           (void*) NB_CONSOLE_COLOR_WHITE);
                             // Clear screen
-                            NbObjCallSvc (terms[i]->outEnd,
-                                          NB_CONSOLEHW_CLEAR,
-                                          NULL);
-                            notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+                            NbObjCallSvc (terms[i]->outEnd, NB_CONSOLE_CLEAR, NULL);
+                            notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
                         }
                         else if (dev->interface == OBJ_INTERFACE_RS232)
                             notify.code = NB_SERIAL_NOTIFY_SETOWNER;
@@ -311,6 +309,25 @@ static bool TerminalEntry (int code, void* params)
             }
             break;
         }
+        case NB_TERMINAL_NOTIFY_RESIZE: {
+            NbObjNotify_t* notify = params;
+            NbTermResize_t* resize = notify->data;
+            // Find console
+            NbTerminal_t* term = NULL;
+            for (int i = 0; i < curTerm; ++i)
+            {
+                if (terms[i]->outEnd->data == resize->console)
+                {
+                    term = terms[i];
+                    break;
+                }
+            }
+            if (!term)
+                return false;    // Output not attached
+            term->numCols = resize->sz.cols;
+            term->numRows = resize->sz.rows;
+            term->col = 0, term->row = 0;
+        }
     }
     return true;
 }
@@ -338,6 +355,9 @@ static bool TerminalDumpData (void* objp, void* params)
 
 static bool TerminalNotify (void* objp, void* params)
 {
+    NbObject_t* obj = objp;
+    NbObjNotify_t* notify = params;
+    NbTerminal_t* term = NbObjGetData (obj);
     return true;
 }
 
@@ -348,7 +368,7 @@ static void terminalScroll (NbTerminal_t* term)
     {
         int rowsToScroll = (term->row - term->numRows) + 1;
         for (int i = 0; i < rowsToScroll; ++i)
-            NbObjCallSvc (term->outEnd, NB_CONSOLEHW_SCROLL_DOWN, NULL);
+            NbObjCallSvc (term->outEnd, NB_CONSOLE_SCROLL_DOWN, NULL);
         term->row = term->numRows - 1;
     }
 }
@@ -360,7 +380,7 @@ static void terminalMoveCursor (NbTerminal_t* term)
     NbConsoleLoc_t loc = {0};
     loc.col = term->col;
     loc.row = term->row;
-    NbObjCallSvc (term->outEnd, NB_CONSOLEHW_MOVE_CURSOR, &loc);
+    NbObjCallSvc (term->outEnd, NB_CONSOLE_MOVE_CURSOR, &loc);
 }
 
 static void terminalProccesEscCodeLetter (NbTerminal_t* term, uint8_t c)
@@ -469,14 +489,14 @@ static void terminalProccesEscCodeLetter (NbTerminal_t* term, uint8_t c)
             return;
         }
         // Clear screen
-        NbObjCallSvc (term->outEnd, NB_CONSOLEHW_CLEAR, NULL);
+        NbObjCallSvc (term->outEnd, NB_CONSOLE_CLEAR, NULL);
         term->col = 0, term->row = 0;
         // Set color
         NbObjCallSvc (term->outEnd,
-                      NB_CONSOLEHW_SET_BGCOLOR,
+                      NB_CONSOLE_SET_BGCOLOR,
                       (void*) NB_CONSOLE_COLOR_BLACK);
         NbObjCallSvc (term->outEnd,
-                      NB_CONSOLEHW_SET_FGCOLOR,
+                      NB_CONSOLE_SET_FGCOLOR,
                       (void*) NB_CONSOLE_COLOR_WHITE);
     }
     else if (c == 'm')
@@ -487,19 +507,19 @@ static void terminalProccesEscCodeLetter (NbTerminal_t* term, uint8_t c)
             int attr = term->escParams[i];
             if (attr >= 40)
                 NbObjCallSvc (term->outEnd,
-                              NB_CONSOLEHW_SET_BGCOLOR,
+                              NB_CONSOLE_SET_BGCOLOR,
                               (void*) (attr - 40));
             else if (attr >= 30)
                 NbObjCallSvc (term->outEnd,
-                              NB_CONSOLEHW_SET_FGCOLOR,
+                              NB_CONSOLE_SET_FGCOLOR,
                               (void*) (attr - 30));
             else if (attr == 0)
             {
                 NbObjCallSvc (term->outEnd,
-                              NB_CONSOLEHW_SET_BGCOLOR,
+                              NB_CONSOLE_SET_BGCOLOR,
                               (void*) NB_CONSOLE_COLOR_BLACK);
                 NbObjCallSvc (term->outEnd,
-                              NB_CONSOLEHW_SET_FGCOLOR,
+                              NB_CONSOLE_SET_FGCOLOR,
                               (void*) NB_CONSOLE_COLOR_WHITE);
             }
         }
@@ -650,7 +670,7 @@ static bool terminalWriteChar (NbObject_t* termObj, uint8_t c)
                 pc.c = (char) c;
                 pc.col = term->col;
                 pc.row = term->row;
-                NbObjCallSvc (out, NB_CONSOLEHW_PRINTCHAR, &pc);
+                NbObjCallSvc (out, NB_CONSOLE_PRINTCHAR, &pc);
                 ++term->col;
                 if (term->col >= term->numCols)
                 {
@@ -861,7 +881,7 @@ static bool TerminalClear (void* objp, void* unused)
     if (term->outEnd->interface == OBJ_INTERFACE_CONSOLE)
     {
         term->row = 0, term->col = 0;
-        NbObjCallSvc (term->outEnd, NB_CONSOLEHW_CLEAR, NULL);
+        NbObjCallSvc (term->outEnd, NB_CONSOLE_CLEAR, NULL);
     }
     return true;
 }

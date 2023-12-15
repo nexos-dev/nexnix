@@ -200,7 +200,7 @@ static bool LogWrite (void* objp, void* strp)
                 {
                     // Inform it of it's new owner
                     NbObjNotify_t notify;
-                    notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+                    notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
                     notify.data = termDrv;
                     NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
                     NbSendDriverCode (termDrv,
@@ -280,7 +280,7 @@ static bool LogObjInit (void* objp, void* unused)
             if (term.outEnd->interface == OBJ_INTERFACE_CONSOLE)
             {
                 // Clear the terminal
-                NbObjCallSvc (term.outEnd, NB_CONSOLEHW_CLEAR, NULL);
+                NbObjCallSvc (term.outEnd, NB_CONSOLE_CLEAR, NULL);
                 ++numConsoles;
                 // Determine where this would be best suited
                 if (numConsoles == 1)

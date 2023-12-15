@@ -18,6 +18,8 @@
 #include <assert.h>
 #include <nexboot/detect.h>
 #include <nexboot/driver.h>
+#include <nexboot/drivers/display.h>
+#include <nexboot/drivers/terminal.h>
 #include <nexboot/drivers/volume.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>

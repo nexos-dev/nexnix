@@ -42,6 +42,7 @@ bool NbPayloadMain (Array_t*);
 bool NbBootArgsMain (Array_t*);
 bool NbBootModMain (Array_t*);
 bool NbBootMain (Array_t*);
+bool NbGfxModeMain (Array_t*);
 
 typedef bool (*NbCmdMain) (Array_t*);
 
@@ -71,7 +72,8 @@ ShellCmd_t shellCmdTab[] = {
     {.name = "payload",  .entry = NbPayloadMain },
     {.name = "bootargs", .entry = NbBootArgsMain},
     {.name = "bootmod",  .entry = NbBootModMain },
-    {.name = "boot",     .entry = NbBootMain    }
+    {.name = "boot",     .entry = NbBootMain    },
+    {.name = "gfxmode",  .entry = NbGfxModeMain }
 };
 
 #endif

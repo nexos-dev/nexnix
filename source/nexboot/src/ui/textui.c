@@ -42,23 +42,23 @@ static bool TextUiEntry (int code, void* params)
             NbUi_t* ui = malloc (sizeof (NbUi_t));
             // Get dimensions
             NbConsoleSz_t consoleSz = {0};
-            NbObjCallSvc (console, NB_CONSOLEHW_GET_SIZE, &consoleSz);
+            NbObjCallSvc (console, NB_CONSOLE_GET_SIZE, &consoleSz);
             ui->height = consoleSz.rows;
             ui->width = consoleSz.cols;
             ui->root = NULL;
             ui->output = NbObjRef (console);
             // Set owner
             NbObjNotify_t notify = {0};
-            notify.code = NB_CONSOLEHW_NOTIFY_SETOWNER;
+            notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
             notify.data = &textUiDrv;
             NbObjCallSvc (console, OBJ_SERVICE_NOTIFY, &notify);
             // Clear the console
-            NbObjCallSvc (console, NB_CONSOLEHW_CLEAR, NULL);
+            NbObjCallSvc (console, NB_CONSOLE_CLEAR, NULL);
             // Disable cursor
-            NbObjCallSvc (console, NB_CONSOLEHW_DISABLE_CURSOR, NULL);
+            NbObjCallSvc (console, NB_CONSOLE_DISABLE_CURSOR, NULL);
             // Set background color
             NbObjCallSvc (console,
-                          NB_CONSOLEHW_SET_BGCOLOR,
+                          NB_CONSOLE_SET_BGCOLOR,
                           (void*) TEXTUI_BKGD_COLOR);
             // Create object
             uiObj = NbObjCreate ("/Interfaces/TextUi",
@@ -78,13 +78,13 @@ static bool TextUiEntry (int code, void* params)
         case NB_DRIVER_ENTRY_DETACHOBJ: {
             NbUi_t* ui = NbObjGetData (uiObj);
             // Enable cursor
-            NbObjCallSvc (ui->output, NB_CONSOLEHW_ENABLE_CURSOR, NULL);
+            NbObjCallSvc (ui->output, NB_CONSOLE_ENABLE_CURSOR, NULL);
             // Set color
             NbObjCallSvc (ui->output,
-                          NB_CONSOLEHW_SET_BGCOLOR,
+                          NB_CONSOLE_SET_BGCOLOR,
                           (void*) NB_UI_COLOR_BLACK);
             NbObjCallSvc (ui->output,
-                          NB_CONSOLEHW_SET_FGCOLOR,
+                          NB_CONSOLE_SET_FGCOLOR,
                           (void*) NB_UI_COLOR_WHITE);
             ui->output = NULL;
             // Destroy object
@@ -111,18 +111,16 @@ static void textUiWriteChar (NbUi_t* ui, char c, int x, int y)
     pc.c = c;
     pc.col = x;
     pc.row = y;
-    NbObjCallSvc (ui->output, NB_CONSOLEHW_PRINTCHAR, &pc);
+    NbObjCallSvc (ui->output, NB_CONSOLE_PRINTCHAR, &pc);
 }
 
 static void textUiSetColor (NbUi_t* ui, int fg, int bg)
 {
     if (bg != NB_UI_COLOR_TRANSPARENT)
-        NbObjCallSvc (ui->output, NB_CONSOLEHW_SET_BGCOLOR, (void*) bg);
+        NbObjCallSvc (ui->output, NB_CONSOLE_SET_BGCOLOR, (void*) bg);
     else
-        NbObjCallSvc (ui->output,
-                      NB_CONSOLEHW_SET_BGCOLOR,
-                      (void*) TEXTUI_BKGD_COLOR);
-    NbObjCallSvc (ui->output, NB_CONSOLEHW_SET_FGCOLOR, (void*) fg);
+        NbObjCallSvc (ui->output, NB_CONSOLE_SET_BGCOLOR, (void*) TEXTUI_BKGD_COLOR);
+    NbObjCallSvc (ui->output, NB_CONSOLE_SET_FGCOLOR, (void*) fg);
 }
 
 static void textUiOverwriteElement (NbUi_t* ui, NbUiElement_t* elem)

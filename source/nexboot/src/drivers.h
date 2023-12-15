@@ -31,6 +31,7 @@ extern NbDriver_t biosDiskDrv;
 extern NbDriver_t volManagerDrv;
 extern NbDriver_t textUiDrv;
 extern NbDriver_t vbeDrv;
+extern NbDriver_t fbConsDrv;
 
 // Driver tables
 
@@ -41,6 +42,6 @@ static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv,
                                        &uart16550Drv,
                                        &biosDiskDrv,
                                        &vbeDrv};
-static NbDriver_t* nbPhase2DrvTab[] = {&terminalDrv, &textUiDrv};
+static NbDriver_t* nbPhase2DrvTab[] = {&fbConsDrv, &terminalDrv, &textUiDrv};
 
 #endif

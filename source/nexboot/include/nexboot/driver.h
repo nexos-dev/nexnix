@@ -58,6 +58,9 @@ bool NbStartPhase1Drvs();
 /// Starts phase 2 of drivers
 bool NbStartPhase2Drvs();
 
+/// Starts phase 3 of drivers
+bool NbStartPhase3Drvs();
+
 /// Sends driver a code
 bool NbSendDriverCode (NbDriver_t* drv, int code, void* data);
 

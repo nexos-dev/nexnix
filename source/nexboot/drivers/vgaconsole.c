@@ -147,7 +147,7 @@ static bool VgaObjNotify (void* objp, void* data)
     NbObject_t* obj = objp;
     NbObjNotify_t* notify = data;
     int code = notify->code;
-    if (code == NB_CONSOLEHW_NOTIFY_SETOWNER)
+    if (code == NB_CONSOLE_NOTIFY_SETOWNER)
     {
         // Notify current owner that we are being deteached
         NbVgaConsole_t* console = obj->data;
