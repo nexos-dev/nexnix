@@ -211,7 +211,7 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
                 sizeof (NbPixelMask_t));
         memcpy (&bootInfo->display.resvdMask,
                 &display->resvdMask,
-                sizeo (NbPixelMask_t));
+                sizeof (NbPixelMask_t));
     }
     else
         bootInfo->displayDefault = true;

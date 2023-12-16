@@ -442,12 +442,17 @@ bool NbMenuInitUi (Array_t* args)
     {
         ui = NbObjGetData (uiObj);
         // Initialize UI
-        if (!nbMenuCreateUi (ui))
+        StringRef_t* autoBoot = NbShellGetVar ("autoboot");
+        if (!(!keyboardObj || !ui ||
+              (autoBoot && !strcmp (StrRefGet (autoBoot), "1"))))
         {
-            ArrayDestroy (menuEntries);
-            menuEntries = NULL;
-            NbUiDestroy();
-            return false;
+            if (!nbMenuCreateUi (ui))
+            {
+                ArrayDestroy (menuEntries);
+                menuEntries = NULL;
+                NbUiDestroy();
+                return false;
+            }
         }
     }
     // Select OS
