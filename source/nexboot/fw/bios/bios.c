@@ -36,7 +36,7 @@ void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out)
 // Calls NbBiosCall
 void NbBiosCallMbr (uint8_t driveNum)
 {
-    void (*mbrcall) (uint32_t) = (void*) NEXBOOT_MBRCALL_BLOB;
+    void (*mbrcall) (uintptr_t) = (void*) NEXBOOT_MBRCALL_BLOB;
     mbrcall (driveNum);
 }
 
@@ -80,6 +80,25 @@ uintptr_t NbFwAllocPages (int count)
 // Map in memory regions to address space
 void NbFwMapRegions()
 {
+    // Unmap VBE memory regions
+    // Find VBE display
+    bool foundDisplay = false;
+    NbObject_t* iter = NULL;
+    NbObject_t* devs = NbObjFind ("/Devices");
+    while ((iter = NbObjEnumDir (devs, iter)))
+    {
+        if (iter->type == OBJ_TYPE_DEVICE &&
+            iter->interface == OBJ_INTERFACE_DISPLAY)
+        {
+            foundDisplay = true;
+            break;
+        }
+    }
+    if (foundDisplay)
+    {
+        // Unmap it's buffers
+        NbObjCallSvc (iter, NB_VBE_UNMAP_FB, NULL);
+    }
 }
 
 // Find which disk is the boot disk

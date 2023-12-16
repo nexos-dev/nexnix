@@ -16,6 +16,7 @@
 */
 
 #include <assert.h>
+#include <nexboot/drivers/display.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <nexboot/os.h>
@@ -25,7 +26,29 @@
 #define NEXBOOT_MOD_MAX    32
 #define NEXBOOT_MEMPOOL_SZ (32 * 1024)    // 32 KiB
 
-// NexNix boot structure
+// NexNix boot structures
+// Defined in display.h
+/*typedef struct _masksz
+{
+    uint32_t mask;         // Value to mask component with
+    uint32_t maskShift;    // Amount to shift component by
+} NbPixelMask_t;*/
+
+typedef struct _nndisplay
+{
+    int width;           // Width of seleceted mode
+    int height;          // Height of selected mode
+    int bytesPerLine;    // Bytes per scanline
+    char bpp;            // Bits per pixel
+    char bytesPerPx;
+    size_t lfbSize;
+    NbPixelMask_t redMask;    // Masks
+    NbPixelMask_t greenMask;
+    NbPixelMask_t blueMask;
+    NbPixelMask_t resvdMask;
+    void* frameBuffer;    // Base of framebuffer
+} NexNixDisplay_t;
+
 typedef struct _nnboot
 {
     // System hardware info
@@ -48,6 +71,9 @@ typedef struct _nnboot
     int memPoolSize;    // Size of early memory pool
     // Arguments
     char args[256];    // Command line arguments
+    // Display info
+    bool displayDefault;    // If true, display is in same state firmware left it in
+    NexNixDisplay_t display;    // Display info
 } NexNixBoot_t;
 
 // Reads in a file component
@@ -149,13 +175,53 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     }
     // Copy arguments
     strcpy (bootInfo->args, StrRefGet (info->args));
+    // Find primary display
+    NbObject_t* displayIter = NULL;
+    bool foundDisplay = false;
+    NbObject_t* devDir = NbObjFind ("/Devices");
+    while ((displayIter = NbObjEnumDir (devDir, displayIter)))
+    {
+        if (displayIter->type == OBJ_TYPE_DEVICE &&
+            displayIter->interface == OBJ_INTERFACE_DISPLAY)
+        {
+            foundDisplay = true;
+            break;
+        }
+    }
+    if (foundDisplay)
+    {
+        NbDisplayDev_t* display = NbObjGetData (displayIter);
+        // Copy fields
+        bootInfo->displayDefault = false;
+        bootInfo->display.width = display->width;
+        bootInfo->display.height = display->height;
+        bootInfo->display.bytesPerLine = display->bytesPerLine;
+        bootInfo->display.bytesPerPx = display->bytesPerPx;
+        bootInfo->display.bpp = display->bpp;
+        bootInfo->display.lfbSize = display->lfbSize;
+        bootInfo->display.frameBuffer = display->frontBuffer;
+        memcpy (&bootInfo->display.redMask,
+                &display->redMask,
+                sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.greenMask,
+                &display->greenMask,
+                sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.blueMask,
+                &display->blueMask,
+                sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.resvdMask,
+                &display->resvdMask,
+                sizeo (NbPixelMask_t));
+    }
+    else
+        bootInfo->displayDefault = true;
     // We have now reached that point in loading.
     // It's time to launch the kernel. First, however, we must map the kernel
     // into the address space.
-    // Map in firmware-dictated memory regions
-    NbFwMapRegions();
     // Load up the kernel into memory
     uintptr_t entry = NbElfLoadFile (keFileBase);
+    // Map in firmware-dictated memory regions
+    NbFwMapRegions();
     // Call it
     NbCpuLaunchKernel (entry, (uintptr_t) bootInfo);
     return false;

@@ -197,3 +197,63 @@ pmodeStack: dq 0
 idtr64:
     dw 0
     dq 0
+
+times 0x1000 - ($$-$) db 0
+
+NbBiosCallMbr:
+    mov rsp, BIOS_STACK_TOP
+    ; Go to compatibility mode
+    push word 0x18
+    push qword .32bitmode
+    retfq
+bits 32
+.idt16:
+    dw 0x3FF
+    dd 0
+align 16
+.32bitmode:
+    ; Set segments
+    mov ax, 0x20
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov esp, BIOS_STACK_TOP        ; Restore saved ESP
+    lidt [.idt16]       ; Load IVT
+; Disable paging to deactivate long mode
+    mov eax, cr0
+    and eax, ~(1 << 31)
+    mov cr0, eax
+    ; Turn off EFER.LME
+    push ecx
+    mov ecx, 0xC0000080
+    rdmsr
+    and eax, ~(1 << 8)
+    wrmsr
+    pop ecx
+    ; Go to 16 bit protected mode
+    jmp 0x08:.16bitmode
+bits 16
+.16bitmode:
+    ; Set segments
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, BIOS_STACK_TOP
+    ; Clear PE bit
+    mov eax, cr0
+    and eax, ~(1 << 0)
+    mov cr0, eax
+    ; And to real mode
+    jmp 0:.realmode
+.realmode:
+    ; Set segments
+    mov ax, 0
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov sp, BIOS_STACK_TOP
+    mov dx, di
+    jmp 0:0x7C00

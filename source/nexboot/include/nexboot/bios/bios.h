@@ -125,4 +125,6 @@ typedef struct _biosDisk
     uint8_t spt;          // Sectors per track
 } NbBiosDisk_t;
 
+#define NB_VBE_UNMAP_FB 8
+
 #endif

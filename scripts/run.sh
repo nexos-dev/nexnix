@@ -530,9 +530,9 @@ then
     then
         if [ "$NNTARGETCONF" = "pnp" ] || [ "$NNTARGETCONF" = "isa" ]
         then
-            QEMUARGS="${QEMUARGS} -device isa-cirrus-vga"
+            QEMUARGS="${QEMUARGS} -device isa-cirrus-vga,xres=800,yres=600"
         else
-            QEMUARGS="${QEMUARGS} -device VGA"
+            QEMUARGS="${QEMUARGS} -device VGA,xres=800,yres=600"
         fi
     fi
 

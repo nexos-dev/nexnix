@@ -572,6 +572,21 @@ static bool VbeObjSetRender (void* objp, void* params)
     return true;
 }
 
+static bool VbeObjUnmapFb (void* objp, void* params)
+{
+    NbObject_t* obj = objp;
+    NbDisplayDev_t* display = NbObjGetData (obj);
+    size_t lfbPages =
+        (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    for (int i = 0; i < lfbPages; ++i)
+    {
+        NbCpuAsUnmap ((uintptr_t) display->frontBuffer +
+                      (i * NEXBOOT_CPU_PAGE_SIZE));
+        NbCpuAsUnmap ((uintptr_t) display->backBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
+    }
+    return true;
+}
+
 // Object interface
 static NbObjSvc vbeServices[] = {NULL,
                                  NULL,
@@ -580,7 +595,8 @@ static NbObjSvc vbeServices[] = {NULL,
                                  VbeObjNotify,
                                  VbeObjInvalidate,
                                  VbeObjSetMode,
-                                 VbeObjSetRender};
+                                 VbeObjSetRender,
+                                 VbeObjUnmapFb};
 
 NbObjSvcTab_t vbeSvcTab = {ARRAY_SIZE (vbeServices), vbeServices};
 

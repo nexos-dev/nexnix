@@ -24,6 +24,7 @@
 
 bool NbOsBootChainload (NbOsInfo_t* os)
 {
+    assert (!"Chainloading incomplete");
     assert (os->payload);
     // Find payload's object
     NbObject_t* bootDev = NbObjFind (StrRefGet (os->payload));

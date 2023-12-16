@@ -14,8 +14,8 @@
 # limitations under the License.
 
 set fail 1                                  # Ensure file fails on command failure
-#set autoboot 1
-gfxmode 800x600
+set autoboot 1
+#gfxmode 800x600
 
 menuentry NexNix {
     set root Boot                           # Set root directory, Boot is mounted by default
@@ -27,7 +27,7 @@ menuentry NexNix {
 
 menuentry NexBoot {
     boottype chainload
-    payload /Devices/BiosDisk1
+    payload /Devices/BiosDisk0
     boot
 }
 
