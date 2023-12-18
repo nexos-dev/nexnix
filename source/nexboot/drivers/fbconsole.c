@@ -324,12 +324,12 @@ static bool FbObjPutChar (void* objp, void* params)
     NbFbCons_t* console = NbObjGetData (obj);
     NbDisplayDev_t* display = NbObjGetData (console->display);
     // Get color info
-    uint16_t pxColor = 0;
+    uint32_t pxColor = 0;
     if (display->bpp == 32)
         pxColor = colorTab32[console->fgColor];
     else if (display->bpp == 16)
         pxColor = colorTab16[console->fgColor];
-    uint16_t bgPxColor = 0;
+    uint32_t bgPxColor = 0;
     if (display->bpp == 32)
         bgPxColor = colorTab32[console->bgColor];
     else if (display->bpp == 16)

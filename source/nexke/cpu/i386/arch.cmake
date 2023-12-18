@@ -18,5 +18,11 @@
 # Option for PAE
 nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
 
+# Arch header
+set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/i386/i386.h")
+
 # Set linker script
 set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/i386/link.ld")
+
+# CPU sources
+list(APPEND NEXKE_SOURCES cpu/i386/cpudep.c)

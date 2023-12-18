@@ -19,24 +19,31 @@
 OUTPUT_FORMAT(elf32-i386)
 ENTRY(NkMain)
 
+PHDRS
+{
+    nexkeText PT_LOAD;
+    nexkeData PT_LOAD;
+    nexkeRoData PT_LOAD;
+}
+
 SECTIONS
 {
     . = 0xC0000000;
-    .text : {
+    .text ALIGN(4096) : {
         *(.text*)
-    }
+    } :nexkeText
 
-    .data : {
+    .data ALIGN(4096) : {
         *(.data*)
-    }
+    } :nexkeData
 
-    .rodata : {
+    .rodata ALIGN(4096) : {
         *(.rodata*)
-    }
+    } :nexkeRoData
 
-    .bss : {
+    .bss ALIGN(4096) : {
         *(.bss*)
-    }
+    } :nexkeData
 
     /DISCARD/ : {
         *(.comment)

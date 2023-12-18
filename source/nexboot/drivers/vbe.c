@@ -354,10 +354,9 @@ static bool vbeQueryMode (uint16_t width,
         }
         if (modeInfo.bitsPerPixel != 16 && modeInfo.bitsPerPixel != 32)
             goto next;    // 24 and 8 bpp not supported
-        // If mode is identical and BPP is 16, we use it
-        // We want 16 BPP as it is considerably faster than 32 BPP
+        // If mode is identical, use it
         if (modeInfo.width == width && modeInfo.height == height &&
-            modeInfo.bitsPerPixel == 16)
+            modeInfo.bitsPerPixel == 32)
         {
             // End it
             bestHeight = modeInfo.height;

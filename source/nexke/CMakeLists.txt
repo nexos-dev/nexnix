@@ -74,6 +74,9 @@ list(APPEND NEXKE_SOURCES
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})
 
+# Add compiler flags
+add_compile_definitions(NEXKE_ARCH_HEADER=\"${NEXKE_ARCH_HEADER}\")
+
 # Add link options
 target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT})
 

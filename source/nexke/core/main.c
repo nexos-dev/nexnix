@@ -15,8 +15,30 @@
     limitations under the License.
 */
 
-void NkMain()
+#include <nexke/cpu.h>
+#include <nexke/nexboot.h>
+
+// Boot info
+static NexNixBoot_t* bootInfo = NULL;
+
+// Returns boot arguments
+NexNixBoot_t* NkGetBootArgs()
 {
+    return bootInfo;
+}
+
+// Boot argument parser
+static void nkArgsParse()
+{
+    // Grab arguments
+}
+
+void NkMain (NexNixBoot_t* bootinf)
+{
+    // Set bootinfo
+    bootInfo = bootinf;
+    // Initialize first CCB
+    CpuInitCcb();
     for (;;)
         ;
 }

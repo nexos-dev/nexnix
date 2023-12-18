@@ -1,5 +1,5 @@
-#[[
-    arch.cmake - contains build system for nexke x86_64
+/*
+    nexke.h - contains main kernel functions
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,13 +13,18 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-# Option for LA57
-nexnix_add_option(NEXNIX_X86_64 "Specifies if LA57 is supported" OFF)
+#ifndef _NEXKE_H
+#define _NEXKE_H
 
-# Arch header
-set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/x86_64/x86_64.h")
+#include <nexke/cpu.h>
 
-# Set linker script
-set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/x86_64/link.ld")
+// Defined arguments
+#define NK_ARG_LOGLEVEL     1
+#define NK_ARG_GRAPHICSMODE 2
+
+// Gets specified argument value
+const char* NkReadArg (int arg);
+
+#endif

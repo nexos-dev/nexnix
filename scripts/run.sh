@@ -887,8 +887,8 @@ then
     vboxdiskpath=$(echo "$diskpath" | sed 's/\.img/\.vdi/')
 
     # Delete old storage stuff
-    VBoxManage closemedium disk $vboxdiskpath
     VBoxManage storagectl "NexNix" --name "NexNix-storage" --remove
+    VBoxManage closemedium disk $vboxdiskpath
 
     # Setup storage device
     if [ "$EMU_DRIVETYPE" = "ata" ]
@@ -930,8 +930,8 @@ then
     then
         if [ ! -z "$docreate" ]
         then
-            VBoxManage closemedium $floppypath
             VBoxManage storagectl "NexNix" --name "NexNix-floppy" --remove
+            VBoxManage closemedium $floppypath
         fi
         VBoxManage storagectl "NexNix" --name "NexNix-floppy" --add floppy \
                     --controller I82078 --portcount 1 --bootable on
@@ -952,15 +952,4 @@ then
 
     # Start it up
     VBoxManage startvm --putenv VBOX_DBG_GUI_ENABLED=true "NexNix"
-elif [ "$emulator" = "simnow" ]
-then
-    if [ "$NNBOARD" != "pc" ]
-    then
-        panic "simnow not supported on architecture $NNARCH"
-    fi
-    if [ -z "$EMU_SIMNOWPATH" ]
-    then
-        panic "environment variable EMU_SIMNOWPATH must be set"
-    fi
-    panic "SimNow support incomplete"
 fi

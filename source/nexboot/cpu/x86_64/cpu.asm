@@ -22,7 +22,7 @@ nbCpuAsmLaunch:
     mov rsp, rdi
     mov rbp, 0          ; Set a new zero frame
     ; Pass bootinfo as parameter
-    push rdx
+    mov rdi, rdx
     call rsi
     ; If we get here, halt
     cli
