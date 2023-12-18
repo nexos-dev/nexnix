@@ -24,7 +24,6 @@
 
 bool NbOsBootChainload (NbOsInfo_t* os)
 {
-    assert (!"Chainloading incomplete");
     assert (os->payload);
     // Find payload's object
     NbObject_t* bootDev = NbObjFind (StrRefGet (os->payload));
@@ -75,6 +74,11 @@ bool NbOsBootChainload (NbOsInfo_t* os)
         NbBiosDisk_t* biosDisk = disk->internal;
         driveNum = biosDisk->biosNum;
     }
+    // Switch to text mode
+    NbBiosRegs_t in = {0}, out = {0};
+    in.al = 0x3;
+    in.ah = 0x0;
+    NbBiosCall (0x10, &in, &out);
     // Jump down to real mode and execute
     NbBiosCallMbr (driveNum);
     return false;

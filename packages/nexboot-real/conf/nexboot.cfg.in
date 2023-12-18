@@ -14,7 +14,7 @@
 # limitations under the License.
 
 set fail 1                                  # Ensure file fails on command failure
-set autoboot 1
+#set autoboot 1
 #gfxmode 800x600
 
 menuentry NexNix {
