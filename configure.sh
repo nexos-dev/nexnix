@@ -746,6 +746,7 @@ findprog "gzip"
 findprog "gettext"
 findprog "m4"
 findlib "guestfs"
+findlib "uuid"
 # Check if the check succeeded
 if [ $depcheckfail -eq 1 ]
 then

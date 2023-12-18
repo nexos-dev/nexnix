@@ -44,7 +44,8 @@ configure()
     then
         pkg_sourcedir="$NNSOURCEROOT/$pkg_name"
     fi
-    cmake $pkg_sourcedir --toolchain $sdkLocation/SystemBuild/toolchain-$NNTOOLCHAIN.cmake \
+    cmake $pkg_sourcedir \
+            --toolchain $sdkLocation/SystemBuild/toolchain-$NNTOOLCHAIN.cmake \
             -DCMAKE_BUILD_TYPE=$buildType -DCMAKE_SYSROOT=$NNDESTDIR \
             $pkg_confopts
     checkerr $? "unable to configure $pkg_name"

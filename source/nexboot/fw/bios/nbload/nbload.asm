@@ -89,7 +89,7 @@ NbStartDetect:
     mov ax, NBLOAD_BASE_SEG
     mov es, ax
     mov di, nexbootSz
-    mov es:[di], ecx
+    mov [es:di], ecx
     pop es
     ; Save drive number
     mov bp, sp
@@ -102,18 +102,18 @@ NbStartDetect:
     rep stosb
     ; Initialize detection structure
     mov di, NBLOAD_DETECT_RESULT
-    mov dword es:[di], NBLOAD_SIGNATURE            ; Set signature
-    mov word es:[di+4], 0x600                      ; Set log start offset
-    mov word es:[di+6], 0                          ; Set log start segment
-    mov word es:[di+8], NBLOAD_LOG_SIZE            ; Set log size
+    mov dword [es:di], NBLOAD_SIGNATURE            ; Set signature
+    mov word [es:di+4], 0x600                      ; Set log start offset
+    mov word [es:di+6], 0                          ; Set log start segment
+    mov word [es:di+8], NBLOAD_LOG_SIZE            ; Set log size
     mov ax, word [bp-2]
-    mov byte es:[di+18], al                        ; Set drive number
+    mov byte [es:di+18], al                        ; Set drive number
     ; CPU detection
-    mov byte es:[di+12], NBLOAD_CPU_FAMILY_X86        ; Set CPU family
+    mov byte [es:di+12], NBLOAD_CPU_FAMILY_X86        ; Set CPU family
 %ifdef NEXNIX_ARCH_I386
-    mov byte es:[di+13], NBLOAD_CPU_ARCH_I386      ; Set CPU architecture
+    mov byte [es:di+13], NBLOAD_CPU_ARCH_I386      ; Set CPU architecture
 %elifdef NEXNIX_ARCH_X86_64
-    mov byte es:[di+13], NBLOAD_CPU_ARCH_X86_64    ; Set CPU architecture
+    mov byte [es:di+13], NBLOAD_CPU_ARCH_X86_64    ; Set CPU architecture
 %else
 %error Unsupported BIOS architecture
 %endif
@@ -135,7 +135,7 @@ NbStartDetect:
     call NbloadLogMsg
     call NbloadPanic
 .isCpuid:
-    mov word es:[di+14], NBLOAD_CPU_VERSION_CPUID ; Let other layers know to use CPUID
+    mov word [es:di+14], NBLOAD_CPU_VERSION_CPUID ; Let other layers know to use CPUID
 %ifdef NEXNIX_I386_PAE
     ; Check for PAE now since we know we have CPUID
     mov eax, 1
@@ -169,7 +169,7 @@ NbStartDetect:
     mov eax, cr0
     or eax, 1 << 2                  ; Set CR0.EM
     mov cr0, eax
-    mov byte es:[di+16], $0            ; Inform nexboot of this
+    mov byte [es:di+16], $0            ; Inform nexboot of this
     ; As of now, software-emulated FPU isn't supported
     ; Error out if an FPU doesn't exist
     mov si, noFpuMessage
@@ -178,7 +178,7 @@ NbStartDetect:
     call NbloadPanic
     jmp .fpuCheckDone
 .fpuExists:
-    mov byte es:[di+16], 1 << 0         ; Inform nexboot of this
+    mov byte [es:di+16], 1 << 0         ; Inform nexboot of this
     ; Print message
     mov si, fpuMessage
     mov cx, 4
@@ -329,7 +329,7 @@ NbStartDetect:
     mov ax, NBLOAD_BASE_SEG
     mov es, ax
     mov di, nexbootSz
-    mov esi, es:[di]
+    mov esi, [es:di]
     ; Set the LME bit in EFER
     mov ecx, 0xC0000080                 ; Load MSR to read
     rdmsr                               ; Read MSR
@@ -385,9 +385,9 @@ NbloadLogMsg:
     ; Offset 0 - 1: Message offset
     ; Offset 2 - 3: Message segment
     ; Offset 4 - 5: Log level
-    mov es:[si], bx                ; Write message offset
-    mov es:[si+2], ds              ; Write segment
-    mov es:[si+4], cx              ; Write log level
+    mov [es:si], bx                ; Write message offset
+    mov [es:si+2], ds              ; Write segment
+    mov [es:si+4], cx              ; Write log level
     pop es
     ; Write out new log location
     add si, 6                   ; Move to next log entry

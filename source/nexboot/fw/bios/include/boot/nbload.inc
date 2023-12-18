@@ -55,9 +55,9 @@ NbloadLogMsg:
     ; Offset 0 - 1: Message offset
     ; Offset 2 - 3: Message segment
     ; Offset 4 - 5: Log level
-    mov es:[si], bx              ; Write message offset
-    mov es:[si+2], ds            ; Write segment
-    mov es:[si+4], cx            ; Write log level
+    mov [es:si], bx              ; Write message offset
+    mov [es:si+2], ds            ; Write segment
+    mov [es:si+4], cx            ; Write log level
     ; Write out new log location
     add si, 6                 ; Move to next log entry
     mov word [logLocation], si     ; Store it
