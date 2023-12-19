@@ -340,7 +340,8 @@ then
             cd $NNBUILDROOT/build/tools/binutils-build
             $binroot/configure --prefix=$NNBUILDROOT/tools/$NNTOOLCHAIN --disable-nls \
                                --disable-shared --disable-werror --with-sysroot \
-                                --target=$NNARCH-elf CFLAGS="-O2 -DNDEBUG" \
+                                --target=$NNARCH-elf --enable-targets=$NNARCH-elf,$NNARCH-pe \
+                                CFLAGS="-O2 -DNDEBUG" \
                                 CXXFLAGS="-O2 -DNDEBUG"
             checkerr $? "unable to configure binutils"
             make -j$NNJOBCOUNT
@@ -613,6 +614,18 @@ then
         # Copy the headers
         cp -r $NNEXTSOURCEROOT/tools/gnu-efi/inc $NNDESTDIR/Programs/Index/include/nexboot/efi
     fi
+    # Build elf2efi
+    if [ ! -f $NNBUILDROOT/tools/bin/elf2efi64 ] || [ "$rebuild" = "1" ]
+    then
+        # Clone it
+        git clone https://github.com/davmac314/elf2efi.git $NNEXTSOURCEROOT/tools/elf2efi
+        checkerr $? "unable to download elf2efi"
+        cd $NNEXTSOURCEROOT/tools/elf2efi
+        make
+        checkerr $? "unable to build elf2efi"
+        cp elf2efi32 $NNBUILDROOT/tools/bin/elf2efi32
+        cp elf2efi64 $NNBUILDROOT/tools/bin/elf2efi64
+    fi
 elif [ "$component" = "nnimage-conf" ]
 then
     echo "Generating nnimage configuration..."
@@ -641,7 +654,7 @@ then
         # Copy out nexboot.efi to appropiate location so EFI firmware can boot
         mkdir -p $NNDESTDIR/System/Core/Boot/EFI/BOOT
         cp $NNDESTDIR/System/Core/Boot/nexboot.efi \
-            $NNDESTDIR/System/Core/Boot/EFI/BOOT/BOOT${NNEFIARCH}.efi
+            $NNDESTDIR/System/Core/Boot/EFI/BOOT/BOOT${NNEFIARCH}.EFI
     fi
     echo "usr" >> $NNCONFROOT/nnimage-list.lst
     echo "bin" >> $NNCONFROOT/nnimage-list.lst
@@ -670,7 +683,7 @@ then
         echo "partition boot" >> nnimage.conf
         echo "{" >> nnimage.conf
         echo "    start: 1;" >> nnimage.conf
-        echo "    size: 15;" >> nnimage.conf
+        echo "    size: 35;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
         echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
@@ -679,8 +692,8 @@ then
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf
         echo "{" >> nnimage.conf
-        echo "    start: 18;" >> nnimage.conf
-        echo "    size: 108;" >> nnimage.conf
+        echo "    start: 36;" >> nnimage.conf
+        echo "    size: 85;" >> nnimage.conf
         echo "    format: ext2;" >> nnimage.conf
         echo "    prefix: '/';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf
@@ -707,7 +720,7 @@ then
         echo "partition boot" >> nnimage.conf
         echo "{" >> nnimage.conf
         echo "    start: 1;" >> nnimage.conf
-        echo "    size: 23;" >> nnimage.conf
+        echo "    size: 35;" >> nnimage.conf
         echo "    format: fat32;" >> nnimage.conf
         echo "    prefix: '/System/Core/Boot';" >> nnimage.conf
         echo "    isBoot: true;" >> nnimage.conf
@@ -719,8 +732,8 @@ then
         echo "}" >> nnimage.conf
         echo "partition system" >> nnimage.conf
         echo "{" >> nnimage.conf
-        echo "    start: 25;" >> nnimage.conf
-        echo "    size: 100;" >> nnimage.conf
+        echo "    start: 36;" >> nnimage.conf
+        echo "    size: 85;" >> nnimage.conf
         echo "    format: ext2;" >> nnimage.conf
         echo "    prefix: '/';" >> nnimage.conf
         echo "    image: nnimg;" >> nnimage.conf

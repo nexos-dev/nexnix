@@ -101,13 +101,12 @@ __assert_failed (const char* expr, const char* file, int line, const char* func)
     if (!logInit)
     {
         // Log the message
-        NbLogMessageEarly (
-            "Assertion '%s' failed: file %s, line %d, function %s\r\n",
-            NEXBOOT_LOGLEVEL_EMERGENCY,
-            expr,
-            file,
-            line,
-            func);
+        NbLogMessageEarly ("Assertion '%s' failed: file %s, line %d, function %s\r\n",
+                           NEXBOOT_LOGLEVEL_EMERGENCY,
+                           expr,
+                           file,
+                           line,
+                           func);
     }
     else
     {
@@ -131,11 +130,11 @@ static NbloadDetect_t* nbDetect = NULL;
 
 typedef struct _logEntry
 {
-    const char* msg;    // Message of entry
-    int priority;       // Contains facility and severity (but facility is always 0)
-    short minute;       // Minute since boot of message
-    short second;       // Seconds since boot of message
-    short ms;           // Milliseconds since boot of message
+    const char* msg;           // Message of entry
+    int priority;              // Contains facility and severity (but facility is always 0)
+    short minute;              // Minute since boot of message
+    short second;              // Seconds since boot of message
+    short ms;                  // Milliseconds since boot of message
     struct _logEntry* next;    // Next entry in list
     struct _logEntry* prev;    // Previous entry in list
 } NbLogEntry_t;
@@ -203,9 +202,7 @@ static bool LogWrite (void* objp, void* strp)
                     notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
                     notify.data = termDrv;
                     NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
-                    NbSendDriverCode (termDrv,
-                                      NB_DRIVER_ENTRY_ATTACHOBJ,
-                                      term->outEnd);
+                    NbSendDriverCode (termDrv, NB_DRIVER_ENTRY_ATTACHOBJ, term->outEnd);
                 }
             }
             NbObject_t* termObj = log->outputDevs[str->priority - 1];
@@ -229,10 +226,6 @@ static int levelToPriority[] = {0,
                                 NEXBOOT_LOGLEVEL_WARNING,
                                 NEXBOOT_LOGLEVEL_INFO,
                                 NEXBOOT_LOGLEVEL_DEBUG};
-
-#ifndef NEXNIX_FW_BIOS
-#error test
-#endif
 
 static bool LogObjInit (void* objp, void* unused)
 {
@@ -270,8 +263,7 @@ static bool LogObjInit (void* objp, void* unused)
     int numSerialPorts = 1;
     while ((iter = NbObjEnumDir (devDir, iter)))
     {
-        if (iter->type == OBJ_TYPE_DEVICE &&
-            iter->interface == OBJ_INTERFACE_TERMINAL)
+        if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_TERMINAL)
         {
             // Acquire terminal
             NbTerminal_t term;
@@ -339,8 +331,7 @@ static bool LogSetLevel (void* objp, void* param)
     return true;
 }
 
-static NbObjSvc logSvcs[] =
-    {LogObjInit, NULL, NULL, LogDumpData, LogNotify, LogWrite, LogSetLevel};
+static NbObjSvc logSvcs[] = {LogObjInit, NULL, NULL, LogDumpData, LogNotify, LogWrite, LogSetLevel};
 
 NbObjSvcTab_t logSvcTab = {ARRAY_SIZE (logSvcs), logSvcs};
 
@@ -369,7 +360,17 @@ void NbLogMessage (const char* fmt, int level, ...)
     str.priority = level;
     str.str = buf;
     // Log it
-    NbObjCallSvc (logObj, NB_LOG_WRITE, &str);
+    if (logInit)
+        NbObjCallSvc (logObj, NB_LOG_WRITE, &str);
+    else
+    {
+        logEntries[curEntry].priority = level;
+        strcpy (logEntries[curEntry].msg, buf);
+        // Check if we should print it
+        if (level <= minSeverity)
+            NbPrintEarly (logEntries[curEntry].msg);
+        ++curEntry;
+    }
     va_end (ap);
 }
 

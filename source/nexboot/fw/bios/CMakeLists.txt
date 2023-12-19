@@ -31,13 +31,6 @@ endif()
 # Include boot record rules
 include(boot/bootrec.cmake)
 
-# Determine bit number
-if(${NEXNIX_ARCH} STREQUAL "i386")
-    set(NEXNIX_BITS 32)
-else()
-    set(NEXNIX_BITS 64)
-endif()
-
 # Add boot records
 add_boot_record(hdmbr1 ${CMAKE_CURRENT_SOURCE_DIR}/boot/hdmbr.asm
                       ${CMAKE_CURRENT_BINARY_DIR}/hdmbr "-DIS_NOFLOPPY")

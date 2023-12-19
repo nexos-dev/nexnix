@@ -88,7 +88,7 @@ static bool FbConsDrvEntry (int code, void* params)
             }
             // If no display was found, return
             if (!display)
-                return false;
+                return true;
             // Initialize structure
             char buf[64] = {0};
             snprintf (buf, 64, "/Devices/FbConsole%d", curCons);

@@ -112,10 +112,9 @@ static bool Uart16550Entry (int code, void* params)
             ++curCom;
             // We have port base, begin initializing it
             // Program FIFO
-            uartWriteReg (
-                dev,
-                UART_FIFO_CTRL_REG,
-                UART_FIFO_ENABLE | UART_FIFO_TX_RESET | UART_FIFO_RX_RESET);
+            uartWriteReg (dev,
+                          UART_FIFO_CTRL_REG,
+                          UART_FIFO_ENABLE | UART_FIFO_TX_RESET | UART_FIFO_RX_RESET);
             // Clear all interrupts
             uartWriteReg (dev, UART_INT_ENABLE_REG, 0);
             // Write MCR
@@ -124,9 +123,7 @@ static bool Uart16550Entry (int code, void* params)
                           UART_MCR_DTS | UART_MCR_RTS | UART_MCR_LOOPBACK);
             // Write LCR. We set DLAB here so we can set the divisor, and then clear
             // DLAB
-            uartWriteReg (dev,
-                          UART_LINE_CTRL_REG,
-                          UART_LCR_8BITS | UART_LCR_1STOP | UART_LCR_DLAB);
+            uartWriteReg (dev, UART_LINE_CTRL_REG, UART_LCR_8BITS | UART_LCR_1STOP | UART_LCR_DLAB);
             // Set divisor
             int divisor = UART_FREQUENCY / UART_DEFAULT_BAUDRATE;
             uartWriteReg (dev, UART_DIVISOR_LSB_REG, divisor & 0xFF);
@@ -146,10 +143,9 @@ static bool Uart16550Entry (int code, void* params)
             if (uartReadReg (dev, UART_RXBUF) != 0x27)
                 return false;
             // Clear loopback mode
-            uartWriteReg (
-                dev,
-                UART_MODEM_CTRL_REG,
-                uartReadReg (dev, UART_MODEM_CTRL_REG) & ~(UART_MCR_LOOPBACK));
+            uartWriteReg (dev,
+                          UART_MODEM_CTRL_REG,
+                          uartReadReg (dev, UART_MODEM_CTRL_REG) & ~(UART_MCR_LOOPBACK));
             dev->hdr.devId = curCom;
             dev->hdr.devSubType = 0;
             break;
@@ -211,15 +207,9 @@ static bool Uart16550Read (void* objp, void* params)
     return true;
 }
 
-NbObjSvc uartSvcs[] = {NULL,
-                       NULL,
-                       NULL,
-                       Uart16550DumpData,
-                       Uart16550Notify,
-                       Uart16550Write,
-                       Uart16550Read};
+NbObjSvc uartSvcs[] =
+    {NULL, NULL, NULL, Uart16550DumpData, Uart16550Notify, Uart16550Write, Uart16550Read};
 
 NbObjSvcTab_t uart16550SvcTab = {ARRAY_SIZE (uartSvcs), uartSvcs};
 
-NbDriver_t uart16550Drv =
-    {"Rs232_16550", Uart16550Entry, {0}, 0, false, sizeof (NbUart16550Dev_t)};
+NbDriver_t uart16550Drv = {"Rs232_16550", Uart16550Entry, {0}, 0, false, sizeof (NbUart16550Dev_t)};

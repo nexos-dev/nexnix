@@ -215,10 +215,7 @@ static void detectBios32()
 }
 
 // Creates a device object
-static bool createDeviceObject (const char* name,
-                                int interface,
-                                NbDriver_t* drv,
-                                NbHwDevice_t* dev)
+static bool createDeviceObject (const char* name, int interface, NbDriver_t* drv, NbHwDevice_t* dev)
 {
     NbObject_t* obj = NbObjCreate (name, OBJ_TYPE_DEVICE, interface);
     NbObjSetData (obj, dev);
@@ -294,17 +291,11 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
         dev = (NbHwDevice_t*) malloc (vgaDrv->devSize);
         assert (NbSendDriverCode (vgaDrv, NB_DRIVER_ENTRY_DETECTHW, dev));
         // Attach device to driver
-        createDeviceObject ("/Devices/VgaConsole0",
-                            OBJ_INTERFACE_CONSOLE,
-                            vgaDrv,
-                            dev);
+        createDeviceObject ("/Devices/VgaConsole0", OBJ_INTERFACE_CONSOLE, vgaDrv, dev);
     }
     else
     {
-        createDeviceObject ("/Devices/VbeDisplay0",
-                            OBJ_INTERFACE_DISPLAY,
-                            vbeDrv,
-                            dev);
+        createDeviceObject ("/Devices/VbeDisplay0", OBJ_INTERFACE_DISPLAY, vbeDrv, dev);
     }
     // Detect hard disks
     NbDriver_t* biosDiskDrv = NbFindDriver ("BiosDisk");

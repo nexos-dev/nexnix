@@ -78,7 +78,8 @@ add_executable(nexke ${NEXKE_SOURCES})
 add_compile_definitions(NEXKE_ARCH_HEADER=\"${NEXKE_ARCH_HEADER}\")
 
 # Add link options
-target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT})
+target_compile_options(nexke PRIVATE -mcmodel=large)
+target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT} -mcmodel=large)
 
 # Find libk and libnex
 find_library(NEXKE_LK_LOCATION k REQUIRED)

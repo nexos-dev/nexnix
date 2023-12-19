@@ -300,11 +300,6 @@ then
 fi
 
 # Check configuration and target
-if [ -z "$conf" ]
-then
-    panic "Configuration not specified"
-fi
-
 if [ -z "$target" ]
 then
     panic "Target not specified"
@@ -314,6 +309,11 @@ fi
 if [ -z "$buildconf" ]
 then
     buildconf="$conf"
+fi
+
+if [ -z "$conf" ] && [ -z "$buildconf" ]
+then
+    panic "Configuration not specified"
 fi
 
 # Export buildonly value for buildpkg

@@ -1,5 +1,5 @@
 #[[
-    Drivers.cmake - decides what drivers to build
+    fw.cmake - contains firmware specific build process
     Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,17 +15,4 @@
     limitations under the License.
 ]]
 
-# Append drivers for FW type
-if(NEXBOOT_FW STREQUAL "bios")
-    list(APPEND NEXBOOT_FW_DRIVERS drivers/vgaconsole.c
-        drivers/ps2kbd.c
-        drivers/uart16550.c
-        drivers/biosdisk.c
-        drivers/vbe.c)
-elseif(NEXBOOT_FW STREQUAL "efi")
-    list(APPEND NEXBOOT_FW_DRIVERS drivers/efiserial.c)
-endif()
-
-list(APPEND NEXBOOT_DRIVERS drivers/terminal.c
-    drivers/volmanager.c
-    drivers/fbconsole.c)
+set(NEXBOOT_CFLAGS "-fpie -fno-plt -fno-pic -fshort-wchar")

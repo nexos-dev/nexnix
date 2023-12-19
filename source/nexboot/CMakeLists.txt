@@ -16,7 +16,7 @@
 ]]
 
 cmake_minimum_required(VERSION 3.7)
-project(nexboot C ASM_NASM)
+project(nexboot C ASM ASM_NASM)
 
 if(NOT NEXBOOT_FW)
     message(FATAL_ERROR "firmware type not specified")
@@ -24,7 +24,17 @@ endif()
 
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
+include(fw/${NEXBOOT_FW}/fw.cmake)
 include(GNUInstallDirs)
+
+# Determine bit number
+if(${NEXNIX_ARCH} STREQUAL "i386")
+    set(NEXNIX_BITS 32)
+else()
+    set(NEXNIX_BITS 64)
+endif()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NEXBOOT_CFLAGS}")
 
 nexnix_add_parameter(NEXNIX_LOGLEVEL 
                      "Value that defines what should and shouldn't be logged"
@@ -87,7 +97,6 @@ list(APPEND NEXBOOT_SOURCES
             src/cmds/mountcmd.c
             src/ui/ui.c
             src/ui/textui.c)
-
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES} ${NEXBOOT_FW_DRIVERS} ${NEXBOOT_DRIVERS})
 target_compile_options(nexboot PUBLIC -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast)
 

@@ -91,6 +91,7 @@ typedef struct _hwresults
 
 // Firmware types
 #define NB_FW_TYPE_BIOS 1
+#define NB_FW_TYPE_EFI  2
 
 // CPU families
 #define NB_CPU_FAMILY_X86 1
@@ -117,6 +118,8 @@ typedef struct _hwdevice
 
 #ifdef NEXNIX_FW_BIOS
 #include <nexboot/bios/bios.h>
+#elif defined NEXNIX_FW_EFI
+#include <nexboot/efi/efi.h>
 #endif
 
 // FIXME: Shouldn't be in fw.h

@@ -37,8 +37,7 @@ void nbLaunchConf()
     if (!bootDisk)
     {
         // Error
-        NbLogMessage ("nexboot: error: unable to find boot disk\n",
-                      NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbLogMessage ("nexboot: error: unable to find boot disk\n", NEXBOOT_LOGLEVEL_EMERGENCY);
         NbShellLaunch (NULL);
     }
     // Find boot volume on this disk
@@ -46,8 +45,7 @@ void nbLaunchConf()
     if (!bootVol)
     {
         // Error
-        NbLogMessage ("nexboot: error: unable to find boot volume\n",
-                      NEXBOOT_LOGLEVEL_CRITICAL);
+        NbLogMessage ("nexboot: error: unable to find boot volume\n", NEXBOOT_LOGLEVEL_CRITICAL);
         NbShellLaunch (NULL);
     }
     // Mount boot filesystem
@@ -100,6 +98,8 @@ void NbMain (NbloadDetect_t* nbDetect)
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
+    for (;;)
+        ;
     // Start phase 2 of drivers
     if (!NbStartPhase2Drvs())
     {

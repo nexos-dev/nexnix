@@ -1,5 +1,5 @@
 /*
-    link.ld - contains linker script for nexboot EFI
+    link.ld - contains linker script for nexboot
     Copyright 2022, 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,39 +16,35 @@
     limitations under the License.
 */
 
-OUTPUT_FORMAT(elf32-i386)
+OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(NbEfiEntry)
 
 SECTIONS
 {
-    . = 4096;
-    .text : ALIGN(4K) {
+    .text 0x1000 : {
         *(.text*)
     }
-
-    .data : ALIGN(4K) {
+    . = ALIGN(4096);
+    .data : {
         *(.data*)
     }
-
-    .rodata : ALIGN(4K) {
+    . = ALIGN(4096);
+    .rodata : {
         *(.rodata*)
     }
-
-    .bss : ALIGN(4K) {
+    . = ALIGN(4096);
+    .bss : {
         *(.bss*)
-        *(COMMON)
     }
+    . = ALIGN(4096);
 
     /DISCARD/ : {
         *(.comment)
         *(.gnu*)
         *(.note*)
-        *(.interp)
-        *(.dynsym)
-        *(.dynstr)
         *(.dynamic)
-        *(.eh_frame*)
-        *(.comment)
+        *(.eh_frame)
         *(.debug*)
+        *(.rela.eh_frame)
     }
 }

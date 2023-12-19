@@ -23,25 +23,33 @@
 #include <stdbool.h>
 
 // Driver pointers
-extern NbDriver_t vgaConsoleDrv;
 extern NbDriver_t terminalDrv;
+#ifdef NEXNIX_FW_BIOS
+extern NbDriver_t vgaConsoleDrv;
 extern NbDriver_t ps2KbdDrv;
 extern NbDriver_t uart16550Drv;
 extern NbDriver_t biosDiskDrv;
+extern NbDriver_t vbeDrv;
+#elif defined NEXNIX_FW_EFI
+extern NbDriver_t efiSerialDrv;
+#endif
 extern NbDriver_t volManagerDrv;
 extern NbDriver_t textUiDrv;
-extern NbDriver_t vbeDrv;
 extern NbDriver_t fbConsDrv;
 
 // Driver tables
 
 // Drivers started as soon as possible for devices
+#ifdef NEXNIX_FW_BIOS
 static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv,
                                        &vgaConsoleDrv,
                                        &ps2KbdDrv,
                                        &uart16550Drv,
                                        &biosDiskDrv,
                                        &vbeDrv};
+#elif defined NEXNIX_FW_EFI
+static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv, &efiSerialDrv};
+#endif
 static NbDriver_t* nbPhase2DrvTab[] = {&fbConsDrv, &terminalDrv, &textUiDrv};
 
 #endif

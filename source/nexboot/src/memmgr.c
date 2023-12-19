@@ -40,8 +40,8 @@ typedef struct _mempage
     uint32_t magic;           // Magic size
     uint32_t freeSize;        // Free number of bytes
     memBlock_t* blockList;    // List of blocks
-    uint32_t numPages;    // For large allocation, the number of pages represented
-                          // here
+    uint32_t numPages;        // For large allocation, the number of pages represented
+                              // here
     struct _mempage* next;
     struct _mempage* prev;
 } __attribute__ ((packed)) memPage_t;
@@ -53,8 +53,7 @@ typedef struct _mempage
 
 #define MEM_BLOCK_ALIGN 16
 
-#define MEM_BLOCK_SIZE_END(block) \
-    (size_t*) ((uintptr_t) (block) + (block)->size - sizeof (size_t))
+#define MEM_BLOCK_SIZE_END(block) (size_t*) ((uintptr_t) (block) + (block)->size - sizeof (size_t))
 
 static memPage_t* pageList = NULL;
 
@@ -85,34 +84,30 @@ void NbMemInit()
     NbFwMemDetect();    // Get memory map
     int size = 0;
     NbMemEntry_t* memmap = NbGetMemMap (&size);
-    uintmax_t memSz = 0;
+    uint64_t memSz = 0;
     for (int i = 0; i < size; ++i)
     {
         // Get memory size
-        if (memmap[i].type == NEXBOOT_MEM_FREE ||
-            memmap[i].type == NEXBOOT_MEM_ACPI_RECLAIM ||
-            memmap[i].type == NEXBOOT_MEM_BOOT_RECLAIM)
+        if (memmap[i].type == NEXBOOT_MEM_FREE || memmap[i].type == NEXBOOT_MEM_BOOT_RECLAIM)
         {
             memSz += memmap[i].sz;
         }
     }
     // Convert to MiB
-    memSz /= (uint64_t) (1024 * 1024);
+    memSz /= 1024;
+    memSz /= 1024;
     // Ensure we have enough memory
     if (memSz < NEXBOOT_MIN_MEM)
     {
         // That's an error
-        NbLogMessageEarly (
-            "nexboot: error: nexboot requires at least %d MiB of memory. Only "
-            "%d MiB were detected",
-            NEXBOOT_LOGLEVEL_CRITICAL,
-            NEXBOOT_MIN_MEM,
-            memSz);
+        NbLogMessageEarly ("nexboot: error: nexboot requires at least %d MiB of memory. Only "
+                           "%d MiB were detected",
+                           NEXBOOT_LOGLEVEL_CRITICAL,
+                           NEXBOOT_MIN_MEM,
+                           memSz);
         NbCrash();
     }
-    NbLogMessageEarly ("nexboot: detected %d MiB of memory\r\n",
-                       NEXBOOT_LOGLEVEL_INFO,
-                       memSz);
+    NbLogMessageEarly ("nexboot: detected %llu MiB of memory\r\n", NEXBOOT_LOGLEVEL_INFO, memSz);
     // Allocate initial page
     uintptr_t initPage = NbFwAllocPage();
     pageList = (memPage_t*) initPage;
@@ -245,8 +240,7 @@ void* malloc (size_t sz)
     {
         sz += MEM_PG_BLOCK_OFFSET;    // Reserve space for memPage_t struct
         // Determine number of pages to allocate
-        uint32_t numPages =
-            (sz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+        uint32_t numPages = (sz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
         uintptr_t base = NbFwAllocPages (numPages);
         if (!base)
             return NULL;
@@ -333,8 +327,7 @@ void free (void* ptr)
             pageInfo->prev = NULL;
             pageList->prev = pageInfo;
             pageList = pageInfo;
-            memBlock_t* block =
-                (memBlock_t*) (((uintptr_t) curPage) + MEM_PG_BLOCK_OFFSET);
+            memBlock_t* block = (memBlock_t*) (((uintptr_t) curPage) + MEM_PG_BLOCK_OFFSET);
             memBlockInit (curPage, block);
             pageInfo->blockList = block;
             curPage += NEXBOOT_CPU_PAGE_SIZE;
@@ -441,12 +434,11 @@ void NbMmDumpData()
         memBlock_t* b = pg->blockList;
         while (b)
         {
-            NbShellWritePaged (
-                "Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
-                b,
-                b->size,
-                b->isFree,
-                b->isLarge);
+            NbShellWritePaged ("Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
+                               b,
+                               b->size,
+                               b->isFree,
+                               b->isLarge);
             b = b->next;
         }
         totalFreeSize += pg->freeSize;
@@ -474,10 +466,9 @@ void NbMmapDumpData()
         // Ignore zero-sized regions
         if (entries[i].sz == 0)
             continue;
-        NbShellWritePaged (
-            "Memory region found: base %#llX, size %llu KiB, type %s\n",
-            entries[i].base,
-            entries[i].sz / 1024,
-            mmapTypeTable[entries[i].type]);
+        NbShellWritePaged ("Memory region found: base %#llX, size %llu KiB, type %s\n",
+                           entries[i].base,
+                           entries[i].sz / 1024,
+                           mmapTypeTable[entries[i].type]);
     }
 }
