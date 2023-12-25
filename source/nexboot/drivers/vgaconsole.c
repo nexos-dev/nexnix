@@ -75,18 +75,12 @@ static bool VgaConsoleEntry (int code, void* params)
 }
 
 // Writes a character to display at X-Y location
-static void vgaWriteChar (NbVgaConsole_t* console,
-                          char c,
-                          int bgColor,
-                          int fgColor,
-                          int x,
-                          int y)
+static void vgaWriteChar (NbVgaConsole_t* console, char c, int bgColor, int fgColor, int x, int y)
 {
     uint16_t* textBuf = (uint16_t*) VGA_MEMBASE;
     int location = (y * console->cols) + x;
     // Write it out
-    textBuf[location] =
-        VGA_MAKEENTRY (c, VGA_MAKECOLOR (console->bgColor, console->fgColor));
+    textBuf[location] = VGA_MAKEENTRY (c, VGA_MAKECOLOR (console->bgColor, console->fgColor));
 }
 
 // Moves the text cursor to X-Y location
@@ -150,12 +144,10 @@ static bool VgaObjNotify (void* objp, void* data)
     if (code == NB_CONSOLE_NOTIFY_SETOWNER)
     {
         // Notify current owner that we are being deteached
-        NbVgaConsole_t* console = obj->data;
-        if (console->owner)
-            console->owner->entry (NB_DRIVER_ENTRY_DETACHOBJ, obj);
+        if (obj->owner)
+            obj->owner->entry (NB_DRIVER_ENTRY_DETACHOBJ, obj);
         NbDriver_t* newDrv = notify->data;
         // Set new owner
-        console->owner = newDrv;
         NbObjSetOwner (obj, newDrv);
     }
     return true;
@@ -232,12 +224,7 @@ static bool VgaScrollDown (void* objp, void* unused)
     }
     // Write out spaces
     for (int i = 0; i < console->cols; ++i)
-        vgaWriteChar (console,
-                      ' ',
-                      console->bgColor,
-                      console->fgColor,
-                      i,
-                      console->rows - 1);
+        vgaWriteChar (console, ' ', console->bgColor, console->fgColor, i, console->rows - 1);
     return true;
 }
 
@@ -281,5 +268,4 @@ static NbObjSvc vgaServices[] = {VgaObjInit,
 NbObjSvcTab_t vgaSvcTab = {ARRAY_SIZE (vgaServices), vgaServices};
 
 // Driver structure
-NbDriver_t vgaConsoleDrv =
-    {"VgaConsole", VgaConsoleEntry, {0}, 0, false, sizeof (NbVgaConsole_t)};
+NbDriver_t vgaConsoleDrv = {"VgaConsole", VgaConsoleEntry, {0}, 0, false, sizeof (NbVgaConsole_t)};

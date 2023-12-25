@@ -116,9 +116,7 @@ void NbUiDestroy()
         NbSendDriverCode (evictedDrv, NB_DRIVER_ENTRY_ATTACHOBJ, ui->output);
     }
     else
-        NbSendDriverCode (NbFindDriver ("TextUi"),
-                          NB_DRIVER_ENTRY_DETACHOBJ,
-                          ui->output);
+        NbSendDriverCode (NbFindDriver ("TextUi"), NB_DRIVER_ENTRY_DETACHOBJ, ui->output);
 }
 
 // Adds element to tree
@@ -236,11 +234,7 @@ NbUiText_t* NbUiCreateText (NbUiElement_t* parent,
 }
 
 /// Creates a UI menu box
-NbUiMenuBox_t* NbUiCreateMenuBox (NbUiElement_t* parent,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height)
+NbUiMenuBox_t* NbUiCreateMenuBox (NbUiElement_t* parent, int x, int y, int width, int height)
 {
     NbUi_t* ui = NbObjGetData (uiObj);
     NbUiMenuBox_t* elem = calloc (1, sizeof (NbUiMenuBox_t));

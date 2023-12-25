@@ -45,6 +45,8 @@ typedef uint32_t pte_t;
 
 // The address space
 static pde_t* pdir = NULL;
+// Is paging on?
+static bool isPgOn = true;
 
 void NbCpuAsInit()
 {

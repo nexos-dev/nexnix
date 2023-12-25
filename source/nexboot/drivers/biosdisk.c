@@ -437,7 +437,7 @@ static bool BiosDiskEntry (int code, void* params)
                                "type %d, flags %#02X, sector size %u\r\n",
                                NEXBOOT_LOGLEVEL_DEBUG,
                                curDisk,
-                               disk->size / 1024 / 1024,
+                               (disk->size / 1024) / 1024,
                                disk->type,
                                disk->flags,
                                disk->sectorSz);

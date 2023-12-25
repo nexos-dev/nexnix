@@ -86,11 +86,7 @@ void NbInvlpg (uintptr_t addr);
 #define NB_EFER_MSR 0xC0000080
 #define NB_EFER_NXE (1 << 11)
 
-#ifdef NEXNIX_I386_PAE
-typedef uint64_t paddr_t;
-#else
 typedef uint32_t paddr_t;
-#endif
 
 #define NB_KE_STACK_BASE 0xC0000000
 

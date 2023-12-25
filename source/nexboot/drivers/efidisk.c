@@ -189,8 +189,30 @@ static bool EfiDiskNotify (void* objp, void* params)
     return true;
 }
 
-static bool EfiDiskDumpData (void* objp, void* params)
+static bool EfiDiskDumpData (void* objp, void* data)
 {
+    NbObject_t* obj = objp;
+    NbEfiDisk_t* disk = NbObjGetData (obj);
+    void (*writeData) (const char* fmt, ...) = data;
+    writeData ("Disk type: ");
+    if (disk->disk.type == DISK_TYPE_HDD)
+        writeData ("hard disk\n");
+    else if (disk->disk.type == DISK_TYPE_FDD)
+        writeData ("floppy disk\n");
+    else if (disk->disk.type == DISK_TYPE_CDROM)
+        writeData ("CD-ROM\n");
+    writeData ("Disk size (MiB): %u\n", (disk->disk.size / 1024) / 1024);
+    writeData ("Sector size: %d\n", disk->disk.sectorSz);
+    writeData ("Flags: ");
+    if (disk->disk.flags & DISK_FLAG_64BIT)
+        writeData ("64-bit ");
+    if (disk->disk.flags & DISK_FLAG_LBA)
+        writeData ("LBA ");
+    if (disk->disk.flags & DISK_FLAG_EJECTABLE)
+        writeData ("ejectable ");
+    if (disk->disk.flags & DISK_FLAG_REMOVABLE)
+        writeData ("removable ");
+    writeData ("\n");
     return true;
 }
 

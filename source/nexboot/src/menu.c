@@ -56,8 +56,7 @@ static NbOsInfo_t* os = NULL;
 void NbMenuAddEntry (StringRef_t* name, ListHead_t* cmdLine)
 {
     if (!menuEntries)
-        menuEntries =
-            ArrayCreate (MENU_ENTRY_MAX, MENU_ENTRY_MAX, sizeof (MenuEntry_t));
+        menuEntries = ArrayCreate (MENU_ENTRY_MAX, MENU_ENTRY_MAX, sizeof (MenuEntry_t));
     // Get entry from array
     size_t pos = ArrayFindFreeElement (menuEntries);
     MenuEntry_t* ent = ArrayGetElement (menuEntries, pos);
@@ -207,9 +206,7 @@ bool NbBootModMain (Array_t* args)
     // Check if modules array is initialized
     if (!os->mods)
     {
-        os->mods = ArrayCreate (NB_BOOT_MODS_INITIAL,
-                                NB_BOOT_MODS_MAX,
-                                sizeof (StringRef_t*));
+        os->mods = ArrayCreate (NB_BOOT_MODS_INITIAL, NB_BOOT_MODS_MAX, sizeof (StringRef_t*));
         if (!os->mods)
         {
             NbShellWrite ("bootmod: out of memory");
@@ -321,18 +318,11 @@ static bool nbMenuCreateUi (NbUi_t* ui)
     StrRefNoFree (hdr);
     StringRef_t* cmdText = StrRefCreate ("Press 'c' to enter command line");
     StrRefNoFree (cmdText);
-    StringRef_t* instText = StrRefCreate (
-        "Press 'up' and 'down' to move between entries, 'enter' to select");
+    StringRef_t* instText =
+        StrRefCreate ("Press 'up' and 'down' to move between entries, 'enter' to select");
     StrRefNoFree (instText);
     // Create main header
-    NbUiCreateText (NULL,
-                    hdr,
-                    0,
-                    1,
-                    0,
-                    0,
-                    NB_UI_COLOR_WHITE,
-                    NB_UI_COLOR_TRANSPARENT);
+    NbUiCreateText (NULL, hdr, 0, 1, 0, 0, NB_UI_COLOR_WHITE, NB_UI_COLOR_TRANSPARENT);
     // Create menu box
     menu = NbUiCreateMenuBox (NULL, 4, 4, ui->width - 4, MENU_ENTRY_MAX);
     // Create menu entries
@@ -344,14 +334,7 @@ static bool nbMenuCreateUi (NbUi_t* ui)
         // Create entry
         menuEnt->menuEnt = NbUiAddMenuEntry (menu);
         // Create text
-        NbUiCreateText ((NbUiElement_t*) menuEnt->menuEnt,
-                        menuEnt->name,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0);
+        NbUiCreateText ((NbUiElement_t*) menuEnt->menuEnt, menuEnt->name, 0, 0, 0, 0, 0, 0);
         iter = ArrayIterate (menuEntries, iter);
     }
     // Create instructions
@@ -396,6 +379,8 @@ static bool nbMenuSelectOs (NbUi_t* ui)
     while (1)
     {
         NbObjCallSvc (keyboardObj, NB_KEYBOARD_READ_KEY, &key);
+        if (key.isBreak)
+            continue;
         // Determine what was pressed
         if (key.c == NB_KEY_UP)
         {
@@ -443,12 +428,12 @@ bool NbMenuInitUi (Array_t* args)
         ui = NbObjGetData (uiObj);
         // Initialize UI
         StringRef_t* autoBoot = NbShellGetVar ("autoboot");
-        if (!(!keyboardObj || !ui ||
-              (autoBoot && !strcmp (StrRefGet (autoBoot), "1"))))
+        if (!(!keyboardObj || !ui || (autoBoot && !strcmp (StrRefGet (autoBoot), "1"))))
         {
             if (!nbMenuCreateUi (ui))
             {
-                ArrayDestroy (menuEntries);
+                if (menuEntries)
+                    ArrayDestroy (menuEntries);
                 menuEntries = NULL;
                 NbUiDestroy();
                 return false;
@@ -458,8 +443,6 @@ bool NbMenuInitUi (Array_t* args)
     // Select OS
     if (!nbMenuSelectOs (ui))
     {
-        ArrayDestroy (menuEntries);
-        menuEntries = NULL;
         NbUiDestroy();
         return false;    // Return to shell
     }

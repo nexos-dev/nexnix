@@ -27,7 +27,7 @@ menuentry NexNix {
 
 menuentry NexBoot {
     boottype chainload
-    payload /Devices/BiosDisk0
+    payload /Devices/BiosDisk1
     boot
 }
 

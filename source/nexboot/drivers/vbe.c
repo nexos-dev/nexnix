@@ -236,7 +236,7 @@ static void vbeMapBuffer (NbDisplayDev_t* display, void* buf)
     for (int i = 0; i < lfbPages; ++i)
     {
         NbCpuAsMap ((uintptr_t) buf + (i * NEXBOOT_CPU_PAGE_SIZE),
-                    (paddr_t) buf + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    buf + (i * NEXBOOT_CPU_PAGE_SIZE),
                     NB_CPU_AS_RW | NB_CPU_AS_WT);
     }
 }
