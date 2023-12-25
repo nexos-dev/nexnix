@@ -502,9 +502,9 @@ then
                 checkerr $? "unable to build EDK2"
                 echo "Installing EDK2..."
                 cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_CODE.fd \
-                   $NNBUILDROOT/tools/firmware/OVMF_CODE_i386.fd
+                   $NNBUILDROOT/tools/firmware/OVMF_CODE_IA32.fd
                 cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_VARS.fd \
-                   $NNBUILDROOT/tools/firmware/OVMF_VARS_i386.fd
+                   $NNBUILDROOT/tools/firmware/OVMF_VARS_IA32.fd
                 touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
             elif [ "$NNARCH" = "x86_64" ]
             then

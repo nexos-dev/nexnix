@@ -18,7 +18,7 @@
 #ifndef _DISK_H
 #define _DISK_H
 
-#include <nexboot/driver.h>
+#include <nexboot/fw.h>
 #include <stdint.h>
 
 // Geometry structure
@@ -31,6 +31,7 @@ typedef struct _diskaddr
 
 typedef struct _diskinf
 {
+    NbHwDevice_t dev;
     uint8_t flags;        // Disk flags
     uint64_t size;        // Size of disk in sectors
     uint16_t sectorSz;    // Size of a sector

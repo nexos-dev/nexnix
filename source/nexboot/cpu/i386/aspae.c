@@ -51,12 +51,24 @@ typedef uint64_t pdpte_t;
 
 // The address space
 static pdpte_t* pdpt = NULL;
+// Is paging enabled
+static bool isPgOn = true;
 
 void NbCpuAsInit()
 {
     // Grab PDPT from CR3
     pdpt = (pdpte_t*) NbReadCr3();
+    if (!pdpt)
+    {
+        // Allocate one
+        pdpt = (pdpte_t*) NbFwAllocPage();
+        isPgOn = false;
+    }
     assert (pdpt);
+    // Disable WP. We only do this because some not smart UEFIs
+    // write protect paging structures
+    uint64_t cr0 = NbReadCr0();
+    NbWriteCr0 (cr0 & ~(NB_CR0_WP));
 }
 
 static pte_t* cpuAsAllocTab (pde_t* pdir, uintptr_t virt, uint64_t flags)
@@ -141,7 +153,8 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     *pte = ptFlags;
     PT_SETFRAME (*pte, phys);
     // Invalidate TLB entry
-    NbInvlpg (virt);
+    if (isPgOn)
+        NbInvlpg (virt);
     return true;
 }
 
@@ -162,5 +175,20 @@ void NbCpuAsUnmap (uintptr_t virt)
     pte_t* pgTab = (pte_t*) PT_GETFRAME (*pde);
     pte_t* pte = &pgTab[tabIdx];
     *pte = 0;
-    NbInvlpg (virt);
+    if (isPgOn)
+        NbInvlpg (virt);
+}
+
+// Enables paging
+void NbCpuEnablePaging()
+{
+    NbWriteCr3 ((uint32_t) pdpt);
+    uint32_t cr4 = NbReadCr4();
+    cr4 |= NB_CR4_PAE;
+    NbWriteCr4 (cr4);
+    asm volatile("cli");
+    uint32_t cr0 = NbReadCr0();
+    cr0 |= NB_CR0_PG;
+    NbWriteCr0 (cr0);
+    isPgOn = true;
 }

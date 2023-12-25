@@ -83,8 +83,7 @@ uintptr_t NbElfLoadFile (void* fileBase)
         // Check machine
         if (!elfCheckMachine (hdr32->e_machine))
         {
-            NbShellWrite (
-                "nexboot: payload machine type incompatible with system\n");
+            NbShellWrite ("nexboot: payload machine type incompatible with system\n");
             return 0;
         }
         // Grab program headers
@@ -95,17 +94,15 @@ uintptr_t NbElfLoadFile (void* fileBase)
             if (phdr->p_type == PT_LOAD)
             {
                 // Determine number of pages in this segment
-                uint32_t numPgs = (phdr->p_memsz + (NEXBOOT_CPU_PAGE_SIZE - 1)) /
-                                  NEXBOOT_CPU_PAGE_SIZE;
+                uint32_t numPgs =
+                    (phdr->p_memsz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
                 // Allocate pages
                 void* filePhys = (void*) NbFwAllocPages (numPgs);
                 // Copy file data to physical address
                 void* srcBuf = fileBase + phdr->p_offset;
                 memcpy (filePhys, srcBuf, phdr->p_filesz);
                 // Zero out memory and file difference
-                memset (filePhys + phdr->p_filesz,
-                        0,
-                        phdr->p_memsz - phdr->p_filesz);
+                memset (filePhys + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
                 // Get permissions flags
                 uint32_t flags = NB_CPU_AS_GLOBAL | NB_CPU_AS_NX;
                 if (phdr->p_flags & PF_X)
@@ -145,8 +142,7 @@ uintptr_t NbElfLoadFile (void* fileBase)
         // Check machine
         if (!elfCheckMachine (hdr64->e_machine))
         {
-            NbShellWrite (
-                "nexboot: payload machine type incompatible with system\n");
+            NbShellWrite ("nexboot: payload machine type incompatible with system\n");
             return 0;
         }
         // Grab program headers
@@ -157,17 +153,15 @@ uintptr_t NbElfLoadFile (void* fileBase)
             if (phdr->p_type == PT_LOAD)
             {
                 // Determine number of pages in this segment
-                uint32_t numPgs = (phdr->p_memsz + (NEXBOOT_CPU_PAGE_SIZE - 1)) /
-                                  NEXBOOT_CPU_PAGE_SIZE;
+                uint32_t numPgs =
+                    (phdr->p_memsz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
                 // Allocate pages
                 void* filePhys = (void*) NbFwAllocPages (numPgs);
                 // Copy file data to physical address
                 void* srcBuf = fileBase + phdr->p_offset;
                 memcpy (filePhys, srcBuf, phdr->p_filesz);
                 // Zero out memory and file difference
-                memset (filePhys + phdr->p_filesz,
-                        0,
-                        phdr->p_memsz - phdr->p_filesz);
+                memset (filePhys + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
                 // Get permissions flags
                 uint32_t flags = NB_CPU_AS_GLOBAL | NB_CPU_AS_NX;
                 if (phdr->p_flags & PF_X)

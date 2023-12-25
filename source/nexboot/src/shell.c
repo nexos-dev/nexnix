@@ -326,8 +326,7 @@ int NbShellExecute (ListHead_t* blocks)
             if (!NbShellSetVar (varSet->var, val))
             {
                 // Error
-                NbShellWrite ("nexboot: Variable array full\n",
-                              StrRefGet (varSet->val.var));
+                NbShellWrite ("nexboot: Variable array full\n", StrRefGet (varSet->val.var));
                 return false;
             }
         }
@@ -344,17 +343,15 @@ int NbShellExecute (ListHead_t* blocks)
                 if (!cmdName)
                 {
                     // Error
-                    NbShellWrite ("nexboot: Variable \"%s\" doesn't exist\n",
-                                  StrRefGet (cmdName));
+                    NbShellWrite ("nexboot: Variable \"%s\" doesn't exist\n", StrRefGet (cmdName));
                     goto iterate;
                 }
             }
             else
                 assert (0);
             // Parse each argument. Create array first
-            Array_t* args = ArrayCreate (ARG_ARRAY_GROW_SIZE,
-                                         ARG_ARRAY_MAX_SIZE,
-                                         sizeof (StringRef_t*));
+            Array_t* args =
+                ArrayCreate (ARG_ARRAY_GROW_SIZE, ARG_ARRAY_MAX_SIZE, sizeof (StringRef_t*));
             ArraySetDestroy (args, nbShellArgDestroy);
             ListEntry_t* argIter = ListFront (cmd->args);
             while (argIter)
@@ -530,8 +527,7 @@ bool NbShellLaunch (NbFile_t* confFile)
         NbObjCallSvc (shellTerm, NB_TERMINAL_SETOPTS, &term);
     }
     // Initialize context
-    shellVars =
-        ArrayCreate (SHELLVAR_GROW_SIZE, SHELLVAR_MAX_SIZE, sizeof (ShellVar_t));
+    shellVars = ArrayCreate (SHELLVAR_GROW_SIZE, SHELLVAR_MAX_SIZE, sizeof (ShellVar_t));
     ArraySetFindBy (shellVars, nbShellVarFindBy);
     ArraySetDestroy (shellVars, nbShellVarDestroy);
     // Welcome

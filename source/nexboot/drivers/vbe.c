@@ -232,8 +232,7 @@ static void vbeGetPreferredRes (int* width, int* height)
 static void vbeMapBuffer (NbDisplayDev_t* display, void* buf)
 {
     size_t lfbSize = display->bytesPerLine * display->height;
-    size_t lfbPages =
-        (lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    size_t lfbPages = (lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     for (int i = 0; i < lfbPages; ++i)
     {
         NbCpuAsMap ((uintptr_t) buf + (i * NEXBOOT_CPU_PAGE_SIZE),
@@ -243,9 +242,7 @@ static void vbeMapBuffer (NbDisplayDev_t* display, void* buf)
 }
 
 // Sets up display
-static void vbeSetupDisplay (NbDisplayDev_t* display,
-                             VbeModeInfo_t* modeInfo,
-                             uint16_t modeNum)
+static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, uint16_t modeNum)
 {
     // Setup display struct
     display->invalidList = NULL;
@@ -261,15 +258,13 @@ static void vbeSetupDisplay (NbDisplayDev_t* display,
     // Set masks
     if (modeInfo->memModel == VBE_MODEL_DIRECTCOLOR)
     {
-        display->redMask.mask = (vbeVer == 3) ? ((1 << modeInfo->linRedMaskSz) - 1)
-                                              : ((1 << modeInfo->redMaskSz) - 1);
-        display->greenMask.mask = (vbeVer == 3)
-                                      ? ((1 << modeInfo->linGreenMaskSz) - 1)
-                                      : ((1 << modeInfo->greenMaskSz) - 1);
+        display->redMask.mask =
+            (vbeVer == 3) ? ((1 << modeInfo->linRedMaskSz) - 1) : ((1 << modeInfo->redMaskSz) - 1);
+        display->greenMask.mask = (vbeVer == 3) ? ((1 << modeInfo->linGreenMaskSz) - 1)
+                                                : ((1 << modeInfo->greenMaskSz) - 1);
         display->blueMask.mask = (vbeVer == 3) ? ((1 << modeInfo->linBlueMaskSz) - 1)
                                                : ((1 << modeInfo->blueMaskSz) - 1);
-        display->redMask.maskShift =
-            (vbeVer == 3) ? modeInfo->linRedMaskPos : modeInfo->redMaskPos;
+        display->redMask.maskShift = (vbeVer == 3) ? modeInfo->linRedMaskPos : modeInfo->redMaskPos;
         display->greenMask.maskShift =
             (vbeVer == 3) ? modeInfo->linGreenMaskPos : modeInfo->greenMaskPos;
         display->blueMask.maskShift =
@@ -347,16 +342,14 @@ static bool vbeQueryMode (uint16_t width,
             goto next;
         if (!(modeInfo.modeAttr & VBE_MODE_LFB))
             goto next;
-        if (modeInfo.memModel != VBE_MODEL_PACKED &&
-            modeInfo.memModel != VBE_MODEL_DIRECTCOLOR)
+        if (modeInfo.memModel != VBE_MODEL_PACKED && modeInfo.memModel != VBE_MODEL_DIRECTCOLOR)
         {
             goto next;
         }
         if (modeInfo.bitsPerPixel != 16 && modeInfo.bitsPerPixel != 32)
             goto next;    // 24 and 8 bpp not supported
         // If mode is identical, use it
-        if (modeInfo.width == width && modeInfo.height == height &&
-            modeInfo.bitsPerPixel == 32)
+        if (modeInfo.width == width && modeInfo.height == height && modeInfo.bitsPerPixel == 32)
         {
             // End it
             bestHeight = modeInfo.height;
@@ -403,21 +396,19 @@ static bool VbeDrvEntry (int code, void* params)
             memcpy (block.sig, "VBE2", 4);
             if (!vbeGetCtrlBlock (&block))
             {
-                NbLogMessageEarly ("vbe: no controller block found\r\n",
-                                   NEXBOOT_LOGLEVEL_INFO);
+                NbLogMessageEarly ("vbe: no controller block found\r\n", NEXBOOT_LOGLEVEL_ERROR);
                 return false;
             }
             // Check signature
             if (memcmp (block.sig, "VESA", 4))
             {
-                NbLogMessageEarly ("vbe: controller block corrupts\r\n",
-                                   NEXBOOT_LOGLEVEL_INFO);
+                NbLogMessageEarly ("vbe: controller block corrupted\r\n", NEXBOOT_LOGLEVEL_ERROR);
                 return false;
             }
             // Ensure version is compatible with us
             if (block.version < VBE2_VERSION)
             {
-                NbLogMessage ("vbe: VBE 2.0+ required\r\n", NEXBOOT_LOGLEVEL_INFO);
+                NbLogMessage ("vbe: VBE 2.0+ required\r\n", NEXBOOT_LOGLEVEL_ERROR);
                 return false;
             }
             if (block.version == VBE2_VERSION)
@@ -425,8 +416,7 @@ static bool VbeDrvEntry (int code, void* params)
             else if (block.version == VBE3_VERSION)
                 vbeVer = 3;
             // Copy modes array
-            uint16_t* rmModes =
-                (uint16_t*) ((block.vidModeSeg * 0x10) + block.vidModeOff);
+            uint16_t* rmModes = (uint16_t*) ((block.vidModeSeg * 0x10) + block.vidModeOff);
             // Get size
             uint16_t* modesEnd = rmModes;
             while (*modesEnd != 0xFFFF)
@@ -494,14 +484,13 @@ static bool VbeObjInvalidate (void* objp, void* params)
     if ((region->startY + region->height) > display->height)
         return false;
     // Compute initial location in region
-    size_t startLoc = (region->startY * display->bytesPerLine) +
-                      (region->startX * display->bytesPerPx);
+    size_t startLoc =
+        (region->startY * display->bytesPerLine) + (region->startX * display->bytesPerPx);
     int bytesPerPx = display->bpp / 8;
     size_t regionWidth = bytesPerPx * region->width;
     size_t off = 0;
     // Compute back-buffer specific things
-    void* backBufEnd =
-        display->backBuffer + (display->height * display->bytesPerLine);
+    void* backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
     void* backBuf = display->backBufferLoc + startLoc;
     if (backBuf >= backBufEnd)
     {
@@ -539,12 +528,10 @@ static bool VbeObjSetMode (void* objp, void* params)
     if (!vbeQueryMode (mode->width, mode->height, &modeNum, &modeInfo))
         return false;
     // Unmap current buffers
-    size_t lfbPages =
-        (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    size_t lfbPages = (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     for (int i = 0; i < lfbPages; ++i)
     {
-        NbCpuAsUnmap ((uintptr_t) display->frontBuffer +
-                      (i * NEXBOOT_CPU_PAGE_SIZE));
+        NbCpuAsUnmap ((uintptr_t) display->frontBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
         NbCpuAsUnmap ((uintptr_t) display->backBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
     }
     // Set mode
@@ -575,12 +562,10 @@ static bool VbeObjUnmapFb (void* objp, void* params)
 {
     NbObject_t* obj = objp;
     NbDisplayDev_t* display = NbObjGetData (obj);
-    size_t lfbPages =
-        (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    size_t lfbPages = (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     for (int i = 0; i < lfbPages; ++i)
     {
-        NbCpuAsUnmap ((uintptr_t) display->frontBuffer +
-                      (i * NEXBOOT_CPU_PAGE_SIZE));
+        NbCpuAsUnmap ((uintptr_t) display->frontBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
         NbCpuAsUnmap ((uintptr_t) display->backBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
     }
     return true;
@@ -600,4 +585,4 @@ static NbObjSvc vbeServices[] = {NULL,
 NbObjSvcTab_t vbeSvcTab = {ARRAY_SIZE (vbeServices), vbeServices};
 
 // Driver structure
-NbDriver_t vbeDrv = {"VbeFb", VbeDrvEntry, {0}, 0, false, sizeof (NbHwDevice_t)};
+NbDriver_t vbeDrv = {"VbeFb", VbeDrvEntry, {0}, 0, false, sizeof (NbDisplayDev_t)};

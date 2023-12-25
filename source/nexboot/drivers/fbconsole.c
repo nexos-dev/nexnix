@@ -62,10 +62,8 @@ typedef struct _fbconsole
 static NbFbCons_t* consoles[32] = {0};
 static int curCons = 0;
 
-static uint32_t colorTab32[] =
-    {0, 0xFF0000, 0xFF00, 0xFFFF00, 0xFF, 0xFF00FF, 0xFFFF, 0xd3d3d3};
-static uint16_t colorTab16[] =
-    {0, 0xF800, 0x7E0, 0xFFE0, 0x1F, 0xF81F, 0x7FF, 0xD6DB};
+static uint32_t colorTab32[] = {0, 0xFF0000, 0xFF00, 0xFFFF00, 0xFF, 0xFF00FF, 0xFFFF, 0xd3d3d3};
+static uint16_t colorTab16[] = {0, 0xF800, 0x7E0, 0xFFE0, 0x1F, 0xF81F, 0x7FF, 0xD6DB};
 
 // fbconsole entry
 static bool FbConsDrvEntry (int code, void* params)
@@ -79,8 +77,8 @@ static bool FbConsDrvEntry (int code, void* params)
             NbObject_t* display = NULL;
             while ((iter = NbObjEnumDir (devs, iter)))
             {
-                if (iter->type == OBJ_TYPE_DEVICE &&
-                    iter->interface == OBJ_INTERFACE_DISPLAY && !iter->owner)
+                if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_DISPLAY &&
+                    !iter->owner)
                 {
                     display = iter;
                     break;
@@ -92,8 +90,7 @@ static bool FbConsDrvEntry (int code, void* params)
             // Initialize structure
             char buf[64] = {0};
             snprintf (buf, 64, "/Devices/FbConsole%d", curCons);
-            NbObject_t* consObj =
-                NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_CONSOLE);
+            NbObject_t* consObj = NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_CONSOLE);
             NbFbCons_t* cons = (NbFbCons_t*) calloc (1, sizeof (NbFbCons_t));
             if (!cons || !consObj)
                 return false;
@@ -149,9 +146,7 @@ static bool FbConsDrvEntry (int code, void* params)
             resize.sz.cols = cons->cols;
             resize.sz.rows = cons->rows;
             notify.data = &resize;
-            NbSendDriverCode (NbFindDriver ("Terminal"),
-                              NB_TERMINAL_NOTIFY_RESIZE,
-                              &notify);
+            NbSendDriverCode (NbFindDriver ("Terminal"), NB_TERMINAL_NOTIFY_RESIZE, &notify);
             break;
         }
     }
@@ -182,17 +177,9 @@ static void fbMoveCursor (NbFbCons_t* console, int col, int row)
         for (int x = 0; x < cursorWidth; ++x)
         {
             if (display->bpp == 32)
-                DISPLAY_PLOT_32BPP (display,
-                                    buf,
-                                    colorTab32[console->fgColor],
-                                    x,
-                                    0);
+                DISPLAY_PLOT_32BPP (display, buf, colorTab32[console->fgColor], x, 0);
             if (display->bpp == 16)
-                DISPLAY_PLOT_16BPP (display,
-                                    buf,
-                                    colorTab16[console->fgColor],
-                                    x,
-                                    0);
+                DISPLAY_PLOT_16BPP (display, buf, colorTab16[console->fgColor], x, 0);
         }
         buf += display->bytesPerLine;
         // Wrap if needed
@@ -226,17 +213,9 @@ static void fbMoveCursor (NbFbCons_t* console, int col, int row)
             for (int x = 0; x < cursorWidth; ++x)
             {
                 if (display->bpp == 32)
-                    DISPLAY_PLOT_32BPP (display,
-                                        buf,
-                                        colorTab32[console->bgColor],
-                                        x,
-                                        0);
+                    DISPLAY_PLOT_32BPP (display, buf, colorTab32[console->bgColor], x, 0);
                 if (display->bpp == 16)
-                    DISPLAY_PLOT_16BPP (display,
-                                        buf,
-                                        colorTab16[console->bgColor],
-                                        x,
-                                        0);
+                    DISPLAY_PLOT_16BPP (display, buf, colorTab16[console->bgColor], x, 0);
             }
             buf += display->bytesPerLine;
             // Wrap if needed
@@ -294,17 +273,9 @@ static bool FbObjClearScreen (void* objp, void* params)
         for (int j = 0; j < display->width; ++j)
         {
             if (display->bpp == 32)
-                DISPLAY_PLOT_32BPP (display,
-                                    buf,
-                                    colorTab32[console->bgColor],
-                                    j,
-                                    0);
+                DISPLAY_PLOT_32BPP (display, buf, colorTab32[console->bgColor], j, 0);
             if (display->bpp == 16)
-                DISPLAY_PLOT_16BPP (display,
-                                    buf,
-                                    colorTab16[console->bgColor],
-                                    j,
-                                    0);
+                DISPLAY_PLOT_16BPP (display, buf, colorTab16[console->bgColor], j, 0);
         }
         buf += display->bytesPerLine;
     }
@@ -326,14 +297,34 @@ static bool FbObjPutChar (void* objp, void* params)
     // Get color info
     uint32_t pxColor = 0;
     if (display->bpp == 32)
-        pxColor = colorTab32[console->fgColor];
+    {
+        uint32_t pxColorTmp = colorTab32[console->fgColor];
+        uint8_t r, g, b;
+        DISPLAY_DECOMPOSE_RGB (pxColorTmp, r, g, b);
+        pxColor = DISPLAY_COMPOSE_RGB (display, r, g, b);
+    }
     else if (display->bpp == 16)
-        pxColor = colorTab16[console->fgColor];
+    {
+        uint16_t pxColorTmp = colorTab16[console->fgColor];
+        uint8_t r, g, b;
+        DISPLAY_DECOMPOSE_RGB16 (pxColorTmp, r, g, b);
+        pxColor = DISPLAY_COMPOSE_RGB (display, r, g, b);
+    }
     uint32_t bgPxColor = 0;
     if (display->bpp == 32)
-        bgPxColor = colorTab32[console->bgColor];
+    {
+        uint32_t pxColorTmp = colorTab32[console->bgColor];
+        uint8_t r, g, b;
+        DISPLAY_DECOMPOSE_RGB (pxColorTmp, r, g, b);
+        bgPxColor = DISPLAY_COMPOSE_RGB (display, r, g, b);
+    }
     else if (display->bpp == 16)
-        bgPxColor = colorTab16[console->bgColor];
+    {
+        uint16_t pxColorTmp = colorTab16[console->bgColor];
+        uint8_t r, g, b;
+        DISPLAY_DECOMPOSE_RGB16 (pxColorTmp, r, g, b);
+        bgPxColor = DISPLAY_COMPOSE_RGB (display, r, g, b);
+    }
     // Compute glyph
     bool found;
     uint16_t glyphIdx = fb_font_glyph (pc->c, &found);
@@ -422,17 +413,9 @@ static bool FbObjDisableCursor (void* objp, void* params)
         for (int x = 0; x < cursorWidth; ++x)
         {
             if (display->bpp == 32)
-                DISPLAY_PLOT_32BPP (display,
-                                    buf,
-                                    colorTab32[console->bgColor],
-                                    x,
-                                    0);
+                DISPLAY_PLOT_32BPP (display, buf, colorTab32[console->bgColor], x, 0);
             if (display->bpp == 16)
-                DISPLAY_PLOT_16BPP (display,
-                                    buf,
-                                    colorTab16[console->bgColor],
-                                    x,
-                                    0);
+                DISPLAY_PLOT_16BPP (display, buf, colorTab16[console->bgColor], x, 0);
         }
         buf += display->bytesPerLine;
     }
@@ -489,9 +472,8 @@ static bool FbObjScroll (void* objp, void* params)
     NbObjCallSvc (console->display, NB_DISPLAY_INVALIDATE, &scrollRegion);
     // Clear last line
     NbDisplayDev_t* display = NbObjGetData (console->display);
-    void* lastLineBuf =
-        display->backBufferLoc +
-        (display->bytesPerLine * ((console->rows - 1) * console->charHeight));
+    void* lastLineBuf = display->backBufferLoc +
+                        (display->bytesPerLine * ((console->rows - 1) * console->charHeight));
     void* bufEnd = display->backBuffer + display->lfbSize;
     // Wrap if needed
     if (lastLineBuf >= bufEnd)
@@ -504,17 +486,9 @@ static bool FbObjScroll (void* objp, void* params)
         for (int x = 0; x < display->width; ++x)
         {
             if (display->bpp == 32)
-                DISPLAY_PLOT_32BPP (display,
-                                    lastLineBuf,
-                                    colorTab32[console->bgColor],
-                                    x,
-                                    0);
+                DISPLAY_PLOT_32BPP (display, lastLineBuf, colorTab32[console->bgColor], x, 0);
             if (display->bpp == 16)
-                DISPLAY_PLOT_16BPP (display,
-                                    lastLineBuf,
-                                    colorTab16[console->bgColor],
-                                    x,
-                                    0);
+                DISPLAY_PLOT_16BPP (display, lastLineBuf, colorTab16[console->bgColor], x, 0);
         }
         lastLineBuf += display->bytesPerLine;
         // Wrap if needed
@@ -567,8 +541,7 @@ static NbObjSvc fbConsSvcs[] = {NULL,
                                 FbObjMoveCursor,
                                 FbObjGetSize};
 
-NbObjSvcTab_t fbConsSvcTab = {.numSvcs = ARRAY_SIZE (fbConsSvcs),
-                              .svcTab = fbConsSvcs};
+NbObjSvcTab_t fbConsSvcTab = {.numSvcs = ARRAY_SIZE (fbConsSvcs), .svcTab = fbConsSvcs};
 NbDriver_t fbConsDrv = {.deps = {0},
                         .devSize = 0,
                         .entry = FbConsDrvEntry,

@@ -160,10 +160,7 @@ static void diskReset (uint8_t disk)
 }
 
 // Reads a sector without using LBA extensions
-static uint8_t diskReadSector (uint8_t drive,
-                               NbBiosDisk_t* disk,
-                               void* buf,
-                               uint32_t sector)
+static uint8_t diskReadSector (uint8_t drive, NbBiosDisk_t* disk, void* buf, uint32_t sector)
 {
     NbBiosRegs_t in = {0}, out = {0};
     // Convert LBA to CHS
@@ -197,10 +194,7 @@ static uint8_t diskReadSector (uint8_t drive,
 }
 
 // Reads a sector using LBA extensions
-static uint8_t diskReadSectorLba (NbBiosDisk_t* disk,
-                                  uint8_t biosNum,
-                                  void* buf,
-                                  uint32_t sector)
+static uint8_t diskReadSectorLba (NbBiosDisk_t* disk, uint8_t biosNum, void* buf, uint32_t sector)
 {
     NbBiosRegs_t in = {0}, out = {0};
     NbBiosDap_t* dap = (NbBiosDap_t*) NEXBOOT_BIOSBUF2_BASE;
@@ -365,10 +359,9 @@ static bool BiosDiskEntry (int code, void* params)
                     if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
                     {
                         assert (bootDiskChecked);
-                        NbLogMessageEarly (
-                            "biosdisk: BIOS disk %#X doesn't exist\r\n",
-                            NEXBOOT_LOGLEVEL_DEBUG,
-                            curDisk);
+                        NbLogMessageEarly ("biosdisk: BIOS disk %#X doesn't exist\r\n",
+                                           NEXBOOT_LOGLEVEL_DEBUG,
+                                           curDisk);
                         // No disks left to check, move to hard disks
                         curDisk = 0x80;
                         // If this disk equal boot disk, move to next disk
@@ -381,10 +374,7 @@ static bool BiosDiskEntry (int code, void* params)
                 else
                 {
                     // Read using LBA
-                    if (diskReadSectorLba (disk,
-                                           curDisk,
-                                           (void*) NEXBOOT_BIOSBUF_BASE,
-                                           0))
+                    if (diskReadSectorLba (disk, curDisk, (void*) NEXBOOT_BIOSBUF_BASE, 0))
                     {
                         // Try without LBA
                         memset (&in, 0, sizeof (NbBiosRegs_t));
@@ -399,10 +389,9 @@ static bool BiosDiskEntry (int code, void* params)
                         if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
                         {
                             assert (bootDiskChecked);
-                            NbLogMessageEarly (
-                                "biosdisk: BIOS disk %#X doesn't exist\r\n",
-                                NEXBOOT_LOGLEVEL_DEBUG,
-                                curDisk);
+                            NbLogMessageEarly ("biosdisk: BIOS disk %#X doesn't exist\r\n",
+                                               NEXBOOT_LOGLEVEL_DEBUG,
+                                               curDisk);
                             return false;
                         }
                         else
@@ -444,18 +433,15 @@ static bool BiosDiskEntry (int code, void* params)
                     goto checkDisk;    // Retry
                 }
             }
-            NbLogMessageEarly (
-                "biosdisk: BIOS disk %#X found and working, size %llu, "
-                "type %d, flags %#X, sector size %u\r\n",
-                NEXBOOT_LOGLEVEL_DEBUG,
-                curDisk,
-                disk->size / 1024 / 1024,
-                disk->type,
-                disk->flags,
-                disk->sectorSz);
-            NbLogMessageEarly ("biosdisk: Disk %#X found\r\n",
-                               NEXBOOT_LOGLEVEL_INFO,
-                               curDisk);
+            NbLogMessageEarly ("biosdisk: BIOS disk %#X found and working, size %llu, "
+                               "type %d, flags %#02X, sector size %u\r\n",
+                               NEXBOOT_LOGLEVEL_DEBUG,
+                               curDisk,
+                               disk->size / 1024 / 1024,
+                               disk->type,
+                               disk->flags,
+                               disk->sectorSz);
+            NbLogMessageEarly ("biosdisk: Disk %#X found\r\n", NEXBOOT_LOGLEVEL_INFO, curDisk);
             // If this is boot disk, do normal disk check now
             disk->hdr.devId = curIter;
             disk->hdr.sz = sizeof (NbBiosDisk_t);
@@ -505,10 +491,7 @@ static bool BiosDiskReadSectors (void* obj, void* data)
         if (biosDisk->flags & DISK_FLAG_LBA)
         {
             int res = 0;
-            if ((res = diskReadSectorLba (biosDisk,
-                                          biosDisk->biosNum,
-                                          buf,
-                                          readInf->sector)))
+            if ((res = diskReadSectorLba (biosDisk, biosDisk->biosNum, buf, readInf->sector)))
             {
                 readInf->error = res;
                 return false;
@@ -518,10 +501,7 @@ static bool BiosDiskReadSectors (void* obj, void* data)
         {
             // Use non-LBA function
             int res = 0;
-            if ((res = diskReadSector (biosDisk->biosNum,
-                                       biosDisk,
-                                       buf,
-                                       readInf->sector)))
+            if ((res = diskReadSector (biosDisk->biosNum, biosDisk, buf, readInf->sector)))
             {
                 readInf->error = res;
                 return false;
@@ -585,14 +565,8 @@ static bool BiosDiskReportError (void* objp, void* data)
     return true;
 }
 
-static NbObjSvc biosDiskSvcs[] = {NULL,
-                                  NULL,
-                                  NULL,
-                                  BiosDiskDumpData,
-                                  BiosDiskNotify,
-                                  BiosDiskReportError,
-                                  BiosDiskReadSectors};
+static NbObjSvc biosDiskSvcs[] =
+    {NULL, NULL, NULL, BiosDiskDumpData, BiosDiskNotify, BiosDiskReportError, BiosDiskReadSectors};
 NbObjSvcTab_t biosDiskSvcTab = {ARRAY_SIZE (biosDiskSvcs), biosDiskSvcs};
 
-NbDriver_t biosDiskDrv =
-    {"BiosDisk", BiosDiskEntry, {0}, 0, false, sizeof (NbBiosDisk_t)};
+NbDriver_t biosDiskDrv = {"BiosDisk", BiosDiskEntry, {0}, 0, false, sizeof (NbBiosDisk_t)};

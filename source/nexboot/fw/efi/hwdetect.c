@@ -57,9 +57,6 @@ static bool createDeviceObject (const char* name, int interface, NbDriver_t* drv
     if (!obj)
         return false;
     NbSendDriverCode (drv, NB_DRIVER_ENTRY_ATTACHOBJ, obj);
-    char buf[2] = {0};
-    NbObjCallSvc (obj, NB_SERIAL_READ, &buf);
-    NbObjCallSvc (obj, NB_SERIAL_WRITE, (void*) buf[0]);
 }
 
 bool NbFwDetectHw (NbloadDetect_t* nbDetect)
@@ -123,6 +120,45 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
         snprintf (nameBuf, 64, "/Devices/EfiSerial%d", dev->devId);
         createDeviceObject (nameBuf, OBJ_INTERFACE_RS232, serialDrv, dev);
         dev = (NbHwDevice_t*) malloc (serialDrv->devSize);
+    }
+    free (dev);
+    // Find keyboards
+    NbDriver_t* keyDrv = NbFindDriver ("EfiKbd");
+    assert (keyDrv);
+    dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
+    while (NbSendDriverCode (keyDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        // Create object
+        char nameBuf[64] = {0};
+        snprintf (nameBuf, 64, "/Devices/EfiKbd%d", dev->devId);
+        createDeviceObject (nameBuf, OBJ_INTERFACE_KBD, keyDrv, dev);
+        dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
+    }
+    free (dev);
+    // Find disks
+    NbDriver_t* diskDrv = NbFindDriver ("EfiDisk");
+    assert (diskDrv);
+    dev = (NbHwDevice_t*) malloc (diskDrv->devSize);
+    while (NbSendDriverCode (diskDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        // Create object
+        char nameBuf[64] = {0};
+        snprintf (nameBuf, 64, "/Devices/Disk%d", dev->devId);
+        createDeviceObject (nameBuf, OBJ_INTERFACE_DISK, diskDrv, dev);
+        dev = (NbHwDevice_t*) malloc (diskDrv->devSize);
+    }
+    free (dev);
+    // Find displays
+    NbDriver_t* gopDrv = NbFindDriver ("EfiGopFb");
+    assert (gopDrv);
+    dev = (NbHwDevice_t*) malloc (gopDrv->devSize);
+    while (NbSendDriverCode (gopDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        // Create object
+        char nameBuf[64] = {0};
+        snprintf (nameBuf, 64, "/Devices/GopDisplay%d", dev->devId);
+        createDeviceObject (nameBuf, OBJ_INTERFACE_DISPLAY, gopDrv, dev);
+        dev = (NbHwDevice_t*) malloc (gopDrv->devSize);
     }
     free (dev);
     return true;

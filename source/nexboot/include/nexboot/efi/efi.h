@@ -61,6 +61,24 @@ void NbFwExitNexboot();
 // Gets map key with current memory map
 uint32_t NbEfiGetMapKey();
 
+// Grabs device path associated with handle
+EFI_DEVICE_PATH* NbEfiGetDevicePath (EFI_HANDLE device);
+
+// Copies EFI device path so alignment is know
+EFI_DEVICE_PATH* NbEfiCopyDev (EFI_DEVICE_PATH* dev);
+
+// Gets length of a device path structure
+uint16_t NbEfiGetDevLen (EFI_DEVICE_PATH* dev);
+
+// Returns last component of device path
+EFI_DEVICE_PATH* NbEfiGetLastDev (EFI_DEVICE_PATH* dev);
+
+// Gets next device path
+EFI_DEVICE_PATH* NbEfiNextDev (EFI_DEVICE_PATH* dev);
+
+// Duplicates device path
+EFI_DEVICE_PATH* NbEfiDupDevicePath (EFI_DEVICE_PATH* dev);
+
 // EFI configuration tables
 #define NB_ARCH_COMP_ACPI    0
 #define NB_ARCH_COMP_MPS     1

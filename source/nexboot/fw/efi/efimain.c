@@ -60,6 +60,15 @@ EFI_STATUS __attribute__ ((ms_abi)) NbEfiEntry (EFI_HANDLE imgHandle, EFI_SYSTEM
     nbPrepareNbdetect();
     // Disarm watchdog
     uefi_call_wrapper (BS->SetWatchdogTimer, 4, 0, 0, 0, NULL);
+    // Ensure we are at least EFI 1.10
+    if (efiSysTab->Hdr.Revision < EFI_1_10_SYSTEM_TABLE_REVISION)
+    {
+        uefi_call_wrapper (ST->ConOut->OutputString, 2, ST->ConOut, L"nexboot: EFI 1.10+ required");
+        // Wait for key
+        size_t idx = 0;
+        uefi_call_wrapper (BS->WaitForEvent, 3, 1, &ST->ConIn->WaitForKey, &idx);
+        return EFI_INCOMPATIBLE_VERSION;
+    }
     // Call NbMain
     NbMain (&detect);
     return EFI_SUCCESS;

@@ -15,4 +15,8 @@
     limitations under the License.
 ]]
 
-set(NEXBOOT_CFLAGS "-fpie -fno-plt -fno-pic -fshort-wchar")
+set(NEXBOOT_CFLAGS "-fshort-wchar")
+
+if("${NEXNIX_ARCH}" STREQUAL "x86_64")
+    set(NEXBOOT_CFLAGS "${NEXBOOT_CFLAGS} -fpie -fno-pic -fno-plt")
+endif()

@@ -86,6 +86,8 @@ void NbInvlpg (uintptr_t addr);
 #define NB_EFER_MSR 0xC0000080
 #define NB_EFER_NXE (1 << 11)
 
+#define NB_KE_STACK_BASE 0xFFFFFFFF80000000
+
 typedef uint64_t paddr_t;
 
 void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInf);

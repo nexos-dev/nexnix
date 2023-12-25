@@ -19,6 +19,7 @@
 #include <nexboot/driver.h>
 #include <nexboot/drivers/terminal.h>
 #include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
 #include <nexboot/object.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,10 +30,7 @@ extern NbDriver_t terminalDrv;
 static NbTerminal_t* terms[32] = {NULL};
 static int curTerm = 0;
 
-static void createTerminal (int termNum,
-                            NbTerminal_t* term,
-                            NbObject_t* inEnd,
-                            NbObject_t* outEnd)
+static void createTerminal (int termNum, NbTerminal_t* term, NbObject_t* inEnd, NbObject_t* outEnd)
 {
     // Create device for terminal structure
     char buf[32] = {0};
@@ -46,12 +44,9 @@ static void createTerminal (int termNum,
     assert (curTerm < 32);
     term->outEnd = NbObjRef (outEnd);
     term->inEnd = NbObjRef (inEnd);
-    NbObjNotify_t notify = {0};
-    notify.data = &terminalDrv;
     // Get console size
     if (outEnd->interface == OBJ_INTERFACE_CONSOLE)
     {
-        notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
         NbConsoleSz_t sz = {0};
         NbObjCallSvc (term->outEnd, NB_CONSOLE_GET_SIZE, &sz);
         term->numCols = sz.cols;
@@ -60,14 +55,11 @@ static void createTerminal (int termNum,
     }
     else if (outEnd->interface == OBJ_INTERFACE_RS232)
     {
-        notify.code = NB_SERIAL_NOTIFY_SETOWNER;
         term->echo = true;
     }
-    if (inEnd->interface == OBJ_INTERFACE_KBD)
-        notify.code = NB_KEYBOARD_NOTIFY_SETOWNER;
-    NbObjCallSvc (outEnd, OBJ_SERVICE_NOTIFY, &notify);
+    NbObjSetOwner (outEnd, &terminalDrv);
     if (inEnd != outEnd)
-        NbObjCallSvc (inEnd, OBJ_SERVICE_NOTIFY, &notify);
+        NbObjSetOwner (inEnd, &terminalDrv);
 }
 
 static bool TerminalEntry (int code, void* params)
@@ -82,9 +74,8 @@ static bool TerminalEntry (int code, void* params)
             NbTerminal_t* curTerm = NULL;
             NbObject_t* outEnd = NULL;
             NbObject_t* inEnd = NULL;
-            NbObject_t* rewindTo =
-                NULL;    // Where to go back to after finding a device
-            bool foundConsole = false;    // Set when a primary display was found
+            NbObject_t* rewindTo = NULL;    // Where to go back to after finding a device
+            bool foundConsole = false;      // Set when a primary display was found
             int curTermNum = 0;
             while ((iter = NbObjEnumDir (devDir, iter)) != 0)
             {
@@ -93,8 +84,7 @@ static bool TerminalEntry (int code, void* params)
                 if (iter->type == OBJ_TYPE_DEVICE)
                 {
                     if ((iter->interface == OBJ_INTERFACE_CONSOLE && !outEnd &&
-                         ((inEnd) ? (inEnd->interface != OBJ_INTERFACE_RS232)
-                                  : true)) ||
+                         ((inEnd) ? (inEnd->interface != OBJ_INTERFACE_RS232) : true)) ||
                         (iter->interface == OBJ_INTERFACE_RS232 && !outEnd &&
                          ((inEnd) ? (inEnd->interface != OBJ_INTERFACE_KBD) : true)))
                     {
@@ -109,8 +99,7 @@ static bool TerminalEntry (int code, void* params)
                         }
                         else
                         {
-                            if (!foundConsole &&
-                                outEnd->interface == OBJ_INTERFACE_CONSOLE)
+                            if (!foundConsole && outEnd->interface == OBJ_INTERFACE_CONSOLE)
                             {
                                 foundConsole = true;
                                 curTerm->isPrimary = true;
@@ -129,11 +118,9 @@ static bool TerminalEntry (int code, void* params)
                         rewindTo = iter;
                     }
                     if ((iter->interface == OBJ_INTERFACE_KBD && !inEnd &&
-                         ((outEnd) ? (outEnd->interface != OBJ_INTERFACE_RS232)
-                                   : true)) ||
+                         ((outEnd) ? (outEnd->interface != OBJ_INTERFACE_RS232) : true)) ||
                         (iter->interface == OBJ_INTERFACE_RS232 && !inEnd &&
-                         ((outEnd) ? (outEnd->interface != OBJ_INTERFACE_CONSOLE)
-                                   : true)))
+                         ((outEnd) ? (outEnd->interface != OBJ_INTERFACE_CONSOLE) : true)))
                     {
                         inEnd = iter;
                         if (!outEnd)
@@ -146,8 +133,7 @@ static bool TerminalEntry (int code, void* params)
                         }
                         else
                         {
-                            if (!foundConsole &&
-                                outEnd->interface == OBJ_INTERFACE_CONSOLE)
+                            if (!foundConsole && outEnd->interface == OBJ_INTERFACE_CONSOLE)
                             {
                                 foundConsole = true;
                                 curTerm->isPrimary = true;
@@ -205,9 +191,7 @@ static bool TerminalEntry (int code, void* params)
                         if (dev->interface == OBJ_INTERFACE_CONSOLE)
                         {
                             NbConsoleSz_t sz = {0};
-                            NbObjCallSvc (terms[i]->outEnd,
-                                          NB_CONSOLE_GET_SIZE,
-                                          &sz);
+                            NbObjCallSvc (terms[i]->outEnd, NB_CONSOLE_GET_SIZE, &sz);
                             terms[i]->numCols = sz.cols;
                             terms[i]->numRows = sz.rows;
                             terms[i]->col = 0;
@@ -271,8 +255,7 @@ static bool TerminalEntry (int code, void* params)
         case NB_DRIVER_ENTRY_DETACHOBJ: {
             NbObject_t* obj = params;
             // Determine if this is an output or input device
-            if (obj->interface == OBJ_INTERFACE_CONSOLE ||
-                obj->interface == OBJ_INTERFACE_RS232)
+            if (obj->interface == OBJ_INTERFACE_CONSOLE || obj->interface == OBJ_INTERFACE_RS232)
             {
                 // Find terminal in terms
                 bool objFound = false;
@@ -289,8 +272,7 @@ static bool TerminalEntry (int code, void* params)
                 // Detach it
                 terms[i]->outEnd = NULL;
             }
-            if (obj->interface == OBJ_INTERFACE_KBD ||
-                obj->interface == OBJ_INTERFACE_RS232)
+            if (obj->interface == OBJ_INTERFACE_KBD || obj->interface == OBJ_INTERFACE_RS232)
             {
                 // Find terminal in terms
                 bool objFound = false;
@@ -492,12 +474,8 @@ static void terminalProccesEscCodeLetter (NbTerminal_t* term, uint8_t c)
         NbObjCallSvc (term->outEnd, NB_CONSOLE_CLEAR, NULL);
         term->col = 0, term->row = 0;
         // Set color
-        NbObjCallSvc (term->outEnd,
-                      NB_CONSOLE_SET_BGCOLOR,
-                      (void*) NB_CONSOLE_COLOR_BLACK);
-        NbObjCallSvc (term->outEnd,
-                      NB_CONSOLE_SET_FGCOLOR,
-                      (void*) NB_CONSOLE_COLOR_WHITE);
+        NbObjCallSvc (term->outEnd, NB_CONSOLE_SET_BGCOLOR, (void*) NB_CONSOLE_COLOR_BLACK);
+        NbObjCallSvc (term->outEnd, NB_CONSOLE_SET_FGCOLOR, (void*) NB_CONSOLE_COLOR_WHITE);
     }
     else if (c == 'm')
     {
@@ -506,21 +484,13 @@ static void terminalProccesEscCodeLetter (NbTerminal_t* term, uint8_t c)
         {
             int attr = term->escParams[i];
             if (attr >= 40)
-                NbObjCallSvc (term->outEnd,
-                              NB_CONSOLE_SET_BGCOLOR,
-                              (void*) (attr - 40));
+                NbObjCallSvc (term->outEnd, NB_CONSOLE_SET_BGCOLOR, (void*) (attr - 40));
             else if (attr >= 30)
-                NbObjCallSvc (term->outEnd,
-                              NB_CONSOLE_SET_FGCOLOR,
-                              (void*) (attr - 30));
+                NbObjCallSvc (term->outEnd, NB_CONSOLE_SET_FGCOLOR, (void*) (attr - 30));
             else if (attr == 0)
             {
-                NbObjCallSvc (term->outEnd,
-                              NB_CONSOLE_SET_BGCOLOR,
-                              (void*) NB_CONSOLE_COLOR_BLACK);
-                NbObjCallSvc (term->outEnd,
-                              NB_CONSOLE_SET_FGCOLOR,
-                              (void*) NB_CONSOLE_COLOR_WHITE);
+                NbObjCallSvc (term->outEnd, NB_CONSOLE_SET_BGCOLOR, (void*) NB_CONSOLE_COLOR_BLACK);
+                NbObjCallSvc (term->outEnd, NB_CONSOLE_SET_FGCOLOR, (void*) NB_CONSOLE_COLOR_WHITE);
             }
         }
     }
@@ -760,9 +730,7 @@ static uint8_t terminalReadChar (NbObject_t* termObj)
         else
         {
             // Only print backspaces if they don't overwrite previous data
-            if (c == '\b' &&
-                (((term->col - 1) < 0) ? ((term->row - 1) < term->backMax[0])
-                                       : false))
+            if (c == '\b' && (((term->col - 1) < 0) ? ((term->row - 1) < term->backMax[0]) : false))
                 ;
             else if (c == '\b' && (term->col - 1) < term->backMax[1] &&
                      term->row == term->backMax[0])
@@ -901,5 +869,4 @@ static NbObjSvc terminalSvcs[] = {NULL,
 
 NbObjSvcTab_t terminalSvcTab = {ARRAY_SIZE (terminalSvcs), terminalSvcs};
 
-NbDriver_t terminalDrv =
-    {"Terminal", TerminalEntry, {0}, 0, false, sizeof (NbTerminal_t)};
+NbDriver_t terminalDrv = {"Terminal", TerminalEntry, {0}, 0, false, sizeof (NbTerminal_t)};

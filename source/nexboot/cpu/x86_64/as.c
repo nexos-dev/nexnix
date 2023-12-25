@@ -102,6 +102,10 @@ void NbCpuAsInit()
         // NbCrash();
     }
 #endif
+    // Disable WP. We only do this because some not smart UEFIs
+    // write protect paging structures
+    uint64_t cr0 = NbReadCr0();
+    NbWriteCr0 (cr0 & ~(NB_CR0_WP));
 }
 
 // Gets paging entry as current level
@@ -158,7 +162,7 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
                 return false;
         }
     }
-    // Grab last PML entry
+    // Grab last PML entryX
     pmle_t* lastEnt = cpuAsGetEntry (curSt, virt, 1);
     // Map it
     *lastEnt = phys | ptFlags;
@@ -185,4 +189,10 @@ void NbCpuAsUnmap (uintptr_t virt)
     pmle_t* lastEnt = cpuAsGetEntry (curSt, virt, 1);
     *lastEnt = 0;    // Unmap
     NbInvlpg (virt);
+}
+
+// Enables paging
+void NbCpuEnablePaging()
+{
+    // Paging is always enabled x86_64
 }

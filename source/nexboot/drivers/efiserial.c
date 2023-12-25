@@ -70,8 +70,9 @@ static bool EfiSerialEntry (int code, void* params)
             {
                 // Error
                 NbEfiFreePool (serialDevs);
-                NbLogMessage ("nbefiserial: unable to open EFI serial protocol\r\n",
-                              NEXBOOT_LOGLEVEL_ERROR);
+                NbLogMessage ("nbefiserial: unable to open EFI serial protocol on port COM%d\r\n",
+                              NEXBOOT_LOGLEVEL_ERROR,
+                              curDev);
                 return false;
             }
             // Reset it

@@ -28,8 +28,7 @@
 void NbBiosCall (uint32_t intNo, NbBiosRegs_t* in, NbBiosRegs_t* out)
 {
     // Create function pointer for bioscall
-    void (*bioscall) (uintptr_t, NbBiosRegs_t*, NbBiosRegs_t*) =
-        (void*) NEXBOOT_BIOSCALL_BLOB;
+    void (*bioscall) (uintptr_t, NbBiosRegs_t*, NbBiosRegs_t*) = (void*) NEXBOOT_BIOSCALL_BLOB;
     bioscall (intNo, in, out);
 }
 
@@ -78,7 +77,7 @@ uintptr_t NbFwAllocPages (int count)
 }
 
 // Map in memory regions to address space
-void NbFwMapRegions()
+void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
 {
     // Unmap VBE memory regions
     // Find VBE display
@@ -87,8 +86,7 @@ void NbFwMapRegions()
     NbObject_t* devs = NbObjFind ("/Devices");
     while ((iter = NbObjEnumDir (devs, iter)))
     {
-        if (iter->type == OBJ_TYPE_DEVICE &&
-            iter->interface == OBJ_INTERFACE_DISPLAY)
+        if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_DISPLAY)
         {
             foundDisplay = true;
             break;
@@ -124,4 +122,8 @@ NbObject_t* NbFwGetBootDisk()
         }
     }
     return NULL;
+}
+
+void NbFwExit()
+{
 }

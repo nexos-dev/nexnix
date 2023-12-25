@@ -98,8 +98,6 @@ void NbMain (NbloadDetect_t* nbDetect)
                            NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
-    for (;;)
-        ;
     // Start phase 2 of drivers
     if (!NbStartPhase2Drvs())
     {

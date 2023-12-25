@@ -32,6 +32,9 @@ extern NbDriver_t biosDiskDrv;
 extern NbDriver_t vbeDrv;
 #elif defined NEXNIX_FW_EFI
 extern NbDriver_t efiSerialDrv;
+extern NbDriver_t efiKbdDrv;
+extern NbDriver_t efiDiskDrv;
+extern NbDriver_t gopDrv;
 #endif
 extern NbDriver_t volManagerDrv;
 extern NbDriver_t textUiDrv;
@@ -41,14 +44,11 @@ extern NbDriver_t fbConsDrv;
 
 // Drivers started as soon as possible for devices
 #ifdef NEXNIX_FW_BIOS
-static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv,
-                                       &vgaConsoleDrv,
-                                       &ps2KbdDrv,
-                                       &uart16550Drv,
-                                       &biosDiskDrv,
-                                       &vbeDrv};
+static NbDriver_t* nbPhase1DrvTab[] =
+    {&volManagerDrv, &vgaConsoleDrv, &ps2KbdDrv, &uart16550Drv, &biosDiskDrv, &vbeDrv};
 #elif defined NEXNIX_FW_EFI
-static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv, &efiSerialDrv};
+static NbDriver_t* nbPhase1DrvTab[] = {&volManagerDrv, &efiSerialDrv, &efiKbdDrv, &efiDiskDrv,
+                                        &gopDrv};
 #endif
 static NbDriver_t* nbPhase2DrvTab[] = {&fbConsDrv, &terminalDrv, &textUiDrv};
 

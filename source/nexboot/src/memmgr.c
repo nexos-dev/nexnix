@@ -107,7 +107,7 @@ void NbMemInit()
                            memSz);
         NbCrash();
     }
-    NbLogMessageEarly ("nexboot: detected %llu MiB of memory\r\n", NEXBOOT_LOGLEVEL_INFO, memSz);
+    NbLogMessageEarly ("nexboot: detected %llu MiB of memory\r\n", NEXBOOT_LOGLEVEL_NOTICE, memSz);
     // Allocate initial page
     uintptr_t initPage = NbFwAllocPage();
     pageList = (memPage_t*) initPage;

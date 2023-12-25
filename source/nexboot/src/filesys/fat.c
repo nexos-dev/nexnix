@@ -24,16 +24,14 @@
 
 // Valid characters for FAT file name
 static uint8_t fatValidChars[] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 // FAT data structures
 typedef struct bpb
@@ -166,14 +164,14 @@ typedef struct _cacheEnt
 // Filesystem mount info
 typedef struct _fatmount
 {
-    FatDirEntry_t* dir;    // Directory we are working on
-    Array_t* fatCache;     // Cache of FAT structures
-    Array_t* dirBuffer;    // Buffered directory entries
-    uint64_t fatBase;      // Base of fat
-    uint32_t fatSz;        // FAT size in sectors
-    uint64_t dataBase;     // Base of data area
-    uint32_t rootDir;      // Root directory cluster / sector base
-    uint32_t rootDirSz;    // Size of root directory in sectors, 0 on FAT32 volumes
+    FatDirEntry_t* dir;         // Directory we are working on
+    Array_t* fatCache;          // Cache of FAT structures
+    Array_t* dirBuffer;         // Buffered directory entries
+    uint64_t fatBase;           // Base of fat
+    uint32_t fatSz;             // FAT size in sectors
+    uint64_t dataBase;          // Base of data area
+    uint32_t rootDir;           // Root directory cluster / sector base
+    uint32_t rootDirSz;         // Size of root directory in sectors, 0 on FAT32 volumes
     uint16_t sectPerCluster;    // Sectors per cluster
     uint16_t sectorSz;          // Sector size
 } FatMountInfo_t;
@@ -330,9 +328,7 @@ static void _parsePath (pathPart_t* part)
 }
 
 // Caches a FAT sector
-static bool fatCacheSector (FatMountInfo_t* mountInfo,
-                            void* sector,
-                            uint32_t sectorIdx)
+static bool fatCacheSector (FatMountInfo_t* mountInfo, void* sector, uint32_t sectorIdx)
 {
     // Get an entry from array
     FatCacheEnt_t* cacheEnt = NULL;
@@ -476,9 +472,7 @@ static bool fatIsClusterBad (NbFileSys_t* fs, uint32_t cluster)
 }
 
 // Follows cluster chain to offset in file
-static uint32_t fatFollowClusterChain (NbFileSys_t* fs,
-                                       NbFile_t* file,
-                                       uint32_t clusterPos)
+static uint32_t fatFollowClusterChain (NbFileSys_t* fs, NbFile_t* file, uint32_t clusterPos)
 {
     FatFile_t* fileInt = file->internal;
     if (!fileInt->lastReadCluster)
@@ -550,8 +544,7 @@ static FatDirEntry_t* fatFindBufferDir (FatMountInfo_t* mountInfo,
 // Checks if entry is valid file
 static inline bool fatIsValidFile (FatDirEntry_t* dir)
 {
-    if (dir[0].name[0] == 0xE5 || dir[0].attr & FAT_DIR_HIDDEN ||
-        dir[0].attr & FAT_DIR_VOL_ID)
+    if (dir[0].name[0] == 0xE5 || dir[0].attr & FAT_DIR_HIDDEN || dir[0].attr & FAT_DIR_VOL_ID)
     {
         return false;
     }
@@ -654,6 +647,7 @@ static FatDirEntry_t* fatFindInDir (FatMountInfo_t* mountInfo,
         {
             if (!strcmp (nameToCheck, validName))
                 return &dir[i];
+            foundLfn = false;    // Reset LFN flag
         }
         ++i;
     }
@@ -661,9 +655,7 @@ static FatDirEntry_t* fatFindInDir (FatMountInfo_t* mountInfo,
 }
 
 // Finds an entry in any directory by cluster
-static FatDirEntry_t* fatFindDirCluster (NbFileSys_t* fs,
-                                         uint32_t cluster,
-                                         const char* name)
+static FatDirEntry_t* fatFindDirCluster (NbFileSys_t* fs, uint32_t cluster, const char* name)
 {
     if (!cluster)
         return NULL;    // Empty directory
@@ -732,9 +724,7 @@ static FatDirEntry_t* fatFindRootDir (NbFileSys_t* fs, const char* name)
     }
 }
 
-static FatDirEntry_t* fatFindDir (NbFileSys_t* fs,
-                                  FatDirEntry_t* parent,
-                                  const char* name)
+static FatDirEntry_t* fatFindDir (NbFileSys_t* fs, FatDirEntry_t* parent, const char* name)
 {
     uint32_t cluster = parent->clusterLow | (parent->clusterHigh << 16);
     // If cluster equals 0, than this is root directory. This case can happen with ..
@@ -1045,11 +1035,7 @@ bool FatGetDir (NbObject_t* fsObj, const char* path, NbDirIter_t* iter)
     else if (!fatIsValidFile (dir))
     {
         // Go to next valid directory entry
-        dir = fatNextEntry (fs,
-                            dir,
-                            &iterInt->curIdx,
-                            &iterInt->curCluster,
-                            iter->name);
+        dir = fatNextEntry (fs, dir, &iterInt->curIdx, &iterInt->curCluster, iter->name);
         if (dir == FAT_SEARCH_FINISHED)
         {
             // This directory is empty, fill out emptry iterator
@@ -1184,13 +1170,12 @@ bool FatMountFs (NbObject_t* fsObj)
             else
                 sectorCount = bpb->totalSect32;
             // Find number of root directory sectors
-            uint32_t rootDirSects = ((bpb->rootEntCount * sizeof (FatDirEntry_t)) +
-                                     (disk->sectorSz - 1)) /
-                                    disk->sectorSz;
+            uint32_t rootDirSects =
+                ((bpb->rootEntCount * sizeof (FatDirEntry_t)) + (disk->sectorSz - 1)) /
+                disk->sectorSz;
             // Find number of data sectors
             uint32_t dataSectors =
-                sectorCount -
-                (bpb->resvdSectors + (bpb->numFats * fatSize) + rootDirSects);
+                sectorCount - (bpb->resvdSectors + (bpb->numFats * fatSize) + rootDirSects);
             uint32_t clusterCount = dataSectors / bpb->sectPerCluster;
             if (clusterCount < 4085)
             {
@@ -1226,8 +1211,7 @@ bool FatMountFs (NbObject_t* fsObj)
         mountInfo->fatBase = mbr->bpb.bpb.resvdSectors;
         mountInfo->fatSz = mbr->bpb.fatSz32;
         mountInfo->sectPerCluster = mbr->bpb.bpb.sectPerCluster;
-        mountInfo->dataBase =
-            mountInfo->fatBase + (mbr->bpb.bpb.numFats * mountInfo->fatSz);
+        mountInfo->dataBase = mountInfo->fatBase + (mbr->bpb.bpb.numFats * mountInfo->fatSz);
     }
     else
     {
@@ -1245,15 +1229,12 @@ bool FatMountFs (NbObject_t* fsObj)
         mountInfo->fatBase = mbr->bpb.bpb.resvdSectors;
         mountInfo->fatSz = mbr->bpb.bpb.fatSz16;
         mountInfo->sectPerCluster = mbr->bpb.bpb.sectPerCluster;
-        mountInfo->rootDir =
-            mountInfo->fatBase + (mountInfo->fatSz * mbr->bpb.bpb.numFats);
+        mountInfo->rootDir = mountInfo->fatBase + (mountInfo->fatSz * mbr->bpb.bpb.numFats);
         mountInfo->rootDirSz =
-            ((mbr->bpb.bpb.rootEntCount * sizeof (FatDirEntry_t)) +
-             (disk->sectorSz - 1)) /
+            ((mbr->bpb.bpb.rootEntCount * sizeof (FatDirEntry_t)) + (disk->sectorSz - 1)) /
             disk->sectorSz;
-        mountInfo->dataBase = mountInfo->fatBase +
-                              (mbr->bpb.bpb.numFats * mountInfo->fatSz) +
-                              mountInfo->rootDirSz;
+        mountInfo->dataBase =
+            mountInfo->fatBase + (mbr->bpb.bpb.numFats * mountInfo->fatSz) + mountInfo->rootDirSz;
     }
     free (mbrData);
     fs->blockSz = disk->sectorSz * mountInfo->sectPerCluster;
@@ -1273,8 +1254,7 @@ bool FatMountFs (NbObject_t* fsObj)
         return false;
     }
     // Initialize directory buffer
-    mountInfo->dirBuffer =
-        ArrayCreate (FAT_DIRBUF_GROWSZ, FAT_DIRBUF_MAX, sizeof (FatDirBuffer_t));
+    mountInfo->dirBuffer = ArrayCreate (FAT_DIRBUF_GROWSZ, FAT_DIRBUF_MAX, sizeof (FatDirBuffer_t));
     if (!mountInfo->dirBuffer)
     {
         free (mountInfo->dir);

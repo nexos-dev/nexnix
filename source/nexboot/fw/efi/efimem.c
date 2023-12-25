@@ -37,8 +37,13 @@ NbMemEntry_t* NbGetMemMap (int* size)
     size_t mapSize = 0;
     size_t descSz = 0, descVer = 0;
     uint8_t dummyMap[2] = {0};
-    if (uefi_call_wrapper (BS->GetMemoryMap, 5, &mapSize, dummyMap, &mapKey, &descSz, &descVer) !=
-        EFI_BUFFER_TOO_SMALL)
+    if (uefi_call_wrapper (BS->GetMemoryMap,
+                           5,
+                           &mapSize,
+                           (EFI_MEMORY_DESCRIPTOR*) dummyMap,
+                           &mapKey,
+                           &descSz,
+                           &descVer) != EFI_BUFFER_TOO_SMALL)
     {
         return NULL;
     }

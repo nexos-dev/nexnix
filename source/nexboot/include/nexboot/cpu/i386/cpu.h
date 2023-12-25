@@ -92,6 +92,8 @@ typedef uint64_t paddr_t;
 typedef uint32_t paddr_t;
 #endif
 
+#define NB_KE_STACK_BASE 0xC0000000
+
 void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInf);
 
 #endif

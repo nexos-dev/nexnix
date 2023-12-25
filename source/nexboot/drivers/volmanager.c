@@ -118,13 +118,17 @@ static uint8_t bbpGuid[] = {0x48, 0x61, 0x68, 0x21, 0x49, 0x64, 0x6f, 0x6e,
 static int curDisk = 0;    // Current disk being initialized
 static int curPart = 0;    // Current partition being initialized
 
+// Filesystem name table
+static const char* volFsNames[] = {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
+
 // Adds a volume to object database
 static void addVolume (NbVolume_t* vol)
 {
-    NbLogMessageEarly ("volmanager: Found volume %d on disk %d\r\n",
+    NbLogMessageEarly ("volmanager: Found volume %d on disk %d with FS %s\r\n",
                        NEXBOOT_LOGLEVEL_INFO,
                        curPart,
-                       curDisk);
+                       curDisk,
+                       volFsNames[vol->volFileSys]);
     // Set volume number
     vol->number = curPart;
     // Create object
@@ -145,6 +149,7 @@ static void addVolume (NbVolume_t* vol)
             NbLogMessageEarly ("volmanager: Disk %d contains multiple boot volumes, "
                                "selecting volume %d\r\n",
                                NEXBOOT_LOGLEVEL_WARNING,
+                               curDisk,
                                vol->number);
         }
         else
@@ -192,8 +197,7 @@ static bool gptIsActive (uint8_t* type)
 // Gets file system code from GUID
 static uint32_t gptTypeToFs (uint8_t* type)
 {
-    if (!memcmp (type, bdpGuid, 16) || !memcmp (type, bbpGuid, 16) ||
-        !memcmp (type, espGuid, 16))
+    if (!memcmp (type, bdpGuid, 16) || !memcmp (type, bbpGuid, 16) || !memcmp (type, espGuid, 16))
         return VOLUME_FS_FAT;
     else if (!memcmp (type, ext2Guid, 16))
         return VOLUME_FS_EXT2;
@@ -395,10 +399,6 @@ static bool VolManagerEntry (int code, void* params)
     return true;
 }
 
-// Filesystem name table
-static const char* volFsNames[] =
-    {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
-
 static bool VolManagerDumpData (void* objp, void* params)
 {
     NbObject_t* volObj = objp;
@@ -447,8 +447,7 @@ static NbObjSvc volManagerSvcs[] =
 
 NbObjSvcTab_t volManagerSvcTab = {ARRAY_SIZE (volManagerSvcs), volManagerSvcs};
 
-NbDriver_t volManagerDrv =
-    {"VolManager", VolManagerEntry, {0}, 0, false, sizeof (NbVolume_t)};
+NbDriver_t volManagerDrv = {"VolManager", VolManagerEntry, {0}, 0, false, sizeof (NbVolume_t)};
 
 // Helper routine to get boot volume from disk object
 NbObject_t* NbGetBootVolume (NbObject_t* disk)

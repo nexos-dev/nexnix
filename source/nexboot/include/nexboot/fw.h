@@ -68,6 +68,9 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect);
 // Get disk system booted from
 NbObject_t* NbFwGetBootDisk();
 
+// Exits FW layer
+void NbFwExit();
+
 /// Data structure of /Devices/Sysinfo object
 typedef struct _cpuInfo
 {
@@ -134,7 +137,10 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags);
 void NbCpuAsUnmap (uintptr_t virt);
 
 /// Maps firmware-dictated regions into address sace
-void NbFwMapRegions();
+void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz);
+
+// Enables paging
+void NbCpuEnablePaging();
 
 // Flags for AS
 #define NB_CPU_AS_RW     (1 << 1)

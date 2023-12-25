@@ -23,7 +23,10 @@ if(NEXBOOT_FW STREQUAL "bios")
         drivers/biosdisk.c
         drivers/vbe.c)
 elseif(NEXBOOT_FW STREQUAL "efi")
-    list(APPEND NEXBOOT_FW_DRIVERS drivers/efiserial.c)
+    list(APPEND NEXBOOT_FW_DRIVERS drivers/efiserial.c
+        drivers/efikbd.c
+        drivers/efidisk.c
+        drivers/efigop.c)
 endif()
 
 list(APPEND NEXBOOT_DRIVERS drivers/terminal.c

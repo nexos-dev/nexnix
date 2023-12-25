@@ -120,20 +120,26 @@ typedef struct _displayMode
 
 // Display manipulation macros
 #define DISPLAY_DECOMPOSE_RGB(rgb, r, g, b) \
-    ((r) = (((rgb) & (0xFF0000)) >> 16),    \
-     (g) = (((rgb) & (0xFF00)) >> 8),       \
-     (b) = (((rgb) & (0xFF))))
+    ((r) = (((rgb) & (0xFF0000)) >> 16), (g) = (((rgb) & (0xFF00)) >> 8), (b) = (((rgb) & (0xFF))))
 
-#define DISPLAY_PLOT_8BPP(display, buf, color, x, y)       \
-    (*((uint8_t*) (buf + ((y) * (display)->bytesPerLine) + \
-                   ((x) * ((display)->bytesPerPx)))) = color)
+#define DISPLAY_DECOMPOSE_RGB16(rgb, r, g, b) \
+    ((r) = (((rgb) >> 11) & 0x1F), (g) = (((rgb) >> 5) & 0x3F), (b) = (((rgb) & (0x1F))))
 
-#define DISPLAY_PLOT_16BPP(display, buf, color, x, y)       \
-    (*((uint16_t*) (buf + ((y) * (display)->bytesPerLine) + \
-                    ((x) * ((display)->bytesPerPx)))) = color)
+#define DISPLAY_COMPOSE_RGB(display, r, g, b)                          \
+    (((r & display->redMask.mask) << display->redMask.maskShift) |     \
+     ((g & display->greenMask.mask) << display->greenMask.maskShift) | \
+     ((b & display->blueMask.mask) << display->blueMask.maskShift))
 
-#define DISPLAY_PLOT_32BPP(display, buf, color, x, y)       \
-    (*((uint32_t*) (buf + ((y) * (display)->bytesPerLine) + \
-                    ((x) * ((display)->bytesPerPx)))) = color)
+#define DISPLAY_PLOT_8BPP(display, buf, color, x, y)                                           \
+    (*((uint8_t*) (buf + ((y) * (display)->bytesPerLine) + ((x) * ((display)->bytesPerPx)))) = \
+         color)
+
+#define DISPLAY_PLOT_16BPP(display, buf, color, x, y)                                           \
+    (*((uint16_t*) (buf + ((y) * (display)->bytesPerLine) + ((x) * ((display)->bytesPerPx)))) = \
+         color)
+
+#define DISPLAY_PLOT_32BPP(display, buf, color, x, y)                                           \
+    (*((uint32_t*) (buf + ((y) * (display)->bytesPerLine) + ((x) * ((display)->bytesPerPx)))) = \
+         color)
 
 #endif

@@ -88,9 +88,9 @@ static int lenToSizeUint[] = {PRINTF_SIZE_UINT,
                               PRINTF_SIZE_SIZET,
                               PRINTF_SIZE_PTRDIFF};
 
-#define IS_DIGIT1TO9(c)                                                    \
-    ((c) == '1' || (c) == '2' || (c) == '3' || (c) == '4' || (c) == '5' || \
-     (c) == '6' || (c) == '7' || (c) == '8' || (c) == '9')
+#define IS_DIGIT1TO9(c)                                                                  \
+    ((c) == '1' || (c) == '2' || (c) == '3' || (c) == '4' || (c) == '5' || (c) == '6' || \
+     (c) == '7' || (c) == '8' || (c) == '9')
 #define INC_FORMAT \
     ++fmt;         \
     ++fmtOffset;
@@ -237,8 +237,7 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
         numCommon:
             if ((fmt->flags & PRINTF_FLAG_0PAD) == PRINTF_FLAG_0PAD)
                 fieldWidthChar = '0';
-            if (fmt->conv != PRINTF_CONV_DECIMAL && fmt->udata == 0 &&
-                fmt->precision == 0)
+            if (fmt->conv != PRINTF_CONV_DECIMAL && fmt->udata == 0 && fmt->precision == 0)
             {
                 return 0;    // Special case
             }
@@ -288,9 +287,26 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
         int curCharCount = (int) strlen (s);
         if (curCharCount > charsToPrint)
             curCharCount = charsToPrint;
-        widthChars = fmt->width - (curCharCount + precisionChars + prefixChars);
+        widthChars = fmt->width - (curCharCount + precisionChars);
         if (widthChars < 0)
             widthChars = 0;
+    }
+    // Write prefix (if any)
+    if ((fmt->flags & PRINTF_FLAG_PREFIX) == PRINTF_FLAG_PREFIX)
+    {
+        switch (fmt->conv)
+        {
+            case PRINTF_CONV_HEX_LOWER:
+            case PRINTF_CONV_HEX_UPPER:
+            case PRINTF_CONV_PTR:
+                if (__outString (out, "0x", SIZE_MAX) == EOF)
+                    return EOF;
+                break;
+            case PRINTF_CONV_OCTAL:
+                if (out->out (out, '0') == EOF)
+                    return EOF;
+                break;
+        }
     }
     // If being right justified, go ahead and write field width characters
     if ((fmt->flags & PRINTF_FLAG_LEFT_JUSTIFY) != PRINTF_FLAG_LEFT_JUSTIFY)
@@ -318,23 +334,6 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
                 return EOF;
         }
     }
-    // Write prefix (if any)
-    if ((fmt->flags & PRINTF_FLAG_PREFIX) == PRINTF_FLAG_PREFIX)
-    {
-        switch (fmt->conv)
-        {
-            case PRINTF_CONV_HEX_LOWER:
-            case PRINTF_CONV_HEX_UPPER:
-            case PRINTF_CONV_PTR:
-                if (__outString (out, "0x", SIZE_MAX) == EOF)
-                    return EOF;
-                break;
-            case PRINTF_CONV_OCTAL:
-                if (out->out (out, '0') == EOF)
-                    return EOF;
-                break;
-        }
-    }
     // Write precision characters
     if (accountPrecision)
     {
@@ -347,7 +346,7 @@ static int __printArg (_printfFmt_t* fmt, _printfOut_t* out)
     // Write actual string.
     if (__outString (out, s, charsToPrint) == EOF)
         return EOF;
-    // If being left justified, now write out field with stuff
+    // If being left justified, now write out field width stuff
     if ((fmt->flags & PRINTF_FLAG_LEFT_JUSTIFY) == PRINTF_FLAG_LEFT_JUSTIFY)
     {
         for (int i = 0; i < widthChars; ++i)
@@ -417,10 +416,7 @@ static void __getDataArg (_printfFmt_t* fmt, va_list* ap)
     }
 }
 
-static int __parseFormat (_printfOut_t* outData,
-                          _printfFmt_t* fmtRes,
-                          const char* fmt,
-                          va_list* ap)
+static int __parseFormat (_printfOut_t* outData, _printfFmt_t* fmtRes, const char* fmt, va_list* ap)
 {
     int fmtOffset = 0;
     // Parse flags first
@@ -437,8 +433,7 @@ static int __parseFormat (_printfOut_t* outData,
                 fmtRes->flags &= ~(PRINTF_FLAG_SPACE_SIGN);
                 break;
             case ' ':
-                if ((fmtRes->flags & PRINTF_FLAG_ALWAYS_SIGN) !=
-                    PRINTF_FLAG_ALWAYS_SIGN)
+                if ((fmtRes->flags & PRINTF_FLAG_ALWAYS_SIGN) != PRINTF_FLAG_ALWAYS_SIGN)
                 {
                     fmtRes->flags |= PRINTF_FLAG_SPACE_SIGN;
                 }

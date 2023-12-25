@@ -72,7 +72,7 @@ typedef struct _nnboot
     // Arguments
     char args[256];    // Command line arguments
     // Display info
-    bool displayDefault;    // If true, display is in same state firmware left it in
+    bool displayDefault;        // If true, display is in same state firmware left it in
     NexNixDisplay_t display;    // Display info
 } NexNixBoot_t;
 
@@ -88,8 +88,7 @@ void* osReadFile (NbObject_t* fs, const char* name)
         return NULL;
     }
     // Allocate memory for file
-    int numPages =
-        (file->size + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    int numPages = (file->size + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     void* fileBase = (void*) NbFwAllocPages (numPages);
     if (!fileBase)
     {
@@ -142,11 +141,9 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     strcpy (bootInfo->sysName, sysInf->sysType);
     // Set log base
     bootInfo->logBase = NbLogGetBase();
-    // Get memory map
-    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
     // Allocate early memory pool
-    bootInfo->memPool = (void*) NbFwAllocPages (
-        (NEXBOOT_MEMPOOL_SZ + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE);
+    bootInfo->memPool = (void*) NbFwAllocPages ((NEXBOOT_MEMPOOL_SZ + (NEXBOOT_CPU_PAGE_SIZE - 1)) /
+                                                NEXBOOT_CPU_PAGE_SIZE);
     if (!bootInfo->memPool)
     {
         NbShellWrite ("nexboot: out of memory");
@@ -181,8 +178,7 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     NbObject_t* devDir = NbObjFind ("/Devices");
     while ((displayIter = NbObjEnumDir (devDir, displayIter)))
     {
-        if (displayIter->type == OBJ_TYPE_DEVICE &&
-            displayIter->interface == OBJ_INTERFACE_DISPLAY)
+        if (displayIter->type == OBJ_TYPE_DEVICE && displayIter->interface == OBJ_INTERFACE_DISPLAY)
         {
             foundDisplay = true;
             break;
@@ -200,18 +196,10 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
         bootInfo->display.bpp = display->bpp;
         bootInfo->display.lfbSize = display->lfbSize;
         bootInfo->display.frameBuffer = display->frontBuffer;
-        memcpy (&bootInfo->display.redMask,
-                &display->redMask,
-                sizeof (NbPixelMask_t));
-        memcpy (&bootInfo->display.greenMask,
-                &display->greenMask,
-                sizeof (NbPixelMask_t));
-        memcpy (&bootInfo->display.blueMask,
-                &display->blueMask,
-                sizeof (NbPixelMask_t));
-        memcpy (&bootInfo->display.resvdMask,
-                &display->resvdMask,
-                sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.redMask, &display->redMask, sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.greenMask, &display->greenMask, sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.blueMask, &display->blueMask, sizeof (NbPixelMask_t));
+        memcpy (&bootInfo->display.resvdMask, &display->resvdMask, sizeof (NbPixelMask_t));
     }
     else
         bootInfo->displayDefault = true;
@@ -220,8 +208,18 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     // into the address space.
     // Load up the kernel into memory
     uintptr_t entry = NbElfLoadFile (keFileBase);
+    // Allocate a boot stack
+    uintptr_t stack = NbFwAllocPage();
+    memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
+    NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
+    // Get memory map
+    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
+    // Exit from clutches of FW
+    NbFwExit();
     // Map in firmware-dictated memory regions
-    NbFwMapRegions();
+    NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
+    // Enable paging
+    NbCpuEnablePaging();
     // Call it
     NbCpuLaunchKernel (entry, (uintptr_t) bootInfo);
     return false;

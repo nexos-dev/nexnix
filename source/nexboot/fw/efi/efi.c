@@ -15,8 +15,11 @@
     limitations under the License.
 */
 
+#include <assert.h>
+#include <nexboot/drivers/disk.h>
 #include <nexboot/efi/efi.h>
 #include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
 #include <nexboot/object.h>
 #include <string.h>
 
@@ -39,6 +42,7 @@ uintptr_t NbFwAllocPage()
     {
         return 0;
     }
+    memset ((void*) addr, 0, NEXBOOT_CPU_PAGE_SIZE);
     return addr;
 }
 
@@ -51,6 +55,7 @@ uintptr_t NbFwAllocPages (int count)
     {
         return 0;
     }
+    memset ((void*) addr, 0, count * NEXBOOT_CPU_PAGE_SIZE);
     return addr;
 }
 
@@ -72,13 +77,20 @@ void NbEfiFreePool (void* buf)
 // Locates a handle within the system based on it's protocol GUID
 EFI_HANDLE* NbEfiLocateHandle (EFI_GUID* protocol, size_t* bufSz)
 {
-    EFI_HANDLE* buf = NULL;
-    if (uefi_call_wrapper (BS->LocateHandleBuffer, 5, ByProtocol, protocol, NULL, bufSz, &buf) !=
+    EFI_HANDLE tmpBuf[1];
+    size_t sz = 0;
+    if (uefi_call_wrapper (BS->LocateHandle, 5, ByProtocol, protocol, NULL, &sz, tmpBuf) !=
+        EFI_BUFFER_TOO_SMALL)
+        return NULL;
+    EFI_HANDLE* handles = NbEfiAllocPool (sz);
+    if (uefi_call_wrapper (BS->LocateHandle, 5, ByProtocol, protocol, NULL, &sz, handles) !=
         EFI_SUCCESS)
     {
+        NbEfiFreePool (handles);
         return NULL;
     }
-    return buf;
+    *bufSz = sz / sizeof (EFI_HANDLE);
+    return handles;
 }
 
 // Splits a device path by protocol
@@ -131,9 +143,112 @@ void* NbEfiLocateProtocol (EFI_GUID* protocol)
     return interface;
 }
 
-// Map in memory regions to address space
-void NbFwMapRegions()
+// Device path functions
+static EFI_GUID efiDevGuid = EFI_DEVICE_PATH_PROTOCOL_GUID;
+
+// Grabs device path associated with handle
+EFI_DEVICE_PATH* NbEfiGetDevicePath (EFI_HANDLE device)
 {
+    return NbEfiOpenProtocol (device, &efiDevGuid);
+}
+
+// Copies EFI device path so alignment is know
+EFI_DEVICE_PATH* NbEfiCopyDev (EFI_DEVICE_PATH* dev)
+{
+    uint16_t len = dev->Length[0] | (dev->Length[1] << 8);
+    EFI_DEVICE_PATH* alignedDev = NbEfiAllocPool (len);
+    memcpy (alignedDev, dev, len);
+    return alignedDev;
+}
+
+// Gets length of a device path structure
+uint16_t NbEfiGetDevLen (EFI_DEVICE_PATH* dev)
+{
+    return dev->Length[0] | (dev->Length[1] << 8);
+}
+
+// Gets next device path
+EFI_DEVICE_PATH* NbEfiNextDev (EFI_DEVICE_PATH* dev)
+{
+    void* p = dev;
+    p += NbEfiGetDevLen (dev);
+    return p;
+}
+
+// Returns last component of device path
+EFI_DEVICE_PATH* NbEfiGetLastDev (EFI_DEVICE_PATH* dev)
+{
+    EFI_DEVICE_PATH* curDev = dev;
+    EFI_DEVICE_PATH* lastDev = NULL;
+    while (curDev->Type != 0x7F && curDev->Type != 0xFF)
+    {
+        lastDev = curDev;
+        curDev = NbEfiNextDev (curDev);
+    }
+    return lastDev;
+}
+
+// Duplicates device path
+EFI_DEVICE_PATH* NbEfiDupDevicePath (EFI_DEVICE_PATH* dev)
+{
+    // Get size of path
+    EFI_DEVICE_PATH* curDev = dev;
+    int size = 0;
+    while (curDev->Type != 0x7F && curDev->Type != 0xFF)
+    {
+        size += NbEfiGetDevLen (curDev);
+        curDev = NbEfiNextDev (curDev);
+    }
+    // Allocate it
+    EFI_DEVICE_PATH* newPath = (EFI_DEVICE_PATH*) NbEfiAllocPool (size);
+    if (!newPath)
+        return NULL;
+    // Copy
+    memcpy (newPath, dev, size);
+    return newPath;
+}
+
+// Compares device paths
+bool NbEfiCompareDevicePath (EFI_DEVICE_PATH* dev1, EFI_DEVICE_PATH* dev2)
+{
+    // Get size of path
+    EFI_DEVICE_PATH* curDev = dev1;
+    int size = 0;
+    while (curDev->Type != 0x7F && curDev->Type != 0xFF)
+    {
+        size += NbEfiGetDevLen (curDev);
+        curDev = NbEfiNextDev (curDev);
+    }
+    curDev = dev2;
+    int size2 = 0;
+    while (curDev->Type != 0x7F && curDev->Type != 0xFF)
+    {
+        size2 += NbEfiGetDevLen (curDev);
+        curDev = NbEfiNextDev (curDev);
+    }
+    // Do a memcmp with the larger size
+    return !memcmp (dev1, dev2, (size > size2) ? size : size2);
+}
+
+// Map in memory regions to address space
+void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
+{
+#ifdef NEXNIX_ARCH_I386
+    // Identity map all boot reclaim
+    for (int i = 0; i < mapSz; ++i)
+    {
+        if (memMap[i].type == NEXBOOT_MEM_BOOT_RECLAIM || memMap[i].type == NEXBOOT_MEM_FW_RECLAIM)
+        {
+            int numPages = memMap[i].sz / NEXBOOT_CPU_PAGE_SIZE;
+            for (int j = 0; j < numPages; ++j)
+            {
+                NbCpuAsMap (memMap[i].base + (j * NEXBOOT_CPU_PAGE_SIZE),
+                            memMap[i].base + (j * NEXBOOT_CPU_PAGE_SIZE),
+                            NB_CPU_AS_RW);
+            }
+        }
+    }
+#endif
 }
 
 // Exits from bootloader
@@ -142,9 +257,53 @@ void NbFwExitNexboot()
     uefi_call_wrapper (BS->Exit, 4, ImgHandle, EFI_SUCCESS, 0, NULL);
 }
 
+void NbFwExit()
+{
+    uint32_t mapKey = NbEfiGetMapKey();
+    // Exit boot services
+    uefi_call_wrapper (BS->ExitBootServices, 2, ImgHandle, mapKey);
+}
+
+EFI_GUID loadedImg = EFI_LOADED_IMAGE_PROTOCOL_GUID;
+
+// Disk structure
+typedef struct _efidisk
+{
+    NbDiskInfo_t disk;              // General info about disk
+    EFI_HANDLE diskHandle;          // Disk handle
+    EFI_BLOCK_IO_PROTOCOL* prot;    // Disk protocol
+    EFI_DEVICE_PATH* device;        // Device path of disk device
+    uint32_t mediaId;               // Media ID at detection time
+} NbEfiDisk_t;
+
 // Find which disk is the boot disk
 NbObject_t* NbFwGetBootDisk()
 {
+    EFI_LOADED_IMAGE_PROTOCOL* image = NbEfiOpenProtocol (ImgHandle, &loadedImg);
+    assert (image);
+    // Get boot device path
+    EFI_DEVICE_PATH* dev = NbEfiGetDevicePath (image->DeviceHandle);
+    // Terminate it at end of hardware part (e.g., at first media part)
+    EFI_DEVICE_PATH* bootDisk = NbEfiDupDevicePath (dev);
+    EFI_DEVICE_PATH* curDev = bootDisk;
+    while (curDev->Type != 4)
+        curDev = NbEfiNextDev (curDev);
+    // Change it so it terminates
+    curDev->Type = 0x7F;
+    curDev->SubType = 0xFF;
+    // And now we just loop through every disk and compare
+    NbObject_t* iter = NULL;
+    NbObject_t* devDir = NbObjFind ("/Devices");
+    while ((iter = NbObjEnumDir (devDir, iter)))
+    {
+        if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_DISK)
+        {
+            // Get drive number
+            NbEfiDisk_t* diskInf = NbObjGetData (iter);
+            if (NbEfiCompareDevicePath (diskInf->device, bootDisk))
+                return iter;
+        }
+    }
     return NULL;
 }
 

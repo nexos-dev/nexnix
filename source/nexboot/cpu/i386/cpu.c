@@ -36,10 +36,7 @@ static void nbTraceStack()
         // Print out frame info
         uint32_t* stackFrame = (uint32_t*) curFrame;
         if (printEarlyDisabled)
-            NbLogMessage ("%#X: %#X\n",
-                          NEXBOOT_LOGLEVEL_DEBUG,
-                          *stackFrame,
-                          *(stackFrame + 1));
+            NbLogMessage ("%#X: %#X\n", NEXBOOT_LOGLEVEL_DEBUG, *stackFrame, *(stackFrame + 1));
         else
             NbLogMessageEarly ("%#X: %#X\r\n",
                                NEXBOOT_LOGLEVEL_DEBUG,
@@ -141,9 +138,7 @@ void NbWriteCr4 (uint32_t val)
 
 void NbWrmsr (uint32_t msr, uint64_t val)
 {
-    asm volatile("wrmsr"
-                 :
-                 : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) val >> 32));
+    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) val >> 32ULL));
 }
 
 uint64_t NbRdmsr (uint32_t msr)
@@ -162,13 +157,6 @@ void nbCpuAsmLaunch (uintptr_t stack, uintptr_t entry, uintptr_t bootInf);
 
 void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInf)
 {
-    // Allocate and map a boot stack
-    uintptr_t stack = NbFwAllocPage();
-    memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
-#define NB_KE_STACK_BASE 0xC0000000
-    NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE,
-                stack,
-                NB_CPU_AS_RW | NB_CPU_AS_NX);
     // Launch it
     nbCpuAsmLaunch (NB_KE_STACK_BASE - 16, entry, bootInf);
 }

@@ -52,9 +52,9 @@ include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
 include(GNUInstallDirs)
 
-nexnix_add_parameter(NEXNIX_LOGLEVEL 
-                     "Value that defines what should and shouldn't be logged"
-                     2)
+nexnix_add_parameter(NEXNIX_LOGLEVEL
+    "Value that defines what should and shouldn't be logged"
+    2)
 
 # Include includes directory
 include_directories(include)
@@ -68,8 +68,8 @@ include(cpu/${NEXNIX_ARCH}/arch.cmake)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
 # nexke source files
-list(APPEND NEXKE_SOURCES 
-            core/main.c)
+list(APPEND NEXKE_SOURCES
+    core/main.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})
@@ -78,8 +78,8 @@ add_executable(nexke ${NEXKE_SOURCES})
 add_compile_definitions(NEXKE_ARCH_HEADER=\"${NEXKE_ARCH_HEADER}\")
 
 # Add link options
-target_compile_options(nexke PRIVATE -mcmodel=large)
-target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT} -mcmodel=large)
+target_compile_options(nexke PRIVATE)
+target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT})
 
 # Find libk and libnex
 find_library(NEXKE_LK_LOCATION k REQUIRED)

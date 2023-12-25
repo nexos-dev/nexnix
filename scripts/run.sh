@@ -242,7 +242,7 @@ then
         then
             [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
             [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=2
-            [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="ata"
+            [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="sata"
             EMU_BUSTYPE="pci"
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
             [ -z "$EMU_NETDEV" ] && EMU_NETDEV="ne2k"
