@@ -637,7 +637,7 @@ then
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
         [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0
-        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
         if [ "$NNTARGETCONF" = "acpi-up" ]
         then
             EMU_SMP=0

@@ -29,7 +29,7 @@
 %define NBLOAD_FREEMEM_TOP 0x6BFF
 %define NBLOAD_PART2_BASE 0x7E00
 %define NBLOAD_FAT_ROOTDIR_BASE 0x8000
-%define NBLOAD_FAT_FAT_BASE 0x800
+%define NBLOAD_FAT_FAT_BASE 0x8000
 %define NBLOAD_NEXBOOT_SEG 0x1000
 
 ; Waits for key strike and goes to next boot device

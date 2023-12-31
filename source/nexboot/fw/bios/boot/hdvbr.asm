@@ -181,32 +181,37 @@ start2:
     ; Read in cluster
     call NbloadReadCluster
     ; Figure FAT offset and sector based on cluster number in EAX
-    push cx
-    mov cx, [bpbBytesPerSector]
+    push ecx
+    push esi
+    movzx ecx, word [bpbBytesPerSector]
     xor dx, dx              ; Prepare DX for division
     mov esi, 4
     mul esi                 ; Multiply cluster number by 4, as the spec requires
                             ; this before computing sector and offset of FAT entry
-    div cx                  ; Divide cluster number by bytes per sector.
+    div ecx                  ; Divide cluster number by bytes per sector.
                             ; Quotient = sector number, remainder = offset
-    mov si, dx              ; Store remainder safely in SI
-    pop cx
+    pop esi
+    pop ecx
     ; Read in computed FAT sector
-    ; FIXME: We ought to keep track wheter the current FAT sector has been read yet
-    ; This would speed up this code a lot
-    add eax, [bp-4]                 ; Add FAT base
+    push es                         ; Save output buffer
+    push di
+    push dx
+    mov di, 0
+    mov es, di                      ; Put in buffer of FAT
+    mov di, NBLOAD_FAT_FAT_BASE
+    cmp eax, esi                    ; Check if we need to read this
+    je .skipRead
+    mov esi, eax                    ; Store it   
+    add eax, [bp-4]                 ; Add FAT base                 
     push eax                        ; Save EAX
     shr eax, 16                     ; Get high 16 of sector
     mov dx, ax                      ; Get in DX
     pop eax                         ; Restore old AX
-    push es                         ; Save output buffer
-    push di
-    mov di, 0
-    mov es, di                      ; Put in buffer of FAT
-    mov di, NBLOAD_FAT_FAT_BASE
     call NbloadReadSector           ; Read it in
+.skipRead:
+    pop dx
     ; Now, we must read in this cluster and check for EOF
-    add di, si                      ; Add offset to buffer
+    add di, dx                      ; Add offset to buffer
     mov eax, [di]                   ; Get FAT value of this cluster
     and eax, 0x0FFFFFFF             ; Clear top 4 reserved bits
     cmp eax, 0x0FFFFFF8             ; Check for EOF
@@ -274,6 +279,7 @@ fakeGdtr:
     dw 0
 
 fileName: db "NEXBOOT    "
+lastFatSect: dd 0
 %include "nbload2.inc"
 
 times 1024 - ($ - $$) db 0

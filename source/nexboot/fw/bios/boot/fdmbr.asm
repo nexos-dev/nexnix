@@ -191,8 +191,6 @@ start2:
     pop cx
     mov si, dx              ; Store offset safely in SI
     ; Read in computed FAT sector
-    ; FIXME: We ought to keep track wheter the current FAT sector has been read yet
-    ; This would speed up this code a lot
     add ax, [bp-2]                 ; Add FAT base
     push es                        ; Save output buffer
     push di
@@ -200,10 +198,14 @@ start2:
     mov es, di                     ; Put in buffer of FAT
     mov di, NBLOAD_FAT_FAT_BASE
     xor dx, dx                      ; Clear sector high
+    cmp ax, [lastFatSect]           ; Check if we need to read this
+    je .skipRead
+    mov [lastFatSect], ax
     call NbloadReadSector           ; Read it in
     add ax, 1
     add di, 0x200
     call NbloadReadSector           ; In case we have a sector-boundary cluster
+.skipRead:
     ; Grab entry from FAT
     push cx
     mov cx, si
@@ -277,6 +279,7 @@ NbloadReadCluster:
 ; Strings
 fileError: db 0x0D, 0x0A, "nbload: unable to read nexboot", 0
 fileSize: dd 0
+lastFatSect: dw 0
 
 ; Fake GDTR for 386 detection
 fakeGdtr:
