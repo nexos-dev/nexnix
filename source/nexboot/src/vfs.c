@@ -26,6 +26,8 @@ extern NbObjSvcTab_t fsSvcTab;
 
 static int id = 0;
 
+#define BUFMAX 128
+
 // Converts file system type to driver
 static int fsTypeToDriver (int type)
 {
@@ -50,9 +52,9 @@ NbObject_t* NbVfsMountFs (NbObject_t* volObj, const char* name)
     NbVolume_t* vol = NbObjGetData (volObj);
     // Create file system object
     if (!NbObjFind ("/Interfaces/FileSys"))
-        assert (NbObjCreate ("/Interfaces/FileSys", OBJ_TYPE_DIR, 0));
-    char buf[64];
-    snprintf (buf, 64, "/Interfaces/FileSys/%s", name);
+        NbObjCreate ("/Interfaces/FileSys", OBJ_TYPE_DIR, 0);
+    char buf[BUFMAX];
+    snprintf (buf, BUFMAX, "/Interfaces/FileSys/%s", name);
     NbObject_t* fsObj = NbObjCreate (buf, OBJ_TYPE_FS, 0);
     if (!fsObj)
         return NULL;
@@ -92,6 +94,11 @@ NbObject_t* NbVfsMountFs (NbObject_t* volObj, const char* name)
         free (fs);
         return false;
     }
+    char buf2[BUFMAX];
+    NbLogMessage ("nexboot: mounted FS %s on volume %s\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  NbObjGetPath (fsObj, buf, BUFMAX),
+                  NbObjGetPath (fs->volume, buf2, BUFMAX));
     return fsObj;
 }
 
@@ -233,6 +240,10 @@ bool NbVfsUnmount (NbObject_t* fsObj)
     FsUnmount (fs->driver, fsObj);
     NbObjDeRef (fs->volume);
     NbObjDeRef (fsObj);
+    char buf[BUFMAX];
+    NbLogMessage ("nexboot: unmounted FS %s\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  NbObjGetPath (fsObj, buf, BUFMAX));
     return true;
 }
 
@@ -254,8 +265,7 @@ static bool VfsFsReadDir (void* objp, void* params)
 }
 
 // Filesystem name table
-static const char* volFsNames[] =
-    {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
+static const char* volFsNames[] = {"unknown", "fat12", "fat16", "fat32", "ext2", "fat", "iso9660"};
 
 static bool VfsFsDumpData (void* objp, void* params)
 {

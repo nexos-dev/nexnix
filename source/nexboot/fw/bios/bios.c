@@ -17,6 +17,7 @@
 
 #include <nexboot/drivers/disk.h>
 #include <nexboot/fw.h>
+#include <nexboot/nexboot.h>
 #include <nexboot/object.h>
 #include <string.h>
 
@@ -46,6 +47,10 @@ void NbFwEarlyPrint (char c)
     in.ah = 0x0E;
     in.al = (uint8_t) c;
     NbBiosCall (0x10, &in, &out);
+    in.dx = 0;
+    in.al = (uint8_t) c;
+    in.ah = 1;
+    NbBiosCall (0x14, &in, &out);
 }
 
 uintptr_t curMemLocation = NEXBOOT_BIOS_MEMBASE;
@@ -76,6 +81,31 @@ uintptr_t NbFwAllocPages (int count)
     return ret;
 }
 
+static uintptr_t curOffset = 0;
+
+uintptr_t NbFwAllocPersistentPage()
+{
+    uintptr_t ret = curOffset + NbBiosGetBootEnd();
+    curOffset += NEXBOOT_CPU_PAGE_SIZE;
+    // Map it
+    NbCpuAsMap (ret, ret, NB_CPU_AS_RW);
+    return ret;
+}
+
+uintptr_t NbFwAllocPersistentPages (int count)
+{
+    uintptr_t ret = curOffset + NbBiosGetBootEnd();
+    curOffset += (count * NEXBOOT_CPU_PAGE_SIZE);
+    for (int i = 0; i < count; ++i)
+    {
+        // Map it
+        NbCpuAsMap (ret + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    ret + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    NB_CPU_AS_RW);
+    }
+    return ret;
+}
+
 // Map in memory regions to address space
 void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
 {
@@ -97,6 +127,19 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
         // Unmap it's buffers
         NbObjCallSvc (iter, NB_VBE_UNMAP_FB, NULL);
     }
+
+    // Reserve bootloader memory regions
+    NbFwResvMem (0x0, 0x100000, NEXBOOT_MEM_RESVD);
+    NbLogMessage ("nexboot: Reserving memory region from %#lX to %#lX as boot reclaim\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  0x100000,
+                  NbBiosGetBootEnd());
+    NbFwResvMem (0x100000, NbBiosGetBootEnd() - 0x100000, NEXBOOT_MEM_BOOT_RECLAIM);
+    NbLogMessage ("nexboot: Reserving memory region from %#lX to %#lX as kernel memory\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  NbBiosGetBootEnd(),
+                  NbBiosGetBootEnd() + curOffset);
+    NbFwResvMem (NbBiosGetBootEnd(), curOffset, NEXBOOT_MEM_RESVD);
 }
 
 // Find which disk is the boot disk

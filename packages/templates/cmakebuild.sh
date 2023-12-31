@@ -14,6 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Set up pkgconfig context
+export PKG_CONFIG_DIR=""
+export PKG_CONFIG_LIBDIR="$NNDESTDIR/usr/lib/pkgconfig:$NNDESTDIR/usr/share/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR=$NNDESTDIR
+
 configure()
 {
     echo "Configuring $pkg_name..."

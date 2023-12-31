@@ -143,7 +143,7 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     {
         // Create object
         char nameBuf[64] = {0};
-        snprintf (nameBuf, 64, "/Devices/Disk%d", dev->devId);
+        snprintf (nameBuf, 64, "/Devices/EfiDisk%d", dev->devId);
         createDeviceObject (nameBuf, OBJ_INTERFACE_DISK, diskDrv, dev);
         dev = (NbHwDevice_t*) malloc (diskDrv->devSize);
     }

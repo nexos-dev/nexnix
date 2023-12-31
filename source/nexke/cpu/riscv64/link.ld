@@ -1,6 +1,6 @@
 /*
-    link.ld - contains linker script for nexboot
-    Copyright 2022, 2023 The NexNix Project
+    link.ld - contains linker script for nexke
+    Copyright 2023 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,35 +16,40 @@
     limitations under the License.
 */
 
-OUTPUT_FORMAT(elf64-x86-64)
-ENTRY(NbEfiEntry)
+ENTRY(NkMain)
 
 SECTIONS
 {
-    .text 0x1000 : {
+    . = 0xFFFFFFFF80000000;
+    .text ALIGN(4096) : {
         *(.text*)
     }
-    . = ALIGN(4096);
-    .data : {
+
+    .data ALIGN(4096) : {
         *(.data*)
     }
-    . = ALIGN(4096);
-    .rodata : {
+
+    .rodata ALIGN(4096) : {
         *(.rodata*)
     }
-    . = ALIGN(4096);
-    .bss : {
+
+    .bss ALIGN(4096) : {
         *(.bss*)
     }
-    . = ALIGN(4096);
 
     /DISCARD/ : {
         *(.comment)
         *(.gnu*)
         *(.note*)
+        *(.interp)
+        *(.dynsym)
+        *(.dynstr)
         *(.dynamic)
+        *(.comment)
+        *(.symtab)
+        *(.strtab)
+        *(.rel*)
+        *(.rela*)
         *(.eh_frame)
-        *(.debug*)
-        *(.rela.eh_frame)
     }
 }

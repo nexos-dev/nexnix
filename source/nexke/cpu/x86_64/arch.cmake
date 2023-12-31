@@ -18,6 +18,8 @@
 # Option for LA57
 nexnix_add_option(NEXNIX_X86_64 "Specifies if LA57 is supported" OFF)
 
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -z max-page-size=0x1000")
+
 # Arch header
 set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/x86_64/x86_64.h")
 

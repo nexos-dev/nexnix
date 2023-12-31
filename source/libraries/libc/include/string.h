@@ -33,5 +33,6 @@ int strcmp (const char* s1, const char* s2);
 size_t strlen (const char* s);
 char* strcpy (char* restrict s1, const char* restrict s2);
 char* strcat (char* restrict s1, const char* restrict s2);
+char* strchr (const char* s, int ch);
 
 #endif

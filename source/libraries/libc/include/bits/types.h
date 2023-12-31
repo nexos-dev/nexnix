@@ -54,3 +54,17 @@ typedef _uint64_t max_align_t;
 typedef _uint16_t wchar_t;
 #endif
 #endif
+
+#ifdef __NEED_PIDT
+#ifndef __PIDT_DEFINED
+#define __PIDT_DEFINED
+typedef unsigned int pid_t;
+#endif
+#endif
+
+#ifdef __NEED_SSIZE
+#ifndef __SSIZE_DEFINED
+#define __SSIZE_DEFINED
+typedef int ssize_t;
+#endif
+#endif

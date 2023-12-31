@@ -76,7 +76,7 @@ static bool EfiSerialEntry (int code, void* params)
                 return false;
             }
             // Reset it
-            uefi_call_wrapper (dev->prot->Reset, 1, dev->prot);
+            dev->prot->Reset (dev->prot);
             // That's it
             NbLogMessage ("nbefiserial: found EFI serial port COM%d\r\n",
                           NEXBOOT_LOGLEVEL_INFO,
@@ -123,9 +123,9 @@ static bool EfiSerialWrite (void* objp, void* params)
     NbObject_t* serial = objp;
     NbEfiSerialDev_t* dev = NbObjGetData (serial);
     uint8_t c = (uint8_t) params;
-    size_t out = 1;
+    UINTN out = 1;
     // Write it out
-    if (uefi_call_wrapper (dev->prot->Write, 3, dev->prot, &out, &c) != EFI_SUCCESS)
+    if (dev->prot->Write (dev->prot, &out, &c) != EFI_SUCCESS)
         return false;
     return true;
 }
@@ -139,11 +139,11 @@ static bool EfiSerialRead (void* objp, void* params)
     uint32_t ctrl = 0;
     do
     {
-        uefi_call_wrapper (dev->prot->GetControl, 2, dev->prot, &ctrl);
+        dev->prot->GetControl (dev->prot, &ctrl);
     } while (ctrl & EFI_SERIAL_INPUT_BUFFER_EMPTY);
     // Read from port
-    size_t bufSz = 1;
-    if (uefi_call_wrapper (dev->prot->Read, 3, dev->prot, &bufSz, c) != EFI_SUCCESS)
+    UINTN bufSz = 1;
+    if (dev->prot->Read (dev->prot, &bufSz, c) != EFI_SUCCESS)
         return false;
     return true;
 }

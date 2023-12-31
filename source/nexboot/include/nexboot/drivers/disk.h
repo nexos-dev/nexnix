@@ -34,7 +34,7 @@ typedef struct _diskinf
     NbHwDevice_t dev;
     uint8_t flags;        // Disk flags
     uint64_t size;        // Size of disk in sectors
-    uint16_t sectorSz;    // Size of a sector
+    uint32_t sectorSz;    // Size of a sector
     uint16_t type;        // Type of disk
     void* internal;       // Internal disk info
 } NbDiskInfo_t;

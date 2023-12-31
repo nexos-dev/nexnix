@@ -29,29 +29,15 @@
 #define EXIT_FAILURE 1
 
 // Functions
-
-/// Allocates blockSize numBlocks, and initializes memory to 0
 void* calloc (size_t numBlocks, size_t blockSize);
-
-/// Allocates sz amount of memory
 void* malloc (size_t sz);
-
-/// Resizes a block of memory
 void* realloc (void* block, size_t newSz);
-
-/// Frees a block of memory
 void free (void* block);
-
-/// Aborts execution of curent program
 _Noreturn void abort();
-
-/// Gracefully exits program
 _Noreturn void exit (int status);
-
-/// Gracefully exits program, but doesn't call atexit(3) handlers
 _Noreturn void _Exit (int status);
-
-// Converts string to integer
 int atoi (const char* s);
+char* getenv (const char*);
+int abs (int);
 
 #endif

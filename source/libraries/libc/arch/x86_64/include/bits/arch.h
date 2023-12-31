@@ -18,15 +18,17 @@
 #ifndef _BITS_ARCH_H
 #define _BITS_ARCH_H
 
-#define _saddr_t  long long
-#define _uaddr_t  unsigned long long
-#define _int64_t  long long
-#define _uint64_t unsigned long long
-#define _int32_t  int
-#define _uint32_t unsigned int
-#define _int16_t  short
-#define _uint16_t unsigned short
-#define _int8_t   char
-#define _uint8_t  unsigned char
+#define _saddr_t         long
+#define _uaddr_t         unsigned long
+#define _int64_t         long long
+#define _uint64_t        unsigned long long
+#define _int32_t         int
+#define _uint32_t        unsigned int
+#define _int16_t         short
+#define _uint16_t        unsigned short
+#define _int8_t          char
+#define _uint8_t         unsigned char
+#define __UINTPTR_TYPE__ unsigned long long
+#define __INTPTR_TYPE__  long
 
 #endif

@@ -23,25 +23,30 @@ PHDRS
 {
     nexkeText PT_LOAD;
     nexkeData PT_LOAD;
-    nexkeRoData PT_LOAD;
 }
 
 SECTIONS
 {
     . = 0xC0000000;
-    .text ALIGN(4096) : {
+    .text : {
         *(.text*)
     } :nexkeText
 
-    .data ALIGN(4096) : {
+    . = ALIGN(4096);
+
+    .rodata : {
+        *(.rodata*)
+    } :nexkeText
+
+    . = ALIGN(4096);
+
+    .data : {
         *(.data*)
     } :nexkeData
 
-    .rodata ALIGN(4096) : {
-        *(.rodata*)
-    } :nexkeRoData
+    . = ALIGN(4096);
 
-    .bss ALIGN(4096) : {
+    .bss : {
         *(.bss*)
     } :nexkeData
 

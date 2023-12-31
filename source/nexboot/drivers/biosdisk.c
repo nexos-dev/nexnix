@@ -341,9 +341,6 @@ static bool BiosDiskEntry (int code, void* params)
             bool diskSuccess = false;
             do
             {
-                NbLogMessageEarly ("biosdisk: Checking BIOS disk %#X\r\n",
-                                   NEXBOOT_LOGLEVEL_DEBUG,
-                                   curDisk);
                 // Read in a sector from the disk, selecting the right function
                 if (curDisk < 0x80)
                 {
@@ -359,9 +356,6 @@ static bool BiosDiskEntry (int code, void* params)
                     if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
                     {
                         assert (bootDiskChecked);
-                        NbLogMessageEarly ("biosdisk: BIOS disk %#X doesn't exist\r\n",
-                                           NEXBOOT_LOGLEVEL_DEBUG,
-                                           curDisk);
                         // No disks left to check, move to hard disks
                         curDisk = 0x80;
                         // If this disk equal boot disk, move to next disk
@@ -389,9 +383,6 @@ static bool BiosDiskEntry (int code, void* params)
                         if (out.flags & NEXBOOT_CPU_CARRY_FLAG)
                         {
                             assert (bootDiskChecked);
-                            NbLogMessageEarly ("biosdisk: BIOS disk %#X doesn't exist\r\n",
-                                               NEXBOOT_LOGLEVEL_DEBUG,
-                                               curDisk);
                             return false;
                         }
                         else
@@ -422,26 +413,20 @@ static bool BiosDiskEntry (int code, void* params)
             }
             else
             {
-                NbLogMessageEarly ("biosdisk: Disk supports LBA extensions\r\n",
-                                   NEXBOOT_LOGLEVEL_DEBUG);
                 if (!diskGetDptInfo (disk, curDisk))
                 {
-                    NbLogMessageEarly ("biosdisk: Disk %#X not working\r\n",
-                                       NEXBOOT_LOGLEVEL_DEBUG,
-                                       curDisk);
                     ++curDisk;
                     goto checkDisk;    // Retry
                 }
             }
-            NbLogMessageEarly ("biosdisk: BIOS disk %#X found and working, size %llu, "
+            NbLogMessageEarly ("nbbiosdisk: BIOS disk %#X found and working, size %lluMiB, "
                                "type %d, flags %#02X, sector size %u\r\n",
-                               NEXBOOT_LOGLEVEL_DEBUG,
+                               NEXBOOT_LOGLEVEL_INFO,
                                curDisk,
                                (disk->size / 1024) / 1024,
                                disk->type,
                                disk->flags,
                                disk->sectorSz);
-            NbLogMessageEarly ("biosdisk: Disk %#X found\r\n", NEXBOOT_LOGLEVEL_INFO, curDisk);
             // If this is boot disk, do normal disk check now
             disk->hdr.devId = curIter;
             disk->hdr.sz = sizeof (NbBiosDisk_t);

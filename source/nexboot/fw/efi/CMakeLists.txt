@@ -22,26 +22,56 @@ if(NOT "${NEXNIX_TOOLCHAIN}" STREQUAL "gnu")
     message(FATAL_ERROR "GNU toolchain required for nexboot-efi")
 endif()
 
+# Grab GNU-EFI package
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GNUEFI REQUIRED IMPORTED_TARGET gnu-efi)
+
+# Get GNU-EFI architecture
+if(${NEXNIX_ARCH} STREQUAL "i386")
+    set(GNUEFI_ARCH "ia32")
+elseif(${NEXNIX_ARCH} STREQUAL "armv8")
+    set(GNUEFI_ARCH "aarch64")
+else()
+    set(GNUEFI_ARCH ${NEXNIX_ARCH})
+endif()
+
 # Source files
 list(APPEND NEXBOOT_SOURCE_FILES efimain.c
     efimem.c
     efi.c
-    hwdetect.c
-    ${CMAKE_SOURCE_DIR}/cpu/${NEXNIX_ARCH}/eficall.S)
-add_executable(nexboot-efi ${NEXBOOT_SOURCE_FILES})
+    hwdetect.c)
+add_executable(nexboot-efi-1 EXCLUDE_FROM_ALL ${NEXBOOT_SOURCE_FILES})
+
+# Includes
+target_include_directories(nexboot-efi-1 PUBLIC ${GNUEFI_CFLAGS})
 
 # Libraries
-target_link_libraries(nexboot-efi PRIVATE nexboot)
+target_link_libraries(nexboot-efi-1 PRIVATE nexboot ${GNUEFI_LIBRARIES})
 
 # Options
-target_link_options(nexboot-efi PUBLIC -Wl,-s -Wl,-q -Wl,-Bsymbolic -Wl,-Bsymbolic-functions
-    -T ${CMAKE_CURRENT_SOURCE_DIR}/link/link-${NEXNIX_ARCH}.ld)
+target_link_options(nexboot-efi-1 PUBLIC -shared -Wl,-Bsymbolic
+    -T ${CMAKE_SYSROOT}/${GNUEFI_LIBDIR}/elf_${GNUEFI_ARCH}_efi.lds
+    -L ${GNUEFI_LIBDIR} -znocombreloc
+    ${CMAKE_SYSROOT}/${GNUEFI_LIBDIR}/crt0-efi-${GNUEFI_ARCH}.o)
 
-# Convert to EFI using elf2efi
+target_compile_options(nexboot-efi-1 PUBLIC ${NEXBOOT_CFLAGS})
+
+# Convert to EFI file with objcopy
+if(${NEXNIX_ARCH} STREQUAL "armv8")
+    set(OBJCOPY_FMT "efi-app-aarch64")
+elseif(${NEXNIX_ARCH} STREQUAL "riscv64")
+    set(OBJCOPY_FMT "binary")
+else()
+    set(OBJCOPY_FMT efi-app-${NEXNIX_ARCH})
+endif()
+
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/nexboot.efi
-    COMMAND $ENV{NNBUILDROOT}/tools/bin/elf2efi${NEXNIX_BITS}
-    -s 10 $<TARGET_FILE:nexboot-efi>
+    COMMAND ${CMAKE_OBJCOPY} -j .text -j .sdata -j .data
+    -j .dynamic -j .rodata -j .rel
+    -j .rela -j .rel.* -j .rela.* -j .rel* -j .rela* -j .reloc -j .areloc
+    -O ${OBJCOPY_FMT} $<TARGET_FILE:nexboot-efi-1>
     ${CMAKE_CURRENT_BINARY_DIR}/nexboot.efi
-    DEPENDS nexboot-efi)
-add_custom_target(nexboot-efi-1 ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/nexboot.efi)
+    DEPENDS nexboot-efi-1)
+add_custom_target(nexboot-efi ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/nexboot.efi)
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/nexboot.efi DESTINATION .)

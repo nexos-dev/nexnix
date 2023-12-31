@@ -89,6 +89,9 @@ void NbObjInstallSvcs (NbObject_t* obj, NbObjSvcTab_t* svcTab);
 /// Enumerates a child directory
 NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter);
 
+/// Gets path to object
+char* NbObjGetPath (NbObject_t* obj, char* buf, size_t bufSz);
+
 /// Get object interface
 #define NbObjGetInterface(obj) ((obj)->interface)
 

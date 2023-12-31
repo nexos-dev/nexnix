@@ -30,11 +30,19 @@ extern NbDriver_t terminalDrv;
 static NbTerminal_t* terms[32] = {NULL};
 static int curTerm = 0;
 
+#define BUFMAX 128
+
 static void createTerminal (int termNum, NbTerminal_t* term, NbObject_t* inEnd, NbObject_t* outEnd)
 {
     // Create device for terminal structure
     char buf[32] = {0};
     snprintf (buf, 32, "/Devices/Terminal%d", termNum);
+    char buf1[BUFMAX], buf2[BUFMAX];
+    NbLogMessageEarly ("nexboot: Creating terminal %s with output end %s and input end %s\n",
+                       NEXBOOT_LOGLEVEL_DEBUG,
+                       buf,
+                       NbObjGetPath (outEnd, buf1, BUFMAX),
+                       NbObjGetPath (inEnd, buf2, BUFMAX));
     NbObject_t* obj = NbObjCreate (buf, OBJ_TYPE_DEVICE, OBJ_INTERFACE_TERMINAL);
     NbObjSetData (obj, term);
     NbObjInstallSvcs (obj, &terminalSvcTab);
@@ -44,6 +52,7 @@ static void createTerminal (int termNum, NbTerminal_t* term, NbObject_t* inEnd, 
     assert (curTerm < 32);
     term->outEnd = NbObjRef (outEnd);
     term->inEnd = NbObjRef (inEnd);
+    term->term = NbObjRef (obj);
     // Get console size
     if (outEnd->interface == OBJ_INTERFACE_CONSOLE)
     {
@@ -184,6 +193,11 @@ static bool TerminalEntry (int code, void* params)
                         doSet = true;
                     if (doSet)
                     {
+                        char buf[BUFMAX], buf2[BUFMAX];
+                        NbLogMessage ("nexboot: Attaching output end %s to terminal %s\n",
+                                      NEXBOOT_LOGLEVEL_DEBUG,
+                                      NbObjGetPath (dev, buf, BUFMAX),
+                                      NbObjGetPath (terms[i]->term, buf2, BUFMAX));
                         // Set it
                         terms[i]->outEnd = dev;
                         // Notify driver
@@ -237,6 +251,11 @@ static bool TerminalEntry (int code, void* params)
                     doSet = true;
                 if (doSet)
                 {
+                    char buf[BUFMAX], buf2[BUFMAX];
+                    NbLogMessage ("nexboot: Attaching input end %s to terminal %s\n",
+                                  NEXBOOT_LOGLEVEL_DEBUG,
+                                  NbObjGetPath (dev, buf, BUFMAX),
+                                  NbObjGetPath (terms[i]->term, buf2, BUFMAX));
                     // Set it
                     terms[i]->inEnd = dev;
                     // Notify driver
@@ -269,6 +288,11 @@ static bool TerminalEntry (int code, void* params)
                     }
                 }
                 assert (objFound);
+                char buf[BUFMAX], buf2[BUFMAX];
+                NbLogMessage ("nexboot: Detaching output end %s from terminal %s\n",
+                              NEXBOOT_LOGLEVEL_DEBUG,
+                              NbObjGetPath (terms[i]->outEnd, buf, BUFMAX),
+                              NbObjGetPath (terms[i]->term, buf2, BUFMAX));
                 // Detach it
                 terms[i]->outEnd = NULL;
             }
@@ -286,6 +310,11 @@ static bool TerminalEntry (int code, void* params)
                     }
                 }
                 assert (objFound);
+                char buf[BUFMAX], buf2[BUFMAX];
+                NbLogMessage ("nexboot: Detaching input end %s from terminal %s\n",
+                              NEXBOOT_LOGLEVEL_DEBUG,
+                              NbObjGetPath (terms[i]->inEnd, buf, BUFMAX),
+                              NbObjGetPath (terms[i]->term, buf2, BUFMAX));
                 // Detach it
                 terms[i]->inEnd = NULL;
             }
@@ -743,8 +772,11 @@ static uint8_t terminalReadChar (NbObject_t* termObj)
                     terminalWriteChar (termObj, '^');
                     terminalWriteChar (termObj, '?');
                 }
-                if (!terminalWriteChar (termObj, c))
-                    return 0;
+                else
+                {
+                    if (!terminalWriteChar (termObj, c))
+                        return 0;
+                }
             }
         }
     }

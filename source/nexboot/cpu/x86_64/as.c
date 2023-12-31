@@ -99,7 +99,7 @@ void NbCpuAsInit()
         // Error out
         NbLogMessage ("nexboot: LA57 not supported. Please use non-LA57 image\n",
                       NEXBOOT_LOGLEVEL_CRITICAL);
-        // NbCrash();
+        NbCrash();
     }
 #endif
     // Disable WP. We only do this because some not smart UEFIs
@@ -121,6 +121,7 @@ static pmle_t* cpuAsAllocSt (pmle_t* curSt, uintptr_t addr, int level, uint64_t 
     pmle_t* newSt = (pmle_t*) NbFwAllocPage();
     if (!newSt)
         return NULL;
+    memset (newSt, 0, NEXBOOT_CPU_PAGE_SIZE);
     // Map it
     curSt[AS_IDX_LEVEL (addr, level)] = (paddr_t) newSt | flags;
     return newSt;

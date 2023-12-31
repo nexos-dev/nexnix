@@ -138,7 +138,7 @@ void NbWriteCr4 (uint32_t val)
 
 void NbWrmsr (uint32_t msr, uint64_t val)
 {
-    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) val >> 32ULL));
+    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
 }
 
 uint64_t NbRdmsr (uint32_t msr)

@@ -51,16 +51,14 @@ static bool gopGetPreferredRes (EFI_HANDLE handle, int* width, int* height)
     // Grab EDID
     if (edidProt)
     {
-        NbEdid_t* edid = edidProt->Edid;
+        NbEdid_t* edid = (NbEdid_t*) edidProt->Edid;
         *width = edid->preferred.xSizeLow | ((edid->preferred.xHigh & 0xF0) << 4);
         *height = edid->preferred.ySizeLow | ((edid->preferred.yHigh & 0xF0) << 4);
         NbEfiCloseProtocol (handle, &edidGuid);
     }
     else
     {
-        // Failsafe
-        *width = 800;
-        *height = 600;
+        *width = 0, *height = 0;
     }
     return true;
 }
@@ -69,17 +67,19 @@ static bool gopGetPreferredRes (EFI_HANDLE handle, int* width, int* height)
 static EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* gopQueryMode (EFI_GRAPHICS_OUTPUT_PROTOCOL* prot,
                                                            uint32_t* modeNum,
                                                            int width,
-                                                           int height)
+                                                           int height,
+                                                           bool matchRequired)
 {
     uint32_t maxMode = prot->Mode->MaxMode;
     int bestWidth = 0, bestHeight = 0;
-    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* bestMode;
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* bestMode = NULL;
+retry:
     for (int i = 0; i < maxMode; ++i)
     {
         // Get mode information
         EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* curMode = NULL;
-        size_t sz = 0;
-        if (uefi_call_wrapper (prot->QueryMode, 4, prot, i, &sz, &curMode) != EFI_SUCCESS)
+        UINTN sz = 0;
+        if (prot->QueryMode (prot, i, &sz, &curMode) != EFI_SUCCESS)
             return NULL;
         // Check if it is supported
         if (curMode->PixelFormat == PixelBltOnly)
@@ -95,7 +95,7 @@ static EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* gopQueryMode (EFI_GRAPHICS_OUTPUT_P
             continue;
         // Compare difference between this mode and current best mode
         if (((width - curMode->HorizontalResolution) <= (width - bestWidth)) &&
-            ((height - curMode->VerticalResolution) <= (height - bestHeight)))
+            ((height - curMode->VerticalResolution) <= (height - bestHeight)) && !matchRequired)
         {
             // Set up best mode
             bestHeight = curMode->VerticalResolution;
@@ -161,7 +161,7 @@ static bool gopSetupDisplay (NbGopDisplay_t* display,
     else
         assert (0);
     // Set the mode
-    uefi_call_wrapper (display->prot->SetMode, 2, display->prot, modeNum);
+    display->prot->SetMode (display->prot, modeNum);
     // Set framebuffer
     display->display.frontBuffer = (void*) display->prot->Mode->FrameBufferBase;
     // Allocate backbuffer
@@ -206,15 +206,40 @@ static bool EfiGopDrvEntry (int code, void* params)
             }
             // Get preferred resolution
             int idealWidth = 0, idealHeight = 0;
-            gopGetPreferredRes (display->gopHandle, &idealWidth, &idealHeight);
-            // Find closest mode
             uint32_t modeNum = 0;
-            EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* mode =
-                gopQueryMode (display->prot, &modeNum, idealWidth, idealHeight);
-            if (!mode)
+            EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* mode = NULL;
+            gopGetPreferredRes (display->gopHandle, &idealWidth, &idealHeight);
+            if (idealWidth && idealHeight)
             {
-                ++curHandle;
-                goto restart;
+                // Find closest mode
+                mode = gopQueryMode (display->prot, &modeNum, idealWidth, idealHeight, false);
+                if (!mode)
+                {
+                    ++curHandle;
+                    goto restart;
+                }
+            }
+            else
+            {
+                // Go through failsafe modes
+#define NUM_FAILSAFES 4
+                int failSafes[NUM_FAILSAFES][2] = {{1280, 1024}, {800, 600}};
+                for (int i = 0; i < NUM_FAILSAFES; ++i)
+                {
+                    mode = gopQueryMode (display->prot,
+                                         &modeNum,
+                                         failSafes[i][0],
+                                         failSafes[i][1],
+                                         true);
+                    if (mode)
+                        break;
+                }
+                if (!mode)
+                {
+                    // Error out
+                    NbLogMessage ("nbefigop: no supported video mode\r\n", NEXBOOT_LOGLEVEL_ERROR);
+                    return false;
+                }
             }
             // Set it
             gopSetupDisplay (display, mode, modeNum);
@@ -234,6 +259,13 @@ static bool EfiGopDrvEntry (int code, void* params)
 
 static bool EfiGopDumpData (void* objp, void* data)
 {
+    void (*write) (const char*, ...) = data;
+    NbObject_t* displayObj = objp;
+    NbDisplayDev_t* display = NbObjGetData (displayObj);
+    write ("Display width: %d\n", display->width);
+    write ("Display height: %d\n", display->height);
+    write ("Bits per pixel: %d\n", display->bpp);
+    return true;
     return true;
 }
 
@@ -308,7 +340,7 @@ static bool EfiGopSetMode (void* objp, void* params)
     // Query mode
     uint32_t modeNum = 0;
     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* modeInfo =
-        gopQueryMode (display->prot, &modeNum, mode->width, mode->height);
+        gopQueryMode (display->prot, &modeNum, mode->width, mode->height, false);
     if (!modeInfo)
         return false;
     // Unmap current buffers

@@ -34,16 +34,15 @@ void NbFwMemDetect()
 NbMemEntry_t* NbGetMemMap (int* size)
 {
     // Determine size needed for memory map
-    size_t mapSize = 0;
-    size_t descSz = 0, descVer = 0;
+    UINTN mapSize = 0;
+    UINTN descSz = 0;
+    uint32_t descVer = 0;
     uint8_t dummyMap[2] = {0};
-    if (uefi_call_wrapper (BS->GetMemoryMap,
-                           5,
-                           &mapSize,
-                           (EFI_MEMORY_DESCRIPTOR*) dummyMap,
-                           &mapKey,
-                           &descSz,
-                           &descVer) != EFI_BUFFER_TOO_SMALL)
+    if (BS->GetMemoryMap (&mapSize,
+                          (EFI_MEMORY_DESCRIPTOR*) dummyMap,
+                          (UINTN*) &mapKey,
+                          &descSz,
+                          &descVer) != EFI_BUFFER_TOO_SMALL)
     {
         return NULL;
     }
@@ -56,15 +55,9 @@ NbMemEntry_t* NbGetMemMap (int* size)
     memset (memMap, 0, mapSize);
     // Actually get the memory map
     EFI_STATUS status;
-    if ((status = uefi_call_wrapper (BS->GetMemoryMap,
-                                     5,
-                                     &mapSize,
-                                     memMap,
-                                     &mapKey,
-                                     &descSz,
-                                     &descVer)) != EFI_SUCCESS)
+    if ((status = BS->GetMemoryMap (&mapSize, memMap, (UINTN*) &mapKey, &descSz, &descVer)) !=
+        EFI_SUCCESS)
     {
-        NbLogMessage ("got here %d\r\n", NEXBOOT_LOGLEVEL_CRITICAL, status);
         NbEfiFreePool (memMap);
         return NULL;
     }

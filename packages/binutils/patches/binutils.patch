@@ -1,0 +1,259 @@
+diff -Naur binutils-2.41/bfd/config.bfd binutils-patch/bfd/config.bfd
+--- binutils-2.41/bfd/config.bfd	2023-07-02 19:00:00.000000000 -0400
++++ binutils-patch/bfd/config.bfd	2023-12-27 09:13:45.235712814 -0500
+@@ -273,6 +273,11 @@
+     targ_selvecs="aarch64_elf64_be_vec arm_elf32_le_vec arm_elf32_be_vec"
+     want64=true
+     ;;
++  aarch64-*-nexnix*)
++    targ_defvec=aarch64_elf64_le_vec
++    targ_selvecs="aarch64_elf64_be_vec arm_elf32_le_vec arm_elf32_be_vec"
++    want64=true
++    ;;
+   aarch64-*-cloudabi*)
+     targ_defvec=aarch64_elf64_le_cloudabi_vec
+     targ_selvecs=aarch64_elf64_be_cloudabi_vec
+@@ -664,6 +669,10 @@
+     targ_selvecs=
+     targ64_selvecs=x86_64_elf64_vec
+     ;;
++  i[3-7]86-*-nexnix*)
++    targ_defvec=i386_elf32_vec
++    targ64_selvecs=x86_64_elf64_vec
++    ;;
+ #ifdef BFD64
+   x86_64-*-cloudabi*)
+     targ_defvec=x86_64_elf64_cloudabi_vec
+@@ -689,6 +698,11 @@
+     esac
+     want64=true
+     ;;
++  x86_64-*-nexnix*)
++    targ_defvec=x86_64_elf64_vec
++    targ_selvecs="i386_elf32_vec"
++    want64=true
++    ;;
+   x86_64-*-dragonfly*)
+     targ_defvec=x86_64_elf64_vec
+     targ_selvecs="i386_elf32_vec iamcu_elf32_vec"
+diff -Naur binutils-2.41/config.sub binutils-patch/config.sub
+--- binutils-2.41/config.sub	2023-07-02 19:00:00.000000000 -0400
++++ binutils-patch/config.sub	2023-12-27 09:09:57.776623568 -0500
+@@ -1758,7 +1758,7 @@
+ 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
+ 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+ 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
+-	     | fiwix* | mlibc* )
++	     | fiwix* | mlibc* | nexnix* )
+ 		;;
+ 	# This one is extra strict with allowed versions
+ 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
+diff -Naur binutils-2.41/gas/configure.tgt binutils-patch/gas/configure.tgt
+--- binutils-2.41/gas/configure.tgt	2023-07-02 19:00:00.000000000 -0400
++++ binutils-patch/gas/configure.tgt	2023-12-27 09:14:44.853425908 -0500
+@@ -134,6 +134,7 @@
+       aarch64*-linux-gnu_ilp32)		arch=aarch64:32 ;;
+     esac ;;
+   aarch64*-*-netbsd*)			fmt=elf em=nbsd;;
++  aarch64*-*-nexnix*)     fmt=elf ;;
+   aarch64*-*-nto*)			fmt=elf;;
+   aarch64*-*-openbsd*)			fmt=elf;;
+   aarch64*-*-pe* | aarch64*-*-mingw*)	fmt=coff em=pepaarch64 ;;
+@@ -235,6 +236,7 @@
+   i386-*-knetbsd*-gnu | \
+   i386-*-netbsd* | \
+   i386-*-openbsd*)			fmt=elf em=nbsd ;;
++  i386-*-nexnix*)     fmt=elf ;;
+   i386-*-linux-*)			fmt=elf em=linux
+     case ${cpu}-${os} in
+       x86_64*-linux-gnux32)		arch=x86_64:32 ;;
+diff -Naur binutils-2.41/ld/configure.tgt binutils-patch/ld/configure.tgt
+--- binutils-2.41/ld/configure.tgt	2023-07-02 19:00:00.000000000 -0400
++++ binutils-patch/ld/configure.tgt	2023-12-27 09:21:55.865274566 -0500
+@@ -118,6 +118,9 @@
+ aarch64-*-haiku*)	targ_emul=aarch64haiku
+ 			targ_extra_emuls="aarch64elf aarch64elf32 aarch64elf32b aarch64elfb armelf armelfb armelf_haiku $targ_extra_libpath"
+ 			;;
++aarch64-*-nexnix*)	targ_emul=aarch64nexnix
++			targ_extra_emuls="aarch64elf"
++			;;
+ aarch64-*-nto*)		targ_emul=aarch64nto
+ 			targ_extra_emuls="aarch64elf aarch64elf32 aarch64elf32b aarch64elfb armelf armelfb"
+ 			;;
+@@ -403,6 +406,10 @@
+ i[3-7]86-*-dragonfly*)	targ_emul=elf_i386
+ 			targ_extra_emuls="elf_iamcu i386bsd"
+ 			;;
++i[3-7]86-*-nexnix)		targ_emul=elf_i386_nexnix
++			targ_extra_emuls="elf_i386"
++			targ64_extra_emuls="elf_x86_64_nexnix elf_x86_64"
++			;;
+ i[3-7]86-*-freebsd* | i[3-7]86-*-kfreebsd*-gnu)
+ 			targ_emul=elf_i386_fbsd
+ 			targ_extra_emuls="elf_i386 elf_iamcu i386bsd"
+@@ -1024,6 +1031,10 @@
+ 			tdir_elf_i386=`echo ${targ_alias} | \
+ 			    sed -e 's/x86_64/i386/' -e 's/aout//'`
+ 			;;
++x86_64-*-nexnix*)
++			targ_emul=elf_x86_64_nexnix
++			targ_extra_emuls="elf_i386_nexnix elf_i386 elf_x86_64"
++			;;
+ x86_64-*-elf* | x86_64-*-rtems* | x86_64-*-fuchsia* | x86_64-*-genode*)
+ 			targ_emul=elf_x86_64
+ 			targ_extra_emuls="elf_i386 elf_iamcu elf32_x86_64"
+diff -Naur binutils-2.41/ld/emulparams/aarch64nexnix.sh binutils-patch/ld/emulparams/aarch64nexnix.sh
+--- binutils-2.41/ld/emulparams/aarch64nexnix.sh	1969-12-31 19:00:00.000000000 -0500
++++ binutils-patch/ld/emulparams/aarch64nexnix.sh	2023-12-27 09:40:40.549896603 -0500
+@@ -0,0 +1,2 @@
++source_sh ${srcdir}/emulparams/aarch64elf.sh
++TEXT_START_ADDR=0x300000
+\ No newline at end of file
+diff -Naur binutils-2.41/ld/emulparams/elf_i386_nexnix.sh binutils-patch/ld/emulparams/elf_i386_nexnix.sh
+--- binutils-2.41/ld/emulparams/elf_i386_nexnix.sh	1969-12-31 19:00:00.000000000 -0500
++++ binutils-patch/ld/emulparams/elf_i386_nexnix.sh	2023-12-27 09:40:44.953899635 -0500
+@@ -0,0 +1,2 @@
++source_sh ${srcdir}/emulparams/elf_i386.sh
++TEXT_START_ADDR=0x300000
+\ No newline at end of file
+diff -Naur binutils-2.41/ld/emulparams/elf_x86_64_nexnix.sh binutils-patch/ld/emulparams/elf_x86_64_nexnix.sh
+--- binutils-2.41/ld/emulparams/elf_x86_64_nexnix.sh	1969-12-31 19:00:00.000000000 -0500
++++ binutils-patch/ld/emulparams/elf_x86_64_nexnix.sh	2023-12-27 09:40:49.629902099 -0500
+@@ -0,0 +1,2 @@
++source_sh ${srcdir}/emulparams/elf_x86_64.sh
++TEXT_START_ADDR=0x200000
+\ No newline at end of file
+diff -Naur binutils-2.41/ld/Makefile.am binutils-patch/ld/Makefile.am
+--- binutils-2.41/ld/Makefile.am	2023-07-02 19:00:00.000000000 -0400
++++ binutils-patch/ld/Makefile.am	2023-12-27 09:30:16.062992619 -0500
+@@ -278,6 +278,7 @@
+ 	eelf_i386_be.c \
+ 	eelf_i386_fbsd.c \
+ 	eelf_i386_haiku.c \
++	eelf_i386_nexnix.c \
+ 	eelf_i386_ldso.c \
+ 	eelf_i386_sol2.c \
+ 	eelf_i386_vxworks.c \
+@@ -385,6 +386,7 @@
+ 	eaarch64fbsdb.c \
+ 	eaarch64haiku.c \
+ 	eaarch64linux.c \
++	eaarch64nexnix.c \
+ 	eaarch64linux32.c \
+ 	eaarch64linux32b.c \
+ 	eaarch64linuxb.c \
+@@ -460,6 +462,7 @@
+ 	eelf_x86_64_fbsd.c \
+ 	eelf_x86_64_haiku.c \
+ 	eelf_x86_64_sol2.c \
++	eelf_x86_64_nexnix.c \
+ 	ehppa64linux.c \
+ 	ei386pep.c \
+ 	emmo.c
+@@ -779,6 +782,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_ldso.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_sol2.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_vxworks.Pc@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_nexnix.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_iamcu.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_s390.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300elf.Pc@am__quote@
+@@ -880,6 +884,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64fbsdb.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64haiku.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux.Pc@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64nexnix.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32b.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linuxb.Pc@am__quote@
+@@ -955,6 +960,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_fbsd.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_haiku.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_sol2.Pc@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_nexnix.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppa64linux.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pep.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emmo.Pc@am__quote@
+diff -Naur binutils-2.41/ld/Makefile.in binutils-patch/ld/Makefile.in
+--- binutils-2.41/ld/Makefile.in	2023-07-02 19:00:00.000000000 -0400
++++ binutils-patch/ld/Makefile.in	2023-12-27 09:30:26.334619902 -0500
+@@ -533,6 +533,7 @@
+ prefix = @prefix@
+ program_transform_name = @program_transform_name@
+ psdir = @psdir@
++runstatedir = @runstatedir@
+ sbindir = @sbindir@
+ sharedstatedir = @sharedstatedir@
+ srcdir = @srcdir@
+@@ -779,6 +780,7 @@
+ 	eelf_i386_be.c \
+ 	eelf_i386_fbsd.c \
+ 	eelf_i386_haiku.c \
++	eelf_i386_nexnix.c \
+ 	eelf_i386_ldso.c \
+ 	eelf_i386_sol2.c \
+ 	eelf_i386_vxworks.c \
+@@ -885,6 +887,7 @@
+ 	eaarch64fbsdb.c \
+ 	eaarch64haiku.c \
+ 	eaarch64linux.c \
++	eaarch64nexnix.c \
+ 	eaarch64linux32.c \
+ 	eaarch64linux32b.c \
+ 	eaarch64linuxb.c \
+@@ -960,6 +963,7 @@
+ 	eelf_x86_64_fbsd.c \
+ 	eelf_x86_64_haiku.c \
+ 	eelf_x86_64_sol2.c \
++	eelf_x86_64_nexnix.c \
+ 	ehppa64linux.c \
+ 	ei386pep.c \
+ 	emmo.c
+@@ -1269,6 +1273,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32b.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linuxb.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64nexnix.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64nto.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64pe.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaix5ppc.Po@am__quote@
+@@ -1462,6 +1467,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_fbsd.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_haiku.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_ldso.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_nexnix.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_sol2.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_vxworks.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_iamcu.Po@am__quote@
+@@ -1471,6 +1477,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_cloudabi.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_fbsd.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_haiku.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_nexnix.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_sol2.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300elf.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300elf_linux.Po@am__quote@
+@@ -2496,6 +2503,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_ldso.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_sol2.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_vxworks.Pc@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_nexnix.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_iamcu.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_s390.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eh8300elf.Pc@am__quote@
+@@ -2597,6 +2605,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64fbsdb.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64haiku.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux.Pc@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64nexnix.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linux32b.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64linuxb.Pc@am__quote@
+@@ -2672,6 +2681,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_fbsd.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_haiku.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_sol2.Pc@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_nexnix.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppa64linux.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pep.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emmo.Pc@am__quote@

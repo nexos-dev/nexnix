@@ -36,6 +36,8 @@ static bool elf64CheckArch()
 {
 #if defined(NEXNIX_ARCH_X86_64)
     return true;
+#elif defined(NEXNIX_ARCH_RISCV64)
+    return true;
 #else
     return false;
 #endif
@@ -49,6 +51,9 @@ static bool elfCheckMachine (int mach)
         return false;
 #elif defined(NEXNIX_ARCH_X86_64)
     if (mach != EM_X86_64)
+        return false;
+#elif defined(NEXNIX_ARCH_RISCV64)
+    if (mach != EM_RISCV)
         return false;
 #endif
     return true;
@@ -97,7 +102,7 @@ uintptr_t NbElfLoadFile (void* fileBase)
                 uint32_t numPgs =
                     (phdr->p_memsz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
                 // Allocate pages
-                void* filePhys = (void*) NbFwAllocPages (numPgs);
+                void* filePhys = (void*) NbFwAllocPersistentPages (numPgs);
                 // Copy file data to physical address
                 void* srcBuf = fileBase + phdr->p_offset;
                 memcpy (filePhys, srcBuf, phdr->p_filesz);
@@ -156,7 +161,7 @@ uintptr_t NbElfLoadFile (void* fileBase)
                 uint32_t numPgs =
                     (phdr->p_memsz + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
                 // Allocate pages
-                void* filePhys = (void*) NbFwAllocPages (numPgs);
+                void* filePhys = (void*) NbFwAllocPersistentPages (numPgs);
                 // Copy file data to physical address
                 void* srcBuf = fileBase + phdr->p_offset;
                 memcpy (filePhys, srcBuf, phdr->p_filesz);

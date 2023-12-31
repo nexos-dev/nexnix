@@ -19,7 +19,9 @@
 nexnix_add_option(NEXNIX_X86_64_LA57 "Specifies if LA57 is supported" ON)
 
 # CPU related sources
-list(APPEND NEXBOOT_SOURCES 
-            cpu/x86_64/cpu.c
-            cpu/x86_64/cpu.asm
-            cpu/x86_64/as.c)
+list(APPEND NEXBOOT_SOURCES
+    cpu/x86_64/cpu.c
+    cpu/x86_64/cpu.asm
+    cpu/x86_64/as.c)
+
+list(APPEND NEXBOOT_CPU_HEADERS include/nexboot/cpu/x86_64/cpu.h)

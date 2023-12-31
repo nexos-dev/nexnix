@@ -305,6 +305,7 @@ void free (void* ptr)
 {
     if (!ptr)
         return;
+    void* optr = ptr;
     // Get block header from ptr
     ptr -= MEM_BLOCK_DATA_OFFSET;
     memBlock_t* block = ptr;
@@ -407,7 +408,8 @@ void free (void* ptr)
     {
         block->isFree = true;
         block->next = block->page->blockList;
-        block->page->blockList->prev = block;
+        if (block->page->blockList)
+            block->page->blockList->prev = block;
         block->prev = NULL;
         block->page->blockList = block;
         // Re-write size

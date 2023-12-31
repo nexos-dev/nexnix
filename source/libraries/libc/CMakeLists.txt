@@ -40,39 +40,44 @@ if(${LIBC_ENABLE_TESTS})
 endif()
 
 # Sources used for libc and libk
-list(APPEND LIBC_SOURCE_ALWAYS 
-            string/memset.c 
-            string/memcmp.c
-            string/memcpy.c
-            string/strcmp.c
-            string/strlen.c
-            string/strcpy.c
-            string/strcat.c
-            string/atoi.c
-            stdio/vsnprintf.c
-            stdio/vsprintf.c
-            stdio/sprintf.c
-            stdio/snprintf.c
-            stdio/vprintf_core.c)
+list(APPEND LIBC_SOURCE_ALWAYS
+    string/memset.c
+    string/memcmp.c
+    string/memcpy.c
+    string/strcmp.c
+    string/strlen.c
+    string/strcpy.c
+    string/strcat.c
+    string/atoi.c
+    stdio/vsnprintf.c
+    stdio/vsprintf.c
+    stdio/sprintf.c
+    stdio/snprintf.c
+    stdio/vprintf_core.c)
 
 # Headers used on libc and libk
 list(APPEND LIBC_HEADERS_ALWAYS
-            include/string.h
-            include/uchar.h
-            include/stdlib.h
-            include/stddef.h
-            include/stdbool.h
-            include/stdnoreturn.h
-            include/stdio.h
-            include/stdarg.h
-            include/elf.h
-            include/assert.h)
+    include/string.h
+    include/uchar.h
+    include/stdlib.h
+    include/stddef.h
+    include/stdbool.h
+    include/stdnoreturn.h
+    include/stdio.h
+    include/stdarg.h
+    include/elf.h
+    include/assert.h
+    include/errno.h
+    include/unistd.h
+    include/time.h)
+list(APPEND LIBC_SYS_HEADERS_ALWAYS
+    include/sys/types.h)
 list(APPEND LIBC_ARCH_HEADERS_BITS
-            arch/${NEXNIX_ARCH}/include/bits/arch.h)
+    arch/${NEXNIX_ARCH}/include/bits/arch.h)
 list(APPEND LIBC_ARCH_HEADERS
-            arch/${NEXNIX_ARCH}/include/stdint.h)
+    arch/${NEXNIX_ARCH}/include/stdint.h)
 list(APPEND LIBC_HEADERS_BITS
-            include/bits/types.h)
+    include/bits/types.h)
 
 # Build and install everything
 if(NOT LIBC_LIBK_ONLY)
@@ -82,6 +87,9 @@ if(NOT LIBC_LIBK_ONLY)
 else()
     set(LIBC_TARGET k)
     add_library(k ${LIBC_SOURCE_ALWAYS})
+
+    # If buliding as libk, compile as PIE
+    target_compile_options(k PRIVATE -fpie)
     install(TARGETS k DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
@@ -92,3 +100,4 @@ install(FILES ${LIBC_HEADERS_ALWAYS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES ${LIBC_ARCH_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES ${LIBC_HEADERS_BITS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bits)
 install(FILES ${LIBC_ARCH_HEADERS_BITS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bits)
+install(FILES ${LIBC_SYS_HEADERS_ALWAYS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sys)

@@ -21,9 +21,6 @@
 #include <string.h>
 
 // Global EFI variables
-EFI_SYSTEM_TABLE* ST = NULL;
-EFI_BOOT_SERVICES* BS = NULL;
-EFI_RUNTIME_SERVICES* RT = NULL;
 EFI_HANDLE ImgHandle;
 
 static NbloadDetect_t detect = {0};    // Nbdetect structure
@@ -43,13 +40,23 @@ void nbPrepareNbdetect()
     detect.cpu.family = NBLOAD_CPU_FAMILY_X86;
     detect.cpu.version = NBLOAD_CPU_VERSION_CPUID;
     detect.cpu.flags = NBLOAD_CPU_FLAG_FPU_EXISTS;
+#elif defined(NEXNIX_ARCH_ARMV8)
+    detect.cpu.arch = NBLOAD_CPU_ARCH_ARMV8;
+    detect.cpu.family = NBLOAD_CPU_FAMILY_ARM;
+    detect.cpu.version = 0;
+    detect.cpu.flags = 0;
+#elif defined(NEXNIX_ARCH_RISCV64)
+    detect.cpu.arch = NBLOAD_CPU_ARCH_RISCV64;
+    detect.cpu.family = NBLOAD_CPU_FAMILY_RISCV;
+    detect.cpu.version = 0;
+    detect.cpu.flags = 0;
 #endif
 }
 
 void NbMain (NbloadDetect_t*);
 
 // Entry point into NexNix
-EFI_STATUS __attribute__ ((ms_abi)) NbEfiEntry (EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* efiSysTab)
+EFI_STATUS _entry (EFI_HANDLE imgHandle, EFI_SYSTEM_TABLE* efiSysTab)
 {
     // Set global variables
     ST = efiSysTab;
@@ -59,16 +66,7 @@ EFI_STATUS __attribute__ ((ms_abi)) NbEfiEntry (EFI_HANDLE imgHandle, EFI_SYSTEM
     // Prepare nbdetect structure
     nbPrepareNbdetect();
     // Disarm watchdog
-    uefi_call_wrapper (BS->SetWatchdogTimer, 4, 0, 0, 0, NULL);
-    // Ensure we are at least EFI 1.10
-    if (efiSysTab->Hdr.Revision < EFI_1_10_SYSTEM_TABLE_REVISION)
-    {
-        uefi_call_wrapper (ST->ConOut->OutputString, 2, ST->ConOut, L"nexboot: EFI 1.10+ required");
-        // Wait for key
-        size_t idx = 0;
-        uefi_call_wrapper (BS->WaitForEvent, 3, 1, &ST->ConIn->WaitForKey, &idx);
-        return EFI_INCOMPATIBLE_VERSION;
-    }
+    BS->SetWatchdogTimer (0, 0, 0, NULL);
     // Call NbMain
     NbMain (&detect);
     return EFI_SUCCESS;

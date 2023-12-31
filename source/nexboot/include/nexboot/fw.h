@@ -28,6 +28,12 @@
 #include <nexboot/cpu/i386/cpu.h>
 #elif defined NEXNIX_ARCH_X86_64
 #include <nexboot/cpu/x86_64/cpu.h>
+#elif defined NEXNIX_ARCH_ARMV8
+#include <nexboot/cpu/armv8/cpu.h>
+#elif defined NEXNIX_ARCH_RISCV64
+#include <nexboot/cpu/riscv64/cpu.h>
+#elif defined NEXNIX_ARCH_RISCV32
+#include <nexboot/cpu/riscv32/cpu.h>
 #endif
 
 // Memory types
@@ -97,11 +103,15 @@ typedef struct _hwresults
 #define NB_FW_TYPE_EFI  2
 
 // CPU families
-#define NB_CPU_FAMILY_X86 1
+#define NB_CPU_FAMILY_X86   1
+#define NB_CPU_FAMILY_ARM   2
+#define NB_CPU_FAMILY_RISCV 3
 
 // CPU archutectures
-#define NB_CPU_ARCH_I386   1
-#define NB_CPU_ARCH_X86_64 2
+#define NB_CPU_ARCH_I386    1
+#define NB_CPU_ARCH_X86_64  2
+#define NB_CPU_ARCH_ARMV8   3
+#define NB_CPU_ARCH_RISCV64 4
 
 // CPU versions
 #define NB_CPU_VERSION_386   1
@@ -141,6 +151,12 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz);
 
 // Enables paging
 void NbCpuEnablePaging();
+
+// Allocates a page that will persist after bootloader
+uintptr_t NbFwAllocPersistentPage();
+
+// Allocates a page that will persist after bootloader
+uintptr_t NbFwAllocPersistentPages (int count);
 
 // Flags for AS
 #define NB_CPU_AS_RW     (1 << 1)

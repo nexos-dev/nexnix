@@ -18,7 +18,8 @@
 #ifndef _NBEFI_H
 #define _NBEFI_H
 
-#include <nexboot/efi/inc/efi.h>
+#include <efi.h>
+#include <efilib.h>
 #include <stdbool.h>
 #include <stdint.h>
 

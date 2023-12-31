@@ -299,8 +299,7 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type)
             memmap[i].sz = base - memmap[i].base;
         }
         // Maybe the size of the new region protrudes into the new
-        else if (memmap[i].base > base &&
-                 (base + sz) < (memmap[i].base + memmap[i].sz) &&
+        else if (memmap[i].base > base && (base + sz) < (memmap[i].base + memmap[i].sz) &&
                  (base + sz) > memmap[i].base)
         {
             if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
@@ -310,8 +309,7 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type)
             memmap[i].base += ((base + sz) - memmap[i].base);
         }
         // Check if old region is consumed
-        else if ((base + sz) >= (memmap[i].base + memmap[i].sz) &&
-                 memmap[i].base > base)
+        else if ((base + sz) >= (memmap[i].base + memmap[i].sz) && memmap[i].base > base)
         {
             if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
                 return false;
@@ -349,10 +347,6 @@ void NbFwMemDetect()
     NbCrash();
 bootResv:
     NbLogMessageEarly ("\r\n", NEXBOOT_LOGLEVEL_DEBUG);
-    // Reserve some memory regions
-    NbFwResvMem (0x0, 0x100000, NEXBOOT_MEM_RESVD);
-    NbFwResvMem (0x100000, 0x200000, NEXBOOT_MEM_BOOT_RECLAIM);
-    NbFwResvMem (0x300000, 0x300000, NEXBOOT_MEM_RESVD);
 }
 
 NbMemEntry_t* NbGetMemMap (int* size)

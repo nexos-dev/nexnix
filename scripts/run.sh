@@ -228,11 +228,16 @@ then
             EMU_BUSTYPE="pcie"
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
             [ -z "$EMU_NETDEV" ] && EMU_NETDEV="e1000"
-            [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
             [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
             [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
             [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="uefi"
             [ -z "$EMU_CPU" ] && EMU_CPU="qemu64,+la57"
+            if [ "$EMU_FWTYPE" = "uefi" ]
+            then
+                [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+            else
+                [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="ps2"
+            fi
             [ -z "$EMU_MACHINETYPE" ] && EMU_MACHINETYPE="q35"
             [ -z "$EMU_CDROM" ] && EMU_CDROM=0
             [ -z "$EMU_FLOPPY" ] &&  EMU_FLOPPY=0
@@ -322,7 +327,7 @@ then
         EMU_USBDRIVE=0
         EMU_SMP=0
         [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
-    elif [ "$NNTARGETCONF" = "qemu" ]
+    elif [ "$NNTARGETCONF" = "sbsa" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
         [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
@@ -331,7 +336,7 @@ then
         [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
         [ -z "$EMU_NETDEV" ] && EMU_NETDEV="e1000"
         [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
-        [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="virtio"
+        [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="ramfb"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
         EMU_FWTYPE="efi"
         EMU_CPU=max
@@ -339,6 +344,28 @@ then
         EMU_CDROM=0
         EMU_USBDRIVE=1
         EMU_CDROMBOOT=0
+        EMU_FLOPPY=0
+        EMU_FLOPPYBOOT=0
+        EMU_SMP=1
+    elif [ "$NNTARGETCONF" = "rvefi" ]
+    then
+        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=2048
+        [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=4
+        [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="virtio"
+        EMU_BUSTYPE=virtio
+        [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="xhci"
+        [ -z "$EMU_NETDEV" ] && EMU_NETDEV="e1000"
+        [ -z "$EMU_INPUTDEV" ] && EMU_INPUTDEV="usb"
+        [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
+        [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="hda"
+        EMU_FWTYPE="efi"
+        EMU_CPU=rv64
+        EMU_MACHINETYPE="virt"
+        EMU_CDROM=0
+        EMU_USBDRIVE=1
+        EMU_CDROMBOOT=0
+        EMU_FLOPPY=0
+        EMU_FLOPPYBOOT=0
         EMU_SMP=1
     fi
     # Build command line
@@ -368,13 +395,13 @@ then
             QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
         elif [ "$EMU_DRIVETYPE" = "virtio" ]
         then
+            QEMUARGS="${QEMUARGS} -blockdev driver=file,filename=$diskpath,node-name=hd0"
             if [ "$EMU_BUSTYPE" = "virtio" ]
             then
                 QEMUARGS="${QEMUARGS} -device virtio-blk-device,drive=hd0"
             else
                 QEMUARGS="${QEMUARGS} -device virtio-blk,drive=hd0"
             fi
-            QEMUARGS="${QEMUARGS} -drive file=$diskpath,format=raw,id=hd0"
         elif [ "$EMU_DRIVETYPE" = "scsi" ]
         then
             QEMUARGS="${QEMUARGS} -device scsi-block,drive=hd0"
@@ -474,7 +501,7 @@ then
     # Set the input device
     if [ "$EMU_INPUTDEV" = "usb" ]
     then
-        : ;
+        QEMUARGS="${QEMUARGS} -device usb-kbd"
     elif [ "$EMU_INPUTDEV" = "ps2" ]
     then
         : ;
@@ -516,13 +543,10 @@ then
         QEMUARGS="${QEMUARGS} -device vmware-svga"
     elif [ "$EMU_DISPLAYTYPE" = "virtio" ]
     then
-        if [ "$EMU_BUSTYPE" = "pcie" ] || [ "$EMU_BUSTYPE" = "pci" ]
-        then
-            QEMUARGS="${QEMUARGS} -device virtio-gpu -vga none"
-        elif [ "$EMU_BUSTYPE" = "virtio" ]
-        then
-            QEMUARGS="${QEMUARGS} -device virtio-gpu-device -vga none"
-        fi
+        QEMUARGS="${QEMUARGS} -device virtio-gpu-pci"
+    elif [ "$EMU_DISPLAYTYPE" = "ramfb" ]
+    then
+        QEMUARGS="${QEMUARGS} -device ramfb"
     elif [ "$EMU_DISPLAYTYPE" = "ati" ]
     then
         QEMUARGS="${QEMUARGS} -device ati-vga"
@@ -532,7 +556,7 @@ then
         then
             QEMUARGS="${QEMUARGS} -device isa-cirrus-vga"
         else
-            QEMUARGS="${QEMUARGS} -device VGA,xres=800,yres=600"
+            QEMUARGS="${QEMUARGS} -device VGA"
         fi
     fi
 
@@ -540,18 +564,24 @@ then
     if [ "$EMU_FWTYPE" = "efi" ]
     then
         # Figure out the UEFI architecture
-        if [ "$NNARCH" = "x86_64" ]
+        if [ "$NNCOMMONARCH" = "riscv" ]
         then
-            EFIARCH=X64
-        elif [ "$NNARCH" = "i386" ]
-        then
-            EFIARCH=IA32
+            QEMUARGS="${QEMUARGS} -bios $NNBUILDROOT/tools/firmware/u-boot-$NNARCH"
         else
-            EFIARCH=${NNARCH}-
-        fi
-        # Add it to the command line
-        QEMUARGS="${QEMUARGS} -drive if=pflash,file=$NNBUILDROOT/tools/firmware/OVMF_CODE_$EFIARCH.fd,format=raw,unit=0 \
+            if [ "$NNARCH" = "x86_64" ]
+            then
+                EFIARCH=X64
+            elif [ "$NNARCH" = "i386" ]
+            then
+                EFIARCH=IA32
+            elif [ "$NNARCH" = "armv8" ]
+            then
+                EFIARCH=AA64
+            fi
+            # Add it to the command line
+            QEMUARGS="${QEMUARGS} -drive if=pflash,file=$NNBUILDROOT/tools/firmware/OVMF_CODE_$EFIARCH.fd,format=raw,unit=0 \
                     -drive if=pflash,file=$NNBUILDROOT/tools/firmware/OVMF_VARS_$EFIARCH.fd,format=raw,unit=1"
+        fi
     fi
 
     # Set the boot device
@@ -572,7 +602,12 @@ then
 
     QEMUARGS="${QEMUARGS} $EMU_EXTRAARGS"
     # Run QEMU
-    qemu-system-$NNARCH $QEMUARGS
+    qemuarch=$NNARCH
+    if [ "$NNARCH" = "armv8" ]
+    then
+        qemuarch="aarch64"
+    fi
+    qemu-system-$qemuarch $QEMUARGS
     exit $?
 elif [ "$emulator" = "bochs" ]
 then

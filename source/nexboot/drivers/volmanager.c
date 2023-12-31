@@ -29,7 +29,7 @@ extern NbObjSvcTab_t volManagerSvcTab;
 extern NbDriver_t volManagerDrv;
 
 // MBR defines
-#define MBR_SIGNATURE   0xAA55
+#define MBR_SIG         0xAA55
 #define MBR_FLAG_ACTIVE (1 << 7)
 #define MBR_MAX_PARTS   4
 
@@ -336,11 +336,11 @@ static bool readPartitionTable (NbObject_t* diskObj)
     {
         // Report error
         NbObjCallSvc (diskObj, NB_DISK_REPORT_ERROR, (void*) sector.error);
-        NbCrash();
+        return false;
     }
     // Check if this is a MBR
     uint16_t* sig = (uint16_t*) (sector0 + 0x1FE);
-    if (*sig == 0xAA55)
+    if (*sig == MBR_SIG)
         readMbr (diskObj, sector0);
     else
     {
@@ -354,7 +354,7 @@ static bool readPartitionTable (NbObject_t* diskObj)
         {
             // Report error
             NbObjCallSvc (diskObj, NB_DISK_REPORT_ERROR, (void*) sector.error);
-            NbCrash();
+            return false;
         }
         // Check signature
         if (!memcmp (sector0 + 1, "CD001", 5))

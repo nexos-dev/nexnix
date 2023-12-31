@@ -38,6 +38,10 @@ static bool TextUiEntry (int code, void* params)
             NbObject_t* console = params;
             assert (console);
             assert (console->interface == OBJ_INTERFACE_CONSOLE);
+            char buf[64];
+            NbLogMessage ("nexboot: Attaching text UI /Interfaces/TextUi to object %s\n",
+                          NEXBOOT_LOGLEVEL_DEBUG,
+                          NbObjGetPath (console, buf, 64));
             // Initialize UI structure
             NbUi_t* ui = malloc (sizeof (NbUi_t));
             // Get dimensions
@@ -57,13 +61,9 @@ static bool TextUiEntry (int code, void* params)
             // Disable cursor
             NbObjCallSvc (console, NB_CONSOLE_DISABLE_CURSOR, NULL);
             // Set background color
-            NbObjCallSvc (console,
-                          NB_CONSOLE_SET_BGCOLOR,
-                          (void*) TEXTUI_BKGD_COLOR);
+            NbObjCallSvc (console, NB_CONSOLE_SET_BGCOLOR, (void*) TEXTUI_BKGD_COLOR);
             // Create object
-            uiObj = NbObjCreate ("/Interfaces/TextUi",
-                                 OBJ_TYPE_UI,
-                                 OBJ_INTERFACE_TEXTUI);
+            uiObj = NbObjCreate ("/Interfaces/TextUi", OBJ_TYPE_UI, OBJ_INTERFACE_TEXTUI);
             if (!uiObj)
             {
                 free (ui);
@@ -80,12 +80,8 @@ static bool TextUiEntry (int code, void* params)
             // Enable cursor
             NbObjCallSvc (ui->output, NB_CONSOLE_ENABLE_CURSOR, NULL);
             // Set color
-            NbObjCallSvc (ui->output,
-                          NB_CONSOLE_SET_BGCOLOR,
-                          (void*) NB_UI_COLOR_BLACK);
-            NbObjCallSvc (ui->output,
-                          NB_CONSOLE_SET_FGCOLOR,
-                          (void*) NB_UI_COLOR_WHITE);
+            NbObjCallSvc (ui->output, NB_CONSOLE_SET_BGCOLOR, (void*) NB_UI_COLOR_BLACK);
+            NbObjCallSvc (ui->output, NB_CONSOLE_SET_FGCOLOR, (void*) NB_UI_COLOR_WHITE);
             ui->output = NULL;
             // Destroy object
             NbObjDeRef (uiObj);
@@ -227,16 +223,10 @@ static bool TextUiDestroyElement (void* objp, void* param)
 }
 
 // Object services
-NbObjSvc textUiSvcs[] = {NULL,
-                         NULL,
-                         NULL,
-                         TextUiDumpData,
-                         TextUiNotify,
-                         TextUiDrawElement,
-                         TextUiDestroyElement};
+NbObjSvc textUiSvcs[] =
+    {NULL, NULL, NULL, TextUiDumpData, TextUiNotify, TextUiDrawElement, TextUiDestroyElement};
 
-NbObjSvcTab_t textUiSvcTab = {.numSvcs = ARRAY_SIZE (textUiSvcs),
-                              .svcTab = textUiSvcs};
+NbObjSvcTab_t textUiSvcTab = {.numSvcs = ARRAY_SIZE (textUiSvcs), .svcTab = textUiSvcs};
 NbDriver_t textUiDrv = {.name = "TextUi",
                         .deps = {0},
                         .devSize = 0,

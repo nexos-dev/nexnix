@@ -265,7 +265,7 @@ static void fileTo83 (const char* in, char* out)
 // Converts 8.3 to regular name
 static void file83ToName (const char* in, char* out)
 {
-    memset (out, 0, 12);
+    memset (out, 0, 13);
     // Handle dot and dot-dot
     if (!memcmp (in, "..", 2))
     {
@@ -279,7 +279,7 @@ static void file83ToName (const char* in, char* out)
     }
     const char* oin = in;
     // Copy all of in until we reach a space
-    while (*in != ' ')
+    while (*in != ' ' && (in - oin) < 8)
     {
         *out = *in;
         ++in;
@@ -574,15 +574,18 @@ static int fatParseLfn (FatDirEntry_t* dir, char* lfnName)
         // This is not the best way
         for (int j = 0; j < 5; ++j)
         {
-            lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name1[j];
+            if (lfnEnt->name1[j] != 0xFFFF)
+                lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name1[j];
         }
-        for (int j = 5; j < 12; ++j)
+        for (int j = 5; j < 11; ++j)
         {
-            lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name2[j - 5];
+            if (lfnEnt->name2[j - 5] != 0xFFFF)
+                lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name2[j - 5];
         }
-        for (int j = 12; j < 14; ++j)
+        for (int j = 11; j < 13; ++j)
         {
-            lfnName[(order * 14) + j] = (uint8_t) lfnEnt->name3[j - 11];
+            if (lfnEnt->name2[j - 11] != 0xFFFF)
+                lfnName[(order * 13) + j] = (uint8_t) lfnEnt->name3[j - 11];
         }
         ++i;
     }
@@ -811,7 +814,7 @@ static FatDirEntry_t* fatNextEntry (NbFileSys_t* fs,
         *dirIdx += 1;
         ++offset;
         // Check if we need to read in another cluster
-        if (offset >= entInCluster)
+        if (offset >= entInCluster || (offset == 1 && *dirIdx >= entInCluster))
         {
             // Read it in
             *cluster = fatReadNextCluster (fs, *cluster);

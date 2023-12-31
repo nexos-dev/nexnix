@@ -63,7 +63,7 @@ void NbMenuAddEntry (StringRef_t* name, ListHead_t* cmdLine)
     assert (ent);
     // Initialize
     ent->name = StrRefNew (name);
-    ent->cmdLine = cmdLine;
+    ent->cmdLine = (ListHead_t*) ListRef (cmdLine);
 }
 
 // boottype command

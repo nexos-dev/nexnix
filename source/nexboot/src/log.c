@@ -139,13 +139,19 @@ typedef struct _logEntry
     struct _logEntry* prev;    // Previous entry in list
 } NbLogEntry_t;
 
+typedef struct _logOutput
+{
+    NbObject_t* term;
+    struct _logOutput* next;
+} NbLogOutput_t;
+
 typedef struct _log
 {
-    NbLogEntry_t* entries;          // List of log entries
-    NbLogEntry_t* entriesEnd;       // End of entries list
-    int logLevel;                   // Current log level
-    NbObject_t* outputDevs[8];      // Output devices for each log level
-    NbTerminal_t outputInfos[8];    // Terminal options for each terminal
+    NbLogEntry_t* entries;           // List of log entries
+    NbLogEntry_t* entriesEnd;        // End of entries list
+    int logLevel;                    // Current log level
+    NbLogOutput_t* outputDevs[8];    // Output devices for each log level
+    NbTerminal_t outputInfos[8];     // Terminal options for each terminal
 } NbLog_t;
 
 // Main log functions
@@ -184,29 +190,16 @@ static bool LogWrite (void* objp, void* strp)
     NbLog_t* log = logObj->data;
     // Create new entry
     logNewEntry (log, str->str, str->priority);
-    // Determine wheter to print it
-    if (str->priority <= log->logLevel)
+    // Determine if console has a new owner
+    NbTerminal_t* term = &log->outputInfos[str->priority - 1];
+    if (term)
     {
-        // Determine if console has a new owner
-        NbTerminal_t* term = &log->outputInfos[str->priority - 1];
-        if (term)
+        NbLogOutput_t* out = log->outputDevs[str->priority - 1];
+        while (out)
         {
-            if (term->outEnd)
-            {
-                NbDriver_t* termDrv = NbFindDriver ("Terminal");
-                if (NbObjGetOwner (term->outEnd) != termDrv &&
-                    str->priority >= NEXBOOT_LOGLEVEL_CRITICAL)
-                {
-                    // Inform it of it's new owner
-                    NbObjNotify_t notify;
-                    notify.code = NB_CONSOLE_NOTIFY_SETOWNER;
-                    notify.data = termDrv;
-                    NbObjCallSvc (term->outEnd, OBJ_SERVICE_NOTIFY, &notify);
-                    NbSendDriverCode (termDrv, NB_DRIVER_ENTRY_ATTACHOBJ, term->outEnd);
-                }
-            }
-            NbObject_t* termObj = log->outputDevs[str->priority - 1];
+            NbObject_t* termObj = out->term;
             NbObjCallSvc (termObj, NB_TERMINAL_WRITE, (void*) str->str);
+            out = out->next;
         }
     }
     return true;
@@ -215,8 +208,11 @@ static bool LogWrite (void* objp, void* strp)
 // Helper to set output device
 static void logSetOutputDevice (NbLog_t* log, int level, NbObject_t* dev)
 {
-    log->outputDevs[level] = dev;
-    NbObjCallSvc (dev, NB_TERMINAL_GETOPTS, &log->outputInfos[level]);
+    NbLogOutput_t* output = (NbLogOutput_t*) malloc (sizeof (NbLogOutput_t));
+    assert (output);
+    output->term = dev;
+    output->next = log->outputDevs[level];
+    log->outputDevs[level] = output;
 }
 
 extern NbObjSvcTab_t logSvcTab;
@@ -260,7 +256,7 @@ static bool LogObjInit (void* objp, void* unused)
     NbObject_t* iter = NULL;
     NbObject_t* devDir = NbObjFind ("/Devices");
     int numConsoles = 0;
-    int numSerialPorts = 1;
+    int numSerialPorts = 0;
     while ((iter = NbObjEnumDir (devDir, iter)))
     {
         if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_TERMINAL)
@@ -314,8 +310,15 @@ static bool LogObjInit (void* objp, void* unused)
                     logSetOutputDevice (log, 6, iter);
                 if (!log->outputDevs[7])
                     logSetOutputDevice (log, 7, iter);
+                ++numSerialPorts;
             }
         }
+    }
+    // Check if we found any output devices
+    if (!numConsoles && !numSerialPorts)
+    {
+        NbLogMessage ("nexboot: error: No output device\r\n", NEXBOOT_LOGLEVEL_EMERGENCY);
+        NbCrash();
     }
     return true;
 }

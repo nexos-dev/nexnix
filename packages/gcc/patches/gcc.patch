@@ -1,0 +1,271 @@
+diff -Naur gcc-13.1.0/config.sub gcc-patch/config.sub
+--- gcc-13.1.0/config.sub	2023-04-26 03:09:39.000000000 -0400
++++ gcc-patch/config.sub	2023-12-27 10:05:27.659295978 -0500
+@@ -1749,7 +1749,7 @@
+ 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
+ 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+ 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
+-	     | fiwix* )
++	     | fiwix* | nexnix* )
+ 		;;
+ 	# This one is extra strict with allowed versions
+ 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
+diff -Naur gcc-13.1.0/.dir-locals.el gcc-patch/.dir-locals.el
+--- gcc-13.1.0/.dir-locals.el	2023-04-26 03:09:39.000000000 -0400
++++ gcc-patch/.dir-locals.el	1969-12-31 19:00:00.000000000 -0500
+@@ -1,23 +0,0 @@
+-;; Emacs settings.
+-;; Copyright (C) 2012-2013 Free Software Foundation, Inc.
+-
+-;; This program is free software; you can redistribute it and/or modify
+-;; it under the terms of the GNU General Public License as published by
+-;; the Free Software Foundation; either version 3 of the License, or
+-;; (at your option) any later version.
+-
+-;; This program is distributed in the hope that it will be useful,
+-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-;; GNU General Public License for more details.
+-
+-;; You should have received a copy of the GNU General Public License
+-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-
+-((tcl-mode . ((tcl-indent-level . 4)
+-	      (tcl-continued-indent-level . 4)
+-	      (indent-tabs-mode . t)))
+- (nil . ((bug-reference-url-format . "https://gcc.gnu.org/PR%s")))
+- (c-mode . ((c-file-style . "GNU")
+-	    (indent-tabs-mode . t)
+-	    (fill-column . 79))))
+diff -Naur gcc-13.1.0/fixincludes/mkfixinc.sh gcc-patch/fixincludes/mkfixinc.sh
+--- gcc-13.1.0/fixincludes/mkfixinc.sh	2023-04-26 03:09:39.000000000 -0400
++++ gcc-patch/fixincludes/mkfixinc.sh	2023-12-27 10:25:14.387121503 -0500
+@@ -11,6 +11,8 @@
+ 
+ # Check for special fix rules for particular targets
+ case $machine in
++    *-nexnix* | \
++    *-*-nexnix* | \
+     i?86-*-cygwin* | \
+     i?86-*-mingw32* | \
+     x86_64-*-mingw32* | \
+diff -Naur gcc-13.1.0/gcc/config/nexnix.h gcc-patch/gcc/config/nexnix.h
+--- gcc-13.1.0/gcc/config/nexnix.h	1969-12-31 19:00:00.000000000 -0500
++++ gcc-patch/gcc/config/nexnix.h	2023-12-27 10:31:39.540373402 -0500
+@@ -0,0 +1,32 @@
++/* Additional predefined macros. */
++#undef TARGET_OS_CPP_BUILTINS
++#define TARGET_OS_CPP_BUILTINS()      \
++  do {                                \
++    builtin_define ("__nexnix__");      \
++    builtin_define ("__unix__");      \
++    builtin_assert ("system=nexnix");   \
++    builtin_assert ("system=unix");   \
++    builtin_assert ("system=posix");   \
++  } while(0);
++
++/* Useful if you wish to make target-specific GCC changes. */
++#undef TARGET_NEXNIX
++#define TARGET_NEXNIX 1
++ 
++/* Default arguments you want when running your
++   i686-nexnix-gcc/x86_64-nexnix-gcc toolchain */
++#undef LIB_SPEC
++#define LIB_SPEC "-lc" /* link against C standard library */
++ 
++/* Files that are linked before user code.
++   The %s tells GCC to look for these files in the library directory. */
++#undef STARTFILE_SPEC
++#define STARTFILE_SPEC "crt0.o%s crti.o%s crtbegin.o%s"
++ 
++/* Files that are linked after user code. */
++#undef ENDFILE_SPEC
++#define ENDFILE_SPEC "crtend.o%s crtn.o%s"
++
++/* Linker flags */
++#undef LINK_SPEC
++#define LINK_SPEC "%{shared:-shared} %{static:-static} %{!shared: %{!static: %{rdynamic:-export-dynamic}}}"
+\ No newline at end of file
+diff -Naur gcc-13.1.0/gcc/config.gcc gcc-patch/gcc/config.gcc
+--- gcc-13.1.0/gcc/config.gcc	2023-04-26 03:09:39.000000000 -0400
++++ gcc-patch/gcc/config.gcc	2023-12-28 10:47:43.296383325 -0500
+@@ -967,6 +967,12 @@
+   gnu_ld=yes
+   default_use_cxa_atexit=yes
+   ;;
++*-*-nexnix*)
++  gas=yes
++  gnu_ld=yes
++  default_use_cxa_atexit=yes
++  use_gcc_stdint=provide
++  ;;
+ *-*-rtems*)
+   case ${enable_threads} in
+     "" | yes | rtems) thread_file='rtems' ;;
+@@ -1175,6 +1181,11 @@
+ 	tmake_file="${tmake_file} aarch64/t-aarch64 aarch64/t-aarch64-netbsd"
+ 	extra_options="${extra_options} netbsd.opt netbsd-elf.opt"
+ 	;;
++aarch64*-*-nexnix*)
++	tm_file="${tm_file} elfos.h newlib-stdint.h"
++	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-elf-raw.h"
++	tmake_file="${tmake_file} aarch64/t-aarch64"
++	;;
+ aarch64*-*-linux*)
+ 	tm_file="${tm_file} elfos.h gnu-user.h linux.h glibc-stdint.h"
+ 	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-linux.h"
+@@ -1888,6 +1899,9 @@
+ i[34567]86-*-freebsd*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h ${fbsd_tm_file} i386/freebsd.h"
+ 	;;
++i[34567]86-*-nexnix*)
++	tm_file="${tm_file} i386/unix.h i386/att.h i386/i386elf.h elfos.h nexnix.h"
++	;;
+ x86_64-*-freebsd*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h ${fbsd_tm_file} i386/x86-64.h i386/freebsd.h i386/freebsd64.h"
+ 	;;
+@@ -1899,6 +1913,9 @@
+ 	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h ${nbsd_tm_file} i386/x86-64.h i386/netbsd64.h"
+ 	extra_options="${extra_options} netbsd.opt netbsd-elf.opt"
+ 	;;
++x86_64-*-nexnix*)
++	tm_file="${tm_file} i386/unix.h i386/att.h i386/i386elf.h i386/x86-64.h elfos.h nexnix.h"
++	;;
+ i[34567]86-*-openbsd*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h elfos.h"
+ 	tm_file="${tm_file} openbsd.h openbsd-stdint.h openbsd-libpthread.h i386/openbsdelf.h"
+@@ -2475,7 +2492,10 @@
+ 	# automatically detect that GAS supports it, yet we require it.
+ 	gcc_cv_initfini_array=yes
+ 	;;
+-
++riscv*-*-nexnix*)
++	tm_file="${tm_file} elfos.h nexnix.h newlib-stdint.h"
++	tmake_file="${tmake_file} riscv/t-riscv"
++	;;
+ loongarch*-*-linux*)
+ 	tm_file="elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file}"
+ 	tm_file="${tm_file} loongarch/gnu-user.h loongarch/linux.h"
+diff -Naur gcc-13.1.0/.gitattributes gcc-patch/.gitattributes
+--- gcc-13.1.0/.gitattributes	2023-04-26 03:09:39.000000000 -0400
++++ gcc-patch/.gitattributes	1969-12-31 19:00:00.000000000 -0500
+@@ -1,10 +0,0 @@
+-# Add indent-with-non-tab to the default git whitespace warnings.
+-# Note that this file doesn't support bash-style brace expansion.
+-
+-*.[cCh] whitespace=indent-with-non-tab,space-before-tab,trailing-space
+-*.cc whitespace=indent-with-non-tab,space-before-tab,trailing-space
+-ChangeLog whitespace=indent-with-non-tab,space-before-tab,trailing-space
+-# Make diff on MD files use "(define" as a function marker.
+-# Use together with git config diff.md.xfuncname '^\(define.*$'
+-# which is run by contrib/gcc-git-customization.sh too.
+-*.md diff=md
+diff -Naur gcc-13.1.0/.gitignore gcc-patch/.gitignore
+--- gcc-13.1.0/.gitignore	2023-04-26 03:09:39.000000000 -0400
++++ gcc-patch/.gitignore	1969-12-31 19:00:00.000000000 -0500
+@@ -1,71 +0,0 @@
+-*.diff
+-*.patch
+-*.orig
+-*.rej
+-
+-*~
+-.#*
+-*#
+-.*.swp
+-
+-*.flt
+-*.gmo
+-*.info
+-*.la
+-*.lo
+-*.o
+-*.pyc
+-*.tmp
+-*.a
+-
+-.deps
+-.libs
+-
+-autom4te.cache
+-config.cache
+-# GCC does not support in-tree builds, do not conceal a stray config.h:
+-# config.h
+-config.intl
+-config.log
+-config.status
+-libtool
+-POTFILES
+-*-POTFILES
+-
+-TAGS
+-TAGS.sub
+-cscope.out
+-
+-.local.vimrc
+-.lvimrc
+-
+-.clang-format
+-.clang-tidy
+-.clangd
+-.cache
+-compile_commands.json
+-
+-.gdbinit
+-.gdb_history
+-
+-perf.data
+-perf.data.old
+-
+-# ignore core files, but not java/net/protocol/core/
+-core
+-!core/
+-
+-lost+found
+-
+-# ignore ./contrib/gcc_update output
+-LAST_UPDATED
+-REVISION
+-
+-stamp-*
+-*.stamp
+-
+-# ignore in-tree prerequisites
+-/mpfr*
+-/mpc*
+-/gmp*
+-/isl*
+diff -Naur gcc-13.1.0/libgcc/config.host gcc-patch/libgcc/config.host
+--- gcc-13.1.0/libgcc/config.host	2023-04-26 03:09:43.000000000 -0400
++++ gcc-patch/libgcc/config.host	2023-12-27 10:23:55.662240699 -0500
+@@ -368,7 +368,7 @@
+ esac
+ 
+ case ${host} in
+-aarch64*-*-elf | aarch64*-*-rtems*)
++aarch64*-*-elf | aarch64*-*-rtems* | aarch64*-*-nexnix)
+ 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
+ 	extra_parts="$extra_parts crtfastmath.o"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
+@@ -686,6 +686,10 @@
+ i[34567]86-*-elf*)
+ 	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
+ 	;;
++i[34567]86-*-nexnix*)
++	extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
++	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++	;;
+ x86_64-*-elf* | x86_64-*-rtems*)
+ 	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
+ 	case ${host} in
+@@ -719,6 +723,10 @@
+ x86_64-*-netbsd*)
+ 	tmake_file="${tmake_file} i386/t-crtstuff"
+ 	;;
++x86_64-*-nexnix*)
++	extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
++	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++	;;
+ i[34567]86-*-openbsd*)
+ 	;;
+ x86_64-*-openbsd*)

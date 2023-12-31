@@ -117,11 +117,11 @@ static bool EfiKbdReadKey (void* objp, void* params)
     NbEfiKbdDev_t* dev = NbObjGetData (kbdObj);
     // Wait for a key
 read:
-    size_t idx = 0;
-    uefi_call_wrapper (BS->WaitForEvent, 3, 1, &dev->prot->WaitForKey, &idx);
+    UINTN idx = 0;
+    BS->WaitForEvent (1, &dev->prot->WaitForKey, &idx);
     // Read it
     EFI_INPUT_KEY key = {0};
-    uefi_call_wrapper (dev->prot->ReadKeyStroke, 2, dev->prot, &key);
+    dev->prot->ReadKeyStroke (dev->prot, &key);
     // Put in NbKeyData
     keyData->c = (uint8_t) key.UnicodeChar;
     keyData->isBreak = false;

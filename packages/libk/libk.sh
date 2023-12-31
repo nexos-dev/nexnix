@@ -17,5 +17,6 @@ pkg_name=libk
 pkg_iskernel=1
 pkg_buildsys=cmake
 pkg_prefix="/Programs/libc"
+export NEXNIX_NO_LIBGCC=1
 pkg_confopts="-DLIBC_LIBK_ONLY=ON -DBUILD_SHARED_LIBS=OFF"
 pkg_sourcedir="$NNSOURCEROOT/libraries/libc"

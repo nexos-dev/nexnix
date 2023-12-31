@@ -35,8 +35,7 @@ static void parseError (ConfContext_t* ctx, confToken_t* tok, int err)
 
     char* obuf = bufData;
     char* buf = bufData;
-    buf +=
-        snprintf (buf, ERRBUFSZ - (buf - obuf), "nexboot: error: %d: ", tok->line);
+    buf += snprintf (buf, ERRBUFSZ - (buf - obuf), "nexboot: error: %d: ", tok->line);
     // Decide how to handle the error
     switch (err)
     {
@@ -145,9 +144,7 @@ static confToken_t* parseExpect (ConfContext_t* ctx, confToken_t* lastTok, int t
 }
 
 // Parses a command construct
-static confToken_t* parseCmd (ConfContext_t* ctx,
-                              ListHead_t* blocks,
-                              confToken_t* tok)
+static confToken_t* parseCmd (ConfContext_t* ctx, ListHead_t* blocks, confToken_t* tok)
 {
     ConfBlockCmd_t* cmd = calloc (1, sizeof (ConfBlockCmd_t));
     if (!cmd)

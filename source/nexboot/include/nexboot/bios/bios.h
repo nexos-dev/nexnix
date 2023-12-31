@@ -88,6 +88,12 @@ void NbBiosCallMbr (uint8_t driveNum);
 /// Prints a character to screen using int 0x10. Used during early phases
 void NbFwEarlyPrint (char c);
 
+// Helper to get end of backbuffer area
+uintptr_t NbBiosGetBootEnd();
+
+// Reserve a mememory region
+bool NbFwResvMem (uintptr_t base, size_t sz, int type);
+
 // Memory constants
 #define NEXBOOT_BIOS_MEMBASE 0x100000
 #define NEXBOOT_BIOS_BASE    0x200000

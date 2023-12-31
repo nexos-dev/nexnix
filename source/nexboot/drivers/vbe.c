@@ -135,6 +135,9 @@ static uint8_t vbeVer = 0;
 // VBE modes pointer
 static uint16_t* modes = NULL;
 
+// backbuffer size
+static uint32_t backSize = 0;
+
 // VBE BIOS helpers
 
 // Gets VBE controller information
@@ -219,6 +222,8 @@ static void vbeGetPreferredRes (int* width, int* height)
         // Read in resolution
         *width = edid.preferred.xSizeLow | ((edid.preferred.xHigh & 0xF0) << 4);
         *height = edid.preferred.ySizeLow | ((edid.preferred.yHigh & 0xF0) << 4);
+        if (!*width || !*height)
+            *width = 640, *height = 480;    // Fix invalid EDID results
     }
     else
     {
@@ -236,7 +241,7 @@ static void vbeMapBuffer (NbDisplayDev_t* display, void* buf)
     for (int i = 0; i < lfbPages; ++i)
     {
         NbCpuAsMap ((uintptr_t) buf + (i * NEXBOOT_CPU_PAGE_SIZE),
-                    buf + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    (paddr_t) (buf + (i * NEXBOOT_CPU_PAGE_SIZE)),
                     NB_CPU_AS_RW | NB_CPU_AS_WT);
     }
 }
@@ -310,6 +315,7 @@ static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, u
     // Set size
     size_t lfbSize = display->bytesPerLine * display->height;
     display->lfbSize = lfbSize;
+    backSize = lfbSize;
     // Set VBE mode
     vbeSetMode (modeNum);
     // Clear buffers
@@ -327,6 +333,7 @@ static bool vbeQueryMode (uint16_t width,
     uint16_t bestModeNum = 0;
     int bestWidth = 0, bestHeight = 0;
     uint16_t* modesIter = modes;
+    bool modeFound = false;
     while (*modesIter != 0xFFFF)
     {
         uint16_t mode = *modesIter;
@@ -352,6 +359,7 @@ static bool vbeQueryMode (uint16_t width,
         if (modeInfo.width == width && modeInfo.height == height && modeInfo.bitsPerPixel == 32)
         {
             // End it
+            modeFound = true;
             bestHeight = modeInfo.height;
             bestWidth = modeInfo.width;
             *modeNum = *modesIter;
@@ -366,6 +374,7 @@ static bool vbeQueryMode (uint16_t width,
             ((height - modeInfo.height) <= (height - bestHeight)))
         {
             // Set up best mode
+            modeFound = true;
             bestHeight = modeInfo.height;
             bestWidth = modeInfo.width;
             *modeNum = *modesIter;
@@ -374,7 +383,7 @@ static bool vbeQueryMode (uint16_t width,
     next:
         ++modesIter;
     }
-    return true;
+    return modeFound;
 }
 
 // Driver entry point
@@ -435,7 +444,6 @@ static bool VbeDrvEntry (int code, void* params)
                 return false;
             // Set it
             vbeSetupDisplay (params, &modeInfo, bestModeNum);
-            NbDisablePrintEarly();
             break;
         }
         case NB_DRIVER_ENTRY_ATTACHOBJ: {
@@ -451,6 +459,12 @@ static bool VbeDrvEntry (int code, void* params)
 
 static bool VbeObjDumpData (void* objp, void* params)
 {
+    void (*write) (const char*, ...) = params;
+    NbObject_t* displayObj = objp;
+    NbDisplayDev_t* display = NbObjGetData (displayObj);
+    write ("Display width: %d\n", display->width);
+    write ("Display height: %d\n", display->height);
+    write ("Bits per pixel: %d\n", display->bpp);
     return true;
 }
 
@@ -569,6 +583,15 @@ static bool VbeObjUnmapFb (void* objp, void* params)
         NbCpuAsUnmap ((uintptr_t) display->backBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
     }
     return true;
+}
+
+// Helper to get end of backbuffer area
+uintptr_t NbBiosGetBootEnd()
+{
+    if (!vbeEnabled)
+        return NEXBOOT_BIOS_END;
+    else
+        return NEXBOOT_BIOS_END + NbPageAlignUp (backSize);
 }
 
 // Object interface

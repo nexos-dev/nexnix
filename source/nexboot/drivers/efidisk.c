@@ -49,6 +49,8 @@ static int curHandle = 0;
 static int diskNum = 0;
 // Disk protocol GUID
 static EFI_GUID blockIoGuid = EFI_BLOCK_IO_PROTOCOL_GUID;
+// Temporary aligned buffer
+static void* tempBuf = NULL;
 
 // Driver entry
 static bool EfiDiskEntry (int code, void* params)
@@ -62,6 +64,11 @@ static bool EfiDiskEntry (int code, void* params)
             {
                 NbLogMessage ("nbefidisk: No disks found\r\n", NEXBOOT_LOGLEVEL_WARNING);
                 numHandles = 0;    // Maybe slightly pedantic
+            }
+            else
+            {
+                tempBuf = (void*) NbFwAllocPage();
+                assert (tempBuf);
             }
             break;
         case NB_DRIVER_ENTRY_DETECTHW: {
@@ -87,6 +94,11 @@ static bool EfiDiskEntry (int code, void* params)
                 if (prot->Media->LogicalPartition)
                 {
                     // Go to next
+                    ++curHandle;
+                }
+                // Check if sector size is supported
+                else if (prot->Media->BlockSize > 4096)
+                {
                     ++curHandle;
                 }
                 else
@@ -140,7 +152,7 @@ static bool EfiDiskEntry (int code, void* params)
             if (lastDev->Type == 1)
             {
                 // One of my copmuters has a flash drive with a vendor-defined device path
-                if (lastDev->SubType == 4)
+                if (lastDev->SubType == 4 || lastDev->SubType == 1)
                     disk->disk.type = DISK_TYPE_HDD;
             }
             // Check based on ACPI types
@@ -219,10 +231,7 @@ static bool EfiDiskDumpData (void* objp, void* data)
 static bool EfiDiskReportError (void* objp, void* params)
 {
     assert (objp);
-    // Open log
-    NbObject_t* log = NbObjFind ("/Interfaces/SysLog");
-    assert (log);
-    NbObjCallSvc (log, NB_LOG_WRITE, "Disk error");
+    NbLogMessage ("nbefidisk: Disk error\r\n", NEXBOOT_LOGLEVEL_CRITICAL);
     return true;
 }
 
@@ -231,16 +240,17 @@ static bool EfiDiskReadSectors (void* objp, void* params)
     NbObject_t* obj = objp;
     NbEfiDisk_t* disk = NbObjGetData (obj);
     NbReadSector_t* sect = params;
-    if (uefi_call_wrapper (disk->prot->ReadBlocks,
-                           5,
-                           disk->prot,
-                           disk->mediaId,
-                           sect->sector,
-                           sect->count * disk->disk.sectorSz,
-                           sect->buf) != EFI_SUCCESS)
+    EFI_STATUS status;
+    if ((status = disk->prot->ReadBlocks (disk->prot,
+                                          disk->mediaId,
+                                          sect->sector,
+                                          sect->count * disk->disk.sectorSz,
+                                          tempBuf)) != EFI_SUCCESS)
     {
         return false;
     }
+    // Copy data from aligned buffer to dest buffer
+    memcpy (sect->buf, tempBuf, disk->disk.sectorSz);
     return true;
 }
 

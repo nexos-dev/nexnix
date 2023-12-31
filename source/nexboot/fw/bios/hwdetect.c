@@ -275,6 +275,18 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
         dev = (NbHwDevice_t*) malloc (serialDrv->devSize);
     }
     free (dev);
+    // Detect hard disks
+    NbDriver_t* biosDiskDrv = NbFindDriver ("BiosDisk");
+    assert (biosDiskDrv);
+    dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
+    while (NbSendDriverCode (biosDiskDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
+    {
+        char buf[64] = {0};
+        snprintf (buf, 64, "/Devices/BiosDisk%d", dev->devId);
+        createDeviceObject (buf, OBJ_INTERFACE_DISK, biosDiskDrv, dev);
+        dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
+    }
+    free (dev);
     // Check if we can use VBE
     NbDriver_t* vbeDrv = NbFindDriver ("VbeFb");
     assert (vbeDrv);
@@ -297,17 +309,5 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     {
         createDeviceObject ("/Devices/VbeDisplay0", OBJ_INTERFACE_DISPLAY, vbeDrv, dev);
     }
-    // Detect hard disks
-    NbDriver_t* biosDiskDrv = NbFindDriver ("BiosDisk");
-    assert (biosDiskDrv);
-    dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
-    while (NbSendDriverCode (biosDiskDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
-    {
-        char buf[64] = {0};
-        snprintf (buf, 64, "/Devices/BiosDisk%d", dev->devId);
-        createDeviceObject (buf, OBJ_INTERFACE_DISK, biosDiskDrv, dev);
-        dev = (NbHwDevice_t*) malloc (biosDiskDrv->devSize);
-    }
-    free (dev);
     return true;
 }

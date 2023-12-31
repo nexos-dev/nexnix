@@ -42,11 +42,16 @@ typedef struct _cpuDetect
 #endif
 
 // CPU families
-#define NBLOAD_CPU_FAMILY_X86 1
+#define NBLOAD_CPU_FAMILY_X86   1
+#define NBLOAD_CPU_FAMILY_ARM   2
+#define NBLOAD_CPU_FAMILY_RISCV 3
 
 // CPU archutectures
-#define NBLOAD_CPU_ARCH_I386   1
-#define NBLOAD_CPU_ARCH_X86_64 2
+#define NBLOAD_CPU_ARCH_I386    1
+#define NBLOAD_CPU_ARCH_X86_64  2
+#define NBLOAD_CPU_ARCH_ARMV8   3
+#define NBLOAD_CPU_ARCH_RISCV64 4
+#define NBLOAD_CPU_ARCH_RISCV32 5
 
 // CPU versions
 #define NBLOAD_CPU_VERSION_386   1

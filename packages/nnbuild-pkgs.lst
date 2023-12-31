@@ -17,11 +17,18 @@
 
 # Group base libraries
 include "$NNPKGROOT/libk/libk.conf"
+
+package toolchainSysLibs
+{
+    build: '$NNSCRIPTROOT/hostbootstrap.sh gcclibs';
+    dependencies: toolchain, libk;
+}
+
 include "$NNPKGROOT/libnex/libnex.conf"
 
 group baselib
 {
-    packages: libnex, libk;
+    packages: libnex, libk, toolchainSysLibs;
 }
 
 include "$NNPKGROOT/nexboot-real/nexboot.conf"

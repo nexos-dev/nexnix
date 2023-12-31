@@ -27,6 +27,20 @@
 #define NEXBOOT_MEMPOOL_SZ (32 * 1024)    // 32 KiB
 
 // NexNix boot structures
+#ifdef NEXNIX_ARCH_RISCV64
+typedef struct _nncpu
+{
+    uint64_t misa;
+    uint64_t mimpid;
+    uint64_t marchid;
+    uint64_t mvendorid;
+} NexNixCpu_t;
+#else
+typedef struct _nncpu
+{
+} NexNixCpu_t;
+#endif
+
 // Defined in display.h
 /*typedef struct _masksz
 {
@@ -74,10 +88,11 @@ typedef struct _nnboot
     // Display info
     bool displayDefault;        // If true, display is in same state firmware left it in
     NexNixDisplay_t display;    // Display info
+    NexNixCpu_t cpu;            // CPU info
 } NexNixBoot_t;
 
 // Reads in a file component
-void* osReadFile (NbObject_t* fs, const char* name)
+void* osReadFile (NbObject_t* fs, bool persists, const char* name)
 {
     NbShellWrite ("Loading %s...\n", name);
     // Read in file
@@ -89,7 +104,11 @@ void* osReadFile (NbObject_t* fs, const char* name)
     }
     // Allocate memory for file
     int numPages = (file->size + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
-    void* fileBase = (void*) NbFwAllocPages (numPages);
+    void* fileBase = NULL;
+    if (persists)
+        fileBase = (void*) NbFwAllocPersistentPages (numPages);
+    else
+        fileBase = (void*) NbFwAllocPages (numPages);
     if (!fileBase)
     {
         NbShellWrite ("nexboot: out of memory");
@@ -126,8 +145,13 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
         NbShellWrite ("nexboot: error: no root filesystem\n");
         return false;
     }
+    char rootFsBuf[128];
+    NbLogMessage ("nexboot: Booting from %s%s using method NexNix\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  NbObjGetPath (fs, rootFsBuf, 128),
+                  StrRefGet (info->payload));
     // Read in kernel file
-    void* keFileBase = osReadFile (fs, StrRefGet (info->payload));
+    void* keFileBase = osReadFile (fs, false, StrRefGet (info->payload));
     if (!keFileBase)
         return false;
     // Initialize boot info struct
@@ -142,8 +166,8 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     // Set log base
     bootInfo->logBase = NbLogGetBase();
     // Allocate early memory pool
-    bootInfo->memPool = (void*) NbFwAllocPages ((NEXBOOT_MEMPOOL_SZ + (NEXBOOT_CPU_PAGE_SIZE - 1)) /
-                                                NEXBOOT_CPU_PAGE_SIZE);
+    bootInfo->memPool = (void*) NbFwAllocPersistentPages (
+        (NEXBOOT_MEMPOOL_SZ + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE);
     if (!bootInfo->memPool)
     {
         NbShellWrite ("nexboot: out of memory");
@@ -161,7 +185,7 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
             StringRef_t** ref = iter->ptr;
             const char* mod = StrRefGet (*ref);
             // Read the file
-            bootInfo->mods[bootInfo->numMods] = osReadFile (fs, mod);
+            bootInfo->mods[bootInfo->numMods] = osReadFile (fs, true, mod);
             if (!bootInfo->mods[bootInfo->numMods])
             {
                 // Error occured
@@ -209,18 +233,18 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     // Load up the kernel into memory
     uintptr_t entry = NbElfLoadFile (keFileBase);
     // Allocate a boot stack
-    uintptr_t stack = NbFwAllocPage();
+    uintptr_t stack = NbFwAllocPersistentPage();
     memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
     NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
+    // Map in firmware-dictated memory regions
+    NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
     // Get memory map
     bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
     // Exit from clutches of FW
     NbFwExit();
-    // Map in firmware-dictated memory regions
-    NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
     // Enable paging
     NbCpuEnablePaging();
-    // Call it
+    // Launch the kernel
     NbCpuLaunchKernel (entry, (uintptr_t) bootInfo);
     return false;
 }

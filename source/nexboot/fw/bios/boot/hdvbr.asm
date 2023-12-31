@@ -263,7 +263,7 @@ NbloadReadCluster:
     loop readLoop           ; Go to next cluster
     ; Print progress dot
     mov si, progDot
-    mov cx, 4
+    mov cx, 3
     call NbloadLogMsg
     popa
     ret

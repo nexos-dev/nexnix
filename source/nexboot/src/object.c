@@ -188,7 +188,7 @@ void NbObjDeRef (NbObject_t* obj)
         assert (obj->parent->type == OBJ_TYPE_DIR);
         ObjDirOp_t op;
         op.obj = obj;
-        assert (NbObjCallSvc (obj->parent, OBJDIR_REMOVE_CHILD, &op));
+        NbObjCallSvc (obj->parent, OBJDIR_REMOVE_CHILD, &op);
         if (obj->services[OBJ_SERVICE_DESTROY])
             obj->services[OBJ_SERVICE_DESTROY](obj, NULL);
         free (obj);
@@ -222,6 +222,28 @@ NbObject_t* NbObjEnumDir (NbObject_t* dir, NbObject_t* iter)
     op.enumStat = iter;
     NbObjCallSvc (dir, OBJDIR_ENUM_CHILD, &op);
     return op.enumStat;
+}
+
+char* NbObjGetPath (NbObject_t* obj, char* buf, size_t bufSz)
+{
+    NbObject_t* iter = obj;
+    size_t totalLen = 1;
+    memset (buf, 0, bufSz);
+    char* curBuf = buf + (bufSz - 1);
+    // Go backwards
+    while (iter->parent)
+    {
+        // Find out length of this part, accounting for slash
+        int len = strlen (iter->name) + 1;
+        totalLen += len;
+        if (totalLen > bufSz)    // Overflow check
+            return NULL;
+        curBuf -= len;
+        *curBuf = '/';                               // Add seperator
+        memcpy (curBuf + 1, iter->name, len - 1);    // Copy out component
+        iter = iter->parent;
+    }
+    return curBuf;
 }
 
 // Initializes object directory

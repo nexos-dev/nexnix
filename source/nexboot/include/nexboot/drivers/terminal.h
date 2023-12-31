@@ -134,6 +134,7 @@ typedef struct _termResize
 // Terminal structure
 typedef struct _term
 {
+    NbObject_t* term;      // Terminal object
     NbObject_t* outEnd;    // Output end of terminal
     NbObject_t* inEnd;     // Input end of terminal
     int numCols;           // Number of columns
@@ -146,13 +147,13 @@ typedef struct _term
     // State fields. All zeroed by TerminalGetOpts
     char inBuf[16];    // Characters buffered to read
     int bufPos;
-    bool foundCr;    // If serial abstractor read a CR, this flag is set so the code
-                     // looks for a potential LF
-    int escState;    // State of escape code state machine
+    bool foundCr;         // If serial abstractor read a CR, this flag is set so the code
+                          // looks for a potential LF
+    int escState;         // State of escape code state machine
     int escParams[16];    // Escape code parameters
     int escPos;           // Escape array current position
     int numSize;          // Number of digits in current number
-    int backMax[2];    // Row column describing max spot to backspace to during read
+    int backMax[2];       // Row column describing max spot to backspace to during read
 } NbTerminal_t;
 
 #define TERM_NO_ECHO_BACKSPACE (1 << 0)

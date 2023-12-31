@@ -26,19 +26,17 @@
 // Print a character to ConOut
 void NbFwEarlyPrint (char c)
 {
-    // Prepare a dummy buffer
-    CHAR16 buf[2];
+    CHAR16 buf[3];
     buf[0] = c;
     buf[1] = 0;
-    uefi_call_wrapper (ST->ConOut->OutputString, 2, ST->ConOut, buf);
+    ST->ConOut->OutputString (ST->ConOut, buf);
 }
 
 // Allocate a page of memory
 uintptr_t NbFwAllocPage()
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    if (uefi_call_wrapper (BS->AllocatePages, 4, AllocateAnyPages, EfiLoaderData, 1, &addr) !=
-        EFI_SUCCESS)
+    if (BS->AllocatePages (AllocateAnyPages, EfiLoaderData, 1, &addr) != EFI_SUCCESS)
     {
         return 0;
     }
@@ -50,8 +48,30 @@ uintptr_t NbFwAllocPage()
 uintptr_t NbFwAllocPages (int count)
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    if (uefi_call_wrapper (BS->AllocatePages, 4, AllocateAnyPages, EfiLoaderData, count, &addr) !=
-        EFI_SUCCESS)
+    if (BS->AllocatePages (AllocateAnyPages, EfiLoaderData, count, &addr) != EFI_SUCCESS)
+    {
+        return 0;
+    }
+    memset ((void*) addr, 0, count * NEXBOOT_CPU_PAGE_SIZE);
+    return addr;
+}
+// Allocates a page that will persist after bootloader
+uintptr_t NbFwAllocPersistentPage()
+{
+    EFI_PHYSICAL_ADDRESS addr = 0;
+    if (BS->AllocatePages (AllocateAnyPages, EfiUnusableMemory, 1, &addr) != EFI_SUCCESS)
+    {
+        return 0;
+    }
+    memset ((void*) addr, 0, NEXBOOT_CPU_PAGE_SIZE);
+    return addr;
+}
+
+// Allocates a page that will persist after bootloader
+uintptr_t NbFwAllocPersistentPage()
+{
+    EFI_PHYSICAL_ADDRESS addr = 0;
+    if (BS->AllocatePages (AllocateAnyPages, EfiUnusableMemory, count, &addr) != EFI_SUCCESS)
     {
         return 0;
     }
@@ -63,7 +83,7 @@ uintptr_t NbFwAllocPages (int count)
 void* NbEfiAllocPool (size_t sz)
 {
     void* buf = NULL;
-    if (uefi_call_wrapper (BS->AllocatePool, 3, EfiLoaderData, sz, &buf) != EFI_SUCCESS)
+    if (BS->AllocatePool (EfiLoaderData, sz, &buf) != EFI_SUCCESS)
         return NULL;
     return buf;
 }
@@ -71,20 +91,18 @@ void* NbEfiAllocPool (size_t sz)
 // Frees pool memory
 void NbEfiFreePool (void* buf)
 {
-    uefi_call_wrapper (BS->FreePool, 1, buf);
+    BS->FreePool (buf);
 }
 
 // Locates a handle within the system based on it's protocol GUID
 EFI_HANDLE* NbEfiLocateHandle (EFI_GUID* protocol, size_t* bufSz)
 {
     EFI_HANDLE tmpBuf[1];
-    size_t sz = 0;
-    if (uefi_call_wrapper (BS->LocateHandle, 5, ByProtocol, protocol, NULL, &sz, tmpBuf) !=
-        EFI_BUFFER_TOO_SMALL)
+    UINTN sz = 0;
+    if (BS->LocateHandle (ByProtocol, protocol, NULL, &sz, tmpBuf) != EFI_BUFFER_TOO_SMALL)
         return NULL;
     EFI_HANDLE* handles = NbEfiAllocPool (sz);
-    if (uefi_call_wrapper (BS->LocateHandle, 5, ByProtocol, protocol, NULL, &sz, handles) !=
-        EFI_SUCCESS)
+    if (BS->LocateHandle (ByProtocol, protocol, NULL, &sz, handles) != EFI_SUCCESS)
     {
         NbEfiFreePool (handles);
         return NULL;
@@ -97,7 +115,7 @@ EFI_HANDLE* NbEfiLocateHandle (EFI_GUID* protocol, size_t* bufSz)
 EFI_HANDLE NbEfiLocateDevicePath (EFI_GUID* protocol, EFI_DEVICE_PATH** devPath)
 {
     EFI_HANDLE devHandle = 0;
-    if (uefi_call_wrapper (BS->LocateDevicePath, 3, protocol, devPath, &devHandle) != EFI_SUCCESS)
+    if (BS->LocateDevicePath (protocol, devPath, &devHandle) != EFI_SUCCESS)
     {
         return 0;
     }
@@ -108,14 +126,12 @@ EFI_HANDLE NbEfiLocateDevicePath (EFI_GUID* protocol, EFI_DEVICE_PATH** devPath)
 void* NbEfiOpenProtocol (EFI_HANDLE handle, EFI_GUID* protocol)
 {
     void* interface = NULL;
-    if (uefi_call_wrapper (BS->OpenProtocol,
-                           6,
-                           handle,
-                           protocol,
-                           &interface,
-                           ImgHandle,
-                           0,
-                           EFI_OPEN_PROTOCOL_GET_PROTOCOL) != EFI_SUCCESS)
+    if (BS->OpenProtocol (handle,
+                          protocol,
+                          &interface,
+                          ImgHandle,
+                          0,
+                          EFI_OPEN_PROTOCOL_GET_PROTOCOL) != EFI_SUCCESS)
     {
         return NULL;
     }
@@ -125,7 +141,7 @@ void* NbEfiOpenProtocol (EFI_HANDLE handle, EFI_GUID* protocol)
 // Closes protocol that previously was opened
 bool NbEfiCloseProtocol (EFI_HANDLE handle, EFI_GUID* protocol)
 {
-    if (uefi_call_wrapper (BS->CloseProtocol, 4, handle, protocol, ImgHandle, 0) != EFI_SUCCESS)
+    if (BS->CloseProtocol (handle, protocol, ImgHandle, 0) != EFI_SUCCESS)
     {
         return false;
     }
@@ -136,7 +152,7 @@ bool NbEfiCloseProtocol (EFI_HANDLE handle, EFI_GUID* protocol)
 void* NbEfiLocateProtocol (EFI_GUID* protocol)
 {
     void* interface = NULL;
-    if (uefi_call_wrapper (BS->LocateProtocol, 3, protocol, NULL, &interface) != EFI_SUCCESS)
+    if (BS->LocateProtocol (protocol, NULL, &interface) != EFI_SUCCESS)
     {
         return NULL;
     }
@@ -233,7 +249,7 @@ bool NbEfiCompareDevicePath (EFI_DEVICE_PATH* dev1, EFI_DEVICE_PATH* dev2)
 // Map in memory regions to address space
 void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
 {
-#ifdef NEXNIX_ARCH_I386
+#if defined NEXNIX_ARCH_I386 || defined NEXNIX_ARCH_RISCV64
     // Identity map all boot reclaim
     for (int i = 0; i < mapSz; ++i)
     {
@@ -254,14 +270,14 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
 // Exits from bootloader
 void NbFwExitNexboot()
 {
-    uefi_call_wrapper (BS->Exit, 4, ImgHandle, EFI_SUCCESS, 0, NULL);
+    BS->Exit (ImgHandle, EFI_SUCCESS, 0, NULL);
 }
 
 void NbFwExit()
 {
     uint32_t mapKey = NbEfiGetMapKey();
     // Exit boot services
-    uefi_call_wrapper (BS->ExitBootServices, 2, ImgHandle, mapKey);
+    BS->ExitBootServices (ImgHandle, mapKey);
 }
 
 EFI_GUID loadedImg = EFI_LOADED_IMAGE_PROTOCOL_GUID;

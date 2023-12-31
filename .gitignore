@@ -9,3 +9,4 @@ fakeinc
 *.po~
 .vscode/settings.json
 .gdbinit
+hwcopy/fw

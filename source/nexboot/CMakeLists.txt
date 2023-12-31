@@ -25,6 +25,7 @@ endif()
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
 include(fw/${NEXBOOT_FW}/fw.cmake)
+include(cpu/${NEXNIX_ARCH}/arch.cmake)
 include(GNUInstallDirs)
 
 # Determine bit number
@@ -34,14 +35,12 @@ else()
     set(NEXNIX_BITS 64)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NEXBOOT_CFLAGS}")
-
-nexnix_add_parameter(NEXNIX_LOGLEVEL 
-                     "Value that defines what should and shouldn't be logged"
-                     2)
+nexnix_add_parameter(NEXNIX_LOGLEVEL
+    "Value that defines what should and shouldn't be logged"
+    2)
 nexnix_add_parameter(NEXNIX_GRAPHICS_MODE
-                    "Defines whether nexboot runs in text mode or graphical mode. Either 'text' or 'gui'"
-                    "text")
+    "Defines whether nexboot runs in text mode or graphical mode. Either 'text' or 'gui'"
+    "text")
 
 # Add definition based off firmware type
 if(${NEXBOOT_FW} STREQUAL "bios")
@@ -63,41 +62,59 @@ endif()
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Install header files
-# HACK ALERT: we install directly to /usr/include. There probably is a better way of doing this,
-# but I don't know it
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
+list(APPEND NEXBOOT_HEADERS
+    include/nexboot/detect.h
+    include/nexboot/driver.h
+    include/nexboot/fw.h
+    include/nexboot/nexboot.h
+    include/nexboot/object_types.h
+    include/nexboot/object.h
+    include/nexboot/os.h
+    include/nexboot/shell.h
+    include/nexboot/ui.h
+    include/nexboot/vfs.h)
+list(APPEND NEXBOOT_DRIVER_HEADERS
+    include/nexboot/drivers/disk.h
+    include/nexboot/drivers/display.h
+    include/nexboot/drivers/terminal.h
+    include/nexboot/drivers/time.h
+    include/nexboot/drivers/volume.h
+    ${NEXBOOT_FW_DRIVER_HEADERS})
+
+install(FILES ${NEXBOOT_HEADERS} DESTINATION ${CMAKE_SYSROOT}/usr/include/nexboot)
+install(FILES ${NEXBOOT_DRIVER_HEADERS} DESTINATION ${CMAKE_SYSROOT}/usr/include/nexboot/drivers)
+install(FILES ${NEXBOOT_FW_HEADERS} DESTINATION ${CMAKE_SYSROOT}/usr/include/nexboot/${NEXBOOT_FW})
+install(FILES ${NEXBOOT_CPU_HEADERS} DESTINATION ${CMAKE_SYSROOT}/usr/include/nexboot/cpu/${NEXNIX_ARCH})
 
 # Install fonts
-#install(DIRECTORY ${CMAKE_SOURCE_DIR}/fonts DESTINATION ${CMAKE_INSTALL_PREFIX})
-
-# Include CPU files
-include(cpu/${NEXNIX_ARCH}/arch.cmake)
+# install(DIRECTORY ${CMAKE_SOURCE_DIR}/fonts DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 # Include driver files
 include(drivers/Drivers.cmake)
 
 # Create object library of portable nexboot sources
-list(APPEND NEXBOOT_SOURCES 
-            src/main.c
-            src/shell.c
-            src/menu.c
-            src/log.c
-            src/memmgr.c
-            src/object.c
-            src/driver.c
-            src/vfs.c
-            src/nexnix.c
-            src/elf.c
-            src/filesys/fat.c
-            src/filesys/iso9660.c
-            src/conf/lex.c
-            src/conf/parse.c
-            src/cmds/shellbase.c
-            src/cmds/objcmd.c
-            src/cmds/mountcmd.c
-            src/ui/ui.c
-            src/ui/textui.c)
+list(APPEND NEXBOOT_SOURCES
+    src/main.c
+    src/shell.c
+    src/menu.c
+    src/log.c
+    src/memmgr.c
+    src/object.c
+    src/driver.c
+    src/vfs.c
+    src/nexnix.c
+    src/elf.c
+    src/filesys/fat.c
+    src/filesys/iso9660.c
+    src/conf/lex.c
+    src/conf/parse.c
+    src/cmds/shellbase.c
+    src/cmds/objcmd.c
+    src/cmds/mountcmd.c
+    src/ui/ui.c
+    src/ui/textui.c)
 add_library(nexboot OBJECT ${NEXBOOT_SOURCES} ${NEXBOOT_FW_DRIVERS} ${NEXBOOT_DRIVERS})
+target_compile_options(nexboot PUBLIC ${NEXBOOT_CFLAGS})
 target_compile_options(nexboot PUBLIC -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast)
 
 # Find libk and libnex

@@ -16,7 +16,7 @@
 ]]
 
 list(APPEND CMAKE_MODULE_PATH
-            "${CMAKE_SYSROOT}/Programs/SDKs/NexNixSdk/0.0.1/share/NexNixSdk/cmake")
+    "${CMAKE_SYSROOT}/Programs/SDKs/NexNixSdk/0.0.1/share/NexNixSdk/cmake")
 
 set(NEXNIX_EXETYPE elf)
 set(NEXNIX_TOOLCHAINPREFIX $ENV{NNTOOLCHAINPATH})
@@ -31,10 +31,16 @@ set(CMAKE_AR ${NEXNIX_TOOLCHAINPREFIX}/llvm-ar)
 set(CMAKE_ASM_COMPILER ${NEXNIX_TOOLCHAINPREFIX}/clang)
 set(CMAKE_OBJCOPY ${NEXNIX_TOOLCHAINPREFIX}/llvm-objcopy)
 
-set(CMAKE_C_FLAGS_INIT "--target=$ENV{NNARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
-set(CMAKE_CXX_FLAGS_INIT "--target=$ENV{NNARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-fuse-ld=lld -L${CMAKE_SYSROOT}/usr/lib -L$ENV{NNBUILDROOT}/tools/llvm/lib/nexnix -lclang_rt.builtins-$ENV{NNARCH}")
-set(CMAKE_ASM_FLAGS_INIT "--target=$ENV{NNARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
+if($ENV{NNARCH} STREQUAL "armv8")
+    set(NEXNIX_TOOLCHAINARCH "aarch64")
+else()
+    set(NEXNIX_TOOLCHAINARCH "$ENV{NNARCH}")
+endif()
+
+set(CMAKE_C_FLAGS_INIT "--target=${NEXNIX_TOOLCHAINARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
+set(CMAKE_CXX_FLAGS_INIT "--target=${NEXNIX_TOOLCHAINARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-fuse-ld=lld -L${CMAKE_SYSROOT}/usr/lib -L$ENV{NNBUILDROOT}/tools/llvm/lib/nexnix -lclang_rt.builtins-${NEXNIX_TOOLCHAINARCH}")
+set(CMAKE_ASM_FLAGS_INIT "--target=${NEXNIX_TOOLCHAINARCH}-${NEXNIX_EXETYPE} -isystem ${CMAKE_SYSROOT}/usr/include")
 
 set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
 

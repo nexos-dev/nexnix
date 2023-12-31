@@ -30,6 +30,8 @@
 
 #define NEXBOOT_CONF_FILE "nexboot.cfg"
 
+#define BUFMAX 256
+
 void nbLaunchConf()
 {
     // Find boot disk
@@ -40,6 +42,11 @@ void nbLaunchConf()
         NbLogMessage ("nexboot: error: unable to find boot disk\n", NEXBOOT_LOGLEVEL_EMERGENCY);
         NbShellLaunch (NULL);
     }
+    char buf[BUFMAX];
+    char buf2[BUFMAX];
+    NbLogMessage ("nexboot: found boot disk %s\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  NbObjGetPath (bootDisk, buf, BUFMAX));
     // Find boot volume on this disk
     NbObject_t* bootVol = NbGetBootVolume (bootDisk);
     if (!bootVol)

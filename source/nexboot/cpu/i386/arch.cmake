@@ -19,9 +19,9 @@
 nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
 
 # CPU related sources
-list(APPEND NEXBOOT_SOURCES 
-            cpu/i386/cpu.c
-            cpu/i386/cpu.asm)
+list(APPEND NEXBOOT_SOURCES
+    cpu/i386/cpu.c
+    cpu/i386/cpu.asm)
 
 # Select AS file
 if(NEXNIX_I386_PAE)
@@ -29,3 +29,5 @@ if(NEXNIX_I386_PAE)
 else()
     list(APPEND NEXBOOT_SOURCES cpu/i386/as.c)
 endif()
+
+list(APPEND NEXBOOT_CPU_HEADERS include/nexboot/cpu/i386/cpu.h)

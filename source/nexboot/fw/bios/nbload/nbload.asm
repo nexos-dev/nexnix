@@ -45,6 +45,7 @@ section .text
 %ifndef NEXNIX_I386_PAE
 %define NBLOAD_PDIR_BASE 0x3000
 %define NBLOAD_PTAB_BASE 0x4000
+%define NBLOAD_PTAB2_BASE 0x5000
 %else
 %define NBLOAD_PDIR_BASE 0x3000
 %define NBLOAD_PDPT_BASE 0x4000

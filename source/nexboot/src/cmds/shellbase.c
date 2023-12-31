@@ -276,8 +276,7 @@ bool NbGfxModeMain (Array_t* args)
     NbObject_t* devDir = NbObjFind ("/Devices");
     while ((iter = NbObjEnumDir (devDir, iter)))
     {
-        if (iter->type == OBJ_TYPE_DEVICE &&
-            iter->interface == OBJ_INTERFACE_DISPLAY)
+        if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_DISPLAY)
         {
             found = true;
             break;

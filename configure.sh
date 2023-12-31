@@ -242,6 +242,18 @@ findprog()
         elif [ "$1" = "gzip" ]
         then
             pkg="gzip"
+        elif [ "$1" = "i686-linux-gnu-gcc" ]
+        then
+            pkg=gcc-i686-linux-gnu
+        elif [ "$1" = "x86_64-linux-gnu-gcc" ]
+        then
+            pkg=gcc-x86_64-linux-gnu
+        elif [ "$1" = "aarch64-linux-gnu-gcc" ]
+        then
+            pkg=gcc-aarch64-linux-gnu
+        elif [ "$1" = "riscv64-linux-gnu-gcc" ]
+        then
+            pkg=gcc-riscv64-linux-gnu
         fi
         pkgs="$pkgs $pkg"
     else
@@ -289,7 +301,7 @@ output="$PWD/output"
 tarearly=i386-pc
 dodebug=1
 jobcount=1
-compiler=llvm
+compiler=gnu
 debug=0
 conf=
 genconf=1
@@ -312,7 +324,7 @@ fwtype=
 buildfw=1
 
 # System configuration options
-loglevel=4
+loglevel=3
 graphicsmode=gui
 
 # Target specific features
@@ -326,12 +338,14 @@ ispae=
 isla57=
 
 # Target list
-targets="i386-pc x86_64-pc"
+targets="i386-pc x86_64-pc armv8-sbsa riscv64-generic"
 # Valid image types
 imagetypes="mbr gpt iso9660"
 # Target configuration list
 confs_i386_pc="pnp mp acpi-up acpi"
 confs_x86_64_pc="acpi acpi-up"
+confs_armv8_sbsa="sbsa sbsa-up"
+confs_riscv64_generic="rvefi rvefi-up"
 
 # Loop through every argument
 while [ $# -gt 0 ]
@@ -340,7 +354,7 @@ do
     -help)
         cat <<HELPEND
 $(basename $0) - configures the NexNix build system
-Usage - $0 [-help] [-archs] [-debug] [-target target] [-toolchain llvm|gnu] [-jobs jobcount] 
+Usage - $0 [-help] [-archs] [-debug] [-target target] [-toolchain gnu] [-jobs jobcount] 
            [-output destdir] [-buildconf conf] [-prefix prefix]
            [-imgformat image_type] [-conf conf] [-installpkgs] [-su]
 
@@ -354,8 +368,7 @@ Build system configuration options:
                         Build the system for the specified target. 
                         Run with options -archs to list targets
   -toolchain toolchain
-                        Specifies if the "llvm" or "gnu" toolchain should be used
-                        Default: llvm
+                        Specified toolchain to use. Currently GNU is only option
   -buildconf conf
                         Specifies a name for the build configuration
   -jobs jobcount
@@ -421,7 +434,10 @@ HELPEND
         echo "Valid targets: $targets"
         echo "Valid configurations for i386-pc: $confs_i386_pc"
         echo "Default configuration for i386-pc is: acpi"
-        echo "Default image type for i386-pc is: mbr"
+        echo "Valid configurations for x86_64-pc: $confs_x86_64_pc"
+        echo "Default configuration for x86_64-pc is: acpi"
+        echo "Valid configurations for armv8-sbsa: $confs_armv8_sbsa"
+        echo "Default configuration for armv8-sbsa is: sbsa"
         exit 0
         ;;
     -debug)
@@ -753,12 +769,6 @@ then
     panic "missing dependency" $0
 fi
 
-# Install depndencies
-if [ ! -z "$pkgs" ]
-then
-    installpkgs
-fi
-
 # Check for all in target
 if [ "$tarearly" = "all" ]
 then
@@ -792,7 +802,7 @@ do
     then
         echo "unknown"
         panic "target architecture $target unsupported. 
-Run $0 -l to see supported targets"
+Run $0 -archs to see supported targets"
     fi
     echo "$target"
 
@@ -838,10 +848,16 @@ Run $0 -l to see supported targets"
             then
                 panic "boot mode \"none\" not valid for i386-pc configuration $tarconf"
             fi
-            [ -z "$imagetype" ] && imagetype="mbr"
             [ -z "$imgbootmode" ] && imgbootmode="bios"
             [ -z "$imgbootemu" ] && imgbootemu="fdd"
             [ -z "$fwtype" ] && fwtype="bios"
+            if [ "$fwtype" = "bios" ]
+            then
+                [ -z "$imagetype" ] && imagetype="mbr"
+            else
+                findprog "i686-linux-gnu-gcc"
+                [ -z "$imagetype" ] && imagetype="gpt"
+            fi
             if [ "$tarconf" = "acpi" ]
             then
                 [ -z "$ispae" ] && ispae=1
@@ -856,10 +872,16 @@ Run $0 -l to see supported targets"
             then
                 panic "boot mode \"none\" not valid for i386-pc configuration $tarconf"
             fi
-            [ -z "$imagetype" ] && imagetype="mbr"
             [ -z "$imgbootmode" ] && imgbootmode="bios"
             [ -z "$imgbootemu" ] && imgbootemu="fdd"
             [ -z "$fwtype" ] && fwtype="bios"
+            if [ "$fwtype" = "bios" ]
+            then
+                [ -z "$imagetype" ] && imagetype="mbr"
+            else
+                findprog "i686-linux-gnu-gcc"
+                [ -z "$imagetype" ] && imagetype="gpt"
+            fi
             if [ "$tarconf" = "acpi-up" ]
             then
                 [ -z "$ispae" ] && ispae=1
@@ -904,6 +926,86 @@ Run $0 -l to see supported targets"
         then
             targetismp=1
         fi
+        if [ "$fwtype" = "efi" ]
+        then
+            findprog "x86_64-linux-gnu-gcc"
+        fi
+    elif [ "$target" = "armv8-sbsa" ]
+    then
+        commonarch="arm"
+        efiarch="AA64"
+        if [ -z "$tarconf" ]
+        then
+            tarconf="sbsa"
+        else
+            conffound=0
+            for tconf in $confs_armv8_sbsa
+            do
+                if [ "$tconf" = "$tarconf" ]
+                then
+                    conffound=1
+                    break
+                fi
+            done
+            if [ $conffound -eq 0 ]
+            then
+                panic "configuration \"$tarconf\" invalid for target \"$target\"" $0
+            fi
+        fi
+        # Ensure environment is valid
+        if [ "$imgbootmode" = "none" ]
+        then
+            panic "boot mode \"none\" not valid for armv8 configuration $tarconf"
+        fi
+        imagetype="gpt"
+        imgbootmode="efi"
+        fwtype="efi"
+        if [ "$tarconf" = "sbsa" ]
+        then
+            targetismp=1
+        fi
+        if [ "$fwtype" = "efi" ]
+        then
+            findprog "aarch64-linux-gnu-gcc"
+        fi
+    elif [ "$target" = "riscv64-generic" ]
+    then
+        commonarch="riscv"
+        efiarch="RISCV64"
+        if [ -z "$tarconf" ]
+        then
+            tarconf="rvefi"
+        else
+            conffound=0
+            for tconf in $confs_riscv64_generic
+            do
+                if [ "$tconf" = "$tarconf" ]
+                then
+                    conffound=1
+                    break
+                fi
+            done
+            if [ $conffound -eq 0 ]
+            then
+                panic "configuration \"$tarconf\" invalid for target \"$target\"" $0
+            fi
+        fi
+        # Ensure environment is valid
+        if [ "$imgbootmode" = "none" ]
+        then
+            panic "boot mode \"none\" not valid for riscv64 configuration $tarconf"
+        fi
+        imagetype="gpt"
+        imgbootmode="efi"
+        fwtype="efi"
+        if [ "$tarconf" = "rvefi" ]
+        then
+            targetismp=1
+        fi
+        if [ "$fwtype" = "efi" ]
+        then
+            findprog "riscv64-linux-gnu-gcc"
+        fi
     fi
     # Setup build configuration name
     if [ -z "$conf" ]
@@ -917,6 +1019,13 @@ Run $0 -l to see supported targets"
         prefix="$output/conf/$target/$conf/sysroot"
     fi
     
+    # Install depndencies
+    if [ ! -z "$pkgs" ]
+    then
+        installpkgs
+        pkgs=
+    fi
+
     #############################
     # Host tools bootstraping
     #############################
@@ -981,6 +1090,12 @@ Run $0 -l to see supported targets"
         elif [ "$arch" = "x86_64" ]
         then
             echo "export NNISLA57=$isla57" >> nexnix-conf.sh
+        fi
+        if [ "$arch" = "riscv64" ]
+        then
+            echo "export NNFWIMAGE=\"uboot\"" >> nexnix-conf.sh
+        else
+            echo "export NNFWIMAGE=\"edk2\"" >> nexnix-conf.sh
         fi
         # Link nnbuild.conf to configuration directory
         ln -sf $olddir/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf

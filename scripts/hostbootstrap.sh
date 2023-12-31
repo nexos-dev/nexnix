@@ -316,11 +316,18 @@ then
 elif [ "$component" = "toolchain" ]
 then
     echo "Building toolchain..."
+    # Translate to toolchain arch
+    if [ "$NNARCH" = "armv8" ]
+    then
+        toolarch=aarch64
+    else
+        toolarch=$NNARCH
+    fi
     if [ "$NNTOOLCHAIN" = "gnu" ]
     then
-        gnusys=elf
-        binutilsver=2.38
-        gccver=12.1.0
+        gnusys=nexnix
+        binutilsver=2.41
+        gccver=13.1.0
         # Download & build binutils
         if [ ! -d $NNEXTSOURCEROOT/tools/binutils-${binutilsver} ] || [ "$rebuild" = "1" ]
         then
@@ -330,17 +337,24 @@ then
             cd ..
             echo "Extracting binutils..."
             tar xf tarballs/binutils-${binutilsver}.tar.xz
+            patch -p0 < $NNPKGROOT/binutils/patches/binutils.patch
         fi
         # Build it
-        if [ ! -f $NNTOOLCHAINPATH/$NNARCH-$gnusys-ld ] || [ "$rebuild" = "1" ]
+        if [ ! -f $NNTOOLCHAINPATH/$toolarch-$gnusys-ld ] || [ "$rebuild" = "1" ]
         then
             binroot="$NNEXTSOURCEROOT/tools/binutils-${binutilsver}"
             rm -rf $NNBUILDROOT/build/tools/binutils-build
             mkdir -p $NNBUILDROOT/build/tools/binutils-build
             cd $NNBUILDROOT/build/tools/binutils-build
+            if [ "$NNARCH" = "riscv64" ]
+            then
+                targetcmdline="--target $toolarch-$gnusys"
+            else
+                targetcmdline="--target=$toolarch-$gnusys --enable-targets=$toolarch-$gnusys,$toolarch-pe"
+            fi
             $binroot/configure --prefix=$NNBUILDROOT/tools/$NNTOOLCHAIN --disable-nls \
-                               --disable-shared --disable-werror --with-sysroot \
-                                --target=$NNARCH-elf --enable-targets=$NNARCH-elf,$NNARCH-pe \
+                               --enable-shared --disable-werror --with-sysroot=$NNDESTDIR \
+                                $targetcmdline \
                                 CFLAGS="-O2 -DNDEBUG" \
                                 CXXFLAGS="-O2 -DNDEBUG"
             checkerr $? "unable to configure binutils"
@@ -359,164 +373,147 @@ then
             cd ..
             echo "Extracting GCC..."
             tar xf tarballs/gcc-${gccver}.tar.xz
+            patch -p0 < $NNPKGROOT/gcc/patches/gcc.patch
         fi
         # Build it
-        if [ ! -f $NNTOOLCHAINPATH/$NNARCH-$gnusys-gcc ] || [ "$rebuild" = "1" ]
+        if [ ! -f $NNTOOLCHAINPATH/$toolarch-$gnusys-gcc ] || [ "$rebuild" = "1" ]
         then
             gccroot="$NNEXTSOURCEROOT/tools/gcc-${gccver}"
             rm -rf $NNBUILDROOT/build/tools/gcc-build
             mkdir -p $NNBUILDROOT/build/tools/gcc-build
             cd $NNBUILDROOT/build/tools/gcc-build
-            $gccroot/configure --target=$NNARCH-$gnusys \
-                               --disable-nls --disable-shared \
-                                --without-headers --enable-languages=c,c++ \
+            $gccroot/configure --target=$toolarch-$gnusys \
+                               --disable-nls --enable-shared \
+                                --enable-languages=c,c++ \
                                 --with-gmp=$NNBUILDROOT/tools --with-mpfr=$NNBUILDROOT/tools \
                                 --with-mpc=$NNBUILDROOT/tools \
                                 CFLAGS="-O2 -DNDEBUG" CXXFLAGS="-O2 -DNDEBUG"\
-                                --prefix=$NNTOOLCHAINPATH/..
+                                --prefix=$NNTOOLCHAINPATH/.. \
+                                --with-sysroot=$NNDESTDIR
             checkerr $? "unable to configure GCC"
             make all-gcc -j$NNJOBCOUNT
             checkerr $? "unable to build GCC"
             make install-gcc -j$NNJOBCOUNT
             checkerr $? "unable to install GCC"
-            make all-target-libgcc -j $NNJOBCOUNT
-            checkerr $? "unable to build GCC"
-            make install-target-libgcc -j $NNJOBCOUNT
-            checkerr $? "unable to install GCC"
         fi
     elif [ "$NNTOOLCHAIN" = "llvm" ]
     then
-        llvmver=14.0.6
-        if [ ! -d $NNEXTSOURCEROOT/tools/llvm-project-${llvmver}.src ] || [ "$rebuild" = "1" ]
-        then
-            mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
-            wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvmver}/llvm-project-${llvmver}.src.tar.xz
-            checkerr $? "unable to download LLVM"
-            cd ..
-            echo "Extracting LLVM..."
-            tar xf tarballs/llvm-project-${llvmver}.src.tar.xz
-        fi
-        if [ ! -f $NNTOOLCHAINPATH/clang ] || [ "$rebuild" = "1" ]
-        then
-            llvmroot="$NNEXTSOURCEROOT/tools/llvm-project-${llvmver}.src"
-            mkdir -p $NNBUILDROOT/build/tools/llvm-build
-            cd $NNBUILDROOT/build/tools/llvm-build
-            cmake $llvmroot/llvm -DLLVM_ENABLE_PROJECTS="lld;clang" \
-                  -DCMAKE_INSTALL_PREFIX=$NNTOOLCHAINPATH/.. \
-                  $cmakeargs -DCMAKE_BUILD_TYPE=Release -DLLVM_PARALLEL_LINK_JOBS=1 \
-                  -DLLVM_PARALLEL_COMPILE_JOBS=$NNJOBCOUNT -DLLVM_TARGETS_TO_BUILD="X86"
-            checkerr $? "unable to configure LLVM"
-            $cmakegen -j $NNJOBCOUNT
-            checkerr $? "unable to build LLVM"
-            $cmakegen install -j $NNJOBCOUNT
-            checkerr $? "unable to install LLVM"
-        fi
-
-        # Build compiler-rt
-        if [ ! -f $NNTOOLCHAINPATH/../lib/nexnix/libclang_rt.builtins-$NNARCH.a ] || [ "$rebuild" = "1" ]
-        then
-            toolsbuildroot=$NNBUILDROOT/build/tools
-            buildbase=$NNEXTSOURCEROOT
-            mkdir -p $toolsbuildroot/cr-build && cd $toolsbuildroot/cr-build
-            # A hack to avoid errors about assert.h for now
-            echo "#define assert(nothing) ((void)0)" > $NNTOOLCHAINPATH/../lib/clang/$llvmver/include/assert.h
-            if [ "$NNARCH" = "x86_64" ]
-            then
-                cflags="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver -mno-red-zone"
-            else
-                cflags="-O3 -D__ELF__ -DNDEBUG -ffreestanding --sysroot=$NNTOOLCHAINPATH/../lib/clang/$llvmver"
-            fi
-            if [ "$cmakegen" = "ninja" ]
-            then
-                genflags="-G Ninja"
-            fi
-            cmake $buildbase/tools/llvm-project-${llvmver}.src/compiler-rt \
-                    -DCMAKE_CXX_FLAGS="$cflags" \
-                    -DCMAKE_C_FLAGS="$cflags" \
-                    -DCOMPILER_RT_USE_LIBCXX=OFF -DCOMPILER_RT_BAREMETAL_BUILD=ON \
-                    -DCMAKE_AR=$NNTOOLCHAINPATH/llvm-ar \
-                    -DCMAKE_ASM_COMPILER_TARGET=$NNARCH-elf \
-                    -DCMAKE_C_COMPILER=$NNTOOLCHAINPATH/clang \
-                    -DCMAKE_C_COMPILER_TARGET=$NNARCH-elf \
-                    -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld -DCMAKE_NM=$NNTOOLCHAINPATH/llvm-nm \
-                    -DCMAKE_RANLIB=$NNTOOLCHAINPATH/llvm-ranlib \
-                    -DCOMPILER_RT_BUILD_BUILTINS=ON \
-                    -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_MEMPROF=OFF \
-                    -DCOMPILER_RT_BUILD_PROFILE=OFF -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
-                    -DCOMPILER_RT_BUILD_XRAY=OFF -DLLVM_CONFIG_PATH=$NNTOOLCHAINPATH/llvm-config \
-                    -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-                    -DCOMPILER_RT_BUILD_ORC=OFF \
-                    -DCMAKE_ASM_FLAGS="$cflags" \
-                    -DCMAKE_INSTALL_PREFIX=$NNTOOLCHAINPATH/.. \
-                    -DCOMPILER_RT_OS_DIR=nexnix -DCOMPILER_RT_BUILTINS_ENABLE_PIC=OFF $genflags
-            checkerr $? "unable to build LLVM" $0
-            $cmakegen -j $NNJOBCOUNT
-            checkerr $? "unable to build LLVM"
-            $cmakegen -j $NNJOBCOUNT install
-            checkerr $? "unable to install LLVM"
-        fi
+        panic "LLVM support imcomplete"
+    fi
+elif [ "$component" = "gcclibs" ]
+then
+    # Translate to toolchain arch
+    if [ "$NNARCH" = "armv8" ]
+    then
+        toolarch=aarch64
+    else
+        toolarch=$NNARCH
+    fi
+    if [ ! -f $NNBUILDROOT/tools/gnu/lib/gcc/$toolarch-nexnix/13.1.0/libgcc.a ] || [ "$rebuild" = "1" ]
+    then
+        gccroot="$NNEXTSOURCEROOT/tools/gcc-${gccver}"
+        cd $NNBUILDROOT/build/tools/gcc-build
+        make all-target-libgcc -j $NNJOBCOUNT
+        checkerr $? "unable to build GCC"
+        make install-target-libgcc -j $NNJOBCOUNT
+        checkerr $? "unable to install GCC"
     fi
 elif [ "$component" = "firmware" ]
 then
     echo "Building firmware images..."
-    if ([ ! -d $NNEXTSOURCEROOT/tools/edk2 ] || [ "$rebuild" = "1" ])
+    if [ "$NNFIRMWARE" = "efi" ]
     then
-        rm -rf $NNEXTSOURCEROOT/tools/edk2 $NNEXTSOURCEROOT/tools/edk2-platforms \
-               $NNEXTSOURCEROOT/tools/edk2-non-osi
-        cd $NNEXTSOURCEROOT/tools
-        git clone https://github.com/tianocore/edk2.git -b edk2-stable202205
-        checkerr $? "unable to download EDK2"
-        cd edk2
-        git submodule update --init
-        checkerr $? "unable to download EDK2"
-        cd ..
-        git clone https://github.com/tianocore/edk2-platforms.git
-        checkerr $? "unable to download EDK2"
-        git clone https://github.com/tianocore/edk2-non-osi.git
-        checkerr $? "unable to download EDK2"
-        cd edk2-platforms
-        git submodule update --init
-        checkerr $? "unable to download EDK2"
+        if ([ ! -d $NNEXTSOURCEROOT/tools/edk2 ] || [ "$rebuild" = "1" ]) && [ "$NNFWIMAGE" = "edk2" ]
+        then
+            rm -rf $NNEXTSOURCEROOT/tools/edk2 $NNEXTSOURCEROOT/tools/edk2-platforms \
+                  $NNEXTSOURCEROOT/tools/edk2-non-osi
+            cd $NNEXTSOURCEROOT/tools
+            git clone https://github.com/tianocore/edk2.git -b edk2-stable202205
+            checkerr $? "unable to download EDK2"
+            cd edk2
+            git submodule update --init
+            checkerr $? "unable to download EDK2"
+            cd ..
+            git clone https://github.com/tianocore/edk2-platforms.git
+            checkerr $? "unable to download EDK2"
+            git clone https://github.com/tianocore/edk2-non-osi.git
+            checkerr $? "unable to download EDK2"
+            cd edk2-platforms
+            git submodule update --init
+            checkerr $? "unable to download EDK2"
+        elif ([ ! -d $NNEXTSOURCEROOT/tools/u-boot ] || [ "$rebuild" = "1" ]) && [ "$NNFWIMAGE" = "uboot" ]
+        then
+            rm -rf $NNEXTSOURCEROOT/tools/u-boot
+            cd $NNEXTSOURCEROOT/tools
+            git clone https://source.denx.de/u-boot/u-boot.git -b v2023.10
+            checkerr $? "unable to download U-Boot"
+        fi
     fi
     if [ ! -f $NNBUILDROOT/tools/firmware/fw${NNARCH}done ] || [ "$rebuild" = "1" ] && [ "$NNBUILDFW" = "1" ]
     then
         if [ "$NNFIRMWARE" = "efi" ]
         then
-            edk2root="$NNEXTSOURCEROOT/tools"
-            export WORKSPACE=$edk2root/edk2
-            export EDK_TOOLS_PATH="$WORKSPACE/BaseTools"
-            export PACKAGES_PATH="$edk2root/edk2:$edk2root/edk2-platforms:$edk2root/edk2-non-osi"
-            export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-            export GCC5_RISCV64_PREFIX=riscv64-linux-gnu-
-            export GCC5_X64_PREFIX=x86_64-linux-gnu-
-            export GCC5_IA32_PREFIX=i686-linux-gnu-
-            cd $edk2root
-            . edk2/edksetup.sh
-            make -C edk2/BaseTools -j $NNJOBCOUNT
-            # Build it
-            if [ "$NNARCH" = "i386" ]
+            if [ "$NNFWIMAGE" = "edk2" ]
             then
-                ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
-                mkdir -p $NNBUILDROOT/tools/firmware
-                build -a IA32 -t GCC5 -p OvmfPkg/OvmfPkgIa32.dsc
-                checkerr $? "unable to build EDK2"
-                echo "Installing EDK2..."
-                cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_CODE.fd \
-                   $NNBUILDROOT/tools/firmware/OVMF_CODE_IA32.fd
-                cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_VARS.fd \
-                   $NNBUILDROOT/tools/firmware/OVMF_VARS_IA32.fd
-                touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
-            elif [ "$NNARCH" = "x86_64" ]
+                edk2root="$NNEXTSOURCEROOT/tools"
+                export WORKSPACE=$edk2root/edk2
+                export EDK_TOOLS_PATH="$WORKSPACE/BaseTools"
+                export PACKAGES_PATH="$edk2root/edk2:$edk2root/edk2-platforms:$edk2root/edk2-non-osi"
+                export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-\
+                export GCC5_X64_PREFIX=x86_64-linux-gnu-
+                export GCC5_IA32_PREFIX=i686-linux-gnu-
+                cd $edk2root
+                . edk2/edksetup.sh
+                make -C edk2/BaseTools -j $NNJOBCOUNT
+                # Build it
+                if [ "$NNARCH" = "i386" ]
+                then
+                    ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
+                    mkdir -p $NNBUILDROOT/tools/firmware
+                    build -a IA32 -t GCC5 -p OvmfPkg/OvmfPkgIa32.dsc
+                    checkerr $? "unable to build EDK2"
+                    echo "Installing EDK2..."
+                    cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_CODE.fd \
+                        $NNBUILDROOT/tools/firmware/OVMF_CODE_IA32.fd
+                    cp $edk2root/edk2/Build/OvmfIa32/DEBUG_GCC5/FV/OVMF_VARS.fd \
+                        $NNBUILDROOT/tools/firmware/OVMF_VARS_IA32.fd
+                    touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+                elif [ "$NNARCH" = "x86_64" ]
+                then
+                    ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
+                    mkdir -p $NNBUILDROOT/tools/firmware
+                    build -a X64 -t GCC5 -p OvmfPkg/OvmfPkgX64.dsc
+                    checkerr $? "unable to build EDK2"
+                    echo "Installing EDK2..."
+                    cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_CODE.fd \
+                        $NNBUILDROOT/tools/firmware/OVMF_CODE_X64.fd
+                    cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_VARS.fd \
+                        $NNBUILDROOT/tools/firmware/OVMF_VARS_X64.fd
+                    touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+                elif [ "$NNARCH" = "armv8" ]
+                then
+                    ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
+                    mkdir -p $NNBUILDROOT/tools/firmware
+                    build -a AARCH64 -t GCC5 -p ArmVirtPkg/ArmVirtQemu.dsc
+                    checkerr $? "unable to build EDK2"
+                    echo "Installing EDK2..."
+                    cp $edk2root/edk2/Build/ArmVirtQemu-AARCH64//DEBUG_GCC5/FV/QEMU_EFI.fd \
+                        $NNBUILDROOT/tools/firmware/OVMF_CODE_AA64.fd
+                    truncate -s 64M $NNBUILDROOT/tools/firmware/OVMF_CODE_AA64.fd
+                    cp $edk2root/edk2/Build/ArmVirtQemu-AARCH64/DEBUG_GCC5/FV/QEMU_VARS.fd \
+                        $NNBUILDROOT/tools/firmware/OVMF_VARS_AA64.fd
+                    truncate -s 64M $NNBUILDROOT/tools/firmware/OVMF_VARS_AA64.fd
+                    touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
+                fi
+            elif [ "$NNFWIMAGE" = "uboot" ]
             then
-                ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
-                mkdir -p $NNBUILDROOT/tools/firmware
-                build -a X64 -t GCC5 -p OvmfPkg/OvmfPkgX64.dsc
-                checkerr $? "unable to build EDK2"
-                echo "Installing EDK2..."
-                cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_CODE.fd \
-                    $NNBUILDROOT/tools/firmware/OVMF_CODE_X64.fd
-                cp $edk2root/edk2/Build/OvmfX64/DEBUG_GCC5/FV/OVMF_VARS.fd \
-                    $NNBUILDROOT/tools/firmware/OVMF_VARS_X64.fd
+                ubootdir=$NNEXTSOURCEROOT/tools/u-boot
+                cd $ubootdir
+                export CROSS_COMPILE=$NNARCH-linux-gnu-
+                make qemu-${NNARCH}_defconfig
+                make -j $NNJOBCOUNT
+                checkerr $? "unable to build U-Boot"
+                cp $ubootdir/u-boot $NNBUILDROOT/tools/firmware/u-boot-$NNARCH
                 touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
             fi
         fi
@@ -606,25 +603,44 @@ then
         exit 0
     fi
     # Check if they've been built already
-    if [ ! -d $NNDESTDIR/Programs/Index/include/nexboot/efi ] || [ "$rebulid" = "1" ]
+    if [ "$NNARCH" = "i386" ]
     then
-        mkdir -p $NNDESTDIR/Programs/Index/include/nexboot/efi
-        # Download GNU-EFI headers
-        git clone https://github.com/vathpela/gnu-efi.git $NNEXTSOURCEROOT/tools/gnu-efi
-        # Copy the headers
-        cp -r $NNEXTSOURCEROOT/tools/gnu-efi/inc $NNDESTDIR/Programs/Index/include/nexboot/efi
+        efiarch=ia32
+    elif [ "$NNARCH" = "armv8" ]
+    then
+        efiarch=aarch64
+    else
+        efiarch=$NNARCH
     fi
-    # Build elf2efi
-    if [ ! -f $NNBUILDROOT/tools/bin/elf2efi64 ] || [ "$rebuild" = "1" ]
+    if [ ! -f $NNDESTDIR/Programs/gnu-efi/lib/crt0-efi-$efiarch.o ] || [ "$rebulid" = "1" ]
     then
-        # Clone it
-        git clone https://github.com/davmac314/elf2efi.git $NNEXTSOURCEROOT/tools/elf2efi
-        checkerr $? "unable to download elf2efi"
-        cd $NNEXTSOURCEROOT/tools/elf2efi
-        make
-        checkerr $? "unable to build elf2efi"
-        cp elf2efi32 $NNBUILDROOT/tools/bin/elf2efi32
-        cp elf2efi64 $NNBUILDROOT/tools/bin/elf2efi64
+        mkdir -p $NNDESTDIR/Programs/Index/include/nexboot/efi/inc
+        # Downlod GNU-EFI
+        gnuefidir=$NNEXTSOURCEROOT/tools/gnu-efi
+        #rm -rf $gnuefidir
+        #git clone https://github.com/nexos-dev/gnu-efi.git $gnuefidir
+        #checkerr $? "unable to download GNU-EFI"
+        cd $gnuefidir
+        export DESTDIR=$NNDESTDIR
+        if [ "$NNTOOLCHAIN" != "gnu" ]
+        then
+            panic "unable to bootstrap gnu-efi, GNU toolchain required"
+        fi
+        # Translate to toolchain arch
+        if [ "$NNARCH" = "armv8" ]
+        then
+            toolarch=aarch64
+        else
+            toolarch=$NNARCH
+        fi
+        export CROSS_COMPILE=$NNBUILDROOT/tools/$NNTOOLCHAIN/bin/$toolarch-nexnix-
+        export PREFIX=/Programs/gnu-efi
+        export CFLAGS="-I$NNSOURCEROOT/libraries/libc/include -I$NNSOURCEROOT/libraries/libc/arch/$NNARCH/include"
+        make -j$NNJOBCOUNT
+        checkerr $? "unable to build GNU-EFI"
+        make install -j $NNJOBCOUNT
+        checkerr $? "unable to build GNU-EFI"
+        nnpkg add $NNPKGROOT/gnu-efi/nnpkg-pkg.conf -c $NNCONFROOT/nnpkg.conf || true
     fi
 elif [ "$component" = "nnimage-conf" ]
 then

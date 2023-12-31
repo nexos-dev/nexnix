@@ -58,8 +58,7 @@ bool NbObjFindMain (Array_t* args)
     NbObject_t* obj = NbObjFind (StrRefGet (*objName));
     if (!obj)
     {
-        NbShellWrite ("objfind: unable to find object \"%s\"\n",
-                      StrRefGet (*objName));
+        NbShellWrite ("objfind: unable to find object \"%s\"\n", StrRefGet (*objName));
         return true;
     }
     // Print out the info
@@ -68,8 +67,7 @@ bool NbObjFindMain (Array_t* args)
     NbShellWrite ("Object type: %s\n", objTypeNames[NbObjGetType (obj)]);
     assert (NbObjGetInterface (obj) <= OBJ_MAX_INTERFACE);
     if (NbObjGetInterface (obj))
-        NbShellWrite ("Object interface: %s\n",
-                      objInterfaceNames[NbObjGetInterface (obj)]);
+        NbShellWrite ("Object interface: %s\n", objInterfaceNames[NbObjGetInterface (obj)]);
     if (obj->parent)
         NbShellWrite ("Parent directory: %s\n", obj->parent->name);
     if (obj->owner)
@@ -132,8 +130,7 @@ bool NbObjDumpMain (Array_t* args)
     NbObject_t* obj = NbObjFind (StrRefGet (*objName));
     if (!obj)
     {
-        NbShellWrite ("objdump: unable to find object \"%s\"\n",
-                      StrRefGet (*objName));
+        NbShellWrite ("objdump: unable to find object \"%s\"\n", StrRefGet (*objName));
         return true;
     }
     // Call dump data service, ensuring it calls NbShellWritePaged
@@ -153,14 +150,24 @@ bool NbSysinfoMain (Array_t* args)
     NbShellWrite ("System firmware: ");
     if (sysInfo->sysFwType == NB_FW_TYPE_BIOS)
         NbShellWrite ("bios\n");
+    else if (sysInfo->sysFwType == NB_FW_TYPE_EFI)
+        NbShellWrite ("efi\n");
     NbShellWrite ("CPU family: ");
     if (sysInfo->cpuInfo.family == NB_CPU_FAMILY_X86)
         NbShellWrite ("x86\n");
+    else if (sysInfo->cpuInfo.family == NB_CPU_FAMILY_ARM)
+        NbShellWrite ("ARM\n");
+    else if (sysInfo->cpuInfo.family == NB_CPU_FAMILY_RISCV)
+        NbShellWrite ("RISC-V\n");
     NbShellWrite ("CPU architecture: ");
     if (sysInfo->cpuInfo.arch == NB_CPU_ARCH_I386)
         NbShellWrite ("i386\n");
     else if (sysInfo->cpuInfo.arch == NB_CPU_ARCH_X86_64)
         NbShellWrite ("x86_64\n");
+    else if (sysInfo->cpuInfo.arch == NB_CPU_ARCH_ARMV8)
+        NbShellWrite ("ARMv8\n");
+    else if (sysInfo->cpuInfo.arch == NB_CPU_ARCH_RISCV64)
+        NbShellWrite ("RISCV64\n");
     NbShellWrite ("CPU version: ");
     if (sysInfo->cpuInfo.version == NB_CPU_VERSION_386)
         NbShellWrite ("386\n");
@@ -168,6 +175,8 @@ bool NbSysinfoMain (Array_t* args)
         NbShellWrite ("486\n");
     else if (sysInfo->cpuInfo.version == NB_CPU_VERSION_CPUID)
         NbShellWrite ("486+\n");
+    else
+        NbShellWrite ("\n");
     NbShellWrite ("CPU flags: ");
     if (sysInfo->cpuInfo.flags & NB_CPU_FLAG_FPU_EXISTS)
         NbShellWrite ("FPU exists ");
