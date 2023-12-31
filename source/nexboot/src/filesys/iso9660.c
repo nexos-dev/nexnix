@@ -447,12 +447,7 @@ bool IsoGetFileInfo (NbObject_t* fsObj, NbFileInfo_t* fileInf)
         if (!curDir)
             return false;
         if (part.isLastPart)
-        {
-            // Make sure this is a file we found
-            if (curDir->flags & ISO_DIRREC_ISDIR)
-                return false;
             break;
-        }
         else
         {
             // Make sure this is a directory we found
