@@ -19,24 +19,36 @@
 OUTPUT_FORMAT(elf64-x86-64)
 ENTRY(NkMain)
 
+PHDRS
+{
+    nexkeText PT_LOAD;
+    nexkeData PT_LOAD;
+}
+
 SECTIONS
 {
     . = 0xFFFFFFFF80000000;
-    .text ALIGN(4096) : {
+    .text : {
         *(.text*)
-    }
+    } :nexkeText
 
-    .data ALIGN(4096) : {
-        *(.data*)
-    }
+    . = ALIGN(4096);
 
-    .rodata ALIGN(4096) : {
+    .rodata : {
         *(.rodata*)
-    }
+    } :nexkeText
 
-    .bss ALIGN(4096) : {
+    . = ALIGN(4096);
+
+    .data : {
+        *(.data*)
+    } :nexkeData
+
+    . = ALIGN(4096);
+
+    .bss : {
         *(.bss*)
-    }
+    } :nexkeData
 
     /DISCARD/ : {
         *(.comment)
@@ -51,6 +63,5 @@ SECTIONS
         *(.strtab)
         *(.rel*)
         *(.rela*)
-        *(.eh_frame)
     }
 }
