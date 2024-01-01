@@ -540,13 +540,7 @@ static bool BiosDiskReportError (void* objp, void* data)
 {
     assert (objp);
     int error = (int) data;
-    char buf[256];
-    // Format message
-    snprintf (buf, 256, "Disk error: %s", diskErrorStrs[error]);
-    // Open log
-    NbObject_t* log = NbObjFind ("/Interfaces/SysLog");
-    assert (log);
-    NbObjCallSvc (log, NB_LOG_WRITE, buf);
+    NbLogMessage ("Disk error: %s", NEXBOOT_LOGLEVEL_CRITICAL, diskErrorStrs[error]);
     return true;
 }
 

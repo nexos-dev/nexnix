@@ -38,6 +38,8 @@ static bool elf64CheckArch()
     return true;
 #elif defined(NEXNIX_ARCH_RISCV64)
     return true;
+#elif defined(NEXNIX_ARCH_ARMV8)
+    return true;
 #else
     return false;
 #endif
@@ -54,6 +56,9 @@ static bool elfCheckMachine (int mach)
         return false;
 #elif defined(NEXNIX_ARCH_RISCV64)
     if (mach != EM_RISCV)
+        return false;
+#elif defined(NEXNIX_ARCH_ARMV8)
+    if (mach != EM_AARCH64)
         return false;
 #endif
     return true;

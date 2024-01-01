@@ -54,6 +54,7 @@ NbObject_t* NbVfsMountFs (NbObject_t* volObj, const char* name)
     if (!NbObjFind ("/Interfaces/FileSys"))
         NbObjCreate ("/Interfaces/FileSys", OBJ_TYPE_DIR, 0);
     char buf[BUFMAX];
+    char buf2[BUFMAX];
     snprintf (buf, BUFMAX, "/Interfaces/FileSys/%s", name);
     NbObject_t* fsObj = NbObjCreate (buf, OBJ_TYPE_FS, 0);
     if (!fsObj)
@@ -81,6 +82,10 @@ NbObject_t* NbVfsMountFs (NbObject_t* volObj, const char* name)
     fs->driver = fsTypeToDriver (fs->type);
     if (fs->driver == 0xFF)
     {
+        NbLogMessage ("nexboot: refusing to mount unrecognized volume %s",
+                      NEXBOOT_LOGLEVEL_DEBUG,
+                      NbObjGetPath (fs->volume, buf2, BUFMAX));
+        NbObjDeRef (fs->volume);
         NbObjDeRef (fsObj);
         ListDestroy (fs->files);
         free (fs);
@@ -94,7 +99,6 @@ NbObject_t* NbVfsMountFs (NbObject_t* volObj, const char* name)
         free (fs);
         return false;
     }
-    char buf2[BUFMAX];
     NbLogMessage ("nexboot: mounted FS %s on volume %s\n",
                   NEXBOOT_LOGLEVEL_DEBUG,
                   NbObjGetPath (fsObj, buf, BUFMAX),

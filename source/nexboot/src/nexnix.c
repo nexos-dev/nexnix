@@ -236,9 +236,11 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     uintptr_t stack = NbFwAllocPersistentPage();
     memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
     NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
+    // Get memory map
+    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
     // Map in firmware-dictated memory regions
     NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
-    // Get memory map
+    // Re-make memory map in case above function changed it
     bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
     // Exit from clutches of FW
     NbFwExit();

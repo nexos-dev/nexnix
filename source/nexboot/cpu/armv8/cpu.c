@@ -18,7 +18,3 @@
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <string.h>
-
-void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInf)
-{
-}

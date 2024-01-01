@@ -112,8 +112,7 @@ typedef struct _isomount
     uint32_t numBuffered;      // Number of buffered entries
 } IsoMountInfo_t;
 
-#define ISO_DIR_BUFFERED_MAX \
-    256    // Max number of dir entries to be buffered at once
+#define ISO_DIR_BUFFERED_MAX 256    // Max number of dir entries to be buffered at once
 
 // File internal info
 typedef struct _isofile
@@ -209,16 +208,13 @@ static bool isoReadBlock (NbFileSys_t* fs, void* buf, uint32_t block)
 }
 
 // Attempts to find buffered directory entry
-IsoDirRecord_t* isoFindBuffer (IsoMountInfo_t* mountInfo,
-                               uint32_t parentExt,
-                               const char* name)
+IsoDirRecord_t* isoFindBuffer (IsoMountInfo_t* mountInfo, uint32_t parentExt, const char* name)
 {
     IsoDirBuffer_t* curBuf = mountInfo->dirBuf;
     while (curBuf)
     {
         // Check parent extent and name
-        if (parentExt == curBuf->parentExt &&
-            !memcmp (curBuf->name, name, curBuf->dir.nameLen))
+        if (parentExt == curBuf->parentExt && !memcmp (curBuf->name, name, curBuf->dir.nameLen))
         {
             return &curBuf->dir;
         }
@@ -228,9 +224,7 @@ IsoDirRecord_t* isoFindBuffer (IsoMountInfo_t* mountInfo,
 }
 
 // Buffers a directory entry
-static bool isoAddBuffer (IsoMountInfo_t* mountInfo,
-                          IsoDirRecord_t* entry,
-                          IsoDirRecord_t* parent)
+static bool isoAddBuffer (IsoMountInfo_t* mountInfo, IsoDirRecord_t* entry, IsoDirRecord_t* parent)
 {
     IsoDirBuffer_t* buf = (IsoDirBuffer_t*) calloc (sizeof (IsoDirBuffer_t), 1);
     if (!buf)
@@ -313,9 +307,7 @@ static IsoDirRecord_t* isoFindInDir (NbFileSys_t* fs,
     return NULL;
 }
 
-static IsoDirRecord_t* isoFindDir (NbFileSys_t* fs,
-                                   IsoDirRecord_t* parent,
-                                   const char* name)
+static IsoDirRecord_t* isoFindDir (NbFileSys_t* fs, IsoDirRecord_t* parent, const char* name)
 {
     IsoDirRecord_t* rec = NULL;
     IsoMountInfo_t* mountInfo = fs->internal;
@@ -348,9 +340,7 @@ static IsoDirRecord_t* isoFindDir (NbFileSys_t* fs,
 
 #define ISO_SEARCH_FINISHED (void*) -1
 
-static IsoDirRecord_t* isoDirNext (NbFileSys_t* fs,
-                                   IsoDirIter_t* iter,
-                                   char* nameOut)
+static IsoDirRecord_t* isoDirNext (NbFileSys_t* fs, IsoDirIter_t* iter, char* nameOut)
 {
     IsoMountInfo_t* mountInfo = fs->internal;
     // Get block and offset we are at

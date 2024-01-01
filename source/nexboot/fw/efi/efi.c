@@ -59,7 +59,7 @@ uintptr_t NbFwAllocPages (int count)
 uintptr_t NbFwAllocPersistentPage()
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    if (BS->AllocatePages (AllocateAnyPages, EfiUnusableMemory, 1, &addr) != EFI_SUCCESS)
+    if (BS->AllocatePages (AllocateAnyPages, EfiLoaderData, 1, &addr) != EFI_SUCCESS)
     {
         return 0;
     }
@@ -67,11 +67,11 @@ uintptr_t NbFwAllocPersistentPage()
     return addr;
 }
 
-// Allocates a page that will persist after bootloader
-uintptr_t NbFwAllocPersistentPage()
+// Allocates pages that will persist after bootloader
+uintptr_t NbFwAllocPersistentPages (int count)
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    if (BS->AllocatePages (AllocateAnyPages, EfiUnusableMemory, count, &addr) != EFI_SUCCESS)
+    if (BS->AllocatePages (AllocateAnyPages, EfiLoaderData, count, &addr) != EFI_SUCCESS)
     {
         return 0;
     }
