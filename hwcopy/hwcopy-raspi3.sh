@@ -158,7 +158,8 @@ sudo cp -r output/conf/$target/$conf/sysroot/System/* /mnt/System/
 
 # Copy nexboot.cfg
 sudo cp /mnt/System/Core/Boot/nexboot.cfg /mnt/nexboot.cfg
-sudo rm /mnt/System/Core/Boot/nexboot.cfg
+# Copy kernel
+sudo cp /mnt/System/Core/Boot/nexke /mnt/nexke
 # Create BOOTAA64.EFI
 sudo mkdir -p /mnt/EFI/BOOT
 sudo cp /mnt/System/Core/Boot/nexboot.efi /mnt/EFI/BOOT/BOOTAA64.EFI

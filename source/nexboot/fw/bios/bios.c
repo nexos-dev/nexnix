@@ -48,10 +48,10 @@ void NbFwEarlyPrint (char c)
     in.al = (uint8_t) c;
     NbBiosCall (0x10, &in, &out);
     // Serial port writing is intensely slow on some computers, disable it
-    //in.dx = 0;
-    //in.al = (uint8_t) c;
-    //in.ah = 1;
-    //NbBiosCall (0x14, &in, &out);
+    // in.dx = 0;
+    // in.al = (uint8_t) c;
+    // in.ah = 1;
+    // NbBiosCall (0x14, &in, &out);
 }
 
 uintptr_t curMemLocation = NEXBOOT_BIOS_MEMBASE;

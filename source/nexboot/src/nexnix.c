@@ -196,6 +196,21 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     }
     // Copy arguments
     strcpy (bootInfo->args, StrRefGet (info->args));
+    // We have now reached that point in loading.
+    // It's time to launch the kernel. First, however, we must map the kernel
+    // into the address space.
+    // Load up the kernel into memory
+    uintptr_t entry = NbElfLoadFile (keFileBase);
+    // Allocate a boot stack
+    uintptr_t stack = NbFwAllocPersistentPage();
+    memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
+    NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
+    // Get memory map
+    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
+    // Map in firmware-dictated memory regions
+    NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
+    // Re-make memory map in case above function changed it
+    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
     // Find primary display
     NbObject_t* displayIter = NULL;
     bool foundDisplay = false;
@@ -227,21 +242,6 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     }
     else
         bootInfo->displayDefault = true;
-    // We have now reached that point in loading.
-    // It's time to launch the kernel. First, however, we must map the kernel
-    // into the address space.
-    // Load up the kernel into memory
-    uintptr_t entry = NbElfLoadFile (keFileBase);
-    // Allocate a boot stack
-    uintptr_t stack = NbFwAllocPersistentPage();
-    memset ((void*) stack, 0, NEXBOOT_CPU_PAGE_SIZE);
-    NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
-    // Get memory map
-    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
-    // Map in firmware-dictated memory regions
-    NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
-    // Re-make memory map in case above function changed it
-    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
     // Exit from clutches of FW
     NbFwExit();
     // Enable paging

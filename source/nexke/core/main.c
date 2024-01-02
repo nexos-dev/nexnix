@@ -35,6 +35,10 @@ static void nkArgsParse()
 
 void NkMain (NexNixBoot_t* bootinf)
 {
+    uint32_t* fb = bootinf->display.frameBuffer;
+    fb += (bootinf->display.bytesPerLine * 20);
+    for (int i = 0; i < bootinf->display.width; ++i)
+        fb[i] = 0xFFFFFFFF;
     // Set bootinfo
     bootInfo = bootinf;
     // Initialize first CCB

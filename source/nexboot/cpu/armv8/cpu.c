@@ -18,3 +18,10 @@
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
 #include <string.h>
+
+void NbCpuLaunchKernelAsm (uintptr_t entry, uintptr_t bootInfo, uintptr_t stack);
+
+void NbCpuLaunchKernel (uintptr_t entry, uintptr_t bootInfo)
+{
+    NbCpuLaunchKernelAsm (entry, bootInfo, NB_KE_STACK_BASE - 16);
+}

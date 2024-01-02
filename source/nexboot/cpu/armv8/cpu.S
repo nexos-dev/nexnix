@@ -19,19 +19,25 @@ NbCrash:
     wfi
     b NbCrash
 
-.global NbCpuLaunchKernel
+.global NbCpuLaunchKernelAsm
 
-NbCpuLaunchKernel:
+NbCpuLaunchKernelAsm:
+    mov sp, x2
     // Grab current EL
     mrs x9, CurrentEl
-    and x9, x9, #12
-    cmp x9, #12         // Compare it with EL2
+    and x9, x9, #8
+    cmp x9, #8         // Compare it with EL2
     b.eq .el2
     // We are in EL1, this is easy
     mov x3, x0
     mov x0, x1
     blr x3
 .el2:
+    dsb sy
+    isb
+    // Setup MAIR
+    mov x10, #0x44FF
+    msr MAIR_EL1, x10
     // We have to set up EL1 state and then switch to it for this to work
     // Ensure timers don't trap
     mrs x9, CNTHCTL_EL2
@@ -42,13 +48,13 @@ NbCpuLaunchKernel:
     ldr x9, =0x80000002
     msr HCR_EL2, x9
     // Disable SIMD trapping
-    ldr x9, =0x33FF
-    msr CPTR_EL2, x9
-    msr HSTR_EL2, xzr
+    mov x8, #0x33FF
+    msr cptr_el2, x8
+    msr hstr_el2, xzr
     // Prepare EL1 state
-    ldr x9, =0x1C0
-    msr SPSR_EL2, x9
+    ldr x9, =0x3c4
     msr ELR_EL2, x0
+    msr SPSR_EL2, x9
     mov x0, x1          // Get bootinfo
     eret                // Go to EL1
 

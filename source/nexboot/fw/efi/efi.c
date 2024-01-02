@@ -17,6 +17,7 @@
 
 #include <assert.h>
 #include <nexboot/drivers/disk.h>
+#include <nexboot/drivers/display.h>
 #include <nexboot/efi/efi.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
@@ -246,10 +247,19 @@ bool NbEfiCompareDevicePath (EFI_DEVICE_PATH* dev1, EFI_DEVICE_PATH* dev2)
     return !memcmp (dev1, dev2, (size > size2) ? size : size2);
 }
 
+// Standard framebuffer VA base
+#ifdef NEXNIX_ARCH_I386
+#define NB_EFI_FB_BASE 0xF0000000
+#else
+#define NB_EFI_FB_BASE 0xFFFFFFFFF0000000
+#endif
+
 // Map in memory regions to address space
 void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
 {
-#if defined NEXNIX_ARCH_I386 || defined NEXNIX_ARCH_RISCV64
+    // On i386 and RISC-V paging is diabled under EFI. Ensure we map enough
+    // so we don't immediatly page fault on entering MMU mode
+#if defined NEXNIX_ARCH_I386 || defined NEXNIX_ARCH_RISCV64 || defined NEXNIX_ARCH_ARMV8
     // Identity map all boot reclaim
     for (int i = 0; i < mapSz; ++i)
     {
@@ -263,6 +273,34 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
                             NB_CPU_AS_RW);
             }
         }
+    }
+#endif
+    // On everything except x86_64, the framebuffer is unmapped right now. Fix that
+#ifndef NEXNIX_ARCH_X86_64
+    // Map the framebuffer
+    bool foundDisplay = false;
+    NbObject_t* iter = NULL;
+    NbObject_t* devs = NbObjFind ("/Devices");
+    while ((iter = NbObjEnumDir (devs, iter)))
+    {
+        if (iter->type == OBJ_TYPE_DEVICE && iter->interface == OBJ_INTERFACE_DISPLAY)
+        {
+            foundDisplay = true;
+            break;
+        }
+    }
+    if (foundDisplay)
+    {
+        NbDisplayDev_t* display = NbObjGetData (iter);
+        size_t lfbPages = (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+        for (int i = 0; i < lfbPages; ++i)
+        {
+            NbCpuAsMap (NB_EFI_FB_BASE + (i * NEXBOOT_CPU_PAGE_SIZE),
+                        (uintptr_t) display->frontBuffer + (i * NEXBOOT_CPU_PAGE_SIZE),
+                        NB_CPU_AS_RW | NB_CPU_AS_WT);
+        }
+        // Ensure display structure points here
+        display->frontBuffer = (void*) NB_EFI_FB_BASE;
     }
 #endif
 }

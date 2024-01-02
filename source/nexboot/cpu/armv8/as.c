@@ -35,7 +35,7 @@ static uint8_t idxShiftTab[] = {0, 12, 21, 30, 39, 48};
 #define PT_V                   (1 << 0)
 #define PT_PG                  (1 << 1)
 #define PT_TAB                 (1 << 1)
-#define PT_RO                  (1 << 3)
+#define PT_RO                  (1 << 7)
 #define PT_XN                  (1 << 54)
 #define PT_AF                  (1 << 10)
 #define PT_FRAME               0xFFFFFFFFF000
@@ -66,10 +66,14 @@ typedef uint64_t pte_t;
 // TCR values
 #define TCR_EOPD1       (1ULL << 56)
 #define TCR_DS          (1ULL << 52)
+#define TCR_IPS         (7ULL << 32)
+#define TCR_IPS_SHIFT   (32ULL)
 #define TCR_TG1         (3 << 30)
 #define TCR_TG1_SHIFT   (30)
 #define TCR_SH1         (3 << 28)
 #define TCR_SH1_SHIFT   (28)
+#define TCR_ORGN1       (3 << 26)
+#define TCR_ORGN1_SHIFT (26)
 #define TCR_IRGN1       (3 << 24)
 #define TCR_IRGN1_SHIFT (24)
 #define TCR_EPD1        (1 << 23)
@@ -79,6 +83,8 @@ typedef uint64_t pte_t;
 #define TCR_TG0_SHIFT   (14)
 #define TCR_SH0         (3 << 12)
 #define TCR_SH0_SHIFT   (12)
+#define TCR_ORGN0       (3 << 10)
+#define TCR_ORGN0_SHIFT (10)
 #define TCR_IRGN0       (3 << 8)
 #define TCR_IRGN0_SHIFT (8)
 #define TCR_EPD0        (1 << 7)
@@ -91,8 +97,8 @@ typedef uint64_t pte_t;
 static int currentEl = 0;
 
 // Page directory we are working on
-// NOTE: We only deal with TTBR1. TTBR0 is treated as being in an unknown state
 static pte_t* pgBase = NULL;
+static pte_t* pgBase2 = NULL;
 
 static int asMaxLevel = 4;
 
@@ -117,58 +123,11 @@ void NbCpuAsInit()
                       NEXBOOT_LOGLEVEL_EMERGENCY);
         NbCrash();
     }
-    // Set up SCTLR
-    if (currentEl == 2)
-    {
-        uint64_t sctlrEl2 = NbCpuReadMsr ("SCTLR_EL2");
-        // Clear what we don't want
-        sctlrEl2 &= ~(SCTLR_DATA_BE | SCTLR_TRANS_BE);
-        // Set what we want
-        sctlrEl2 |= (SCTLR_DATA_CACHE | SCTLR_INST_CACHE | SCTLR_SP_ALIGN | SCTLR_SP_ALIGN0);
-        NbCpuWriteMsr ("SCTLR_EL2", sctlrEl2);
-    }
-    uint64_t sctlrEl1 = NbCpuReadMsr ("SCTLR_EL1");
-    // Clear what we don't want
-    sctlrEl1 &= ~(SCTLR_DATA_BE | SCTLR_TRANS_BE);
-    // Set what we want
-    sctlrEl1 |= (SCTLR_DATA_CACHE | SCTLR_INST_CACHE | SCTLR_SP_ALIGN | SCTLR_SP_ALIGN0);
-    // Set up TCR. If we are already in EL1, we want to be more careful
-    if (currentEl == 1)
-    {
-        uint64_t tcrEl1 = NbCpuReadMsr ("TCR_EL1");
-        // Setup TTBR1
-        tcrEl1 |= (TCR_EOPD1);                           // Make TTBR1 privileged
-        tcrEl1 &= ~(TCR_EPD1);                           // Enable TTBR1
-        tcrEl1 |= (2ULL << TCR_TG1_SHIFT);               // Set granularity to 4K
-        tcrEl1 |= (3ULL << TCR_SH1_SHIFT);               // Set shareability to inner shareable
-        tcrEl1 |= (1ULL << TCR_IRGN1_SHIFT);             // Set inner shareability attributes
-        tcrEl1 |= (TTBR_REGION_SZ << TCR_T1SZ_SHIFT);    // Set region size to 256TiB
-        // Leave TTBR0 fields alone, as they are already set up
-        NbCpuWriteMsr ("TCR_EL1", tcrEl1);
-    }
-    else if (currentEl == 2)
-    {
-        uint64_t tcrEl1 = NbCpuReadMsr ("TCR_EL1");
-        // Setup TTBR1
-        tcrEl1 |= (TCR_EOPD1);
-        tcrEl1 &= ~(TCR_EPD1);
-        tcrEl1 |= (2ULL << TCR_TG1_SHIFT);
-        tcrEl1 |= (3ULL << TCR_SH1_SHIFT);
-        tcrEl1 |= (1ULL << TCR_IRGN1_SHIFT);
-        tcrEl1 |= (TTBR_REGION_SZ << TCR_T1SZ_SHIFT);
-        // Setup TTBR0
-        tcrEl1 &= ~(TCR_EPD0);
-        tcrEl1 |= (2ULL << TCR_TG0_SHIFT);
-        tcrEl1 |= (3ULL << TCR_SH0_SHIFT);
-        tcrEl1 |= (1ULL << TCR_IRGN0_SHIFT);
-        tcrEl1 |= (TTBR_REGION_SZ << TCR_T0SZ_SHIFT);
-        NbCpuWriteMsr ("TCR_EL1", tcrEl1);
-    }
     // Set up paging structure
     pgBase = (pte_t*) NbFwAllocPage();
     assert (pgBase);
-    uintptr_t ttbr1 = (uintptr_t) pgBase | (1 << 0);    // Set CnP
-    NbCpuWriteMsr ("TTBR1_EL1", ttbr1);
+    pgBase2 = (pte_t*) NbFwAllocPage();
+    assert (pgBase2);
 }
 
 // Gets paging entry as current level
@@ -197,10 +156,20 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     uint64_t ptFlags = PT_V | PT_AF | PT_PG | PT_RO;
     if (flags & NB_CPU_AS_RW)
         ptFlags &= ~(PT_RO);
+    if (flags & NB_CPU_AS_WT)
+        ptFlags |= (1 << 2);
     //  De-canonicalize the address
-    virt &= AS_CANONICAL_MASK;
+    pte_t* curSt = NULL;
+    if (virt & (1ULL << 48))
+    {
+        virt &= AS_CANONICAL_MASK;
+        curSt = pgBase;
+    }
+    else
+    {
+        curSt = pgBase2;
+    }
     // Loop through each level
-    pte_t* curSt = pgBase;
     for (int i = asMaxLevel; i > 1; --i)
     {
         // Grab entry
@@ -251,5 +220,38 @@ void NbCpuAsUnmap (uintptr_t virt)
 // Enables paging
 void NbCpuEnablePaging()
 {
-    // Paging is always enabled x86_64
+    uint64_t paBits = NbCpuReadMsr ("ID_AA64MMFR0_EL1") & MMFR0_PABITS_MASK;
+    if (paBits == 6)
+        paBits = 5;    // We don't support 52 bit addresses
+    // Set up SCTLR
+    uint64_t sctlrEl1 = NbCpuReadMsr ("SCTLR_EL1");
+    // Clear what we don't want
+    sctlrEl1 &= ~(SCTLR_DATA_BE | SCTLR_TRANS_BE);
+    // Set what we want
+    sctlrEl1 |=
+        (SCTLR_DATA_CACHE | SCTLR_INST_CACHE | SCTLR_SP_ALIGN | SCTLR_SP_ALIGN0 | SCTLR_MMU_ENABLE);
+    NbCpuWriteMsr ("SCTLR_EL1", sctlrEl1);
+    uint64_t tcrEl1 = NbCpuReadMsr ("TCR_EL1");
+    // Setup TTBR1
+    tcrEl1 |= (TCR_EOPD1);
+    tcrEl1 &= ~(TCR_EPD1);
+    tcrEl1 |= (3ULL << TCR_SH1_SHIFT);
+    tcrEl1 |= (1ULL << TCR_IRGN1_SHIFT);
+    tcrEl1 |= (1ULL << TCR_ORGN1_SHIFT);
+    tcrEl1 |= (TTBR_REGION_SZ << TCR_T1SZ_SHIFT);
+    tcrEl1 |= (2ULL << TCR_TG1_SHIFT);
+    tcrEl1 |= (paBits << TCR_IPS_SHIFT);
+    // Setup TTBR0 if we are in EL2
+    if (currentEl == 2)
+    {
+        tcrEl1 &= ~(TCR_EPD0);
+        tcrEl1 |= (0ULL << TCR_TG0_SHIFT);
+        tcrEl1 |= (3ULL << TCR_SH0_SHIFT);
+        tcrEl1 |= (1ULL << TCR_IRGN0_SHIFT);
+        tcrEl1 |= (1ULL << TCR_ORGN0_SHIFT);
+        tcrEl1 |= (TTBR_REGION_SZ << TCR_T0SZ_SHIFT);
+        NbCpuWriteMsr ("TTBR0_EL1", (uintptr_t) pgBase2 | (1 << 0));
+    }
+    NbCpuWriteMsr ("TCR_EL1", tcrEl1);
+    NbCpuWriteMsr ("TTBR1_EL1", (uintptr_t) pgBase | (1 << 0));
 }

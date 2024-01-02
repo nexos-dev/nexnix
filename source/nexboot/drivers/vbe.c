@@ -580,6 +580,10 @@ static bool VbeObjUnmapFb (void* objp, void* params)
     for (int i = 0; i < lfbPages; ++i)
     {
         NbCpuAsUnmap ((uintptr_t) display->frontBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
+        // Map framebuffer to new address
+        NbCpuAsMap ((uintptr_t) NEXBOOT_FB_BASE + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    (uintptr_t) display->frontBuffer + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    NB_CPU_AS_RW | NB_CPU_AS_WT);
         NbCpuAsUnmap ((uintptr_t) display->backBuffer + (i * NEXBOOT_CPU_PAGE_SIZE));
     }
     return true;

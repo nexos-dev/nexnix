@@ -104,6 +104,12 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type);
 
 #define NEXBOOT_BIOS_MBR_BASE 0x7C00
 
+#ifdef NEXNIX_ARCH_I386
+#define NEXBOOT_FB_BASE 0xF0000000
+#else
+#define NEXBOOT_FB_BASE 0xFFFFFFFFF0000000
+#endif
+
 // System detection macros
 
 // PC architecture components
