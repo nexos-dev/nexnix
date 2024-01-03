@@ -87,6 +87,11 @@ void NbMemInit()
     uint64_t memSz = 0;
     for (int i = 0; i < size; ++i)
     {
+        NbLogMessageEarly ("nexboot: detected memory region from %#lX to %#lX, type %d\n",
+                           NEXBOOT_LOGLEVEL_DEBUG,
+                           memmap[i].base,
+                           memmap[i].base + memmap[i].sz,
+                           memmap[i].type);
         // Get memory size
         if (memmap[i].type == NEXBOOT_MEM_FREE || memmap[i].type == NEXBOOT_MEM_BOOT_RECLAIM)
         {

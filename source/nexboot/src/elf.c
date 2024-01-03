@@ -120,6 +120,10 @@ uintptr_t NbElfLoadFile (void* fileBase)
                 if (phdr->p_flags & PF_W)
                     flags |= NB_CPU_AS_RW;
                 // Map pages
+                NbLogMessage ("nexboot: mapping kernel program header from %#lX to %#lX\n",
+                              NEXBOOT_LOGLEVEL_DEBUG,
+                              phdr->p_vaddr,
+                              phdr->p_vaddr + phdr->p_memsz);
                 for (int i = 0; i < numPgs; ++i)
                 {
                     NbCpuAsMap (phdr->p_vaddr + (i * NEXBOOT_CPU_PAGE_SIZE),
@@ -179,6 +183,10 @@ uintptr_t NbElfLoadFile (void* fileBase)
                 if (phdr->p_flags & PF_W)
                     flags |= NB_CPU_AS_RW;
                 // Map pages
+                NbLogMessage ("nexboot: mapping kernel program header from %lx to %lx\n",
+                              NEXBOOT_LOGLEVEL_DEBUG,
+                              phdr->p_vaddr,
+                              phdr->p_vaddr + phdr->p_memsz);
                 for (int i = 0; i < numPgs; ++i)
                 {
                     NbCpuAsMap (phdr->p_vaddr + (i * NEXBOOT_CPU_PAGE_SIZE),

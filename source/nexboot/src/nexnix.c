@@ -225,6 +225,10 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     }
     if (foundDisplay)
     {
+        char buf[128] = {0};
+        NbLogMessage ("nexboot: passing display %s to kernel\n",
+                      NEXBOOT_LOGLEVEL_DEBUG,
+                      NbObjGetPath (displayIter, buf, 128));
         NbDisplayDev_t* display = NbObjGetData (displayIter);
         // Copy fields
         bootInfo->displayDefault = false;

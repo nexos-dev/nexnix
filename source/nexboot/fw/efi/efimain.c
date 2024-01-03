@@ -22,6 +22,9 @@
 
 // Global EFI variables
 EFI_HANDLE ImgHandle;
+EFI_SYSTEM_TABLE* ST;
+EFI_BOOT_SERVICES* BS;
+EFI_RUNTIME_SERVICES* RT;
 
 static NbloadDetect_t detect = {0};    // Nbdetect structure
 

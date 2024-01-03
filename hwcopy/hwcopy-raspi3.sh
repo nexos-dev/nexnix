@@ -141,6 +141,9 @@ then
     fi
 fi
 
+# Check if this is MMC
+[ $(echo $device | grep "mmc") ] && device=${device}p
+
 # Copy out firmware
 sudo umount ${device}1
 sudo mount ${device}1 /mnt

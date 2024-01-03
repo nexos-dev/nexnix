@@ -27,7 +27,7 @@
 // Print a character to ConOut
 void NbFwEarlyPrint (char c)
 {
-    CHAR16 buf[3];
+    CHAR16 buf[2];
     buf[0] = c;
     buf[1] = 0;
     ST->ConOut->OutputString (ST->ConOut, buf);
@@ -60,7 +60,7 @@ uintptr_t NbFwAllocPages (int count)
 uintptr_t NbFwAllocPersistentPage()
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    if (BS->AllocatePages (AllocateAnyPages, EfiLoaderData, 1, &addr) != EFI_SUCCESS)
+    if (BS->AllocatePages (AllocateAnyPages, EfiRuntimeServicesData, 1, &addr) != EFI_SUCCESS)
     {
         return 0;
     }
@@ -72,7 +72,7 @@ uintptr_t NbFwAllocPersistentPage()
 uintptr_t NbFwAllocPersistentPages (int count)
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    if (BS->AllocatePages (AllocateAnyPages, EfiLoaderData, count, &addr) != EFI_SUCCESS)
+    if (BS->AllocatePages (AllocateAnyPages, EfiRuntimeServicesData, count, &addr) != EFI_SUCCESS)
     {
         return 0;
     }
@@ -265,6 +265,10 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
     {
         if (memMap[i].type == NEXBOOT_MEM_BOOT_RECLAIM || memMap[i].type == NEXBOOT_MEM_FW_RECLAIM)
         {
+            NbLogMessage ("nexboot: mapping EFI memory region from %#lX to %#lX\n",
+                          NEXBOOT_LOGLEVEL_DEBUG,
+                          memMap[i].base,
+                          memMap[i].base + memMap[i].sz);
             int numPages = memMap[i].sz / NEXBOOT_CPU_PAGE_SIZE;
             for (int j = 0; j < numPages; ++j)
             {
@@ -275,8 +279,6 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
         }
     }
 #endif
-    // On everything except x86_64, the framebuffer is unmapped right now. Fix that
-#ifndef NEXNIX_ARCH_X86_64
     // Map the framebuffer
     bool foundDisplay = false;
     NbObject_t* iter = NULL;
@@ -291,6 +293,9 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
     }
     if (foundDisplay)
     {
+        NbLogMessage ("nexboot: mapping framebuffer to %#lX\n",
+                      NEXBOOT_LOGLEVEL_DEBUG,
+                      NB_EFI_FB_BASE);
         NbDisplayDev_t* display = NbObjGetData (iter);
         size_t lfbPages = (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
         for (int i = 0; i < lfbPages; ++i)
@@ -302,7 +307,6 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
         // Ensure display structure points here
         display->frontBuffer = (void*) NB_EFI_FB_BASE;
     }
-#endif
 }
 
 // Exits from bootloader

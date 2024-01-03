@@ -46,7 +46,7 @@ add_executable(nexboot-efi-1 EXCLUDE_FROM_ALL ${NEXBOOT_SOURCE_FILES})
 target_include_directories(nexboot-efi-1 PUBLIC ${GNUEFI_CFLAGS})
 
 # Libraries
-target_link_libraries(nexboot-efi-1 PRIVATE nexboot ${GNUEFI_LIBRARIES})
+target_link_libraries(nexboot-efi-1 PRIVATE nexboot gnuefi)
 
 # Options
 target_link_options(nexboot-efi-1 PUBLIC -shared -Wl,-Bsymbolic

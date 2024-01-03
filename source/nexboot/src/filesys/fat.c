@@ -814,8 +814,9 @@ static FatDirEntry_t* fatNextEntry (NbFileSys_t* fs,
         *dirIdx += 1;
         ++offset;
         // Check if we need to read in another cluster
-        if (offset >= entInCluster || (offset == 1 && *dirIdx >= entInCluster))
+        if (offset >= entInCluster || (offset <= 1 && *dirIdx >= entInCluster))
         {
+            NbLogMessage ("got here\n", NEXBOOT_LOGLEVEL_ERROR);
             // Read it in
             *cluster = fatReadNextCluster (fs, *cluster);
             // Check for bad cluster and EOF
