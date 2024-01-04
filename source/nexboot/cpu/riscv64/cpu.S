@@ -33,5 +33,3 @@ NbCpuLaunchKernelAsm:
     mv a0, a1
     csrw mepc, t0
     mret
-
-.end

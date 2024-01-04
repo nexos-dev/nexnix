@@ -19,77 +19,10 @@
 #include <nexboot/drivers/display.h>
 #include <nexboot/fw.h>
 #include <nexboot/nexboot.h>
+#include <nexboot/nexnix.h>
 #include <nexboot/os.h>
 #include <nexboot/shell.h>
 #include <string.h>
-
-#define NEXBOOT_MOD_MAX    32
-#define NEXBOOT_MEMPOOL_SZ (32 * 1024)    // 32 KiB
-
-// NexNix boot structures
-#ifdef NEXNIX_ARCH_RISCV64
-typedef struct _nncpu
-{
-    uint64_t misa;
-    uint64_t mimpid;
-    uint64_t marchid;
-    uint64_t mvendorid;
-} NexNixCpu_t;
-#else
-typedef struct _nncpu
-{
-} NexNixCpu_t;
-#endif
-
-// Defined in display.h
-/*typedef struct _masksz
-{
-    uint32_t mask;         // Value to mask component with
-    uint32_t maskShift;    // Amount to shift component by
-} NbPixelMask_t;*/
-
-typedef struct _nndisplay
-{
-    int width;           // Width of seleceted mode
-    int height;          // Height of selected mode
-    int bytesPerLine;    // Bytes per scanline
-    char bpp;            // Bits per pixel
-    char bytesPerPx;
-    size_t lfbSize;
-    NbPixelMask_t redMask;    // Masks
-    NbPixelMask_t greenMask;
-    NbPixelMask_t blueMask;
-    NbPixelMask_t resvdMask;
-    void* frameBuffer;    // Base of framebuffer
-} NexNixDisplay_t;
-
-typedef struct _nnboot
-{
-    // System hardware info
-    char sysName[256];         // Sysinfo name
-    uint32_t detectedComps;    // Detected architecture components
-    uintptr_t comps[32];       // Component table pointers
-                               // NOTE: some have no table and only BIOS ints
-
-    uint8_t fw;    // Firmware type we booted from
-    // Log info
-    uintptr_t logBase;    // Base address of log
-    // Memory map
-    NbMemEntry_t* memMap;    // Memory map
-    int mapSize;             // Entries in memory map
-    // Modules info
-    void* mods[NEXBOOT_MOD_MAX];    // Loaded modules bases
-    int numMods;                    // Number of loaded modules
-    // Early memory pool
-    void* memPool;      // Early memory pool
-    int memPoolSize;    // Size of early memory pool
-    // Arguments
-    char args[256];    // Command line arguments
-    // Display info
-    bool displayDefault;        // If true, display is in same state firmware left it in
-    NexNixDisplay_t display;    // Display info
-    NexNixCpu_t cpu;            // CPU info
-} NexNixBoot_t;
 
 // Reads in a file component
 void* osReadFile (NbObject_t* fs, bool persists, const char* name)

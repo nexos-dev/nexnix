@@ -72,7 +72,8 @@ list(APPEND NEXBOOT_HEADERS
     include/nexboot/os.h
     include/nexboot/shell.h
     include/nexboot/ui.h
-    include/nexboot/vfs.h)
+    include/nexboot/vfs.h
+    include/nexboot/nexnix.h)
 list(APPEND NEXBOOT_DRIVER_HEADERS
     include/nexboot/drivers/disk.h
     include/nexboot/drivers/display.h
