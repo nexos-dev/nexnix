@@ -250,14 +250,14 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     detectBios32();
     // Detect ISA devices the bootloader needs
     // Find keyboards
-    NbDriver_t* keyDrv = NbFindDriver ("PS2Kbd");
+    NbDriver_t* keyDrv = NbFindDriver ("BiosKbd");
     assert (keyDrv);
     NbHwDevice_t* dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
     while (NbSendDriverCode (keyDrv, NB_DRIVER_ENTRY_DETECTHW, dev))
     {
         // Create object for driver
         char buf[64] = {0};
-        snprintf (buf, 64, "/Devices/PS2Kbd%d", dev->devId);
+        snprintf (buf, 64, "/Devices/BiosKbd%d", dev->devId);
         createDeviceObject (buf, OBJ_INTERFACE_KBD, keyDrv, dev);
         dev = (NbHwDevice_t*) malloc (keyDrv->devSize);
     }

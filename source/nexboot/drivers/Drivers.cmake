@@ -18,7 +18,7 @@
 # Append drivers for FW type
 if(NEXBOOT_FW STREQUAL "bios")
     list(APPEND NEXBOOT_FW_DRIVERS drivers/vgaconsole.c
-        drivers/ps2kbd.c
+        drivers/bioskbd.c
         drivers/uart16550.c
         drivers/biosdisk.c
         drivers/vbe.c)

@@ -28,7 +28,7 @@ NbCrash:
 #define NB_KE_STACK_BASE 0xFFFFFFFF7FFFFFF0
 
 NbCpuLaunchKernelAsm:
-    //li sp, NB_KE_STACK_BASE
+    li sp, NB_KE_STACK_BASE
     mv t0, a0
     mv a0, a1
     csrw mepc, t0

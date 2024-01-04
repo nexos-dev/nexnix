@@ -214,7 +214,7 @@ bool NbLsMain (Array_t* args)
     }
     while (iter.name[0])
     {
-        // NbShellWrite ("%s\n", iter.name);
+        NbShellWrite ("%s\n", iter.name);
         if (!NbVfsReadDir (rootFs, &iter))
         {
             NbShellWrite ("ls: unable to read directory \"%s\"\n", StrRefGet (dir));
