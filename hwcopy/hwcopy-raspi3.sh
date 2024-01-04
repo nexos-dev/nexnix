@@ -121,11 +121,6 @@ fi
 # Format device
 if [ $nofw -eq 0 ]
 then
-    sudo parted -s $device "unit MiB rm 1 mklabel msdos mkpart primary fat32 1 129 select 1 set boot onS"
-    checkerr $? "unable to partition device"
-    sudo mkdosfs -F 32 ${device}1
-    checkerr $? "unable to format device"
-
     # Download PFTF archive
     olddir=$PWD
     mkdir -p hwcopy/fw/tarballs

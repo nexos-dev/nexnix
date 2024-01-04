@@ -574,7 +574,9 @@ static bool VbeObjSetRender (void* objp, void* params)
 
 static bool VbeObjUnmapFb (void* objp, void* params)
 {
-    NbLogMessage ("nexboot: mapping framebuffer to %#lX", NEXBOOT_LOGLEVEL_DEBUG, NEXBOOT_FB_BASE);
+    NbLogMessage ("nexboot: mapping framebuffer to %#lX\n",
+                  NEXBOOT_LOGLEVEL_DEBUG,
+                  NEXBOOT_FB_BASE);
     NbObject_t* obj = objp;
     NbDisplayDev_t* display = NbObjGetData (obj);
     size_t lfbPages = (display->lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;

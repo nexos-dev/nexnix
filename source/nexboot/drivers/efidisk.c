@@ -67,7 +67,7 @@ static bool EfiDiskEntry (int code, void* params)
             }
             else
             {
-                tempBuf = (void*) NbFwAllocPage();
+                tempBuf = (void*) NbFwAllocPages ((64 * 1024) / NEXBOOT_CPU_PAGE_SIZE);
                 assert (tempBuf);
             }
             break;
@@ -250,7 +250,7 @@ static bool EfiDiskReadSectors (void* objp, void* params)
         return false;
     }
     // Copy data from aligned buffer to dest buffer
-    memcpy (sect->buf, tempBuf, disk->disk.sectorSz);
+    memcpy (sect->buf, tempBuf, sect->count * disk->disk.sectorSz);
     return true;
 }
 

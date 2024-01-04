@@ -814,9 +814,8 @@ static FatDirEntry_t* fatNextEntry (NbFileSys_t* fs,
         *dirIdx += 1;
         ++offset;
         // Check if we need to read in another cluster
-        if (offset >= entInCluster || (offset <= 1 && *dirIdx >= entInCluster))
+        if (offset >= entInCluster || (offset == 1 && *dirIdx >= entInCluster))
         {
-            NbLogMessage ("got here\n", NEXBOOT_LOGLEVEL_ERROR);
             // Read it in
             *cluster = fatReadNextCluster (fs, *cluster);
             // Check for bad cluster and EOF
@@ -1012,14 +1011,14 @@ bool FatGetDir (NbObject_t* fsObj, const char* path, NbDirIter_t* iter)
             return false;
     }
     // We have the directory, fill out first entry
-    // Initialize iterator internal data
-    FatDirIter_t* iterInt = (FatDirIter_t*) &iter->internal;
-    iterInt->curCluster = dirCluster;
-    iterInt->curIdx = 0;
     // Read in directory first sector / cluster
     FatDirEntry_t* dir = fatStartReadDir (fs, &dirCluster);
     if (!dir)
         return false;
+    // Initialize iterator internal data
+    FatDirIter_t* iterInt = (FatDirIter_t*) &iter->internal;
+    iterInt->curCluster = dirCluster;
+    iterInt->curIdx = 0;
     iterInt->dir = dir;
     // First check if directory is empty
     if (!dir[0].name[0])
