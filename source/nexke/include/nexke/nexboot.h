@@ -1,6 +1,6 @@
 /*
     nexboot.h - contains bootloader structures
-    Copyright 2023 The NexNix Project
+    Copyright 2023 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ typedef struct _nnboot
     // Arguments
     char args[256];    // Command line arguments
     // Display info
-    bool displayDefault;    // If true, display is in same state firmware left it in
+    bool displayDefault;        // If true, display is in same state firmware left it in
     NexNixDisplay_t display;    // Display info
 } NexNixBoot_t;
 

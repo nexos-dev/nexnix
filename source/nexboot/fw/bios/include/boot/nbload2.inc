@@ -1,5 +1,5 @@
 ; nbload2.inc - contains common code for stage 1 / 1.5 that gets stashed in sector 2
-; Copyright 2022, 2023 The NexNix Project
+; Copyright 2022 - 2024 The NexNix Project
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -14,4 +14,4 @@
 ; limitations under the License.
 
 ; Welcome banner
-welcomeBanner2: db 0x0D, 0x0A, "Copyright (C) 2021 - 2023 The NexNix Project.", 0x0D, 0x0A, 0
+welcomeBanner2: db 0x0D, 0x0A, "Copyright (C) 2021 - 2024 The NexNix Project.", 0x0D, 0x0A, 0

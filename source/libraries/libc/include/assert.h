@@ -1,6 +1,6 @@
 /*
     assert.h - contains assert macro
-    Copyright 2023 The NexNix Project
+    Copyright 2023 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -21,8 +21,7 @@ __assert_failed (const char* expr, const char* file, int line, const char* func)
 #ifdef NDEBUG
 #define assert(expr) ((void) 0)
 #else
-#define assert(expr) \
-    (void) ((expr) ? 0 : __assert_failed (#expr, __FILE__, __LINE__, __func__))
+#define assert(expr) (void) ((expr) ? 0 : __assert_failed (#expr, __FILE__, __LINE__, __func__))
 #endif
 
 #define static_assert _Static_assert

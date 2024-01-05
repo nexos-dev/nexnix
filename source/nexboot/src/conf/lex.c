@@ -1,6 +1,6 @@
 /*
     lex.c - contains shell conf lexer
-    Copyright 2023 The NexNix Project
+    Copyright 2023 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -100,10 +100,7 @@ static inline void lexError (confLexState_t* state, int err, const char* extra)
 
     char* obuf = bufData;
     char* buf = bufData;
-    buf += snprintf (buf,
-                     ERRORBUFSZ - (buf - obuf),
-                     "nexboot: error: line %d: ",
-                     state->line);
+    buf += snprintf (buf, ERRORBUFSZ - (buf - obuf), "nexboot: error: line %d: ", state->line);
     // Decide how to handle the error
     switch (err)
     {
@@ -140,10 +137,8 @@ char lexReadFile (ConfContext_t* ctx)
     if (lex->bufPos == lex->bufSz)
     {
         // Read it in
-        int32_t bytesRead = NbVfsReadFile (ctx->confFile->fileSys,
-                                           ctx->confFile,
-                                           StrRefGet (lex->buf),
-                                           LEX_BUF_SZ);
+        int32_t bytesRead =
+            NbVfsReadFile (ctx->confFile->fileSys, ctx->confFile, StrRefGet (lex->buf), LEX_BUF_SZ);
         // Check for error
         if (bytesRead == -1)
         {
@@ -465,8 +460,7 @@ confToken_t* confLex (ConfContext_t* ctx)
                         // Escape whitespace
                         else if (lexIsSpace (lexPeekChar (ctx)))
                         {
-                            if (lexPeekChar (ctx) == '\n' ||
-                                lexPeekChar (ctx) == '\r')
+                            if (lexPeekChar (ctx) == '\n' || lexPeekChar (ctx) == '\r')
                             {
                                 ++lex->line;
                                 char oc = lexPeekChar (ctx);
@@ -545,8 +539,7 @@ confToken_t* confLex (ConfContext_t* ctx)
                         // Escape whitespace
                         else if (lexIsSpace (lexPeekChar (ctx)))
                         {
-                            if (lexPeekChar (ctx) == '\n' ||
-                                lexPeekChar (ctx) == '\r')
+                            if (lexPeekChar (ctx) == '\n' || lexPeekChar (ctx) == '\r')
                             {
                                 ++lex->line;
                                 char oc = lexPeekChar (ctx);

@@ -1,6 +1,6 @@
 /*
     decomp.c - contains linker script for ndecomp
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,8 +33,7 @@ void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uintptr_t nbSize)
 {
     // Decompress it
     uint32_t size = NEXBOOT_MAX_SIZE;
-    int res =
-        tinf_gzip_uncompress ((void*) NEXBOOT_BASE_ADDR, &size, nbBase, nbSize);
+    int res = tinf_gzip_uncompress ((void*) NEXBOOT_BASE_ADDR, &size, nbBase, nbSize);
     if (res)
     {
         // We can't print anything right now, just halt as the chance of this

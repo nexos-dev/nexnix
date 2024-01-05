@@ -1,6 +1,6 @@
 #[[
     Options.cmake - adds manages options
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -21,10 +21,12 @@ function(nexnix_add_option __name __help __default)
     # If already defined set option to existing value
     if(DEFINED ${__name})
         option(${__name} ${__help} ${${__name}})
+
     # Else set to specified default
     else()
         option(${__name} ${__help} ${__default})
     endif()
+
     # Pass to compiler if defined
     if(${${__name}})
         add_compile_definitions(${__name})
@@ -37,11 +39,12 @@ function(nexnix_add_parameter __name __help __value)
     # If already defined set option to existing value
     if(DEFINED ${__name})
         set(${__name} ${${__name}} CACHE STRING ${__help} FORCE)
+
     # Else set to specified default
     else()
         set(${__name} ${__value} CACHE STRING ${__help} FORCE)
     endif()
+
     # Pass to compiler
     add_compile_definitions(${__name}=${${__name}})
 endfunction()
-

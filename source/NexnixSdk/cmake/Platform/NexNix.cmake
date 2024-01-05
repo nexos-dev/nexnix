@@ -1,6 +1,6 @@
 #[[
     NexNix.cmake - contains NexNix CMake stuff
-    Copyright 2021, 2022, 2023 The NexNix Project
+    Copyright 2021 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ endif()
 
 set(NEXNIX 1)
 
-list(APPEND CMAKE_SYSTEM_PREFIX_PATH 
-            /Programs /System 
-            /Programs/Index)
+list(APPEND CMAKE_SYSTEM_PREFIX_PATH
+    /Programs /System
+    /Programs/Index)
 
 list(APPEND CMAKE_SYSTEM_INCLUDE_PATH /Programs/Index/include)
 list(APPEND CMAKE_SYSTEM_LIBRARY_PATH /Programs/Index/lib)

@@ -1,6 +1,6 @@
 #[[
     compiler-gnu.cmake - contains compiler flags setup
-    Copyright 2021, 2022, 2023 The NexNix Project
+    Copyright 2021 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 
 # Setup warning flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -Werror -Wno-error=pedantic")
+
 # Set optimization flags
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
+
 # Set general flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe")

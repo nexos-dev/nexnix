@@ -1,6 +1,6 @@
 /*
     chainload.c - contains chainload boot type
-    Copyright 2023 The NexNix Project
+    Copyright 2023 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -29,17 +29,14 @@ bool NbOsBootChainload (NbOsInfo_t* os)
     NbObject_t* bootDev = NbObjFind (StrRefGet (os->payload));
     if (!bootDev)
     {
-        NbShellWrite ("boot: payload \"%s\" doesn't exist\n",
-                      StrRefGet (os->payload));
+        NbShellWrite ("boot: payload \"%s\" doesn't exist\n", StrRefGet (os->payload));
         return false;
     }
     // Ensure it's a disk or volume
     if (bootDev->type != OBJ_TYPE_DEVICE ||
-        (bootDev->interface != OBJ_INTERFACE_DISK &&
-         bootDev->interface != OBJ_INTERFACE_VOLUME))
+        (bootDev->interface != OBJ_INTERFACE_DISK && bootDev->interface != OBJ_INTERFACE_VOLUME))
     {
-        NbShellWrite ("boot: payload \"%s\" not disk or volume\n",
-                      StrRefGet (os->payload));
+        NbShellWrite ("boot: payload \"%s\" not disk or volume\n", StrRefGet (os->payload));
         return false;
     }
     // Determine object function to call
@@ -55,8 +52,7 @@ bool NbOsBootChainload (NbOsInfo_t* os)
     sect.sector = 0;
     if (!NbObjCallSvc (bootDev, func, &sect))
     {
-        NbShellWrite ("boot: unable to read from device \"%s\"",
-                      StrRefGet (os->payload));
+        NbShellWrite ("boot: unable to read from device \"%s\"", StrRefGet (os->payload));
         return false;
     }
     // Determine drive number

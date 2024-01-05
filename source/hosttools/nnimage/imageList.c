@@ -1,6 +1,6 @@
 /*
     imageList.c - contains functions to build image list
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -138,10 +138,7 @@ static bool addPartition (const char32_t* name)
 }
 
 // Adds a property
-bool addProperty (const char32_t* newProp,
-                  union val* val,
-                  bool isStart,
-                  int dataType)
+bool addProperty (const char32_t* newProp, union val* val, bool isStart, int dataType)
 {
     if (isStart)
     {
@@ -295,10 +292,7 @@ bool addProperty (const char32_t* newProp,
         }
         else
         {
-            error ("%s:%d: property \"%s\" is unsupported",
-                   ConfGetFileName(),
-                   lineNo,
-                   prop);
+            error ("%s:%d: property \"%s\" is unsupported", ConfGetFileName(), lineNo, prop);
             return false;
         }
     }
@@ -379,10 +373,9 @@ bool addProperty (const char32_t* newProp,
                 curPart->isBootPart = false;
             else
             {
-                error (
-                    "%s:%d: property \"isBoot\" requires a boolean identifier value",
-                    ConfGetFileName(),
-                    lineNo);
+                error ("%s:%d: property \"isBoot\" requires a boolean identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return false;
             }
         }
@@ -459,16 +452,11 @@ bool addProperty (const char32_t* newProp,
             ListEntry_t* imgEntry = ListFindEntryBy (images, val->strVal);
             if (!imgEntry)
             {
-                error ("%s:%d: image \"%s\" not found",
-                       ConfGetFileName(),
-                       lineNo,
-                       val->strVal);
+                error ("%s:%d: image \"%s\" not found", ConfGetFileName(), lineNo, val->strVal);
                 return false;
             }
             // Add partititon to image
-            ListAddBack (((Image_t*) ListEntryData (imgEntry))->partsList,
-                         curPart,
-                         0);
+            ListAddBack (((Image_t*) ListEntryData (imgEntry))->partsList, curPart, 0);
             ((Image_t*) ListEntryData (imgEntry))->partCount++;
             wasPartLinked = true;
             // Set if this is the boot partition or not
@@ -491,10 +479,7 @@ bool addProperty (const char32_t* newProp,
         }
         else
         {
-            error ("%s:%d: property \"%s\" is unsupported",
-                   ConfGetFileName(),
-                   lineNo,
-                   prop);
+            error ("%s:%d: property \"%s\" is unsupported", ConfGetFileName(), lineNo, prop);
             return false;
         }
     }
@@ -521,9 +506,7 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
             // Ensure a block name was given
             if (!block->blockName)
             {
-                error ("%s:%d: image declaration requires name",
-                       ConfGetFileName(),
-                       lineNo);
+                error ("%s:%d: image declaration requires name", ConfGetFileName(), lineNo);
                 return NULL;
             }
             // Add the image
@@ -536,9 +519,7 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
             // Ensure a block name was given
             if (!block->blockName)
             {
-                error ("%s:%d: partition declaration requires name",
-                       ConfGetFileName(),
-                       lineNo);
+                error ("%s:%d: partition declaration requires name", ConfGetFileName(), lineNo);
                 return NULL;
             }
             if (!addPartition (StrRefGet (block->blockName)))
@@ -567,10 +548,7 @@ ListHead_t* createImageList (ListHead_t* confBlocks)
                     curProp->vals[i].type == DATATYPE_IDENTIFIER)
                 {
                     mbstate_t mbState = {0};
-                    c32stombs (val.strVal,
-                               StrRefGet (curProp->vals[i].str),
-                               256,
-                               &mbState);
+                    c32stombs (val.strVal, StrRefGet (curProp->vals[i].str), 256, &mbState);
                 }
                 else
                     val.numVal = curProp->vals[i].numVal;

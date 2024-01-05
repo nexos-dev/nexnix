@@ -1,6 +1,6 @@
 #[[
     CMakeLists.txt - contains build system for nnimage
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ project(nnimage VERSION 0.0.1)
 enable_language(C)
 
 # Add sources
-list(APPEND NNIMAGE_SOURCES 
+list(APPEND NNIMAGE_SOURCES
      main.c
      image.c
      imageList.c

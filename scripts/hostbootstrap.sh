@@ -1,6 +1,6 @@
 #!/bin/sh
 # hostbootstrap.sh - bootstraps host tools
-# Copyright 2022, 2023 The NexNix Project
+# Copyright 2022 - 2024 The NexNix Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -445,7 +445,7 @@ then
         then
             rm -rf $NNEXTSOURCEROOT/tools/u-boot
             cd $NNEXTSOURCEROOT/tools
-            git clone https://source.denx.de/u-boot/u-boot.git -b v2023.10
+            git clone https://source.denx.de/u-boot/u-boot.git -b v2023 - 2024.10
             checkerr $? "unable to download U-Boot"
         fi
     fi

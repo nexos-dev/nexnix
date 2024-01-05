@@ -1,6 +1,6 @@
 #[[
     NexTest.cmake - contains NexTest framework CMake functions
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@ function(nextest_add_library_test)
     if("${__NEXTEST_TESTS_ENABLED}" EQUAL "1")
         # Read in the arguments
         cmake_parse_arguments(__TESTARG "" "NAME;SOURCE" "DEFINES;LIBS;INCLUDES" ${ARGN})
+
         if(NOT __TESTARG_NAME OR NOT __TESTARG_SOURCE OR NOT __TESTARG_LIBS)
             message(FATAL_ERROR "Required argument missing")
         endif()
+
         string(TOLOWER ${__TESTARG_NAME} __TESTARG_EXENAME)
 
         # Create the executable and the CTest test if we are not cross compiling
@@ -38,10 +40,11 @@ function(nextest_add_library_test)
         if(DEFINED __TESTARG_INCLUDES)
             target_include_directories(${__TESTARG_EXENAME} PRIVATE "${__TESTARG_INCLUDES}")
         endif()
+
         if(DEFINED __TESTARG_DEFINES)
             target_compile_definitions(${__TESTARG_EXENAME} PRIVATE ${__TESTARG_DEFINES})
         endif()
-        
+
         # Check if we are using CTest
         if(NOT ${CMAKE_CROSSCOMPILING})
             add_test(NAME ${__TESTARG_NAME} COMMAND ${__TESTARG_EXENAME})

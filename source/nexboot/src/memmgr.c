@@ -1,6 +1,6 @@
 /*
     memmgr.c - contains dynamic memory allocator
-    Copyright 2023 The NexNix Project
+    Copyright 2023 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -434,25 +434,21 @@ void NbMmDumpData()
     uint32_t totalFreeSize = 0;
     while (pg)
     {
-        NbLogMessage ("Page base: %p; Page free size: %u\n",
-                      NEXBOOT_LOGLEVEL_INFO,
-                      pg,
-                      pg->freeSize);
+        NbShellWritePaged ("Page base: %p; Page free size: %u\n", pg, pg->freeSize);
         memBlock_t* b = pg->blockList;
         while (b)
         {
-            NbLogMessage ("Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
-                          NEXBOOT_LOGLEVEL_INFO,
-                          b,
-                          b->size,
-                          b->isFree,
-                          b->isLarge);
+            NbShellWritePaged ("Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
+                               b,
+                               b->size,
+                               b->isFree,
+                               b->isLarge);
             b = b->next;
         }
         totalFreeSize += pg->freeSize;
         pg = pg->next;
     }
-    NbLogMessage ("Total heap free size: %u\n", NEXBOOT_LOGLEVEL_INFO, totalFreeSize);
+    NbShellWritePaged ("Total heap free size: %u\n", NEXBOOT_LOGLEVEL_INFO, totalFreeSize);
 }
 
 static const char* mmapTypeTable[] = {"",
@@ -468,16 +464,15 @@ void NbMmapDumpData()
 {
     int size = 0;
     NbMemEntry_t* entries = NbGetMemMap (&size);
-    NbLogMessage ("System memory map entries:\n", NEXBOOT_LOGLEVEL_INFO);
+    NbShellWritePaged ("System memory map entries:\n", NEXBOOT_LOGLEVEL_INFO);
     for (int i = 0; i < size; ++i)
     {
         // Ignore zero-sized regions
         if (entries[i].sz == 0)
             continue;
-        NbLogMessage ("Memory region found: base %#llX, size %llu KiB, type %s\n",
-                      NEXBOOT_LOGLEVEL_INFO,
-                      entries[i].base,
-                      entries[i].sz / 1024,
-                      mmapTypeTable[entries[i].type]);
+        NbShellWritePaged ("Memory region found: base %#llX, size %llu KiB, type %s\n",
+                           entries[i].base,
+                           entries[i].sz / 1024,
+                           mmapTypeTable[entries[i].type]);
     }
 }

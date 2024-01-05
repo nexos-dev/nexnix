@@ -1,6 +1,6 @@
 #[[
     llvm_toolchain.cmake - contains LLVM cross compiliation stuff
-    Copyright 2021, 2022, 2023 The NexNix Project
+    Copyright 2021 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

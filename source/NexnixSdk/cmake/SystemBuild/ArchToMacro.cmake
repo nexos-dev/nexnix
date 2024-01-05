@@ -1,6 +1,6 @@
 #[[
     ArchToMacro.cmake - adds compiler definitions for architecture variables
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
     limitations under the License.
 ]]
 
-list(APPEND __nexnixVars NEXNIX_ARCH NEXNIX_BOARD NEXNIX_TARGETCONF 
-                          NEXNIX_BASEARCH NEXNIX_TOOLCHAIN)
+list(APPEND __nexnixVars NEXNIX_ARCH NEXNIX_BOARD NEXNIX_TARGETCONF
+    NEXNIX_BASEARCH NEXNIX_TOOLCHAIN)
 
 # Expand to a defitition
 foreach(var ${__nexnixVars})
-    set(val ${${var}})      # Get value of variable
+    set(val ${${var}}) # Get value of variable
     string(TOUPPER ${val} upperVal) # Convert to uppercase
     string(REPLACE "-" "_" finalVal ${upperVal})
-    add_compile_definitions(${var}_${finalVal})   # Add to definitions
+    add_compile_definitions(${var}_${finalVal}) # Add to definitions
     set_property(GLOBAL APPEND PROPERTY NEXNIX_ARCH_MACROS -D${var}_${finalVal})
 endforeach()

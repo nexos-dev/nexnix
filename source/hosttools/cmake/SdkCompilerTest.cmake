@@ -1,6 +1,6 @@
 #[[
     SdkCompilerTest.cmake - contains standard compiler tests
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ function(check_library_visibility var1 var2)
         __declspec(dllexport) int f() {}
         int main() {}
         ]=] ${var1})
+
     # Check for __attribute__((visibility))
     check_c_source_compiles([=[
         __attribute__((visibility("default"))) int f() {}

@@ -1,6 +1,6 @@
 /*
     image.c - contains functions to build images
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -122,10 +122,7 @@ static bool createImageInternal (const char* action,
 }
 
 // Creates one image
-static bool createImage (Image_t* img,
-                         const char* action,
-                         bool overwrite,
-                         const char* file)
+static bool createImage (Image_t* img, const char* action, bool overwrite, const char* file)
 {
     // Check if the user passed a name
     if (file)
@@ -261,37 +258,29 @@ static bool formatPartition (const char* action, Image_t* img, Partition_t* part
                                            partNum,
                                            gptGuids[part->filesys]) == -1)
                 return false;
-            if (guestfs_part_set_name (img->guestFs,
-                                       guestFsDev,
-                                       partNum,
-                                       part->name) == -1)
+            if (guestfs_part_set_name (img->guestFs, guestFsDev, partNum, part->name) == -1)
                 return false;
             // Handle bootable partitions
             if (part->isBootPart)
             {
                 if (img->bootMode == IMG_BOOTMODE_BIOS)
                 {
-                    if (guestfs_part_set_bootable (img->guestFs,
+                    if (guestfs_part_set_bootable (img->guestFs, guestFsDev, partNum, true) == -1)
+                        return false;
+                    if (guestfs_part_set_gpt_type (img->guestFs,
                                                    guestFsDev,
                                                    partNum,
-                                                   true) == -1)
-                        return false;
-                    if (guestfs_part_set_gpt_type (
-                            img->guestFs,
-                            guestFsDev,
-                            partNum,
-                            "21686148-6449-6E6F-744E-656564454649") == -1)
+                                                   "21686148-6449-6E6F-744E-656564454649") == -1)
                     {
                         return false;
                     }
                 }
                 else
                 {
-                    if (guestfs_part_set_gpt_type (
-                            img->guestFs,
-                            guestFsDev,
-                            partNum,
-                            "C12A7328-F81F-11D2-BA4B-00A0C93EC93B") == -1)
+                    if (guestfs_part_set_gpt_type (img->guestFs,
+                                                   guestFsDev,
+                                                   partNum,
+                                                   "C12A7328-F81F-11D2-BA4B-00A0C93EC93B") == -1)
                     {
                         return false;
                     }
@@ -388,8 +377,7 @@ bool writeIso (Image_t* img)
     strcpy (scriptPath, scriptRoot);
     strcat (scriptPath, script);
     // Make sure an MBR was passed if we need one
-    if ((img->bootMode == IMG_BOOTMODE_HYBRID ||
-         img->bootMode == IMG_BOOTMODE_BIOS) &&
+    if ((img->bootMode == IMG_BOOTMODE_HYBRID || img->bootMode == IMG_BOOTMODE_BIOS) &&
         img->isUniversal)
     {
         if (!img->mbrFile)
@@ -463,8 +451,7 @@ bool createImages (ListHead_t* images,
             error ("partition table format not specified on image %s", img->name);
             goto nextImg;
         }
-        if (!img->sz &&
-            (img->format != IMG_FORMAT_FLOPPY && img->format != IMG_FORMAT_ISO9660))
+        if (!img->sz && (img->format != IMG_FORMAT_FLOPPY && img->format != IMG_FORMAT_ISO9660))
         {
             error ("image size not set on image %s", img->name);
             goto nextImg;
@@ -503,8 +490,8 @@ bool createImages (ListHead_t* images,
                 goto nextImgNoClean;
             }
             // Check if we need an alternate boot partition
-            if (img->format == IMG_FORMAT_ISO9660 &&
-                img->bootMode == IMG_BOOTMODE_HYBRID && !getAltBootPart (img))
+            if (img->format == IMG_FORMAT_ISO9660 && img->bootMode == IMG_BOOTMODE_HYBRID &&
+                !getAltBootPart (img))
             {
                 error ("alternate boot partition not found on image %s", img->name);
                 goto nextImgNoClean;
@@ -544,8 +531,7 @@ bool createImages (ListHead_t* images,
                 if (guestfs_add_drive (img->guestFs, bootImg) == -1)
                     goto nextImg;
             }
-            if (img->bootMode == IMG_BOOTMODE_HYBRID &&
-                img->format == IMG_FORMAT_ISO9660)
+            if (img->bootMode == IMG_BOOTMODE_HYBRID && img->format == IMG_FORMAT_ISO9660)
             {
                 // Make sure an alt boot partition exists
                 if (!getAltBootPart (img))
@@ -580,8 +566,8 @@ bool createImages (ListHead_t* images,
         // CHeck if a partition table needs to be created
         if (!strcmp (action, "partition") || !strcmp (action, "all"))
         {
-            if (img->format != IMG_FORMAT_FLOPPY &&
-                img->bootEmu != IMG_BOOTEMU_FDD && img->bootEmu != IMG_BOOTEMU_NONE)
+            if (img->format != IMG_FORMAT_FLOPPY && img->bootEmu != IMG_BOOTEMU_FDD &&
+                img->bootEmu != IMG_BOOTEMU_NONE)
             {
                 // Create a new partition table
                 if (img->bootEmu == IMG_BOOTEMU_HDD)
@@ -591,9 +577,8 @@ bool createImages (ListHead_t* images,
                 }
                 else
                 {
-                    if (guestfs_part_init (img->guestFs,
-                                           "/dev/sdb",
-                                           partTypeNames[img->format]) == -1)
+                    if (guestfs_part_init (img->guestFs, "/dev/sdb", partTypeNames[img->format]) ==
+                        -1)
                         goto nextImg;
                 }
             }
@@ -608,8 +593,7 @@ bool createImages (ListHead_t* images,
                 strcpy (partDev, "/dev/sdb");
             else
                 strcpy (partDev, "/dev/sdc");
-            if (img->format != IMG_FORMAT_FLOPPY &&
-                img->format != IMG_FORMAT_ISO9660)
+            if (img->format != IMG_FORMAT_FLOPPY && img->format != IMG_FORMAT_ISO9660)
             {
                 // Convert number to ASCII
                 int numSize = sprintf (partDev + 8, "%d", partNum);
@@ -623,22 +607,20 @@ bool createImages (ListHead_t* images,
             }
 
             if (img->format == IMG_FORMAT_FLOPPY ||
-                (img->format == IMG_FORMAT_ISO9660 &&
-                 img->bootEmu == IMG_BOOTEMU_FDD && part->isBootPart))
+                (img->format == IMG_FORMAT_ISO9660 && img->bootEmu == IMG_BOOTEMU_FDD &&
+                 part->isBootPart))
             {
                 if (img->format == IMG_FORMAT_FLOPPY)
                 {
                     // Ensure we have only 1 partition on floppies
                     if (img->partCount != 1)
                     {
-                        error ("floppy image %s has more then 1 partition specified",
-                               img->name);
+                        error ("floppy image %s has more then 1 partition specified", img->name);
                         goto nextPart;
                     }
                     if (img->mul != IMG_MUL_KIB)
                     {
-                        error ("floppy image %s using multiplier other KiB",
-                               img->name);
+                        error ("floppy image %s using multiplier other KiB", img->name);
                         goto nextPart;
                     }
                     // Check that the size is 720K, 1.44M, or 2.88M
@@ -655,9 +637,7 @@ bool createImages (ListHead_t* images,
                 {
                     if (img->mul != IMG_MUL_KIB)
                     {
-                        error (
-                            "CD-ROM with floppy image %s using multiplier other KiB",
-                            img->name);
+                        error ("CD-ROM with floppy image %s using multiplier other KiB", img->name);
                         goto nextPart;
                     }
                     // Check that the size is 720K, 1.44M, or 2.88M
@@ -675,8 +655,7 @@ bool createImages (ListHead_t* images,
             {
                 if (!part->filesys)
                 {
-                    error ("file system type not specified on partition %s",
-                           part->name);
+                    error ("file system type not specified on partition %s", part->name);
                     goto nextPart;
                 }
                 if (part->filesys == IMG_FILESYS_FAT12)
@@ -705,8 +684,7 @@ bool createImages (ListHead_t* images,
             {
                 if (!part->filesys)
                 {
-                    error ("file system type not specified on partition %s",
-                           part->name);
+                    error ("file system type not specified on partition %s", part->name);
                     goto nextPart;
                 }
                 if (part->filesys == IMG_FILESYS_FAT12)
@@ -774,16 +752,14 @@ bool createImages (ListHead_t* images,
         if (!strcmp (action, "update") || !strcmp (action, "all"))
         {
             // Check if this image needs a VBR or MBR
-            if ((img->bootMode == IMG_BOOTMODE_HYBRID ||
-                 img->bootMode == IMG_BOOTMODE_BIOS) &&
+            if ((img->bootMode == IMG_BOOTMODE_HYBRID || img->bootMode == IMG_BOOTMODE_BIOS) &&
                 img->bootEmu != IMG_BOOTEMU_NONE)
             {
                 if (img->format != IMG_FORMAT_FLOPPY)
                 {
                     if (!getBootPart (img)->vbrFile)
                     {
-                        error (
-                            "\"vbrFile\" property not set on BIOS bootable image");
+                        error ("\"vbrFile\" property not set on BIOS bootable image");
                         return false;
                     }
                 }
@@ -791,8 +767,7 @@ bool createImages (ListHead_t* images,
                 {
                     if (!img->mbrFile)
                     {
-                        error (
-                            "\"mbrFile\" property not set on BIOS bootable image");
+                        error ("\"mbrFile\" property not set on BIOS bootable image");
                         return false;
                     }
                     getBootPart (img)->vbrFile = strdup (img->mbrFile);
@@ -803,8 +778,7 @@ bool createImages (ListHead_t* images,
                     continue;
                 }
                 // Check if we need to write out MBR
-                if ((img->format != IMG_FORMAT_ISO9660 ||
-                     img->bootEmu == IMG_BOOTEMU_HDD) &&
+                if ((img->format != IMG_FORMAT_ISO9660 || img->bootEmu == IMG_BOOTEMU_HDD) &&
                     img->format != IMG_FORMAT_FLOPPY)
                 {
                     if (!img->mbrFile)

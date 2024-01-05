@@ -1,6 +1,6 @@
 /*
     update.c - contains functions to update disk images
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -164,10 +164,7 @@ readLoop:
 #define BLKSIZE  (1024 * (off_t) 1024)
 
 // Copies a file out
-static bool copyFile (guestfs_h* guestFs,
-                      const char* src,
-                      const char* dest,
-                      off_t srcSz)
+static bool copyFile (guestfs_h* guestFs, const char* src, const char* dest, off_t srcSz)
 {
     uint8_t* buf = (uint8_t*) malloc_s (BLKSIZET);
     // Get number of 1M blocks, rounding up
@@ -192,10 +189,7 @@ static bool copyFile (guestfs_h* guestFs,
             return false;
         }
         // Write it out
-        if (guestfs_write_append (guestFs,
-                                  dest,
-                                  (const char*) buf,
-                                  (size_t) bytesRead) == -1)
+        if (guestfs_write_append (guestFs, dest, (const char*) buf, (size_t) bytesRead) == -1)
         {
             free (buf);
             close (srcFd);

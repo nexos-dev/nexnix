@@ -1,6 +1,6 @@
 /*
     package.c - handles build process
-    Copyright 2021, 2022, 2023 The NexNix Project
+    Copyright 2021 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -120,8 +120,7 @@ int addPackage (char32_t* name)
     expecting = EXPECTING_PACKAGE;
     // Create depencencies list
     newPkg->depends = ListCreate ("package_t", true, offsetof (package_t, obj));
-    newPkg->groupDeps =
-        ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
+    newPkg->groupDeps = ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
     ListSetDestroy (newPkg->depends, pkgDestroy);
     curPkg = newPkg;
     return 1;
@@ -141,8 +140,7 @@ int addGroup (char32_t* name)
     expecting = EXPECTING_GROUP;
     newGrp->packages = ListCreate ("package_t", true, offsetof (package_t, obj));
     ListSetDestroy (newGrp->packages, pkgDestroy);
-    newGrp->subGroups =
-        ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
+    newGrp->subGroups = ListCreate ("packageGroup_t", true, offsetof (packageGroup_t, obj));
     ListSetDestroy (newGrp->subGroups, pkgGrpDestroy);
     curPkgGroup = newGrp;
     return 1;
@@ -190,8 +188,7 @@ int addCommand (char32_t* action, char32_t* command)
     // Figure out what the action is
     if (!c32cmp (action, U"download"))
     {
-        if (c32stombs (curPackage->downloadAction, command, ACTION_BUFSIZE, &state) <
-            0)
+        if (c32stombs (curPackage->downloadAction, command, ACTION_BUFSIZE, &state) < 0)
         {
             error ("%s: %s", strerror (errno));
             return -1;
@@ -199,10 +196,7 @@ int addCommand (char32_t* action, char32_t* command)
     }
     else if (!c32cmp (action, U"configure"))
     {
-        if (c32stombs (curPackage->configureAction,
-                       command,
-                       ACTION_BUFSIZE,
-                       &state) < 0)
+        if (c32stombs (curPackage->configureAction, command, ACTION_BUFSIZE, &state) < 0)
         {
             error ("%s: %s", strerror (errno));
             return -1;
@@ -226,8 +220,7 @@ int addCommand (char32_t* action, char32_t* command)
     }
     else if (!c32cmp (action, U"confHelp"))
     {
-        if (c32stombs (curPackage->confHelpAction, command, ACTION_BUFSIZE, &state) <
-            0)
+        if (c32stombs (curPackage->confHelpAction, command, ACTION_BUFSIZE, &state) < 0)
         {
             error ("%s: %s", strerror (errno));
             return -1;
@@ -330,10 +323,9 @@ int addProperty (char32_t* newProp, union val* val, int isStart, int dataType)
             // Check data type
             if (dataType != DATATYPE_IDENTIFIER)
             {
-                error (
-                    "%s:%d: property \"dependencies\" requires an identifier value",
-                    ConfGetFileName(),
-                    lineNo);
+                error ("%s:%d: property \"dependencies\" requires an identifier value",
+                       ConfGetFileName(),
+                       lineNo);
                 return 0;
             }
             // Check that this isn't a number
@@ -406,10 +398,7 @@ int addProperty (char32_t* newProp, union val* val, int isStart, int dataType)
     }
     return 1;
 invalidProp:
-    error ("%s:%d: invalid property \"%s\"",
-           ConfGetFileName(),
-           lineNo,
-           UnicodeToHost (prop));
+    error ("%s:%d: invalid property \"%s\"", ConfGetFileName(), lineNo, UnicodeToHost (prop));
     return 0;
 }
 
@@ -490,9 +479,7 @@ int buildPackageTree (ListHead_t* head)
             // Check that a name was given
             if (!curBlock->blockName)
             {
-                error ("%s:%d: package declaration requires name",
-                       ConfGetFileName(),
-                       lineNo);
+                error ("%s:%d: package declaration requires name", ConfGetFileName(), lineNo);
                 return 0;
             }
             // Add it
@@ -504,9 +491,7 @@ int buildPackageTree (ListHead_t* head)
             // Check that a name was given
             if (!curBlock->blockName)
             {
-                error ("%s:%d: package group declaration requires name",
-                       ConfGetFileName(),
-                       lineNo);
+                error ("%s:%d: package group declaration requires name", ConfGetFileName(), lineNo);
                 return 0;
             }
             // Add it

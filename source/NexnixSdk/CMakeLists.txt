@@ -1,6 +1,6 @@
 #[[
     CMakeLists.txt - contains CMake build code for nexnix SDK
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -23,27 +23,25 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 # Configure package configuration file
-configure_package_config_file(${CMAKE_SOURCE_DIR}/cmake/NexNixSdkConfig.cmake.in 
-                              ${CMAKE_BINARY_DIR}/NexNixSdkConfig.cmake
-                              INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake
-                              PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_DATADIR)
+configure_package_config_file(${CMAKE_SOURCE_DIR}/cmake/NexNixSdkConfig.cmake.in
+        ${CMAKE_BINARY_DIR}/NexNixSdkConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake
+        PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_DATADIR)
 
 # Configure version header
 configure_file(${CMAKE_SOURCE_DIR}/include/version.h.in ${CMAKE_BINARY_DIR}/version.h)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS 
-             ${CMAKE_SOURCE_DIR}/include/version.h.in)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        ${CMAKE_SOURCE_DIR}/include/version.h.in)
 
 # Install everything
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/cmake"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}
         FILES_MATCHING
         PATTERN "*.cmake")
-install(FILES ${CMAKE_BINARY_DIR}/NexNixSdkConfig.cmake 
+install(FILES ${CMAKE_BINARY_DIR}/NexNixSdkConfig.cmake
         DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/include"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/..
         FILES_MATCHING
         PATTERN "*.h")
 install(FILES ${CMAKE_BINARY_DIR}/version.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-

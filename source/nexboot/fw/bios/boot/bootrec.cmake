@@ -1,6 +1,6 @@
 #[[
     bootrec.cmake - contains helpers to work with boot records
-    Copyright 2022, 2023 The NexNix Project
+    Copyright 2022 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 
 function(add_boot_record __target __source __output __flags)
     add_custom_command(OUTPUT ${__output}
-                       COMMAND nasm -f bin ${__source} -o ${__output}
-                               -I ${CMAKE_SOURCE_DIR}/fw/bios/include/boot
-                               -I ${CMAKE_SYSROOT}/usr/include ${__flags}
-                               -D NEXNIX_LOGLEVEL=${NEXNIX_LOGLEVEL}
-                               DEPENDS ${__source})
+        COMMAND nasm -f bin ${__source} -o ${__output}
+        -I ${CMAKE_SOURCE_DIR}/fw/bios/include/boot
+        -I ${CMAKE_SYSROOT}/usr/include ${__flags}
+        -D NEXNIX_LOGLEVEL=${NEXNIX_LOGLEVEL}
+        DEPENDS ${__source})
     set_source_files_properties(${__output} PROPERTIES GENERATED TRUE)
     add_custom_target(${__target} ALL DEPENDS ${__output})
     set_target_properties(${__target} PROPERTIES OUTPUT ${__output})
