@@ -243,6 +243,7 @@ void readGpt (NbObject_t* diskObj)
     do
     {
         // Read in the sector
+        part = opart;
         sector.buf = part;
         sector.count = 1;
         sector.sector = gpt->partTableLba + curSector;

@@ -87,11 +87,6 @@ void NbMemInit()
     uint64_t memSz = 0;
     for (int i = 0; i < size; ++i)
     {
-        NbLogMessageEarly ("nexboot: detected memory region from %#lX to %#lX, type %d\n",
-                           NEXBOOT_LOGLEVEL_DEBUG,
-                           memmap[i].base,
-                           memmap[i].base + memmap[i].sz,
-                           memmap[i].type);
         // Get memory size
         if (memmap[i].type == NEXBOOT_MEM_FREE || memmap[i].type == NEXBOOT_MEM_BOOT_RECLAIM)
         {
@@ -125,6 +120,8 @@ void NbMemInit()
 
 void __attribute__ ((noreturn)) memCorrupted (void* block)
 {
+    memBlock_t* b = block;
+    // NbMmDumpData();
     NbLogMessage ("nexboot: fatal error: Memory corruption detected on address %p\n",
                   NEXBOOT_LOGLEVEL_EMERGENCY,
                   block);
@@ -437,21 +434,25 @@ void NbMmDumpData()
     uint32_t totalFreeSize = 0;
     while (pg)
     {
-        NbShellWritePaged ("Page base: %p; Page free size: %u\n", pg, pg->freeSize);
+        NbLogMessage ("Page base: %p; Page free size: %u\n",
+                      NEXBOOT_LOGLEVEL_INFO,
+                      pg,
+                      pg->freeSize);
         memBlock_t* b = pg->blockList;
         while (b)
         {
-            NbShellWritePaged ("Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
-                               b,
-                               b->size,
-                               b->isFree,
-                               b->isLarge);
+            NbLogMessage ("Block base: %p; Block size: %u; Is free: %d; Is large: %d\n",
+                          NEXBOOT_LOGLEVEL_INFO,
+                          b,
+                          b->size,
+                          b->isFree,
+                          b->isLarge);
             b = b->next;
         }
         totalFreeSize += pg->freeSize;
         pg = pg->next;
     }
-    NbShellWritePaged ("Total heap free size: %u\n", totalFreeSize);
+    NbLogMessage ("Total heap free size: %u\n", NEXBOOT_LOGLEVEL_INFO, totalFreeSize);
 }
 
 static const char* mmapTypeTable[] = {"",
@@ -467,15 +468,16 @@ void NbMmapDumpData()
 {
     int size = 0;
     NbMemEntry_t* entries = NbGetMemMap (&size);
-    NbShellWritePaged ("System memory map entries:\n");
+    NbLogMessage ("System memory map entries:\n", NEXBOOT_LOGLEVEL_INFO);
     for (int i = 0; i < size; ++i)
     {
         // Ignore zero-sized regions
         if (entries[i].sz == 0)
             continue;
-        NbShellWritePaged ("Memory region found: base %#llX, size %llu KiB, type %s\n",
-                           entries[i].base,
-                           entries[i].sz / 1024,
-                           mmapTypeTable[entries[i].type]);
+        NbLogMessage ("Memory region found: base %#llX, size %llu KiB, type %s\n",
+                      NEXBOOT_LOGLEVEL_INFO,
+                      entries[i].base,
+                      entries[i].sz / 1024,
+                      mmapTypeTable[entries[i].type]);
     }
 }

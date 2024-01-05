@@ -202,7 +202,7 @@ static bool EfiGopDrvEntry (int code, void* params)
             {
                 NbLogMessage ("nbefigop: Unable to open GOP protocol\r\n", NEXBOOT_LOGLEVEL_ERROR);
                 ++curHandle;
-                return false;
+                goto restart;
             }
             // Get preferred resolution
             int idealWidth = 0, idealHeight = 0;
@@ -238,7 +238,8 @@ static bool EfiGopDrvEntry (int code, void* params)
                 {
                     // Error out
                     NbLogMessage ("nbefigop: no supported video mode\r\n", NEXBOOT_LOGLEVEL_ERROR);
-                    return false;
+                    ++curHandle;
+                    goto restart;
                 }
             }
             // Set it

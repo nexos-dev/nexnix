@@ -142,6 +142,7 @@ NbObject_t* NbObjCreate (const char* name, int type, int interface)
 
 void NbObjInitDb()
 {
+    rootDir = NULL;
     NbObjCreate ("/", OBJ_TYPE_DIR, OBJ_INTERFACE_DIR);
 }
 
