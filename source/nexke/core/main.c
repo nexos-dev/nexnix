@@ -17,6 +17,7 @@
 
 #include <nexke/cpu.h>
 #include <nexke/nexboot.h>
+#include <nexke/nexke.h>
 
 // Boot info
 static NexNixBoot_t* bootInfo = NULL;
@@ -37,7 +38,21 @@ void NkMain (NexNixBoot_t* bootinf)
 {
     // Set bootinfo
     bootInfo = bootinf;
-    // Initialize first CCB
+    // Initialize bootstrap MM
+    MmInitPhase1();
+    SlabCache_t* cache = MmCacheCreate (sizeof (uint32_t), NULL, NULL);
+    void* obj = MmCacheAlloc (cache);
+    void* obj2 = MmCacheAlloc (cache);
+    MmCacheFree (cache, obj);
+    void* obj3 = MmCacheAlloc (cache);
+    MmCacheFree (cache, obj2);
+    obj2 = MmCacheAlloc (cache);
+    MmCacheFree (cache, obj2);
+    MmCacheFree (cache, obj3);
+    obj2 = MmCacheAlloc (cache);
+    MmCacheFree (cache, obj2);
+    MmCacheDestroy (cache);
+    // Initialize CCB
     CpuInitCcb();
     uint32_t* fb = bootinf->display.frameBuffer;
     fb += (bootinf->display.bytesPerLine * 20);

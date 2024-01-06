@@ -1,6 +1,6 @@
 /*
-    riscv32.h - contains nexke riscv32 stuff
-    Copyright 2023 - 2024 The NexNix Project
+    vmm.c - contains virtual memory manager core
+    Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,7 +15,12 @@
     limitations under the License.
 */
 
-#ifndef _RISCV32_H
-#define _RISCV32_H
+#include <nexke/mm.h>
+#include <nexke/nexke.h>
 
-#endif
+// Bootstraps memory manager
+void MmInitPhase1()
+{
+    // Bootstrap slab allocator
+    MmSlabBootstrap();
+}

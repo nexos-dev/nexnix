@@ -18,4 +18,7 @@
 #ifndef _ARMV8_H
 #define _ARMV8_H
 
+// CPU page size
+#define NEXKE_CPU_PAGESZ 0x1000
+
 #endif

@@ -99,13 +99,22 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     // Set log base
     bootInfo->logBase = NbLogGetBase();
     // Allocate early memory pool
-    bootInfo->memPool = (void*) NbFwAllocPersistentPages (
+    void* memPool = (void*) NbFwAllocPersistentPages (
         (NEXBOOT_MEMPOOL_SZ + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE);
-    if (!bootInfo->memPool)
+    if (!memPool)
     {
         NbShellWrite ("nexboot: out of memory");
         NbCrash();
     }
+    // Map it
+    int numPages = (NEXBOOT_MEMPOOL_SZ + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
+    for (int i = 0; i < numPages; ++i)
+    {
+        NbCpuAsMap (NEXBOOT_MEMPOOL_BASE + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    (paddr_t) memPool + (i * NEXBOOT_CPU_PAGE_SIZE),
+                    NB_CPU_AS_RW | NB_CPU_AS_NX);
+    }
+    bootInfo->memPool = (void*) NEXBOOT_MEMPOOL_BASE;
     bootInfo->memPoolSize = NEXBOOT_MEMPOOL_SZ;
     // Load modules
     if (info->mods)

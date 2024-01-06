@@ -24,7 +24,7 @@
 
 // Defines
 #define NEXBOOT_MOD_MAX    32
-#define NEXBOOT_MEMPOOL_SZ (32 * 1024)    // 32 KiB
+#define NEXBOOT_MEMPOOL_SZ (128 * 1024)    // 128 KiB
 
 // Firmware types
 #define NB_FW_TYPE_BIOS 1

@@ -1,6 +1,6 @@
 /*
-    x86_64.h - contains nexke i386 stuff
-    Copyright 2023 - 2024 The NexNix Project
+    mm.h - contains MM subsystem headers
+    Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
     limitations under the License.
 */
 
-#ifndef _X86_64_H
-#define _X86_64_H
+#ifndef _MM_H
+#define _MM_H
 
-// CPU page size
-#define NEXKE_CPU_PAGESZ 0x1000
+// Bootstraps slab allocator
+void MmSlabBootstrap();
 
 #endif

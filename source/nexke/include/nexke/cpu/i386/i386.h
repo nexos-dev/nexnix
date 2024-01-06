@@ -18,9 +18,17 @@
 #ifndef _I386_H
 #define _I386_H
 
+#include <stdint.h>
+
 typedef struct _nkarchccb
 {
-
+    uint64_t features;      // CPU feature flags
 } NkArchCcb_t;
+
+// Fills CCB with CPUID flags
+void CpuDetectCpuid(NkArchCcb_t* ccb);
+
+// CPU page size
+#define NEXKE_CPU_PAGESZ 0x1000
 
 #endif

@@ -73,7 +73,10 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 
 # nexke source files
 list(APPEND NEXKE_SOURCES
-    core/main.c)
+    core/main.c
+    core/log.c
+    mm/slab.c
+    mm/vmm.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})

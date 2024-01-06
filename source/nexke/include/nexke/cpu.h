@@ -29,7 +29,7 @@ typedef struct _nkccb
     int cpuFamily;    // Architecture family
     int sysBoard;     // System hardware / SOC type
     char sysName[64];
-    //NkArchCcb_t archCcb;    // Architecture dependent part of CCB
+    NkArchCcb_t archCcb;    // Architecture dependent part of CCB
 } NkCcb_t;
 
 // Defined CPU architectures

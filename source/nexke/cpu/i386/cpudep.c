@@ -36,9 +36,11 @@ void CpuInitCcb()
 #ifdef NEXNIX_BOARD_PC
     ccb.sysBoard = NEXKE_BOARD_PC;
 #else
-#error Unrecognized board
+#error Unrecognized board for i386
 #endif
     strcpy (ccb.sysName, bootInfo->sysName);
+    // Detect CPU features with CPUID
+    CpuDetectCpuid (&ccb.archCcb);
 }
 
 // Returns CCB to caller

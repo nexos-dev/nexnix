@@ -18,4 +18,7 @@
 #ifndef _RISCV64_H
 #define _RISCV64_H
 
+// CPU page size
+#define NEXKE_CPU_PAGESZ 0x1000
+
 #endif
