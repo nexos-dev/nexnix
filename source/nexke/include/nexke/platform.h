@@ -1,5 +1,5 @@
 /*
-    mm.h - contains MM subsystem headers
+    platform.h - contains platform header
     Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,26 @@
     limitations under the License.
 */
 
-#ifndef _MM_H
-#define _MM_H
+#ifndef _PLATFORM_H
+#define _PLATFORM_H
 
-#include <nexke/nexke.h>
+#include <nexke/platform/acpi.h>
+#include <stdbool.h>
 
-// Bootstraps slab allocator
-void MmSlabBootstrap();
+// Initialize boot drivers
+void PltInitDrvs();
 
-// Initializes general purpose memory allocator
-void MmMallocInit();
+// Early console structure
+typedef struct _nkcons
+{
+    bool (*read) (char*);           // Reads a character from the console
+    void (*write) (const char*);    // Writes a string to the console
+} NkConsole_t;
 
-// Returns cache of given pointer
-SlabCache_t* MmGetCacheFromPtr (void* ptr);
+// Gets primary console
+NkConsole_t* PltGetPrimaryCons();
+
+// Gets secondary console
+NkConsole_t* PltGetSecondaryCons();
 
 #endif

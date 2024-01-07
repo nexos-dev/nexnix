@@ -181,6 +181,7 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
         bootInfo->display.bpp = display->bpp;
         bootInfo->display.lfbSize = display->lfbSize;
         bootInfo->display.frameBuffer = display->frontBuffer;
+        bootInfo->display.backBuffer = display->backBuffer;
         memcpy (&bootInfo->display.redMask, &display->redMask, sizeof (NbPixelMask_t));
         memcpy (&bootInfo->display.greenMask, &display->greenMask, sizeof (NbPixelMask_t));
         memcpy (&bootInfo->display.blueMask, &display->blueMask, sizeof (NbPixelMask_t));

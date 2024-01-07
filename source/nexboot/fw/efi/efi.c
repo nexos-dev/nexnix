@@ -263,12 +263,9 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
     // Identity map all boot reclaim
     for (int i = 0; i < mapSz; ++i)
     {
-        if (memMap[i].type == NEXBOOT_MEM_BOOT_RECLAIM || memMap[i].type == NEXBOOT_MEM_FW_RECLAIM)
+        if (memMap[i].type == NEXBOOT_MEM_BOOT_RECLAIM ||
+            memMap[i].type == NEXBOOT_MEM_FW_RECLAIM || memMap[i].type == NEXBOOT_MEM_ACPI_RECLAIM)
         {
-            NbLogMessage ("nexboot: mapping EFI memory region from %#lX to %#lX\n",
-                          NEXBOOT_LOGLEVEL_DEBUG,
-                          memMap[i].base,
-                          memMap[i].base + memMap[i].sz);
             int numPages = memMap[i].sz / NEXBOOT_CPU_PAGE_SIZE;
             for (int j = 0; j < numPages; ++j)
             {

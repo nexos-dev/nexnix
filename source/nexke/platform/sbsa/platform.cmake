@@ -1,5 +1,5 @@
-/*
-    mm.h - contains MM subsystem headers
+#[[
+    platform.cmake - contains platform CMake stuff
     Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,20 +13,8 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-*/
+]]
 
-#ifndef _MM_H
-#define _MM_H
-
-#include <nexke/nexke.h>
-
-// Bootstraps slab allocator
-void MmSlabBootstrap();
-
-// Initializes general purpose memory allocator
-void MmMallocInit();
-
-// Returns cache of given pointer
-SlabCache_t* MmGetCacheFromPtr (void* ptr);
-
-#endif
+list(APPEND NEXKE_SOURCES
+    platform/sbsa/sbsa.c
+    platform/sbsa/pl011.c)

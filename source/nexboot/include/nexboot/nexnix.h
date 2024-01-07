@@ -22,7 +22,7 @@
 #include <nexboot/fw.h>
 
 #define NEXBOOT_MOD_MAX    32
-#define NEXBOOT_MEMPOOL_SZ (128 * 1024)    // 128 KiB
+#define NEXBOOT_MEMPOOL_SZ (256 * 1024)    // 256 KiB
 #ifdef NEXNIX_ARCH_I386
 #define NEXBOOT_MEMPOOL_BASE 0xC8000000
 #else
@@ -64,6 +64,8 @@ typedef struct _nndisplay
     NbPixelMask_t blueMask;
     NbPixelMask_t resvdMask;
     void* frameBuffer;    // Base of framebuffer
+    void* backBuffer;
+    void* backBufferLoc;
 } NexNixDisplay_t;
 
 typedef struct _nnboot

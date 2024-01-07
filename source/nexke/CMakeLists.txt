@@ -16,7 +16,7 @@
 ]]
 
 cmake_minimum_required(VERSION 3.7)
-project(nexke C ASM_NASM)
+project(nexke C ASM_NASM ASM)
 
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
@@ -66,6 +66,9 @@ include_directories(include)
 # Include CPU build stuff
 include(cpu/${NEXNIX_ARCH}/arch.cmake)
 
+# Include platform build stuff
+include(platform/${NEXNIX_BOARD}/platform.cmake)
+
 # Install header files
 # HACK ALERT: we install directly to /usr/include. There probably is a better way of doing this,
 # but I don't know it
@@ -75,8 +78,11 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION ${CMAKE_SYSROOT}/usr)
 list(APPEND NEXKE_SOURCES
     core/main.c
     core/log.c
+    core/fbcons.c
     mm/slab.c
-    mm/vmm.c)
+    mm/vmm.c
+    mm/malloc.c
+    platform/acpi.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})

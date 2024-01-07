@@ -18,9 +18,14 @@
 #include <nexke/cpu.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
+#include <nexke/platform.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Boot info
 static NexNixBoot_t* bootInfo = NULL;
+static SlabCache_t* bootInfCache = NULL;
+static char* cmdLine = NULL;
 
 // Returns boot arguments
 NexNixBoot_t* NkGetBootArgs()
@@ -28,36 +33,68 @@ NexNixBoot_t* NkGetBootArgs()
     return bootInfo;
 }
 
-// Boot argument parser
-static void nkArgsParse()
+const char* NkReadArg (const char* arg)
 {
-    // Grab arguments
+    // Move through string, looking for arg
+    const char* cmdLineEnd = cmdLine + strlen (cmdLine);
+    size_t argLen = strlen (arg);
+    const char* iter = cmdLine;
+    while (iter < (cmdLineEnd - argLen))
+    {
+        if (!memcmp (arg, iter, argLen))
+        {
+            iter += argLen;
+            // Ensure next character is a space
+            if (*iter != ' ')
+                goto next;
+            // If next character is null terminator, then we are at the end
+            if (*iter == 0)
+                return "";
+            ++iter;
+            // Check if next character is dash
+            if (*iter == '-')
+                return "";    // Argument has no value
+            // Get length of argument
+            char tmp[128] = {0};
+            int i = 0;
+            while (*iter != ' ' && *iter)
+                tmp[i] = *iter, ++i, ++iter;
+            // Malloc it
+            char* buf = malloc (i);
+            strcpy (buf, tmp);
+            return (const char*) buf;
+        }
+    next:
+        ++iter;
+    }
+    return NULL;
 }
 
 void NkMain (NexNixBoot_t* bootinf)
 {
     // Set bootinfo
     bootInfo = bootinf;
-    // Initialize bootstrap MM
+    // Initialize MM phase 1
     MmInitPhase1();
-    SlabCache_t* cache = MmCacheCreate (sizeof (uint32_t), NULL, NULL);
-    void* obj = MmCacheAlloc (cache);
-    void* obj2 = MmCacheAlloc (cache);
-    MmCacheFree (cache, obj);
-    void* obj3 = MmCacheAlloc (cache);
-    MmCacheFree (cache, obj2);
-    obj2 = MmCacheAlloc (cache);
-    MmCacheFree (cache, obj2);
-    MmCacheFree (cache, obj3);
-    obj2 = MmCacheAlloc (cache);
-    MmCacheFree (cache, obj2);
-    MmCacheDestroy (cache);
+
+    // Copy bootinfo into cache
+    bootInfCache = MmCacheCreate (sizeof (NexNixBoot_t), NULL, NULL);
+    NexNixBoot_t* bootInf = MmCacheAlloc (bootInfCache);
+    memcpy (bootInf, bootInfo, sizeof (NexNixBoot_t));
+    bootInfo = bootInf;
+
+    // Move boot arguments into better spot
+    size_t argLen = strlen (bootInfo->args);
+    cmdLine = malloc (argLen + 1);
+    strcpy (cmdLine, bootInfo->args);
+
+    // Initialize boot drivers
+    PltInitDrvs();
+    // Initialize log
+    NkLogInit();
     // Initialize CCB
     CpuInitCcb();
-    uint32_t* fb = bootinf->display.frameBuffer;
-    fb += (bootinf->display.bytesPerLine * 20);
-    for (int i = 0; i < bootinf->display.width; ++i)
-        fb[i] = 0xFFFFFFFF;
+    NkLogInfo ("test message\ntest");
     for (;;)
         ;
 }

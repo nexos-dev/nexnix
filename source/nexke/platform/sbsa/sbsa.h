@@ -1,5 +1,5 @@
 /*
-    mm.h - contains MM subsystem headers
+    sbsa.h - contains SBSA specific things
     Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,11 @@
     limitations under the License.
 */
 
-#ifndef _MM_H
-#define _MM_H
+#ifndef _SBSA_H
+#define _SBSA_H
 
-#include <nexke/nexke.h>
+#include <nexke/platform/acpi.h>
 
-// Bootstraps slab allocator
-void MmSlabBootstrap();
-
-// Initializes general purpose memory allocator
-void MmMallocInit();
-
-// Returns cache of given pointer
-SlabCache_t* MmGetCacheFromPtr (void* ptr);
+bool PltPL011Init (AcpiGas_t* gas);
 
 #endif

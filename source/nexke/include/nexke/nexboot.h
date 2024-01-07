@@ -24,10 +24,18 @@
 
 // Defines
 #define NEXBOOT_MOD_MAX    32
-#define NEXBOOT_MEMPOOL_SZ (128 * 1024)    // 128 KiB
+#define NEXBOOT_MEMPOOL_SZ (256 * 1024)    // 128 KiB
 
 // Firmware types
 #define NB_FW_TYPE_BIOS 1
+
+#define NB_TABLE_ACPI    0
+#define NB_TABLE_PNP     1
+#define NB_TABLE_APM     2
+#define NB_TABLE_MPS     3
+#define NB_TABLE_SMBIOS  4
+#define NB_TABLE_SMBIOS3 5
+#define NB_TABLE_BIOS32  6
 
 // Memory types
 #define NEXBOOT_MEM_FREE         1
@@ -69,6 +77,8 @@ typedef struct _nndisplay
     NbPixelMask_t blueMask;
     NbPixelMask_t resvdMask;
     void* frameBuffer;    // Base of framebuffer
+    void* backBuffer;     // Base of backbuffer
+    void* backBufferLoc;
 } NexNixDisplay_t;
 
 typedef struct _nnboot

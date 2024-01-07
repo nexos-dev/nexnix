@@ -1,5 +1,5 @@
 // cpu.S - contains CPU asm code
-// Copyright 2023 - 2024s The NexNix Project
+// Copyright 2023 - 2024 The NexNix Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License")
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ NbCrash:
 
 NbCpuLaunchKernelAsm:
     mov sp, x2
+    // Disable interrupts
+    mov x9, #0xF
+    msr daif, x9
     // Grab current EL
     mrs x9, CurrentEl
     and x9, x9, #8

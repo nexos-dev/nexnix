@@ -23,4 +23,6 @@ void MmInitPhase1()
 {
     // Bootstrap slab allocator
     MmSlabBootstrap();
+    // Initialize malloc
+    MmMallocInit();
 }

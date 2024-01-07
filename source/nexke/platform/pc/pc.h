@@ -1,5 +1,5 @@
 /*
-    mm.h - contains MM subsystem headers
+    pc.h - contains PC internal functions
     Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,15 @@
     limitations under the License.
 */
 
-#ifndef _MM_H
-#define _MM_H
+#ifndef _PC_H
+#define _PC_H
 
-#include <nexke/nexke.h>
+#include <stdbool.h>
 
-// Bootstraps slab allocator
-void MmSlabBootstrap();
+// Initializes VGA console
+void PltVgaInit();
 
-// Initializes general purpose memory allocator
-void MmMallocInit();
-
-// Returns cache of given pointer
-SlabCache_t* MmGetCacheFromPtr (void* ptr);
+// Initializes UART 16550 driver
+bool PltUartInit();
 
 #endif

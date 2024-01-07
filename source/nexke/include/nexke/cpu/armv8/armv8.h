@@ -18,6 +18,15 @@
 #ifndef _ARMV8_H
 #define _ARMV8_H
 
+#include <stdint.h>
+
+typedef struct _nkarchccb
+{
+    uint64_t features;      // CPU feature flags
+} NkArchCcb_t;
+
+void __attribute__((noreturn)) CpuCrash();
+
 // CPU page size
 #define NEXKE_CPU_PAGESZ 0x1000
 

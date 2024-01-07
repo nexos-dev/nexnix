@@ -19,6 +19,7 @@
 #define _NEXKE_H
 
 #include <nexke/cpu.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -27,12 +28,26 @@
 // Initializes phase 1 memory management
 void MmInitPhase1();
 
-// Defined arguments
-#define NK_ARG_LOGLEVEL     1
-#define NK_ARG_GRAPHICSMODE 2
+// Initializes FB console
+void NkFbConsInit();
+
+// Argument processing
 
 // Gets specified argument value
-const char* NkReadArg (int arg);
+// Returns NULL if argument is non-existant, "" if argument is empty, value otherwose
+const char* NkReadArg (const char* arg);
+
+// Log functions
+
+// Initializes log
+void NkLogInit();
+
+// Logging functions
+void NkLogInfo (const char* fmt, ...);
+void NkLogDebug (const char* fmt, ...);
+void NkLogWarning (const char* fmt, ...);
+void NkLogError (const char* fmt, ...);
+void __attribute__ ((noreturn)) NkPanic (const char* fmt, ...);
 
 // Slab related structures / functions
 

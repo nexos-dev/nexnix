@@ -76,7 +76,7 @@ static inline size_t slabRoundTo8 (size_t sz)
 
 // Converts object to slab
 // This takes advantage of the fact that an object is always inside a slab,
-// and a slab is always page aligned so if we page align down, then we
+// and a slab is always page aligned, so if we page align down, then we
 // end up with the slab structure
 static inline Slab_t* slabGetObjSlab (void* obj)
 {
@@ -301,6 +301,8 @@ void MmCacheFree (SlabCache_t* cache, void* obj)
 // Creates a slab cache
 SlabCache_t* MmCacheCreate (size_t objSz, SlabObjConstruct constuctor, SlabObjDestruct destructor)
 {
+    if (objSz >= NEXKE_CPU_PAGESZ)
+        return NULL;    // Can't allocate anything larger than that
     // Allocate cache from cache of caches
     SlabCache_t* newCache = MmCacheAlloc (&caches);
     if (!newCache)
@@ -342,6 +344,13 @@ void MmCacheDestroy (SlabCache_t* cache)
     }
     // Free it from cache of caches
     MmCacheFree (&caches, cache);
+}
+
+// Returns cache of given pointer
+SlabCache_t* MmGetCacheFromPtr (void* ptr)
+{
+    Slab_t* slab = slabGetObjSlab (ptr);
+    return slab->cache;
 }
 
 // Bootstraps the slab allocator

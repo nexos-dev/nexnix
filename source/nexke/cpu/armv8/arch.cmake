@@ -21,4 +21,6 @@ set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/armv8/armv8.h")
 # Set linker script
 set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/armv8/link.ld")
 
-list(APPEND NEXKE_SOURCES "cpu/armv8/cpudep.c")
+list(APPEND NEXKE_SOURCES
+    cpu/armv8/cpudep.c
+    cpu/armv8/cpu.S)

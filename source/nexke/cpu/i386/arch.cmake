@@ -27,4 +27,5 @@ set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/i386/link.ld")
 # CPU sources
 list(APPEND NEXKE_SOURCES
     cpu/i386/cpudep.c
+    cpu/i386/cpuhelp.c
     cpu/x86/cpuid.c)
