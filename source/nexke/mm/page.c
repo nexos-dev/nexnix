@@ -34,6 +34,7 @@ void MmInitPage()
     size_t mapSize = boot->mapSize;
     size_t numZones = 0;
     size_t numPfns = 0;
+    size_t lastMapEnt = mapSize - 1;
     for (int i = 0; i < mapSize; ++i)
     {
         if (!memMap[i].sz)
@@ -44,6 +45,13 @@ void MmInitPage()
             continue;    // No PFN map needed
         // Else, we do need a PFN map; figure out number of PFNs to represent
         numPfns += memMap[i].sz / NEXKE_CPU_PAGESZ;
+        // Figure out we exceeded max supported PFNs
+        if (numPfns >= (NEXKE_PFNMAP_MAX / sizeof (MmPage_t)))
+        {
+            numPfns = NEXKE_PFNMAP_MAX / sizeof (MmPage_t);
+            lastMapEnt = i;
+            break;
+        }
     }
     // Step 2: allocate space for PFN map
     // We will allocate the zone structures from the slab, however, since

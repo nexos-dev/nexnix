@@ -39,7 +39,7 @@ NbCpuLaunchKernelAsm:
     dsb sy
     isb
     // Setup MAIR
-    mov x10, #0x44FF
+    mov x10, #0x00FF
     msr MAIR_EL1, x10
     // We have to set up EL1 state and then switch to it for this to work
     // Ensure timers don't trap

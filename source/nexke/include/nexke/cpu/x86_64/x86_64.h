@@ -73,7 +73,8 @@ void __attribute__((noreturn)) CpuCrash();
 #define NEXKE_CPU_PAGESZ 0x1000
 
 // PFN map base
-#define NEXKE_PFNMAP_BASE 0xFFFFFFFF80040000
+#define NEXKE_PFNMAP_BASE 0xFFFFFFFD00000000
+#define NEXKE_PFNMAP_MAX 0xF7FFFFFF0
 
 typedef uint64_t paddr_t;
 

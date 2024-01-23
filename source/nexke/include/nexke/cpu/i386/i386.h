@@ -81,5 +81,7 @@ typedef uint32_t paddr_t;
 
 // PFN map base address
 #define NEXKE_PFNMAP_BASE 0xC8040000
+#define NEXKE_PFNMAP_MAX 0x8000000
+#define NEXKE_KMEM_BASE 0xD0040000
 
 #endif

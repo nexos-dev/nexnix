@@ -55,6 +55,9 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         pgFlags &= ~(PF_RO);
     if (flags & MUL_PAGE_KE)
         pgFlags &= ~(PF_EL0);
+    if (flags & MUL_PAGE_CD || flags & MUL_PAGE_WT)
+        pgFlags |= (1 << 2);    // Use MAIR entry 1, which is device memory. This is very strict
+                                //  and not at all optimal
     // Grab TTBR
     uintptr_t ttbr = 0;
     uintptr_t pgAddr = virt & MUL_CANONICAL_MASK;
