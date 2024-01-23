@@ -48,4 +48,24 @@ void CpuInitCcb();
 // Returns CCB to caller
 NkCcb_t* CpuGetCcb();
 
+// Page aligning inlines
+static inline uintptr_t CpuPageAlignUp (uintptr_t ptr)
+{
+    // Dont align if already aligned
+    if ((ptr & (NEXKE_CPU_PAGESZ - 1)) == 0)
+        return ptr;
+    else
+    {
+        // Clear low 12 bits and them round to next page
+        ptr &= ~(NEXKE_CPU_PAGESZ - 1);
+        ptr += NEXKE_CPU_PAGESZ;
+    }
+    return ptr;
+}
+
+static inline uintptr_t CpuPageAlignDown (uintptr_t ptr)
+{
+    return ptr & ~(NEXKE_CPU_PAGESZ - 1);
+}
+
 #endif

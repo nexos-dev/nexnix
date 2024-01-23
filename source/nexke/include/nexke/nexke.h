@@ -28,6 +28,9 @@
 // Initializes phase 1 memory management
 void MmInitPhase1();
 
+// Initializes phase 2 memory management
+void MmInitPhase2();
+
 // Initializes FB console
 void NkFbConsInit();
 

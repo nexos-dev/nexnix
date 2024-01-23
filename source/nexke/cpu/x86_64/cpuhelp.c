@@ -65,6 +65,59 @@ uint32_t CpuInl (uint16_t port)
     return ret;
 }
 
+uint64_t CpuReadCr0()
+{
+    uint64_t ret = 0;
+    asm volatile("mov %%cr0, %0" : "=a"(ret));
+    return ret;
+}
+
+void CpuWriteCr0 (uint64_t val)
+{
+    asm volatile("mov %0, %%cr0" : : "a"(val));
+}
+
+uint64_t CpuReadCr3()
+{
+    uint64_t ret = 0;
+    asm volatile("mov %%cr3, %0" : "=a"(ret));
+    return ret;
+}
+
+void CpuWriteCr3 (uint64_t val)
+{
+    asm volatile("mov %0, %%cr3" : : "a"(val));
+}
+
+uint64_t CpuReadCr4()
+{
+    uint64_t ret = 0;
+    asm volatile("mov %%cr4, %0" : "=a"(ret));
+    return ret;
+}
+
+void CpuWriteCr4 (uint64_t val)
+{
+    asm volatile("mov %0, %%cr4" : : "a"(val));
+}
+
+void CpuWrmsr (uint32_t msr, uint64_t val)
+{
+    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
+}
+
+uint64_t CpuRdmsr (uint32_t msr)
+{
+    uint32_t ax, dx;
+    asm volatile("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
+    return ax | ((uint64_t) dx << 32);
+}
+
+void CpuInvlpg (uintptr_t addr)
+{
+    asm volatile("invlpg (%0)" : : "r"(addr) : "memory");
+}
+
 void __attribute__ ((noreturn)) CpuCrash()
 {
     asm("cli;hlt");

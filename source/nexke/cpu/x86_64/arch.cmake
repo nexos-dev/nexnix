@@ -26,6 +26,8 @@ set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/x86_64/x86_64.h")
 # Set linker script
 set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/x86_64/link.ld")
 
-list(APPEND NEXKE_SOURCES cpu/x86_64/cpudep.c
+list(APPEND NEXKE_SOURCES
+    cpu/x86_64/cpudep.c
     cpu/x86_64/cpuhelp.c
+    cpu/x86_64/mul.c
     cpu/x86/cpuid.c)

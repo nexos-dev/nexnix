@@ -16,8 +16,10 @@
 */
 
 #include <assert.h>
+#include <nexke/mm.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
+#include <string.h>
 
 // Is the PMM available yet?
 static bool isPmmInit = false;
@@ -92,11 +94,7 @@ static Slab_t* slabAllocSlab (SlabCache_t* cache)
     if (!isPmmInit)
     {
         // Allocate from boot pool
-        mem = bootPoolMark;
-        bootPoolMark += NEXKE_CPU_PAGESZ;
-        // Check for OOM
-        if (bootPoolMark >= bootPoolEnd)
-            return NULL;    // OOM
+        mem = MmBootPoolAlloc();
     }
 
     // Initialize slab
@@ -364,4 +362,15 @@ void MmSlabBootstrap()
     bootPoolEnd = bootPoolBase + bootInfo->memPoolSize;
     // Initialize cache of caches
     slabCacheCreate (&caches, sizeof (SlabCache_t), NULL, NULL);
+}
+
+// Allocates memory from boot pool
+void* MmBootPoolAlloc()
+{
+    if (bootPoolMark >= bootPoolEnd)
+        return NULL;
+    void* ret = bootPoolMark;
+    bootPoolMark += NEXKE_CPU_PAGESZ;
+    memset (ret, 0, NEXKE_CPU_PAGESZ);
+    return ret;
 }

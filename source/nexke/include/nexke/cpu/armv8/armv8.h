@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+typedef uint64_t paddr_t;
+
 typedef struct _nkarchccb
 {
     uint64_t features;      // CPU feature flags
@@ -29,5 +31,18 @@ void __attribute__((noreturn)) CpuCrash();
 
 // CPU page size
 #define NEXKE_CPU_PAGESZ 0x1000
+
+// PFN map base
+#define NEXKE_PFNMAP_BASE 0xFFFFFFFF80040000
+
+// MSR functions
+#define CpuReadMsr(msr)                           \
+    ({                                              \
+        uint64_t __tmp = 0;                         \
+        asm volatile("mrs %0, " msr : "=r"(__tmp)); \
+        __tmp;                                      \
+    })
+
+#define CpuWriteMsr(msr, val) asm volatile("msr " msr ", %0" : : "r"(val));
 
 #endif

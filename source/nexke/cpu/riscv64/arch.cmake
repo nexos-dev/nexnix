@@ -21,4 +21,6 @@ set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/riscv64/riscv64.h")
 # Set linker script
 set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/riscv64/link.ld")
 
-list(APPEND NEXKE_SOURCES "cpu/riscv64/cpudep.c")
+list(APPEND NEXKE_SOURCES
+    cpu/riscv64/cpudep.c
+    cpu/riscv64/mul.c)

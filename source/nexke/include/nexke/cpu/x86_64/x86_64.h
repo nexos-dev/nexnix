@@ -49,10 +49,32 @@ uint16_t CpuInw (uint16_t port);
 // Reads dword from I/O port
 uint32_t CpuInl (uint16_t port);
 
+// CR functions
+uint64_t CpuReadCr0();
+void CpuWriteCr0 (uint64_t val);
+uint64_t CpuReadCr3();
+void CpuWriteCr3 (uint64_t val);
+uint64_t CpuReadCr4();
+void CpuWriteCr4 (uint64_t val);
+
+// Reads specified MSR
+uint64_t CpuRdmsr (uint32_t msr);
+
+// Writes specified MSR
+void CpuWrmsr (uint32_t msr, uint64_t val);
+
+// Invalidates TLB for page
+void CpuInvlpg (uintptr_t addr);
+
 // Crashes the CPU
 void __attribute__((noreturn)) CpuCrash();
 
 // CPU page size
 #define NEXKE_CPU_PAGESZ 0x1000
+
+// PFN map base
+#define NEXKE_PFNMAP_BASE 0xFFFFFFFF80040000
+
+typedef uint64_t paddr_t;
 
 #endif

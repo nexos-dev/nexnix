@@ -23,4 +23,5 @@ set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/armv8/link.ld")
 
 list(APPEND NEXKE_SOURCES
     cpu/armv8/cpudep.c
-    cpu/armv8/cpu.S)
+    cpu/armv8/cpu.S
+    cpu/armv8/mul.c)

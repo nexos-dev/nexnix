@@ -82,6 +82,7 @@ list(APPEND NEXKE_SOURCES
     mm/slab.c
     mm/vmm.c
     mm/malloc.c
+    mm/page.c
     platform/acpi.c)
 
 # Create kernel

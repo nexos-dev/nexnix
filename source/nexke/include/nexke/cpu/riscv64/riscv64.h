@@ -21,4 +21,7 @@
 // CPU page size
 #define NEXKE_CPU_PAGESZ 0x1000
 
+// PFN map base
+#define NEXKE_PFNMAP_BASE 0xFFFFFFFF80040000
+
 #endif

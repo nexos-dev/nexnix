@@ -245,7 +245,7 @@ bool PltUartInit()
     uartWriteReg (UART_LINE_CTRL_REG, UART_LCR_8BITS | UART_LCR_1STOP | UART_LCR_DLAB);
     // Set divisor
     int divisor = 0;
-    char* baudArg = NkReadArg ("-baud");
+    const char* baudArg = NkReadArg ("-baud");
     if (baudArg && *baudArg)
         divisor = UART_FREQUENCY / atoi (baudArg);
     else

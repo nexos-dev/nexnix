@@ -17,6 +17,7 @@
 
 # Option for PAE
 nexnix_add_option(NEXNIX_I386_PAE "Specifies if PAE should be used" ON)
+add_compile_options(-Wno-pointer-to-int-cast -Wno-int-to-pointer-cast)
 
 # Arch header
 set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/i386/i386.h")
@@ -29,3 +30,9 @@ list(APPEND NEXKE_SOURCES
     cpu/i386/cpudep.c
     cpu/i386/cpuhelp.c
     cpu/x86/cpuid.c)
+
+if(NEXNIX_I386_PAE)
+    list(APPEND NEXKE_SOURCES cpu/i386/mulpae.c)
+else()
+    list(APPEND NEXKE_SOURCES cpu/i386/mul.c)
+endif()

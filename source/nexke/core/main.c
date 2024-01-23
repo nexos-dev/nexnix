@@ -88,6 +88,8 @@ void NkMain (NexNixBoot_t* bootinf)
     cmdLine = malloc (argLen + 1);
     strcpy (cmdLine, bootInfo->args);
 
+    // Initialize MM phase 2
+    MmInitPhase2();
     // Initialize boot drivers
     PltInitDrvs();
     // Initialize log
