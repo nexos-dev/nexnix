@@ -38,21 +38,21 @@ typedef paddr_t pfn_t;
 // Page zone data structure
 typedef struct _zone
 {
-    pfn_t pfn;                   // Base frame of zone
-    size_t numPages;             // Number of pages in zone
-    int freeCount;               // Number of free pages
-    int flags;                   // Flags specifying type of memory in this zone
-    struct _page* pageTable;     // Table of PFNs in this zone
-    struct _page* freeList;      // Free list of pages in this zone
-    struct _page* zeroedList;    // List of zeroed pages in this zone
+    pfn_t pfn;                 // Base frame of zone
+    int zoneIdx;               // Zone index
+    size_t numPages;           // Number of pages in zone
+    int freeCount;             // Number of free pages
+    int flags;                 // Flags specifying type of memory in this zone
+    struct _page* pfnMap;      // Table of PFNs in this zone
+    struct _page* freeList;    // Free list of pages in this zone
 } MmZone_t;
 
 // Zone flags
 #define MM_ZONE_KERNEL      (1 << 0)
 #define MM_ZONE_MMIO        (1 << 1)
 #define MM_ZONE_RESVD       (1 << 2)
-#define MM_ZONE_RECLAIMABLE (1 << 3)
-#define MM_ZONE_NOZERO      (1 << 4)
+#define MM_ZONE_RECLAIM     (1 << 3)
+#define MM_ZONE_ALLOCATABLE (1 << 4)
 
 // Page data structure
 typedef struct _page
