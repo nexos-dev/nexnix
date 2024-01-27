@@ -200,7 +200,7 @@ then
     if [ "$NNTARGETCONF" = "acpi-up" ]
     then
         # Prepare defaults
-        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024
+        [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=3192
         [ -z "$EMU_DRIVETYPE" ] && EMU_DRIVETYPE="ata"
         EMU_BUSTYPE="pci"
         [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"

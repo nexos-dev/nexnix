@@ -212,9 +212,9 @@ findprog()
         elif [ "$1" = "nasm" ]
         then
             pkg="nasm"
-        elif [ "$1" = "tex" ]
+        elif [ "$1" = "makeinfo" ]
         then
-            pkg="texlive-binaries texlive-latex-extra texinfo"
+            pkg="texinfo"
         elif [ "$1" = "xz" ]
         then
             if [ "$hostos" = "debain" ]
@@ -229,7 +229,12 @@ findprog()
             fi
         elif [ "$1" = "python" ]
         then
-            pkg=$1
+            if [ "$hostos" = "debian" ]
+            then
+                pkg="python-is-python3"
+            else
+                pkg=$1
+            fi
         elif [ "$1" = "bash" ]
         then
             pkg=$1
@@ -745,8 +750,9 @@ fi
 findprog "wget"
 findprog "tar"
 findprog "git"
-findprog "cc" "gcc" "clang"
-findprog "c++" "g++" "clang++"
+findprog "gcc"
+findprog "g++"
+findprog "pkg-config"
 findprog "ld" "lld"
 findprog "ar"
 if [ "$toolchain" = "gnu" ] || [ $useninja -eq 0 ]
@@ -761,6 +767,7 @@ findprog "nasm"
 findprog "gzip"
 findprog "gettext"
 findprog "m4"
+findprog "makeinfo"
 findlib "guestfs"
 findlib "uuid"
 # Check if the check succeeded

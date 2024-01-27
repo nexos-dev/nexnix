@@ -53,6 +53,7 @@ typedef struct _zone
 #define MM_ZONE_RESVD       (1 << 2)
 #define MM_ZONE_RECLAIM     (1 << 3)
 #define MM_ZONE_ALLOCATABLE (1 << 4)
+#define MM_ZONE_NO_GENERIC  (1 << 5)    // Generic memory allocations are not allowed
 
 // Page data structure
 typedef struct _page
@@ -61,44 +62,73 @@ typedef struct _page
     MmZone_t* zone;        // Zone this page resides in
     int refCount;          // Number of MmObject_t's using this page
     int state;             // State this page is in
-    struct _page* next;    // Links to track this page on a list of free / used pages
+    size_t offset;         // Offset in object. Used for page lookup
+    struct _page* next;    // Links to track this page on a list of free / resident pages
     struct _page* prev;
 } MmPage_t;
 
-#define MM_PAGE_STATE_FREE     1
-#define MM_PAGE_STATE_ZEROED   2
-#define MM_PAGE_STATE_IN_CORE  3
-#define MM_PAGE_STATE_UNUSABLE 4
+#define MM_PAGE_STATE_FREE      1
+#define MM_PAGE_STATE_IN_OBJECT 2
+#define MM_PAGE_STATE_UNUSABLE  3
+
+#define MM_MAX_BUCKETS 512
+
+// Page hash list type
+typedef struct _pageHash
+{
+    MmPage_t* hashList[MM_MAX_BUCKETS];    // Hash list
+} MmPageList_t;
 
 // Page interface
 
 // Allocates an MmPage, with specified characteristics
-MmPage_t* MmAllocPage (int flags);
-
-#define MM_PAGE_KERNEL (1 << 0)
+// Returns NULL if physical memory is exhausted
+MmPage_t* MmAllocPage();
 
 // Finds page at specified PFN, and removes it from free list
-// If PFN is non-existant, returns NULL; if PFN is in reserved memory region
-// returns a MmPage_t with state MM_PAGE_STATE_UNUSABLE
+// If PFN is non-existant, or if PFN is in reserved memory region, returns PFN
+// in state STATE_UNUSABLE
 // Technically the page is usable, but only in certain situations (e.g., MMIO)
 MmPage_t* MmFindPagePfn (pfn_t pfn);
 
 // Frees an MmPage
 void MmFreePage (MmPage_t* page);
 
+// Allocates a contigious range of PFNs with specified at limit, beneath specified base adress
+// NOTE: use with care, this function is poorly efficient
+// Normally you don't need contigious PFNs
+// Returns array of PFNs allocated
+MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align);
+
+// Frees pages allocated with AllocPageAt
+void MmFreePages (MmPage_t* pages, size_t count);
+
 // Allocates page of memory from boot pool
 // Return NULL if pool is exhausted
 void* MmBootPoolAlloc();
+
+// Dumps out page debugging info
+void MmDumpPageInfo();
 
 // Memory object types
 
 typedef struct _memobject
 {
-    uintptr_t vaddr;       // Virtual address obejct resides in
-    size_t count;          // Count of pages in this object
-    int type;              // Memory type represented by this object
-    MmPage_t* pageList;    // List of pages allocated to this object
+    size_t count;             // Count of pages in this object
+    int type;                 // Memory type represented by this object
+    MmPageList_t pageList;    // List of pages allocated to this object
 } MmObject_t;
+
+// Page list management interface
+
+// Adds a page to a page hash list
+void MmAddPage (MmPageList_t* list, MmPage_t* page, size_t off);
+
+// Looks up page in page list, returning NULL if none is found
+MmPage_t* MmLookupPage (MmPageList_t* list, size_t off);
+
+// Removes a page from the specified hash list
+void MmRemovePage (MmPageList_t* list, MmPage_t* page);
 
 // MUL basic interfaces
 

@@ -16,6 +16,7 @@
 */
 
 #include <nexke/cpu.h>
+#include <nexke/mm.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
@@ -92,11 +93,16 @@ void NkMain (NexNixBoot_t* bootinf)
     PltInitDrvs();
     // Initialize log
     NkLogInit();
+    // Print banner
+    NkLogInfo ("\
+NexNix version %s\n\
+Copyright (C) 2023 - 2024 The Nexware Project\n",
+               NEXNIX_VERSION);
     // Initialize MM phase 2
     MmInitPhase2();
     // Initialize CCB
     CpuInitCcb();
-    NkLogInfo ("test message\ntest");
+    MmPage_t* pages = MmAllocPagesAt (10, 0x1000000, 0x2000);
     for (;;)
         ;
 }

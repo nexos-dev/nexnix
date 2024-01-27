@@ -189,6 +189,7 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     }
     else
         bootInfo->displayDefault = true;
+    NbLogMessage ("nexboot: Starting kernel\n", NEXBOOT_LOGLEVEL_DEBUG);
     // Exit from clutches of FW
     NbFwExit();
     // Enable paging
