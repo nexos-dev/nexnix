@@ -102,7 +102,6 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     MmInitPhase2();
     // Initialize CCB
     CpuInitCcb();
-    MmPage_t* pages = MmAllocPagesAt (10, 0x1000000, 0x2000);
     for (;;)
         ;
 }

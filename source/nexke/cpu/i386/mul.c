@@ -19,10 +19,12 @@
 #include <nexke/cpu.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
+#include <string.h>
 
 static pte_t* mulEarlyAllocTab (pde_t* pdir, uintptr_t virt, int flags)
 {
-    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmBootPoolAlloc());
+    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+    memset (tab, 0, NEXKE_CPU_PAGESZ);
     // Grab PDE
     pde_t* tabPde = &pdir[PG_ADDR_DIR (virt)];
     if (flags & MUL_PAGE_KE)

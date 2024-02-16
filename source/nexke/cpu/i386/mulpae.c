@@ -19,10 +19,12 @@
 #include <nexke/cpu.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
+#include <string.h>
 
 static pte_t* mulAllocTabEarly (pde_t* pdir, uintptr_t virt, int flags)
 {
-    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmBootPoolAlloc());
+    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+    memset (tab, 0, NEXKE_CPU_PAGESZ);
     // Grab PDE
     pde_t* tabPde = &pdir[PG_ADDR_DIR (virt)];
     if (flags & MUL_PAGE_KE)
@@ -35,7 +37,8 @@ static pte_t* mulAllocTabEarly (pde_t* pdir, uintptr_t virt, int flags)
 
 static pde_t* mulAllocDirEarly (pdpte_t* pdpt, uintptr_t virt)
 {
-    pde_t* dir = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmBootPoolAlloc());
+    pde_t* dir = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+    memset (dir, 0, NEXKE_CPU_PAGESZ);
     // Map it
     pdpt[PG_ADDR_PDPT (virt)] = PF_P | (paddr_t) dir;
     // Reload PDPTE registers
@@ -90,7 +93,7 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
     }
     pte_t* pte = &pgTab[tabIdx];
     if (*pte)
-        NkPanic ("nexke: cannot map mapped address");
+        NkPanic ("nexke: error: cannot map mapped address");
     *pte = pgFlags | phys;
     CpuInvlpg (virt);
 }

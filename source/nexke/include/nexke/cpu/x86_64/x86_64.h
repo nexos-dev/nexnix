@@ -18,36 +18,8 @@
 #ifndef _X86_64_H
 #define _X86_64_H
 
+#include <nexke/cpu/x86/x86.h>
 #include <stdint.h>
-
-typedef struct _nkarchccb
-{
-    uint64_t features;      // CPU feature flags
-} NkArchCcb_t;
-
-// Fills CCB with CPUID flags
-void CpuDetectCpuid(NkArchCcb_t* ccb);
-
-// Waits for IO completion
-void CpuIoWait();
-
-// Writes byte to I/O port
-void CpuOutb (uint16_t port, uint8_t val);
-
-// Writes word to I/O port
-void CpuOutw (uint16_t port, uint16_t val);
-
-// Writes dword to I/O port
-void CpuOutl (uint16_t port, uint32_t val);
-
-// Reads byte from I/O port
-uint8_t CpuInb (uint16_t port);
-
-// Reads word from I/O port
-uint16_t CpuInw (uint16_t port);
-
-// Reads dword from I/O port
-uint32_t CpuInl (uint16_t port);
 
 // CR functions
 uint64_t CpuReadCr0();
@@ -57,24 +29,24 @@ void CpuWriteCr3 (uint64_t val);
 uint64_t CpuReadCr4();
 void CpuWriteCr4 (uint64_t val);
 
-// Reads specified MSR
-uint64_t CpuRdmsr (uint32_t msr);
+// User address end
+#ifndef NEXNIX_X86_64_LA57
+#define NEXKE_USER_ADDR_END 0x7FFFFFFFFFFF
+#else
+#define NEXKE_USER_ADDR_END 0xFFFFFFFFFFFFFF
+#endif
 
-// Writes specified MSR
-void CpuWrmsr (uint32_t msr, uint64_t val);
+// Kernel general allocation start
+#define NEXKE_KERNEL_ADDR_START 0xFFFFFFFFC0000000
+#define NEXKE_KERNEL_ADDR_END   0xFFFFFFFFDFFFFFFF
 
-// Invalidates TLB for page
-void CpuInvlpg (uintptr_t addr);
-
-// Crashes the CPU
-void __attribute__((noreturn)) CpuCrash();
-
-// CPU page size
-#define NEXKE_CPU_PAGESZ 0x1000
+// Framebuffer locations
+#define NEXKE_FB_BASE      0xFFFFFFFFF0000000
+#define NEXKE_BACKBUF_BASE 0xFFFFFFFFE0000000
 
 // PFN map base
 #define NEXKE_PFNMAP_BASE 0xFFFFFFFD00000000
-#define NEXKE_PFNMAP_MAX 0xF7FFFFFF0
+#define NEXKE_PFNMAP_MAX  0xF7FFFFFF0
 
 typedef uint64_t paddr_t;
 

@@ -21,6 +21,9 @@
 #include <nexke/cpu.h>
 #include <nexke/nexke.h>
 
+// Initializes boot pool
+void MmInitKvm1();
+
 // Bootstraps slab allocator
 void MmSlabBootstrap();
 
@@ -32,6 +35,23 @@ SlabCache_t* MmGetCacheFromPtr (void* ptr);
 
 // Initialize page layer
 void MmInitPage();
+
+// Kernel memory management
+
+// Kernel free virtual page structure
+typedef struct _kvpage
+{
+    uintptr_t vaddr;    // Virtual address of page
+    struct _kvpage* next;
+} MmKvPage_t;
+
+// Allocates a memory page for kernel
+MmKvPage_t* MmAllocKvPage();
+
+// Frees a memory page for kernel
+void MmFreeKvPage (MmKvPage_t* page);
+
+// Page management
 
 typedef paddr_t pfn_t;
 
@@ -71,12 +91,13 @@ typedef struct _page
 #define MM_PAGE_STATE_IN_OBJECT 2
 #define MM_PAGE_STATE_UNUSABLE  3
 
-#define MM_MAX_BUCKETS 512
+#define MM_MAX_BUCKETS 256
 
 // Page hash list type
 typedef struct _pageHash
 {
     MmPage_t* hashList[MM_MAX_BUCKETS];    // Hash list
+    size_t maxBucket;                      // Highest used bucket
 } MmPageList_t;
 
 // Page interface
@@ -91,8 +112,13 @@ MmPage_t* MmAllocPage();
 // Technically the page is usable, but only in certain situations (e.g., MMIO)
 MmPage_t* MmFindPagePfn (pfn_t pfn);
 
-// Frees an MmPage
-void MmFreePage (MmPage_t* page);
+// References a page
+void MmRefPage (MmPage_t* page);
+
+// Dereferences a page
+void MmDeRefPage (MmPage_t* page);
+
+// Dereferences a page
 
 // Allocates a contigious range of PFNs with specified at limit, beneath specified base adress
 // NOTE: use with care, this function is poorly efficient
@@ -102,22 +128,6 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align);
 
 // Frees pages allocated with AllocPageAt
 void MmFreePages (MmPage_t* pages, size_t count);
-
-// Allocates page of memory from boot pool
-// Return NULL if pool is exhausted
-void* MmBootPoolAlloc();
-
-// Dumps out page debugging info
-void MmDumpPageInfo();
-
-// Memory object types
-
-typedef struct _memobject
-{
-    size_t count;             // Count of pages in this object
-    int type;                 // Memory type represented by this object
-    MmPageList_t pageList;    // List of pages allocated to this object
-} MmObject_t;
 
 // Page list management interface
 
@@ -129,6 +139,11 @@ MmPage_t* MmLookupPage (MmPageList_t* list, size_t off);
 
 // Removes a page from the specified hash list
 void MmRemovePage (MmPageList_t* list, MmPage_t* page);
+
+// Misc. page functions
+
+// Dumps out page debugging info
+void MmDumpPageInfo();
 
 // MUL basic interfaces
 
@@ -145,5 +160,121 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags);
 
 // Gets physical address of virtual address early in boot process
 uintptr_t MmMulGetPhysEarly (uintptr_t virt);
+
+// MUL address space
+typedef struct _mulspace* MmMulSpace_t;
+
+// Maps page into address space
+void MmMulMapPage (MmMulSpace_t* space, uintptr_t virt, MmPage_t* page, int perm);
+
+// Unmaps page out of address space
+void MmMulUnmapPage (MmMulSpace_t* space, uintptr_t virt);
+
+// Gets mapping for specified virtual address
+MmPage_t* MmMulGetMapping (MmMulSpace_t* space, uintptr_t virt);
+
+// Creates an MUL address space
+MmMulSpace_t* MmMulCreateSpace();
+
+// Destroys an MUL address space
+void MmMulDestroySpace (MmMulSpace_t* space);
+
+// Memory object types
+
+typedef struct _memobject
+{
+    size_t count;             // Count of pages in this object
+    size_t resident;          // Number of pages resident in object
+    int refCount;             // Reference count on object
+    int backend;              // Memory backend type represented by this object
+    int perm;                 // Memory permissions specified in MUL flags
+    int inheritFlags;         // How this page is inherited by child processes
+    bool pageable;            // Is object pageable
+    MmPageList_t pageList;    // List of pages allocated to this object
+    void** backendTab;        // Table of backend functions
+    void* backendData;        // Data used by backend in this object
+} MmObject_t;
+
+// Memory object backends
+#define MM_BACKEND_ANON   0
+#define MM_BACKEND_KERNEL 1
+#define MM_BACKEND_MAX    2
+
+// Backend functions
+#define MM_BACKEND_PAGEIN      0
+#define MM_BACKEND_PAGEOUT     1
+#define MM_BACKEND_INIT_OBJ    2
+#define MM_BACKEND_DESTROY_OBJ 3
+
+typedef bool (*MmPageIn) (MmObject_t*, uintptr_t);
+typedef bool (*MmPageOut) (MmObject_t*, uintptr_t);
+typedef bool (*MmBackendInit) (MmObject_t*);
+typedef bool (*MmBackendDestroy) (MmObject_t*);
+
+// Functions to call backend
+#define MmBackendPageIn(object, offset) \
+    (((MmPageIn) (object)->backendTab[MM_BACKEND_PAGEIN]) ((object), (offset)))
+#define MmBackendPageOut(object, offset) \
+    (((MmPageOut) (object)->backendTab[MM_BACKEND_PAGEOUT]) ((object), (offset)))
+#define MmBackendInit(object) \
+    (((MmBackendInit) (object)->backendTab[MM_BACKEND_INIT_OBJ]) ((object)))
+#define MmBackendDestroy(object) \
+    (((MmBackendDestroy) (object)->backendTab[MM_BACKEND_DESTROY_OBJ]) ((object)))
+
+// Memory object functions
+
+// Creates a new memory object
+MmObject_t* MmCreateObject (size_t pages, int backend, int perm);
+
+// References a memory object
+void MmRefObject (MmObject_t* object);
+
+// References a memory object
+void MmDeRefObject (MmObject_t* object);
+
+// Applies new permissions to object
+void MmProtectObject (MmObject_t* object, int newPerm);
+
+// Initializes object system
+void MmInitObject();
+
+// Address space types
+typedef struct _mementry
+{
+    uintptr_t vaddr;           // Virtual address
+    size_t count;              // Number of pages in entry
+    MmObject_t* obj;           // Object represented by address space entry
+    struct _mementry* next;    // Next entry
+    struct _mementry* prev;    // Last entry
+} MmSpaceEntry_t;
+
+typedef struct _memspace
+{
+    uintptr_t startAddr;          // Address the address space starts at
+    uintptr_t endAddr;            // End address
+    MmSpaceEntry_t* entryList;    // List of address space entries
+    MmMulSpace_t* mulSpace;       // MUL address space
+} MmSpace_t;
+
+// Creates a new empty address space
+MmSpace_t* MmCreateSpace();
+
+// Destroys an address space
+void MmDestroySpace();
+
+// Allocates an address space entry
+MmSpaceEntry_t* MmAllocSpace (MmSpace_t* as, MmObject_t* obj, uintptr_t hintAddr, size_t numPages);
+
+// Frees an address space entry
+void MmFreeSpace (MmSpace_t* as, MmSpaceEntry_t* entry);
+
+// Finds address space entry for given address
+MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* as, uintptr_t addr);
+
+// Dumps address space
+void MmDumpSpace (MmSpace_t* as);
+
+// Initializes boot pool
+void MmInitKvm1();
 
 #endif

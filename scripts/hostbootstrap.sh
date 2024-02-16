@@ -617,9 +617,9 @@ then
         mkdir -p $NNDESTDIR/Programs/Index/include/nexboot/efi/inc
         # Downlod GNU-EFI
         gnuefidir=$NNEXTSOURCEROOT/tools/gnu-efi
-        #rm -rf $gnuefidir
-        #git clone https://github.com/nexos-dev/gnu-efi.git $gnuefidir
-        #checkerr $? "unable to download GNU-EFI"
+        rm -rf $gnuefidir
+        git clone https://github.com/nexos-dev/gnu-efi.git $gnuefidir
+        checkerr $? "unable to download GNU-EFI"
         cd $gnuefidir
         export DESTDIR=$NNDESTDIR
         if [ "$NNTOOLCHAIN" != "gnu" ]

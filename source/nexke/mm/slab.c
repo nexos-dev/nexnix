@@ -51,6 +51,7 @@ static SlabCache_t caches = {0};
 // Slab structure
 typedef struct _slab
 {
+    MmKvPage_t* page;      // Page underlying this slab
     SlabCache_t* cache;    // Parent cache
     void* slabEnd;         // End of slab
     size_t sz;             // Size of one object
@@ -90,19 +91,15 @@ static inline Slab_t* slabGetObjSlab (void* obj)
 // Allocates a slab of memory
 static Slab_t* slabAllocSlab (SlabCache_t* cache)
 {
-    void* mem = NULL;
-    if (!isPmmInit)
-    {
-        // Allocate from boot pool
-        mem = MmBootPoolAlloc();
-    }
-
+    // Allocate page
+    MmKvPage_t* page = MmAllocKvPage();
     // Initialize slab
     size_t slabSz = slabRoundTo8 (sizeof (Slab_t));
-    Slab_t* slab = mem;
+    Slab_t* slab = (Slab_t*) page->vaddr;
+    slab->page = page;
     slab->cache = cache;
-    slab->allocMark = mem + slabRoundTo8 (sizeof (Slab_t));
-    slab->slabEnd = mem + NEXKE_CPU_PAGESZ;
+    slab->allocMark = (void*) page->vaddr + slabRoundTo8 (sizeof (Slab_t));
+    slab->slabEnd = (void*) page->vaddr + NEXKE_CPU_PAGESZ;
     slab->freeList = NULL;
     slab->sz = cache->objAlign;    // NOTE: we use the aligned size here
     slab->state =
@@ -133,10 +130,9 @@ static void slabFreeSlab (SlabCache_t* cache, Slab_t* slab)
     cache->emptySlabs = slab->next;
     if (cache->emptySlabs)
         cache->emptySlabs->prev = NULL;
-    // Free frame to allocator if possible
-    if (isPmmInit)
-    {
-    }
+    --cache->numEmpty;
+    // Free frame to allocator
+    MmFreeKvPage (slab->page);
 }
 
 // Allocates object in specified slab
@@ -354,23 +350,6 @@ SlabCache_t* MmGetCacheFromPtr (void* ptr)
 // Bootstraps the slab allocator
 void MmSlabBootstrap()
 {
-    // Get boot info
-    NexNixBoot_t* bootInfo = NkGetBootArgs();
-    // Initialize boot pool
-    bootPoolBase = bootInfo->memPool;
-    bootPoolMark = bootPoolBase;
-    bootPoolEnd = bootPoolBase + bootInfo->memPoolSize;
     // Initialize cache of caches
     slabCacheCreate (&caches, sizeof (SlabCache_t), NULL, NULL);
-}
-
-// Allocates memory from boot pool
-void* MmBootPoolAlloc()
-{
-    if (bootPoolMark >= bootPoolEnd)
-        return NULL;
-    void* ret = bootPoolMark;
-    bootPoolMark += NEXKE_CPU_PAGESZ;
-    memset (ret, 0, NEXKE_CPU_PAGESZ);
-    return ret;
 }

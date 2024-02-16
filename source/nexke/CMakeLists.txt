@@ -16,7 +16,7 @@
 ]]
 
 cmake_minimum_required(VERSION 3.7)
-project(nexke C ASM_NASM ASM)
+project(nexke C ASM ASM_NASM)
 
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
@@ -80,10 +80,13 @@ list(APPEND NEXKE_SOURCES
     core/log.c
     core/fbcons.c
     mm/slab.c
-    mm/vmm.c
+    mm/space.c
     mm/malloc.c
     mm/page.c
-    platform/acpi.c)
+    mm/object.c
+    mm/kvmm.c
+    platform/acpi.c
+    platform/interrupt.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})

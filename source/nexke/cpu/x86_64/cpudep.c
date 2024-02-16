@@ -25,6 +25,11 @@
 // deepest bowels
 static NkCcb_t ccb = {0};    // The CCB
 
+// Sets up GDT
+static void cpuInitGdt()
+{
+}
+
 // Prepares CCB data structure. This is the first thing called during boot
 void CpuInitCcb()
 {
@@ -39,6 +44,10 @@ void CpuInitCcb()
 #error Unrecognized board
 #endif
     strcpy (ccb.sysName, bootInfo->sysName);
+    // Detect CPUID features
+    CpuDetectCpuid (&ccb);
+    // Initialize GDT
+    cpuInitGdt();
 }
 
 // Returns CCB to caller

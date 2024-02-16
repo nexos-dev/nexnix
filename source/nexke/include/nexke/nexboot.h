@@ -24,9 +24,9 @@
 
 // Defines
 #define NEXBOOT_MOD_MAX    32
-#define NEXBOOT_MEMPOOL_SZ (256 * 1024)    // 128 KiB
+#define NEXBOOT_MEMPOOL_SZ (1024 * 1024)    // 1 MiB
 #ifdef NEXNIX_ARCH_I386
-#define NEXBOOT_MEMPOOL_BASE 0xC8000000
+#define NEXBOOT_MEMPOOL_BASE 0xC7000000
 #else
 #define NEXBOOT_MEMPOOL_BASE 0xFFFFFFFF88000000
 #endif
@@ -54,7 +54,7 @@
 #define NEXBOOT_MEM_FLAG_NON_VOLATILE (1 << 0)
 
 // Memory map abstractions
-typedef struct _mementry
+typedef struct _nbmementry
 {
     uintmax_t base;        // Base of region
     uintmax_t sz;          // Size of region

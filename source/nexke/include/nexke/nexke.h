@@ -53,6 +53,9 @@ void NkLogWarning (const char* fmt, ...);
 void NkLogError (const char* fmt, ...);
 void __attribute__ ((noreturn)) NkPanic (const char* fmt, ...);
 
+// Short hand for OOM condition
+#define NkPanicOom() (NkPanic ("nexke: out of memory"))
+
 // Slab related structures / functions
 
 // Constructor / destructor type

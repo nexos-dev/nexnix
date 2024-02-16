@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_ZONES 256
+#define MAX_ZONES 1024
 
 static MmZone_t* mmZones[MAX_ZONES] = {0};    // Array of zones
 static size_t mmNumZones = 0;                 // Number of zones
@@ -31,6 +31,8 @@ static SlabCache_t* mmZoneCache = NULL;       // Slab cache of zones
 static void* pfnMapMark = (void*) NEXKE_PFNMAP_BASE;    // Next place to put zone's PFN map at
 
 static SlabCache_t* mmFakePageCache = NULL;    // Fake page cache
+
+static MmZone_t* freeHint = NULL;    // Free zone hint
 
 // Informational variables
 static uintmax_t mmNumPages = 0;     // Number of pages in system
@@ -129,7 +131,8 @@ static bool mmZoneMerge (MmZone_t* z1, MmZone_t* z2)
     // Ensure z1 and z2 are mergeable
     if (((z1->pfn + z1->numPages) == z2->pfn) && (z1->flags == z2->flags))
     {
-        assert (z1->freeCount == z1->numPages && z2->freeCount == z2->numPages);
+        if (z1->flags & MM_ZONE_ALLOCATABLE)
+            assert (z1->freeCount == z1->numPages && z2->freeCount == z2->numPages);
         z1->numPages += z2->numPages;
         z1->freeCount += z2->freeCount;
         // Remove the zones
@@ -186,24 +189,33 @@ static void mmZoneCreate (pfn_t startPfn, size_t numPfns, int flags)
         NkLogWarning ("nexke: warning: ignoring overlapping memory region\n");
 }
 
+// Checks if zone will work for allocation
+static bool mmZoneWillWork (MmZone_t* zone, pfn_t maxAddr, size_t needed, int bannedFlags)
+{
+    // Check flags and address
+    if (zone->flags & bannedFlags || !(zone->flags & MM_ZONE_ALLOCATABLE))
+        return false;
+    // Check if zone spans above max address
+    if ((zone->pfn + zone->numPages) > maxAddr)
+        return false;
+    // Ensure zone has free memory
+    if (zone->freeCount < needed)
+        return false;
+    return true;
+}
+
 // Finds best zone for allocation, given a set of requirements
 static MmZone_t* mmZoneFindBest (pfn_t maxAddr, size_t count, int bannedFlags)
 {
     if (!maxAddr)
         maxAddr = -1;
+    if (mmZoneWillWork (freeHint, maxAddr, count, bannedFlags))
+        return freeHint;
+    // Before iterating through zones, try checking zone hint
     for (int i = 0; i < mmNumZones; ++i)
     {
-        // Check flags and address
-        if (mmZones[i]->flags & bannedFlags || !(mmZones[i]->flags & MM_ZONE_ALLOCATABLE))
-            continue;
-        // Check if zone spans above max address
-        if ((mmZones[i]->pfn + mmZones[i]->numPages) > maxAddr)
-            continue;
-        // Ensure zone has free memory
-        if (mmZones[i]->freeCount < count)
-            continue;
-        // Else, zone works out
-        return mmZones[i];
+        if (mmZoneWillWork (mmZones[i], maxAddr, count, bannedFlags))
+            return mmZones[i];
     }
     return NULL;    // No zone found
 }
@@ -217,6 +229,23 @@ static MmZone_t* mmZoneFindByPfn (pfn_t pfn)
             return mmZones[i];
     }
     return NULL;
+}
+
+// Frees an MmPage
+static void mmFreePage (MmPage_t* page)
+{
+    MmZone_t* zone = page->zone;
+    --page->refCount;
+    // Add to free list
+    if (zone->freeList)
+        zone->freeList->prev = page;
+    page->next = zone->freeList;
+    page->prev = NULL;
+    zone->freeList = page;
+    // Update stats
+    ++zone->freeCount;
+    ++mmFreePages;
+    page->state = MM_PAGE_STATE_FREE;
 }
 
 // Allocates an MmPage, with specified characteristics
@@ -244,21 +273,18 @@ MmPage_t* MmAllocPage()
     return page;    // Return this page
 }
 
-// Frees an MmPage
-void MmFreePage (MmPage_t* page)
+// References a page
+void MmRefPage (MmPage_t* page)
 {
-    MmZone_t* zone = page->zone;
+    ++page->refCount;
+}
+
+// Dereferences a page
+void MmDeRefPage (MmPage_t* page)
+{
     --page->refCount;
-    // Add to free list
-    if (zone->freeList)
-        zone->freeList->prev = page;
-    page->next = zone->freeList;
-    page->prev = NULL;
-    zone->freeList = page;
-    // Update stats
-    ++zone->freeCount;
-    ++mmFreePages;
-    page->state = MM_PAGE_STATE_FREE;
+    if (!page->refCount)
+        mmFreePage (page);
 }
 
 // Finds/creates page structure at specified PFN
@@ -294,12 +320,12 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
     MmZone_t* zone = mmZoneFindBest (maxAddr / NEXKE_CPU_PAGESZ, count, 0);
     if (!zone)
         return NULL;    // Couldn't find page
-    // Attempt to find contigous range of PFNs
     // First get to start align
     MmPage_t* pfnMap = zone->pfnMap;
     size_t pfnAlign = align / NEXKE_CPU_PAGESZ;
     while (pfnMap->pfn % pfnAlign)
         ++pfnMap;
+    // Attempt to find contigous range of PFNs
     for (int i = 0; i < zone->numPages; i += pfnAlign)
     {
         if (pfnMap[i].state == MM_PAGE_STATE_FREE)
@@ -337,7 +363,7 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
 void MmFreePages (MmPage_t* pages, size_t count)
 {
     for (int i = 0; i < count; ++i)
-        MmFreePage (&pages[i]);
+        MmDeRefPage (&pages[i]);
 }
 
 #define MM_GET_BUCKET(off) (((off) / NEXKE_CPU_PAGESZ) % MM_MAX_BUCKETS)
@@ -353,6 +379,9 @@ void MmAddPage (MmPageList_t* list, MmPage_t* page, size_t off)
         list->hashList[bucket]->prev = page;
     page->next = list->hashList[bucket];
     list->hashList[bucket] = page;
+    // Update highest bucket
+    if (bucket >= list->maxBucket)
+        list->maxBucket = bucket;
     // Set offset
     page->offset = off;
 }
@@ -444,18 +473,18 @@ void MmInitPage()
                 // Decrease available space
                 memMap[i].sz -= CpuPageAlignDown (numPfns * sizeof (MmPage_t));
                 // Determine our base address
-                void* mapPhys = (void*) (memMap[i].base + memMap[i].sz);
+                paddr_t mapPhys = memMap[i].base + memMap[i].sz;
                 // Map it
                 size_t numPfnPages = (numPfns * sizeof (MmPage_t)) / NEXKE_CPU_PAGESZ;
                 for (int i = 0; i < numPfnPages; ++i)
                 {
                     MmMulMapEarly (NEXKE_PFNMAP_BASE + (i * NEXKE_CPU_PAGESZ),
-                                   (paddr_t) mapPhys + (i * NEXKE_CPU_PAGESZ),
+                                   mapPhys + (i * NEXKE_CPU_PAGESZ),
                                    MUL_PAGE_RW | MUL_PAGE_R | MUL_PAGE_KE);
                 }
-                NkLogDebug ("nexke: Allocating PFN map from %p to %p\n",
-                            mapPhys,
-                            mapPhys + (numPfnPages * NEXKE_CPU_PAGESZ));
+                NkLogDebug ("nexke: Allocating PFN map from %#llX to %#llX\n",
+                            (uintmax_t) mapPhys,
+                            (uintmax_t) mapPhys + (numPfnPages * NEXKE_CPU_PAGESZ));
                 break;
             }
         }
@@ -483,16 +512,12 @@ void MmInitPage()
         mmZoneCreate (memMap[i].base / NEXKE_CPU_PAGESZ, memMap[i].sz / NEXKE_CPU_PAGESZ, flags);
     }
     // Merge all mergable zones
-    // Copy zones into temporary array
-    MmZone_t** tmpZones = malloc (mmNumZones * sizeof (MmZone_t*));
-    assert (tmpZones);
-    memcpy (tmpZones, mmZones, mmNumZones * sizeof (MmZone_t*));
-    size_t numZonesTmp = mmNumZones;
-    for (int i = 1; i < numZonesTmp; ++i)
+    size_t curZone = 1;
+    while (curZone < mmNumZones)
     {
-        mmZoneMerge (tmpZones[i - 1], tmpZones[i]);
+        if (!mmZoneMerge (mmZones[curZone - 1], mmZones[curZone]))
+            ++curZone;
     }
-    free (tmpZones);
 #ifdef NEXNIX_BOARD_PC
     // On PC, we have some interesting requirements
     // ISA DMA allocates must be from 0 - 16M; hence, we want to ensure that we have a memory zone
@@ -538,9 +563,16 @@ void MmInitPage()
 #endif
     NkLogInfo ("nexke: found %lluM of free memory\n",
                (mmNumPages * NEXKE_CPU_PAGESZ) / 1024 / 1024);
-    // Log zones
+    // Log zones and set free hint
+    MmZone_t* curBest = NULL;
     for (int i = 0; i < mmNumZones; ++i)
     {
+        // Check if this zone is an ideal free zone
+        if (!curBest || (mmZones[i]->freeCount > curBest->freeCount &&
+                         !(mmZones[i]->flags & MM_ZONE_NO_GENERIC)))
+        {
+            curBest = mmZones[i];
+        }
         char typeS[256] = {0};
         char* s = typeS;
         if (mmZones[i]->flags & MM_ZONE_ALLOCATABLE)
@@ -568,11 +600,12 @@ void MmInitPage()
             char* flg = zonesFlags[0];
             s += appendFlag (s, flg);
         }
-        NkLogDebug ("nexke: Found memory region from %p to %p, flags %s\n",
-                    mmZones[i]->pfn * NEXKE_CPU_PAGESZ,
-                    (mmZones[i]->pfn + mmZones[i]->numPages) * NEXKE_CPU_PAGESZ,
+        NkLogDebug ("nexke: Found memory region from %#llX to %#llX, flags %s\n",
+                    (uintmax_t) mmZones[i]->pfn * NEXKE_CPU_PAGESZ,
+                    (uintmax_t) (mmZones[i]->pfn + mmZones[i]->numPages) * NEXKE_CPU_PAGESZ,
                     typeS);
     }
+    freeHint = curBest;
     // Create fake page cache
     mmFakePageCache = MmCacheCreate (sizeof (MmPage_t), NULL, NULL);
     assert (mmFakePageCache);

@@ -24,21 +24,32 @@ typedef uint64_t paddr_t;
 
 typedef struct _nkarchccb
 {
-    uint64_t features;      // CPU feature flags
+    uint64_t features;    // CPU feature flags
 } NkArchCcb_t;
 
-void __attribute__((noreturn)) CpuCrash();
+void __attribute__ ((noreturn)) CpuCrash();
 
 // CPU page size
 #define NEXKE_CPU_PAGESZ 0x1000
 
 // PFN map base
 #define NEXKE_PFNMAP_BASE 0xFFFFFFFD00000000
-#define NEXKE_PFNMAP_MAX 0xF7FFFF000
+#define NEXKE_PFNMAP_MAX  0xF7FFFF000
+
+// User address end
+#define NEXKE_USER_ADDR_END 0x7FFFFFFFFFFF
+// Kernel general allocation start
+#define NEXKE_KERNEL_ADDR_START 0xFFFFFFFFC0000000
+#define NEXKE_KERNEL_ADDR_END   0xFFFFFFFFDFFFFFFF
+
+// Framebuffer locations
+#define NEXKE_FB_BASE      0xFFFFFFFFF0000000
+#define NEXKE_BACKBUF_BASE 0xFFFFFFFFE0000000
+
 #define NEXKE_SERIAL_MMIO_BASE 0xFFFFFFFF90000000
 
 // MSR functions
-#define CpuReadMsr(msr)                           \
+#define CpuReadMsr(msr)                             \
     ({                                              \
         uint64_t __tmp = 0;                         \
         asm volatile("mrs %0, " msr : "=r"(__tmp)); \

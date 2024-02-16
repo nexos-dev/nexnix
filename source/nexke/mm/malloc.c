@@ -36,7 +36,7 @@
 #define CACHE_SZ2048 7
 
 // Array of slab caches
-SlabCache_t* caches[NUM_POWERS] = {NULL};
+static SlabCache_t* caches[NUM_POWERS] = {NULL};
 
 // Initializes general purpose memory allocator
 void MmMallocInit()

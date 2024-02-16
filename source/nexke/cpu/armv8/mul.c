@@ -83,7 +83,7 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         else
         {
             // Allocate a new table
-            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmBootPoolAlloc());
+            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
             // Determine new flags
             uint32_t tabFlags = PF_V | PF_PG;
             // Map it

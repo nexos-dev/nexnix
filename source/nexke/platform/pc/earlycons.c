@@ -17,6 +17,7 @@
 
 #include "pc.h"
 #include <nexke/cpu.h>
+#include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <stdlib.h>
@@ -25,7 +26,8 @@
 // VGA driver
 
 // VGA memory base
-#define VGA_MEMBASE 0xB8000
+#define VGA_MEMBASE_PHYS 0xB8000
+#define VGA_MEMBASE      NEXKE_FB_BASE
 
 // VGA colors we use
 #define VGA_COLOR_BLACK      0
@@ -149,6 +151,8 @@ bool vgaRead (char*)
 // Initialize VGA console
 void PltVgaInit()
 {
+    // Map VGA buffer
+    MmMulMapEarly (VGA_MEMBASE, VGA_MEMBASE_PHYS, MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_WT);
     // Clear it
     for (int row = 0; row < VGA_HEIGHT; ++row)
     {

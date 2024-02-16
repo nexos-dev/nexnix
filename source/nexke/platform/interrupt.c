@@ -1,5 +1,5 @@
 /*
-    vmm.c - contains virtual memory manager core
+    interrupt.c - contains interrupt dispatcher
     Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,21 +15,11 @@
     limitations under the License.
 */
 
-#include <nexke/mm.h>
+#include <nexke/cpu.h>
 #include <nexke/nexke.h>
 
-// Bootstraps memory manager
-void MmInitPhase1()
+// Trap dispatcher
+void PltTrapDispatch (CpuIntContext_t* context)
 {
-    // Bootstrap slab allocator
-    MmSlabBootstrap();
-    // Initialize malloc
-    MmMallocInit();
-}
-
-// Initializes page frame manager, MUL, and VMM
-void MmInitPhase2()
-{
-    // Initialize page frame manager
-    MmInitPage();
+    NkLogInfo ("Trap called\n");
 }

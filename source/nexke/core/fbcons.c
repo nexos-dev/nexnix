@@ -17,6 +17,7 @@
 
 #include "font-8x16.h"
 #include <assert.h>
+#include <nexke/mm.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
@@ -69,7 +70,17 @@ void NkFbConsInit()
     // Initialze rows / cols
     rows = display->height / 16;
     cols = display->width / 8;
-    // Clear the display
+    // Map the backbuffer
+    size_t numBufPages =
+        ((display->bytesPerLine * display->height) + (NEXKE_CPU_PAGESZ - 1)) / NEXKE_CPU_PAGESZ;
+    for (int i = 0; i < numBufPages; ++i)
+    {
+        MmMulMapEarly (NEXKE_BACKBUF_BASE + (i * NEXKE_CPU_PAGESZ),
+                       (paddr_t) display->backBuffer + (i * NEXKE_CPU_PAGESZ),
+                       MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_KE);
+    }
+    display->backBuffer = (void*) NEXKE_BACKBUF_BASE;
+    //  Clear the display
     void* backBuf = display->backBuffer;
     for (int i = 0; i < display->height; ++i)
     {

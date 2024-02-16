@@ -64,7 +64,7 @@ static void logMessage (const char* fmt, int level, va_list ap)
 {
     NkLogEntry_t* newEntry = MmCacheAlloc (logCache);
     if (!newEntry)
-        NkPanic ("out of memory");
+        NkPanicOom();
     newEntry->logLevel = level;
     vsprintf (newEntry->msg, fmt, ap);
     // Start list if needed

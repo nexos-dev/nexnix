@@ -19,6 +19,7 @@
 #include <nexke/cpu.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
+#include <string.h>
 
 // Global representing max page level
 static int mulMaxLevel = 0;
@@ -110,7 +111,8 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         else
         {
             // Allocate a new table
-            pmle_t* newSt = (pmle_t*) MmMulGetPhysEarly ((uintptr_t) MmBootPoolAlloc());
+            pmle_t* newSt = (pmle_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+            memset (newSt, 0, NEXKE_CPU_PAGESZ);
             // Determine new flags
             uint32_t tabFlags = PF_P | PF_RW;
             if (pgFlags & PF_US)
