@@ -145,40 +145,6 @@ void MmRemovePage (MmPageList_t* list, MmPage_t* page);
 // Dumps out page debugging info
 void MmDumpPageInfo();
 
-// MUL basic interfaces
-
-// MUL page flags
-#define MUL_PAGE_R  (1 << 0)
-#define MUL_PAGE_RW (1 << 1)
-#define MUL_PAGE_KE (1 << 2)
-#define MUL_PAGE_X  (1 << 3)
-#define MUL_PAGE_CD (1 << 4)
-#define MUL_PAGE_WT (1 << 5)
-
-// Maps a virtual address to a physical address early in the boot process
-void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags);
-
-// Gets physical address of virtual address early in boot process
-uintptr_t MmMulGetPhysEarly (uintptr_t virt);
-
-// MUL address space
-typedef struct _mulspace* MmMulSpace_t;
-
-// Maps page into address space
-void MmMulMapPage (MmMulSpace_t* space, uintptr_t virt, MmPage_t* page, int perm);
-
-// Unmaps page out of address space
-void MmMulUnmapPage (MmMulSpace_t* space, uintptr_t virt);
-
-// Gets mapping for specified virtual address
-MmPage_t* MmMulGetMapping (MmMulSpace_t* space, uintptr_t virt);
-
-// Creates an MUL address space
-MmMulSpace_t* MmMulCreateSpace();
-
-// Destroys an MUL address space
-void MmMulDestroySpace (MmMulSpace_t* space);
-
 // Memory object types
 
 typedef struct _memobject
@@ -253,7 +219,7 @@ typedef struct _memspace
     uintptr_t startAddr;          // Address the address space starts at
     uintptr_t endAddr;            // End address
     MmSpaceEntry_t* entryList;    // List of address space entries
-    MmMulSpace_t* mulSpace;       // MUL address space
+    MmMulSpace_t mulSpace;        // MUL address space
 } MmSpace_t;
 
 // Creates a new empty address space
@@ -276,5 +242,48 @@ void MmDumpSpace (MmSpace_t* as);
 
 // Initializes boot pool
 void MmInitKvm1();
+
+// Second phase KVM init
+void MmInitKvm2();
+
+// Returns kernel address space
+MmSpace_t* MmGetKernelSpace();
+
+// Gets active address space
+MmSpace_t* MmGetCurrentSpace();
+
+// MUL basic interfaces
+
+// MUL page flags
+#define MUL_PAGE_R  (1 << 0)
+#define MUL_PAGE_RW (1 << 1)
+#define MUL_PAGE_KE (1 << 2)
+#define MUL_PAGE_X  (1 << 3)
+#define MUL_PAGE_CD (1 << 4)
+#define MUL_PAGE_WT (1 << 5)
+
+// Initializes MUL
+void MmMulInit();
+
+// Maps a virtual address to a physical address early in the boot process
+void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags);
+
+// Gets physical address of virtual address early in boot process
+uintptr_t MmMulGetPhysEarly (uintptr_t virt);
+
+// Maps page into address space
+void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm);
+
+// Unmaps page out of address space
+void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt);
+
+// Gets mapping for specified virtual address
+MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt);
+
+// Creates an MUL address space
+void MmMulCreateSpace (MmSpace_t* space);
+
+// Destroys an MUL address space
+void MmMulDestroySpace (MmSpace_t* space);
 
 #endif

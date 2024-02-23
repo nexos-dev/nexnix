@@ -15,8 +15,11 @@
     limitations under the License.
 */
 
+#include <assert.h>
 #include <nexke/cpu.h>
+#include <nexke/mm.h>
 #include <nexke/nexboot.h>
+#include <nexke/nexke.h>
 #include <string.h>
 
 // Globals
@@ -24,6 +27,37 @@
 // The system's CCB. A very important data structure that contains the kernel's
 // deepest bowels
 static NkCcb_t ccb = {0};    // The CCB
+
+// The GDT
+static CpuSegDesc_t cpuGdt[CPU_GDT_MAX];
+// The IDT
+// static CpuIdtEntry_t cpuIdt[CPU_IDT_MAX];
+
+// Free list of segments
+static CpuFreeSeg_t* cpuSegFreeList = NULL;
+static SlabCache_t* cpuSegCache = NULL;
+
+// Sets up a GDT gate
+static void cpuSetGdtGate (CpuSegDesc_t* desc,
+                           uint32_t base,
+                           uint32_t limit,
+                           uint16_t flags,
+                           int dpl,
+                           int type)
+{
+    // Do the massive amounts of bit twidling needed for x86's weirdness
+    desc->baseLow = base & 0xFFFF;
+    desc->limitLow = limit & 0xFFFF;
+    desc->baseMid = (base >> 16) & 0xFF;
+    desc->baseHigh = (base >> 24) & 0xFF;
+    // If this is not a system segment, ensure type is 0
+    if (flags & CPU_SEG_NON_SYS && type)
+        NkPanic ("nexke: error: attempted to install malformed GDT entry");
+    // Set up the flags field. Note that this incorporates the limit high part
+    desc->flags = flags | CPU_SEG_PRESENT | type | (dpl << CPU_SEG_DPL_SHIFT);
+    // Throw limit in there
+    desc->flags |= ((limit >> 16) & 0xF) << CPU_SEG_LIMIT_SHIFT;
+}
 
 // Sets up GDT
 static void cpuInitGdt()
@@ -44,6 +78,7 @@ void CpuInitCcb()
 #error Unrecognized board
 #endif
     strcpy (ccb.sysName, bootInfo->sysName);
+    NkLogDebug ("nexke: Initializing CCB\n");
     // Detect CPUID features
     CpuDetectCpuid (&ccb);
     // Initialize GDT

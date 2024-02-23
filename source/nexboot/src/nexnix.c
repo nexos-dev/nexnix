@@ -149,10 +149,21 @@ bool NbOsBootNexNix (NbOsInfo_t* info)
     NbCpuAsMap (NB_KE_STACK_BASE - NEXBOOT_CPU_PAGE_SIZE, stack, NB_CPU_AS_RW | NB_CPU_AS_NX);
     // Get memory map
     bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
+    // Allocate a buffer for the memory mao
+    // We have to do this now as we can't get the memory map to be passed until we
+    // are finished allocating memory. However we need to allocate memory for the map in a tricky
+    // spot (at least on EFI) Here we go by the current map size but add on an additional page to
+    // account for additional map entries that may be created
+    void* memMapBuf = (void*) NbFwAllocPages (
+        ((bootInfo->mapSize * sizeof (NbMemEntry_t) + (NEXBOOT_CPU_PAGE_SIZE - 1)) /
+         NEXBOOT_CPU_PAGE_SIZE) +
+        1);
     // Map in firmware-dictated memory regions
     NbFwMapRegions (bootInfo->memMap, bootInfo->mapSize);
     // Re-make memory map in case above function changed it
-    bootInfo->memMap = NbGetMemMap (&bootInfo->mapSize);
+    void* memMap = NbGetMemMap (&bootInfo->mapSize);
+    memcpy (memMapBuf, memMap, (bootInfo->mapSize * sizeof (NbMemEntry_t)));
+    bootInfo->memMap = memMapBuf;
     // Find primary display
     NbObject_t* displayIter = NULL;
     bool foundDisplay = false;

@@ -53,7 +53,7 @@ NbMemEntry_t* NbGetMemMap (int* size)
         return NULL;
     // Zero it
     memset (memMap, 0, mapSize);
-    // Actually get the memory map
+    // Now get the memory map
     EFI_STATUS status;
     if ((status = BS->GetMemoryMap (&mapSize, memMap, (UINTN*) &mapKey, &descSz, &descVer)) !=
         EFI_SUCCESS)

@@ -41,7 +41,7 @@ typedef struct _kvarena
 // Arena
 static MmKvArena_t* mmArenas = NULL;
 
-static MmSpace_t* kmemSpace = NULL;
+static MmSpace_t kmemSpace = {0};
 
 // Boot pool globals
 static uintptr_t bootPoolBase = 0;
@@ -79,11 +79,17 @@ static MmKvPage_t* mmKvAllocInArena (MmKvArena_t* arena)
         if (!physPage)
             return NULL;
         // Add to object
-        MmAddPage (&kmemSpace->entryList->obj->pageList,
+        MmAddPage (&kmemSpace.entryList->obj->pageList,
                    physPage,
-                   page->vaddr - kmemSpace->startAddr);
+                   page->vaddr - kmemSpace.startAddr);
         // Map into virtual address space
-        // TODO
+        // Note that we map it into the current address space and not the kernel one
+        // This is because the mapping routine will automatically add it to the kernel address
+        // space
+        MmMulMapPage (MmGetCurrentSpace(),
+                      page->vaddr,
+                      physPage,
+                      MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     }
     return page;
 }
@@ -117,6 +123,14 @@ void MmInitKvm1()
     mmArenas = arena;
 }
 
+// Second phase KVM init
+void MmInitKvm2()
+{
+    // Setup kernel MM space
+    kmemSpace.startAddr = NEXKE_KERNEL_ADDR_START;
+    kmemSpace.endAddr = NEXKE_KERNEL_ADDR_END;
+}
+
 // Allocates a memory page for kernel
 MmKvPage_t* MmAllocKvPage()
 {
@@ -147,14 +161,21 @@ void MmFreeKvPage (MmKvPage_t* page)
     if (arena->needsMap)
     {
         // Unmap page from arena
-        MmPageList_t* pgList = &kmemSpace->entryList->obj->pageList;
-        MmPage_t* physPage = MmLookupPage (pgList, page->vaddr - kmemSpace->startAddr);
+        MmPageList_t* pgList = &kmemSpace.entryList->obj->pageList;
+        MmPage_t* physPage = MmLookupPage (pgList, page->vaddr - kmemSpace.startAddr);
         if (!physPage)
             NkPanic ("MmFreeKvPage: attempted to free unallocated page");
         MmRemovePage (pgList, physPage);
         // Free the page
+        MmMulUnmapPage (MmGetCurrentSpace(), page->vaddr);
         MmDeRefPage (physPage);
     }
+}
+
+// Returns kernel address space
+MmSpace_t* MmGetKernelSpace()
+{
+    return &kmemSpace;
 }
 
 // Kernel backend functions

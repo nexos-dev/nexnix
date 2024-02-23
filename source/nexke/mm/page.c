@@ -168,6 +168,7 @@ static void mmZoneCreate (pfn_t startPfn, size_t numPfns, int flags)
     zone->flags = flags;
     zone->numPages = numPfns;
     zone->pfn = startPfn;
+    zone->freeList = NULL;
     // Compute PFN map location
     zone->pfnMap = (MmPage_t*) pfnMapMark;
     // Move marker up
@@ -455,6 +456,15 @@ void MmInitPage()
             lastMapEnt = i;
             break;
         }
+        // Ensure we don't go over max memory
+#ifdef NEXKE_MAX_PAGES
+        if (numPfns >= NEXKE_MAX_PAGES)
+        {
+            numPfns = NEXKE_PFNMAP_MAX / sizeof (MmPage_t);
+            lastMapEnt = i;
+            break;
+        }
+#endif
     }
     // Step 2: allocate space for PFN map
     // We will allocate the zone structures from the slab, however, since
@@ -475,7 +485,8 @@ void MmInitPage()
                 // Determine our base address
                 paddr_t mapPhys = memMap[i].base + memMap[i].sz;
                 // Map it
-                size_t numPfnPages = (numPfns * sizeof (MmPage_t)) / NEXKE_CPU_PAGESZ;
+                size_t numPfnPages =
+                    ((numPfns * sizeof (MmPage_t)) + (NEXKE_CPU_PAGESZ - 1)) / NEXKE_CPU_PAGESZ;
                 for (int i = 0; i < numPfnPages; ++i)
                 {
                     MmMulMapEarly (NEXKE_PFNMAP_BASE + (i * NEXKE_CPU_PAGESZ),

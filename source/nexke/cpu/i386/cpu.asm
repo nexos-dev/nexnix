@@ -45,3 +45,13 @@ CpuInstallIdt:
     lidt [eax]      ; Load it
     pop ebp
     ret
+
+; Flushes TLB entry
+global MmMulFlush
+MmMulFlush:
+    push ebp
+    mov ebp, esp
+    mov eax, [ebp+8]
+    invlpg [eax]
+    pop ebp
+    ret

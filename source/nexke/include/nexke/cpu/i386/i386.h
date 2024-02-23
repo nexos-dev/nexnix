@@ -39,11 +39,18 @@ typedef uint32_t paddr_t;
 #define NEXKE_PFNMAP_BASE 0xC8040000
 #define NEXKE_PFNMAP_MAX  0x8000000
 
+// Max memory
+#ifndef NEXNIX_I386_PAE
+#define NEXKE_MAX_PAGES 0x100000
+#endif
+
 // User address end
-#define NEXKE_USER_ADDR_END     0xAFFFFFFF
+#define NEXKE_USER_ADDR_END     0xBFFFFFFF
 #define NEXKE_KERNEL_ADDR_START 0xD0040000
 
 #define NEXKE_KERNEL_ADDR_END 0xDFFFFFFF
+
+#define NEXKE_KERNEL_DIRBASE 0xD003F000
 
 // Framebuffer locations
 #define NEXKE_FB_BASE      0xF0000000
@@ -69,6 +76,43 @@ typedef struct _x86idtent
 // Double fault TSS segment
 #define CPU_DFAULT_TSS 0x28
 
+// TSS structure
+typedef struct _i386tss
+{
+    uint16_t backLink;    // Previously executing task
+    uint16_t resvd0;
+    uint32_t esp0;    // Ring 0 stack
+    uint32_t ss0;
+    uint32_t esp1;
+    uint32_t ss1;
+    uint32_t esp2;
+    uint32_t ss2;
+    // This stuff is unused on NexNix
+    uint32_t cr3;
+    uint32_t eip;
+    uint32_t eflags;
+    uint32_t eax;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t ebx;
+    uint32_t esp;
+    uint32_t ebp;
+    uint32_t esi;
+    uint32_t edi;
+    uint32_t es;
+    uint32_t cs;
+    uint32_t ss;
+    uint32_t ds;
+    uint32_t fs;
+    uint32_t gs;
+    uint32_t ldtSeg;
+    uint16_t resvd;
+    uint16_t iobp;    // IOPB offset
+    uint32_t ssp;
+} CpuTss_t;
+
+#include <nexke/cpu/i386/mul.h>
+#include <nexke/cpu/ptab.h>
 #include <nexke/cpu/x86/x86.h>
 
 // Interrupt context

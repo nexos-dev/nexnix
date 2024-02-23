@@ -277,7 +277,7 @@ then
         [ -z "$EMU_DISPLAYTYPE" ] && EMU_DISPLAYTYPE="vga"
         [ -z "$EMU_SOUNDDEV" ] && EMU_SOUNDDEV="sb16"
         [ -z "$EMU_FWTYPE" ] && EMU_FWTYPE="bios"
-        [ -z "$EMU_CPU" ] && EMU_CPU="pentium"
+        [ -z "$EMU_CPU" ] && EMU_CPU="486-v1"
         EMU_MACHINETYPE="isapc"
         [ -z "$EMU_CDROM" ] && EMU_CDROM=0
         [ -z "$EMU_FLOPPYBOOT" ] && EMU_FLOPPYBOOT=0

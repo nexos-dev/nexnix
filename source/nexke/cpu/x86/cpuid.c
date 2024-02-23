@@ -237,11 +237,6 @@ static void cpuidSetFeatures (NkCcb_t* ccb)
         if (edx & CPUID_FEATURE_LM)
             archCcb->features |= CPU_FEATURE_LM;
     }
-    // Determine is 64 bit syscall or sysenter is supported
-    if (archCcb->features & CPU_FEATURE_SYSCALL && archCcb->vendor == CPU_VENDOR_AMD)
-        archCcb->features |= CPU_FEATURE_SYSCALL64;
-    if (archCcb->features & CPU_FEATURE_SYSENTER && archCcb->vendor == CPU_VENDOR_INTEL)
-        archCcb->features |= CPU_FEATURE_SYSENTER64;
 }
 
 // Determine address sizes through CPUID

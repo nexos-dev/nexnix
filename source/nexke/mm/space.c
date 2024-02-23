@@ -27,6 +27,9 @@
 static SlabCache_t* mmSpaceCache = NULL;
 static SlabCache_t* mmEntryCache = NULL;
 
+// Currently active address space
+static MmSpace_t* mmCurSpace = NULL;
+
 // Creates a new empty address space
 MmSpace_t* MmCreateSpace()
 {
@@ -161,6 +164,12 @@ MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* as, uintptr_t addr)
     return NULL;
 }
 
+// Gets active address space
+MmSpace_t* MmGetCurrentSpace()
+{
+    return mmCurSpace;
+}
+
 // Dumps address space
 void MmDumpSpace (MmSpace_t* as)
 {
@@ -200,4 +209,10 @@ void MmInitPhase2()
     mmEntryCache = MmCacheCreate (sizeof (MmSpaceEntry_t), NULL, NULL);
     if (!mmSpaceCache || !mmEntryCache)
         NkPanicOom();
+    // Second phase of KVM
+    MmInitKvm2();
+    mmCurSpace = MmGetKernelSpace();
+    // Set up MUL
+    MmMulInit();
+    MmMulMapPage (MmGetKernelSpace(), 0x10000000, MmAllocPage(), MUL_PAGE_KE | MUL_PAGE_RW);
 }

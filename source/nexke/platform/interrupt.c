@@ -22,4 +22,5 @@
 void PltTrapDispatch (CpuIntContext_t* context)
 {
     NkLogInfo ("Trap called\n");
+    CpuCrash();
 }

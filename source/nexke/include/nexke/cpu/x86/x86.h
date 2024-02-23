@@ -72,11 +72,12 @@
 #define CPU_FEATURE_OSXSAVE      (1ULL << 44)
 #define CPU_FEATURE_AVX          (1ULL << 45)
 #define CPU_FEATURE_RDRAND       (1ULL << 46)
-#define CPU_FEATURE_SYSENTER64   (1ULL << 47)
-#define CPU_FEATURE_SYSCALL64    (1ULL << 48)
 #define CPU_FEATURE_SVM          (1ULL << 49)
 #define CPU_FEATURE_SSE4A        (1ULL << 50)
 #define CPU_FEATURE_SSE5         (1ULL << 51)
+
+// Gets feature bits
+uint64_t CpuGetFeatures();
 
 // Waits for IO completion
 void CpuIoWait();
@@ -228,5 +229,26 @@ extern uint8_t CpuTrapTable[];
 
 // Gets trap from vector
 #define CPU_GETTRAP(vector) ((uintptr_t) (CpuTrapTable + (vector * 0x10)))
+
+// Control register bits
+#define CPU_CR0_PE (1 << 0)
+#define CPU_CR0_WP (1 << 16)
+#define CPU_CR0_AM (1 << 18)
+#define CPU_CR0_PG (1 << 31)
+
+#define CPU_CR4_PSE        (1 << 4)
+#define CPU_CR4_PAE        (1 << 5)
+#define CPU_CR4_MCE        (1 << 6)
+#define CPU_CR4_PGE        (1 << 7)
+#define CPU_CR4_OSFXSR     (1 << 9)
+#define CPU_CR4_OSXMMEXCPT (1 << 10)
+#define CPU_CR4_UMIP       (1 << 11)
+#define CPU_CR4_OSXSAVE    (1 << 18)
+#define CPU_CR4_SMEP       (1 << 20)
+#define CPU_CR4_SMAP       (1 << 21)
+
+#define CPU_EFER_SCE (1 << 0)
+#define CPU_EFER_NXE (1 << 1)
+#define CPU_EFER_MSR 0xC0000080
 
 #endif

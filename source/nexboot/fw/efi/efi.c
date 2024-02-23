@@ -264,7 +264,8 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
     for (int i = 0; i < mapSz; ++i)
     {
         if (memMap[i].type == NEXBOOT_MEM_BOOT_RECLAIM ||
-            memMap[i].type == NEXBOOT_MEM_FW_RECLAIM || memMap[i].type == NEXBOOT_MEM_ACPI_RECLAIM)
+            memMap[i].type == NEXBOOT_MEM_FW_RECLAIM ||
+            memMap[i].type == NEXBOOT_MEM_ACPI_RECLAIM || memMap[i].type == NEXBOOT_MEM_RESVD)
         {
             int numPages = memMap[i].sz / NEXBOOT_CPU_PAGE_SIZE;
             for (int j = 0; j < numPages; ++j)

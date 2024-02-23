@@ -32,6 +32,8 @@ static NkCcb_t ccb = {0};    // The CCB
 static CpuSegDesc_t cpuGdt[CPU_GDT_MAX];
 // The IDT
 static CpuIdtEntry_t cpuIdt[CPU_IDT_MAX];
+// Double fault TSS
+static CpuTss_t cpuDfaultTss = {0};
 
 // Free list of segments
 static CpuFreeSeg_t* cpuSegFreeList = NULL;
@@ -137,7 +139,8 @@ static void cpuInitIdt()
                            3,
                            CPU_SEG_KCODE);    // System call is trap
         else if (i == 8)
-            cpuSetIdtGate (&cpuIdt[i], 0, CPU_IDT_TASK, 0, 0);    // Double fault is task gate
+            cpuSetIdtGate (&cpuIdt[i], 0, CPU_IDT_TASK, 0, CPU_DFAULT_TSS);    // Double fault is
+                                                                               // task gate
         else
             cpuSetIdtGate (&cpuIdt[i], CPU_GETTRAP (i), CPU_IDT_INT, 0, CPU_SEG_KCODE);    // Normal
                                                                                            // case
@@ -145,8 +148,6 @@ static void cpuInitIdt()
     // Install IDT
     CpuTabPtr_t idtPtr = {.base = (uint32_t) cpuIdt, .limit = (CPU_IDT_MAX * 8) - 1};
     CpuInstallIdt (&idtPtr);
-    asm("int $0x40");
-    NkLogInfo ("got here\n");
 }
 
 // Allocates a segment for a data structure. Returns segment number
@@ -184,9 +185,10 @@ void CpuFreeSeg (int segNum)
     cpuSegFreeList = freeSeg;
 }
 
-// Prepares CCB data structure. This is the first thing called during boot
+// Prepares CCB data structure
 void CpuInitCcb()
 {
+    NkLogDebug ("nexke: Initializing CCB\n");
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
     // Set up basic fields
@@ -204,9 +206,60 @@ void CpuInitCcb()
     cpuInitGdt();
     // Initialize IDT
     cpuInitIdt();
+    // Set up double fault TSS in GDT
+    cpuSetGdtGate (&cpuGdt[CPU_DFAULT_TSS / 8],
+                   (uint32_t) &cpuDfaultTss,
+                   sizeof (CpuTss_t),
+                   0,
+                   CPU_DPL_KERNEL,
+                   CPU_SEG_TSS);
+    // Set double fault task state
+    cpuDfaultTss.cr3 = CpuReadCr3();
+    cpuDfaultTss.eip = CPU_GETTRAP (8);
+    cpuDfaultTss.eflags = 2;
+    cpuDfaultTss.esp = MmAllocKvPage()->vaddr;
+    cpuDfaultTss.ss = CPU_SEG_KDATA;
+    cpuDfaultTss.cs = CPU_SEG_KCODE;
     // Setup GDT and IDT pointers
     ccb.archCcb.gdt = cpuGdt;
     ccb.archCcb.idt = cpuIdt;
+    // Setup CR0, CR4, and EFER
+    uint32_t cr0 = CpuReadCr0();
+    cr0 |= (CPU_CR0_WP | CPU_CR0_AM);
+    CpuWriteCr0 (cr0);
+    uint32_t cr4 = CpuReadCr4();
+    // Setup PSE, MCE, PGE, SSE, and SMEP
+    if (CpuGetFeatures() & CPU_FEATURE_PSE)
+        cr4 |= CPU_CR4_PSE;
+    if (CpuGetFeatures() & CPU_FEATURE_MCE)
+        cr4 |= CPU_CR4_MCE;
+    if (CpuGetFeatures() & CPU_FEATURE_PGE)
+        cr4 |= CPU_CR4_PGE;
+    if (CpuGetFeatures() & CPU_FEATURE_SSE || CpuGetFeatures() & CPU_FEATURE_SSE2 ||
+        CpuGetFeatures() & CPU_FEATURE_SSE3)
+    {
+        cr4 |= (CPU_CR4_OSFXSR | CPU_CR4_OSXMMEXCPT);
+    }
+    if (CpuGetFeatures() & CPU_FEATURE_SMEP)
+        cr4 |= CPU_CR4_SMEP;
+    CpuWriteCr4 (cr4);
+    // Set EFER
+    if (CpuGetFeatures() & CPU_FEATURE_MSR)
+    {
+        if (CpuGetFeatures() & CPU_FEATURE_XD)
+        {
+            // Enable NX
+            uint64_t efer = CpuRdmsr (CPU_EFER_MSR);
+            efer |= CPU_EFER_NXE;
+            CpuWrmsr (CPU_EFER_MSR, efer);
+        }
+    }
+}
+
+// Gets feature bits
+uint64_t CpuGetFeatures()
+{
+    return ccb.archCcb.features;
 }
 
 // Returns CCB to caller

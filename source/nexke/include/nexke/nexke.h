@@ -18,7 +18,6 @@
 #ifndef _NEXKE_H
 #define _NEXKE_H
 
-#include <nexke/cpu.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

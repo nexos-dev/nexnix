@@ -113,11 +113,6 @@ uint64_t CpuRdmsr (uint32_t msr)
     return ax | ((uint64_t) dx << 32);
 }
 
-void CpuInvlpg (uintptr_t addr)
-{
-    asm volatile("invlpg (%0)" : : "r"(addr) : "memory");
-}
-
 void __attribute__ ((noreturn)) CpuCrash()
 {
     asm("cli;hlt");

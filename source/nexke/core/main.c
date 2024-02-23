@@ -98,10 +98,10 @@ void NkMain (NexNixBoot_t* bootinf)
 NexNix version %s\n\
 Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
-    // Initialize MM phase 2
-    MmInitPhase2();
     // Initialize CCB
     CpuInitCcb();
+    // Initialize MM phase 2
+    MmInitPhase2();
     for (;;)
         ;
 }
