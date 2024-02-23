@@ -78,9 +78,6 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, uintptr_t vaddr)
         pte_t* ent = &curSt[MUL_IDX_LEVEL (vaddr, i)];
         if (*ent)
         {
-            // Verify validity of this table for mapping this page
-            // Failure results in panic
-            MmMulVerify (*ent, pteVal);
             // Grab cache entry
             cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt);
         }
@@ -101,7 +98,7 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, uintptr_t vaddr)
     MmMulFlush (vaddr);
 }
 
-// Walks to a page table entry and returns it
+// Walks to a page table entry and returns it's mapping
 pte_t MmPtabGetPte (MmSpace_t* space, uintptr_t vaddr)
 {
     // Grab base and cache it
@@ -112,45 +109,6 @@ pte_t MmPtabGetPte (MmSpace_t* space, uintptr_t vaddr)
         pte_t* ent = &curSt[MUL_IDX_LEVEL (vaddr, i)];
         if (*ent)
         {
-            // Verify validity of this table for mapping this page
-            // Failure results in panic
-            MmMulVerify (*ent, pteVal);
-            // Grab cache entry
-            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt);
-        }
-        else
-        {
-            // Allocate new table
-            // This calls architecture specific code
-            paddr_t newTab = MmMulAllocTable (space, curSt, ent, isKernel);
-            cacheEnt = MmPtabSwapCache (space, newTab, cacheEnt);
-        }
-    }
-    // Map last entry
-    pte_t* lastSt = (pte_t*) cacheEnt->addr;
-    pte_t* lastEnt = &lastSt[MUL_IDX_LEVEL (vaddr, 1)];
-    // Map it
-    *lastEnt = pteVal;
-    // Return cache entry
-    MmPtabReturnCache (space, cacheEnt);
-    // Flush TLB
-    MmMulFlush (vaddr);
-}
-
-// Walks to a page table entry and unmaps it
-void MmPtabWalkAndUnmap (MmSpace_t* space, uintptr_t vaddr)
-{
-    // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
-    for (int i = mmNumLevels; i > 1; --i)
-    {
-        pte_t* curSt = (pte_t*) cacheEnt->addr;
-        pte_t* ent = &curSt[MUL_IDX_LEVEL (vaddr, i)];
-        if (*ent)
-        {
-            // Verify validity of this table for mapping this page
-            // Failure results in panic
-            MmMulVerify (*ent, pteVal);
             // Grab cache entry
             cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt);
         }

@@ -43,8 +43,8 @@ void MmMulInit()
     paddr_t cacheTab = pd[MUL_IDX_LEVEL (MUL_PTCACHE_TABLE_BASE, 2)] & PT_FRAME;
     MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Map kernel directory
-    mulKePgDir = NEXKE_KERNEL_DIRBASE;
-    MmMulMapEarly (mulKePgDir, (paddr_t) pd, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    mulKePgDir = (pte_t*) NEXKE_KERNEL_DIRBASE;
+    MmMulMapEarly ((uintptr_t) mulKePgDir, (paddr_t) pd, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Clear out all user PDEs
     memset (pd, 0, MUL_MAX_USER * sizeof (pte_t));
     // Write out CR3 to flush TLB
