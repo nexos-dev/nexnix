@@ -15,14 +15,11 @@
     limitations under the License.
 */
 
-#include "mul.h"
 #include <nexke/cpu.h>
+#include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
-
-// Global representing max page level
-static int mulMaxLevel = 0;
 
 // Canocicalizing helpers
 static inline uintptr_t mulMakeCanonical (uintptr_t addr)
@@ -39,6 +36,41 @@ static inline uintptr_t mulDecanonical (uintptr_t addr)
     return addr & MUL_CANONICAL_MASK;
 }
 
+// Initializes MUL
+void MmMulInit()
+{
+}
+
+// Creates an MUL address space
+void MmMulCreateSpace (MmSpace_t* space)
+{
+}
+
+// Destroys an MUL address space
+void MmMulDestroySpace (MmSpace_t* space)
+{
+}
+
+// Maps page into address space
+void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
+{
+}
+
+// Unmaps page out of address space
+void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
+{
+}
+
+// Gets mapping for specified virtual address
+MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
+{
+}
+
+// Early MUL functions
+
+// Global representing max page level
+static int mulMaxLevel = 0;
+
 // Gets physical address of virtual address early in boot process
 uintptr_t MmMulGetPhysEarly (uintptr_t virt)
 {
@@ -53,15 +85,15 @@ uintptr_t MmMulGetPhysEarly (uintptr_t virt)
     }
     uintptr_t pgAddr = mulDecanonical (virt);
     // Grab CR3
-    pmle_t* curSt = (pmle_t*) CpuReadCr3();
+    pte_t* curSt = (pte_t*) CpuReadCr3();
     for (int i = mulMaxLevel; i > 1; --i)
     {
         // Get entry for this level
-        pmle_t* ent = &curSt[MUL_IDX_LEVEL (pgAddr, i)];
+        pte_t* ent = &curSt[MUL_IDX_LEVEL (pgAddr, i)];
         if (!(*ent))
             NkPanic ("cannot get physical address of non-existant page");
         // Get physical address
-        curSt = (pmle_t*) PT_GETFRAME (*ent);
+        curSt = (pte_t*) PT_GETFRAME (*ent);
     }
     return PT_GETFRAME (curSt[MUL_IDX_LEVEL (pgAddr, 1)]);
 }
@@ -93,11 +125,11 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
     if (flags & MUL_PAGE_WT)
         pgFlags |= PF_WT;
     // Grab CR3
-    pmle_t* curSt = (pmle_t*) CpuReadCr3();
+    pte_t* curSt = (pte_t*) CpuReadCr3();
     for (int i = mulMaxLevel; i > 1; --i)
     {
         // Get entry for this level
-        pmle_t* ent = &curSt[MUL_IDX_LEVEL (pgAddr, i)];
+        pte_t* ent = &curSt[MUL_IDX_LEVEL (pgAddr, i)];
         // Is it mapped?
         if (*ent)
         {
@@ -106,12 +138,12 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
             if (!(*ent & PF_US) && pgFlags & PF_US)
                 NkPanic ("nexke: cannot map user page to kernel memory area");
             // Grab the structure and move to next level
-            curSt = (pmle_t*) (PT_GETFRAME (*ent));
+            curSt = (pte_t*) (PT_GETFRAME (*ent));
         }
         else
         {
             // Allocate a new table
-            pmle_t* newSt = (pmle_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
             memset (newSt, 0, NEXKE_CPU_PAGESZ);
             // Determine new flags
             uint32_t tabFlags = PF_P | PF_RW;
@@ -123,7 +155,7 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         }
     }
     // Map the last entry
-    pmle_t* lastEnt = &curSt[MUL_IDX_LEVEL (pgAddr, 1)];
+    pte_t* lastEnt = &curSt[MUL_IDX_LEVEL (pgAddr, 1)];
     if (*lastEnt)
         NkPanic ("nexke: cannot map already mapped page");
     *lastEnt = pgFlags | phys;

@@ -18,15 +18,15 @@ section .text
 ; Trap handler macros
 %macro TRAP_NOERR 1
 CpuTrap%1:
-    push dword strict 0            ; Dummy error code
-    push dword strict %1           ; Interrupt number
+    push qword strict 0            ; Dummy error code
+    push qword strict %1           ; Interrupt number
     jmp CpuTrapCommon       ; Go to common handler
 align 16
 %endmacro
 
 %macro TRAP_ERR 1
 CpuTrap%1:
-    push dword strict %1           ; Interrupt number
+    push qword strict %1           ; Interrupt number
     jmp CpuTrapCommon       ; Go to common handler
 align 16
 %endmacro
@@ -51,23 +51,41 @@ CpuTrapTable:
 %assign i i+1
 %endrep
 
-%define CPU_KDATA 0x10
-
 extern PltTrapDispatch
 ; Common trap handler
 CpuTrapCommon:
-    pushad              ; Save GPRs
-    push ds             ; Save segments
-    push es
-    mov ax, CPU_KDATA    ; Set kernel data segment
-    mov ds, ax
-    mov es, ax
-    xor ebp, ebp            ; Set up zeroed frame
-    push esp                ; Push context structure
+    push rax                ; Save GPRs
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+    xor rbp, rbp            ; Set up base frame
+    mov rdi, rsp            ; Pass context structure
     call PltTrapDispatch    ; Call trap dispatcher
-    add esp, 4              ; Cleanup parameter
-    pop es
-    pop ds
-    popad               ; Restore GPRs
-    add esp, 8          ; Cleanup error code and interrupt number
-    iretd               ; Return to whatever was happening
+    pop r15                 ; Restore GPRs
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16         ; Cleanup error code and interrupt number
+    iretq               ; Return to whatever was happening

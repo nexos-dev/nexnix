@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 // Basic types
-typedef uint64_t pmle_t;
+typedef uint64_t pte_t;
 
 // Page table flags
 #define PF_P                   (1ULL << 0)

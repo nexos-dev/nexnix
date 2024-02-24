@@ -17,8 +17,6 @@
 
 #ifndef _X86_64_H
 #define _X86_64_H
-
-#include <nexke/cpu/x86/x86.h>
 #include <stdint.h>
 
 // CR functions
@@ -49,5 +47,28 @@ void CpuWriteCr4 (uint64_t val);
 #define NEXKE_PFNMAP_MAX  0xF7FFFFFF0
 
 typedef uint64_t paddr_t;
+
+typedef struct _idtent
+{
+    uint16_t baseLow;
+    uint16_t seg;
+    uint8_t ist;
+    uint8_t flags;
+    uint16_t baseMid;
+    uint32_t baseHigh;
+    uint32_t resvd;
+} __attribute__ ((packed)) CpuIdtEntry_t;
+
+typedef struct _intctx
+{
+    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
+    uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
+    uint64_t intNo, errCode, rip, cs, rflags, rsp, ss;
+} __attribute__ ((packed)) CpuIntContext_t;
+
+#include <nexke/cpu/x86_64/mul.h>
+
+#include <nexke/cpu/ptab.h>
+#include <nexke/cpu/x86/x86.h>
 
 #endif

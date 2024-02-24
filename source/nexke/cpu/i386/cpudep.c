@@ -146,7 +146,7 @@ static void cpuInitIdt()
                                                                                            // case
     }
     // Install IDT
-    CpuTabPtr_t idtPtr = {.base = (uint32_t) cpuIdt, .limit = (CPU_IDT_MAX * 8) - 1};
+    CpuTabPtr_t idtPtr = {.base = (uintptr_t) cpuIdt, .limit = (CPU_IDT_MAX * 8) - 1};
     CpuInstallIdt (&idtPtr);
 }
 
@@ -162,12 +162,7 @@ int CpuAllocSeg (uintptr_t base, uintptr_t limit, int dpl)
     }
     cpuSegFreeList = seg->next;
     // Set up gate
-    cpuSetGdtGate (&cpuGdt[seg->segNum],
-                   base,
-                   limit,
-                   CPU_SEG_WRITABLE | CPU_SEG_NON_SYS,
-                   CPU_DPL_KERNEL,
-                   0);
+    cpuSetGdtGate (&cpuGdt[seg->segNum], base, limit, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, dpl, 0);
     // Free segment data structure
     int segNum = seg->segNum;
     MmCacheFree (cpuSegCache, seg);

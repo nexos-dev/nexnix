@@ -66,13 +66,6 @@ typedef struct _x86idtent
     uint16_t baseHigh;    // High 16 of base
 } __attribute__ ((packed)) CpuIdtEntry_t;
 
-// Flags
-#define CPU_IDT_INT       0xF
-#define CPU_IDT_TRAP      0xE
-#define CPU_IDT_TASK      5
-#define CPU_IDT_PRESENT   (1 << 7)
-#define CPU_IDT_DPL_SHIFT 5
-
 // Double fault TSS segment
 #define CPU_DFAULT_TSS 0x28
 

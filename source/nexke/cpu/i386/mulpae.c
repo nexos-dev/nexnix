@@ -106,6 +106,9 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 {
     // Translate flags
     pte_t pgFlags = PF_P | PF_US;
+    // Check for NX
+    if (CpuGetFeatures() & CPU_FEATURE_XD)
+        pgFlags |= PF_NX;
     if (perm & MUL_PAGE_RW)
         pgFlags |= PF_RW;
     if (perm & MUL_PAGE_KE)
@@ -114,6 +117,8 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
         pgFlags |= PF_CD;
     if (perm & MUL_PAGE_WT)
         pgFlags |= PF_WT;
+    if (perm & MUL_PAGE_X)
+        pgFlags &= ~(PF_NX);
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
     // Check if we need a new page directory
     MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);

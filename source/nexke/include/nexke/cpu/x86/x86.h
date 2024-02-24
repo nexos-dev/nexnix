@@ -251,4 +251,11 @@ extern uint8_t CpuTrapTable[];
 #define CPU_EFER_NXE (1 << 1)
 #define CPU_EFER_MSR 0xC0000080
 
+// IDT type codes and flags
+#define CPU_IDT_INT       0xF
+#define CPU_IDT_TRAP      0xE
+#define CPU_IDT_TASK      5
+#define CPU_IDT_PRESENT   (1 << 7)
+#define CPU_IDT_DPL_SHIFT 5
+
 #endif
