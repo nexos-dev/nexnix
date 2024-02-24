@@ -32,10 +32,14 @@ void MmPtabInit (int numLevels)
 }
 
 // Walks to a page table entry and maps specfied value into it
-void MmPtabWalkAndMap (MmSpace_t* space, uintptr_t vaddr, bool isKernel, pte_t pteVal)
+void MmPtabWalkAndMap (MmSpace_t* space,
+                       paddr_t asPhys,
+                       uintptr_t vaddr,
+                       bool isKernel,
+                       pte_t pteVal)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -63,15 +67,16 @@ void MmPtabWalkAndMap (MmSpace_t* space, uintptr_t vaddr, bool isKernel, pte_t p
     *lastEnt = pteVal;
     // Return cache entry
     MmPtabReturnCache (space, cacheEnt);
-    // Flush TLB
-    MmMulFlush (vaddr);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace())
+        MmMulFlush (vaddr);
 }
 
 // Walks to a page table entry and unmaps it
-void MmPtabWalkAndUnmap (MmSpace_t* space, uintptr_t vaddr)
+void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -94,15 +99,16 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, uintptr_t vaddr)
     *lastEnt = 0;
     // Return cache entry
     MmPtabReturnCache (space, cacheEnt);
-    // Flush TLB
-    MmMulFlush (vaddr);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace())
+        MmMulFlush (vaddr);
 }
 
 // Walks to a page table entry and returns it's mapping
-pte_t MmPtabGetPte (MmSpace_t* space, uintptr_t vaddr)
+pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;

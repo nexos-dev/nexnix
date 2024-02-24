@@ -15,11 +15,152 @@
     limitations under the License.
 */
 
-#include "mul.h"
 #include <nexke/cpu.h>
+#include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
+
+// Kernel page directory template
+static pte_t* mulKePgDir = NULL;
+
+// Flushes whole TLB
+void MmMulFlushTlb()
+{
+    CpuWriteCr3 (CpuReadCr3());
+}
+
+// Initializes MUL
+void MmMulInit()
+{
+    MmPtabInit (2);    // Initialize page table manager with 2 levels
+    // Grab page directory
+    pte_t* pdpt = (pte_t*) CpuReadCr3();
+    // On i386, we don't need to allocate a special page table for the page table cache
+    // This is because the stack is mapped in that table already, so it has been created for us
+    // But we do need to map the pages necessary for the cache to operate
+    // So allocate cache entry page
+    paddr_t cachePage = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    // Map it
+    MmMulMapEarly (MUL_PTCACHE_ENTRY_BASE, cachePage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    // Map the page table for the table cache
+    pte_t* dir = (pte_t*) (pdpt[PG_ADDR_PDPT (MUL_PTCACHE_ENTRY_BASE)] & PT_FRAME);
+    paddr_t cacheTab = dir[PG_ADDR_DIR (MUL_PTCACHE_TABLE_BASE)] & PT_FRAME;
+    MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    // Clear out all user PDEs
+    pdpt[0] = 0;
+    pdpt[1] = 0;
+    // Write out CR3 to flush TLB
+    CpuWriteCr3 ((uint32_t) pdpt);
+    // Set base of directory
+    MmGetKernelSpace()->mulSpace.base = (paddr_t) pdpt;
+    // Prepare page table cache
+    MmPtabInitCache (MmGetKernelSpace());
+}
+
+// Verifies mappability of pte2 into pte1
+void MmMulVerify (pte_t pte1, pte_t pte2)
+{
+    // Make sure we aren't mapping user mapping into kernel region
+    if (!(pte1 & PF_US) && pte2 & PF_US)
+        NkPanic ("nexke: error: can't map user mapping into kernel memory");
+}
+
+// Allocates page table into ent
+paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel)
+{
+    // Allocate the table
+    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    // Set PTE
+    pte_t flags = PF_P | PF_RW;
+    if (!isKernel)
+        flags |= PF_US;
+    // Map it
+    *ent = tab | flags;
+    return tab;
+}
+
+// Allocates a page directory into ent
+static paddr_t mulAllocDir (MmSpace_t* space, pdpte_t* ent)
+{
+    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    *ent = PF_P | tab;
+    // Flush PDPTE registers on CPU
+    if (space == MmGetCurrentSpace())
+        MmMulFlushTlb();
+    return tab;
+}
+
+// Creates an MUL address space
+void MmMulCreateSpace (MmSpace_t* space)
+{
+}
+
+// Destroys an MUL address space
+void MmMulDestroySpace (MmSpace_t* space)
+{
+}
+
+// Maps page into address space
+void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
+{
+    // Translate flags
+    pte_t pgFlags = PF_P | PF_US;
+    if (perm & MUL_PAGE_RW)
+        pgFlags |= PF_RW;
+    if (perm & MUL_PAGE_KE)
+        pgFlags &= ~(PF_US);
+    if (perm & MUL_PAGE_CD)
+        pgFlags |= PF_CD;
+    if (perm & MUL_PAGE_WT)
+        pgFlags |= PF_WT;
+    pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
+    // Check if we need a new page directory
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
+    paddr_t pdir = 0;
+    if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
+    {
+        // We need to allocate a page directory
+        pdir = mulAllocDir (space, &pdpt[PG_ADDR_PDPT (virt)]);
+    }
+    else
+    {
+        pdir = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
+    }
+    MmPtabReturnCache (space, cacheEnt);
+    MmPtabWalkAndMap (space, pdir, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
+}
+
+// Unmaps page out of address space
+void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
+{
+    // Get page directory to unmap
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
+    // Check if it is valid
+    if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
+        NkPanic ("nexke: cannot unmap invalid address");
+    paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
+    MmPtabReturnCache (space, cacheEnt);
+    MmPtabWalkAndUnmap (space, pdirAddr, virt);
+}
+
+// Gets mapping for specified virtual address
+MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
+{
+    // Get page directory to unmap
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
+    // Check if it is valid
+    if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
+        NkPanic ("nexke: cannot unmap invalid address");
+    paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
+    MmPtabReturnCache (space, cacheEnt);
+    // Grab address
+    paddr_t addr = MmPtabGetPte (space, pdirAddr, virt) & PT_FRAME;
+    return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
+}
 
 static pte_t* mulAllocTabEarly (pde_t* pdir, uintptr_t virt, int flags)
 {
@@ -95,7 +236,7 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
     if (*pte)
         NkPanic ("nexke: error: cannot map mapped address");
     *pte = pgFlags | phys;
-    CpuInvlpg (virt);
+    MmMulFlush (virt);
 }
 
 // Gets physical address of virtual address early in boot process

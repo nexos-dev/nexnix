@@ -42,13 +42,17 @@ typedef struct _mmspace
 void MmPtabInit (int numLevels);
 
 // Walks to a page table entry and maps specfied value into it
-void MmPtabWalkAndMap (MmSpace_t* space, uintptr_t vaddr, bool isKernel, pte_t pteVal);
+void MmPtabWalkAndMap (MmSpace_t* space,
+                       paddr_t asPhys,
+                       uintptr_t vaddr,
+                       bool isKernel,
+                       pte_t pteVal);
 
 // Walks to a page table entry and unmaps it
-void MmPtabWalkAndUnmap (MmSpace_t* space, uintptr_t vaddr);
+void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr);
 
 // Walks to a page table entry and returns it
-pte_t MmPtabGetPte (MmSpace_t* space, uintptr_t vaddr);
+pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr);
 
 // Initializes PT cache in specified space
 void MmPtabInitCache (MmSpace_t* space);

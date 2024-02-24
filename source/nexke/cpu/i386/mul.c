@@ -111,20 +111,20 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     if (perm & MUL_PAGE_WT)
         pgFlags |= PF_WT;
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
-    MmPtabWalkAndMap (space, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
+    MmPtabWalkAndMap (space, space->mulSpace.base, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
 }
 
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
-    MmPtabWalkAndUnmap (space, virt);
+    MmPtabWalkAndUnmap (space, space->mulSpace.base, virt);
 }
 
 // Gets mapping for specified virtual address
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
     // Grab address
-    paddr_t addr = MmPtabGetPte (space, virt) & PT_FRAME;
+    paddr_t addr = MmPtabGetPte (space, space->mulSpace.base, virt) & PT_FRAME;
     return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
 }
 

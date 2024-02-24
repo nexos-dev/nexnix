@@ -41,7 +41,7 @@ typedef uint64_t pte_t;
 #define PF_G                   (1ULL << 8)
 #define PF_PSPAT               (1ULL << 12)
 #define PF_NX                  (1ULL << 63)
-#define PT_FRAME               0x7FFFFFFFFFFFF000
+#define PT_FRAME               0x7FFFFFFFFFFFF000ULL
 #define PT_GETFRAME(pt)        ((pt) & (PT_FRAME))
 #define PT_SETFRAME(pt, frame) ((pt) |= ((frame) & (PT_FRAME)))
 
