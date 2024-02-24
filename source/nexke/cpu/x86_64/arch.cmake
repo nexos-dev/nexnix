@@ -32,4 +32,5 @@ list(APPEND NEXKE_SOURCES
     cpu/x86_64/mul.c
     cpu/x86_64/cpu.asm
     cpu/x86_64/trap.asm
-    cpu/x86/cpuid.c)
+    cpu/x86/cpuid.c
+    mm/ptab.c)

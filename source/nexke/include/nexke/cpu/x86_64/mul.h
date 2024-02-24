@@ -18,6 +18,7 @@
 #ifndef _MUL_H
 #define _MUL_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 // Basic types
@@ -63,5 +64,33 @@ static uint8_t idxShiftTab[] = {0, 12, 21, 30, 39, 48};
 #define MUL_CANONICAL_VAL  0xFFFF000000000000
 #define MUL_CANONICAL_MASK 0x0000FFFFFFFFFFFF
 #endif
+
+// PT cache defines
+#define MUL_MAX_PTCACHE        32
+#define MUL_PTCACHE_BASE       0xFFFFFFFF7FFDF000
+#define MUL_PTCACHE_TABLE_BASE 0xFFFFFFFF7FFDE000
+#define MUL_PTCACHE_ENTRY_BASE 0xFFFFFFFF7FFDD000
+
+#define MUL_MAX_USER_PML4E 511
+
+// Obtains PTE address of specified PT cache entry
+static inline pte_t* MmMulGetCacheAddr (uintptr_t addr)
+{
+    return (pte_t*) ((MUL_IDX_LEVEL (addr, 1) * sizeof (pte_t)) + MUL_PTCACHE_TABLE_BASE);
+}
+
+// Maps a cache entry
+static inline void MmMulMapCacheEntry (pte_t* pte, paddr_t tab)
+{
+    *pte = tab | PF_P | PF_RW;
+}
+
+// Validates that we can map pte2 to pte1
+void MmMulVerify (pte_t pte1, pte_t pte2);
+
+typedef struct _memspace MmSpace_t;
+
+// Allocates page table into ent
+paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel);
 
 #endif

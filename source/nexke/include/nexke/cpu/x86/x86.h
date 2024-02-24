@@ -248,7 +248,7 @@ extern uint8_t CpuTrapTable[];
 #define CPU_CR4_SMAP       (1 << 21)
 
 #define CPU_EFER_SCE (1 << 0)
-#define CPU_EFER_NXE (1 << 1)
+#define CPU_EFER_NXE (1 << 11)
 #define CPU_EFER_MSR 0xC0000080
 
 // IDT type codes and flags

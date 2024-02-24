@@ -110,7 +110,7 @@ uint64_t CpuRdmsr (uint32_t msr)
 {
     uint32_t ax, dx;
     asm volatile("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
-    return ax | ((uint64_t) dx << 32);
+    return ax | ((uint64_t) dx << 32ULL);
 }
 
 void CpuInvlpg (uintptr_t addr)

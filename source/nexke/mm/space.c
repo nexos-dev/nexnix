@@ -215,4 +215,6 @@ void MmInitPhase2()
     // Set up MUL
     MmMulInit();
     MmMulMapPage (MmGetKernelSpace(), 0x10000000, MmAllocPage(), MUL_PAGE_KE | MUL_PAGE_RW);
+    uint64_t* t = (uint64_t*) 0x10000000;
+    *t = 32;
 }

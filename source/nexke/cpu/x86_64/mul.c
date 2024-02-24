@@ -15,6 +15,7 @@
     limitations under the License.
 */
 
+#include <assert.h>
 #include <nexke/cpu.h>
 #include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
@@ -39,6 +40,52 @@ static inline uintptr_t mulDecanonical (uintptr_t addr)
 // Initializes MUL
 void MmMulInit()
 {
+    MmPtabInit (4);    // Initialize page table manager with 4 levels
+    // Grab PML4 directory
+    pte_t* pml4 = (pte_t*) CpuReadCr3();
+    // Allocate cache
+    paddr_t cachePage = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    // Map it
+    MmMulMapEarly (MUL_PTCACHE_ENTRY_BASE, cachePage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    // Find table for table cache
+    paddr_t cacheTab = 0;
+    pte_t* curSt = pml4;
+    for (int i = 4; i > 2; --i)
+    {
+        curSt = (pte_t*) (curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, i)] & PT_FRAME);
+        assert (curSt);
+    }
+    cacheTab = curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, 2)] & PT_FRAME;
+    MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    memset (pml4, 0, (MUL_MAX_USER_PML4E * 8));
+    // Write out CR3 to flush TLB
+    CpuWriteCr3 ((uint64_t) pml4);
+    // Set base of directory
+    MmGetKernelSpace()->mulSpace.base = (paddr_t) pml4;
+    // Prepare page table cache
+    MmPtabInitCache (MmGetKernelSpace());
+}
+
+// Allocates page table into ent
+paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel)
+{
+    // Allocate the table
+    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    // Set PTE
+    pte_t flags = PF_P | PF_RW;
+    if (!isKernel)
+        flags |= PF_US;
+    // Map it
+    *ent = tab | flags;
+    return tab;
+}
+
+// Verifies mappability of pte2 into pte1
+void MmMulVerify (pte_t pte1, pte_t pte2)
+{
+    // Make sure we aren't mapping user mapping into kernel region
+    if (!(pte1 & PF_US) && pte2 & PF_US)
+        NkPanic ("nexke: error: can't map user mapping into kernel memory");
 }
 
 // Creates an MUL address space
@@ -54,16 +101,37 @@ void MmMulDestroySpace (MmSpace_t* space)
 // Maps page into address space
 void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 {
+    // Translate flags
+    pte_t pgFlags = PF_P | PF_US;
+    // Check for NX
+    if (CpuGetFeatures() & CPU_FEATURE_XD)
+        pgFlags |= PF_NX;
+    if (perm & MUL_PAGE_RW)
+        pgFlags |= PF_RW;
+    if (perm & MUL_PAGE_KE)
+        pgFlags &= ~(PF_US);
+    if (perm & MUL_PAGE_CD)
+        pgFlags |= PF_CD;
+    if (perm & MUL_PAGE_WT)
+        pgFlags |= PF_WT;
+    if (perm & MUL_PAGE_X)
+        pgFlags &= ~(PF_NX);
+    pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
+    MmPtabWalkAndMap (space, space->mulSpace.base, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
 }
 
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
+    MmPtabWalkAndUnmap (space, space->mulSpace.base, virt);
 }
 
 // Gets mapping for specified virtual address
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
+    // Grab address
+    paddr_t addr = MmPtabGetPte (space, space->mulSpace.base, virt) & PT_FRAME;
+    return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
 }
 
 // Early MUL functions
