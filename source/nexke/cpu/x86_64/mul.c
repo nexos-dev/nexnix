@@ -40,28 +40,33 @@ static inline uintptr_t mulDecanonical (uintptr_t addr)
 // Initializes MUL
 void MmMulInit()
 {
-    MmPtabInit (4);    // Initialize page table manager with 4 levels
-    // Grab PML4 directory
-    pte_t* pml4 = (pte_t*) CpuReadCr3();
+#ifdef NEXNIX_X86_64_LA57
+    int levels = 5;
+#else
+    int levels = 4;
+#endif
+    MmPtabInit (levels);    // Initialize page table manager with 4 levels
+    // Grab top PML directory
+    pte_t* pmlTop = (pte_t*) CpuReadCr3();
     // Allocate cache
     paddr_t cachePage = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
     // Map it
     MmMulMapEarly (MUL_PTCACHE_ENTRY_BASE, cachePage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Find table for table cache
     paddr_t cacheTab = 0;
-    pte_t* curSt = pml4;
-    for (int i = 4; i > 2; --i)
+    pte_t* curSt = pmlTop;
+    for (int i = levels; i > 2; --i)
     {
         curSt = (pte_t*) (curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, i)] & PT_FRAME);
         assert (curSt);
     }
     cacheTab = curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, 2)] & PT_FRAME;
     MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
-    memset (pml4, 0, (MUL_MAX_USER_PML4E * 8));
+    memset (pmlTop, 0, (MUL_MAX_USER_PMLTOP * 8));
     // Write out CR3 to flush TLB
-    CpuWriteCr3 ((uint64_t) pml4);
+    CpuWriteCr3 ((uint64_t) pmlTop);
     // Set base of directory
-    MmGetKernelSpace()->mulSpace.base = (paddr_t) pml4;
+    MmGetKernelSpace()->mulSpace.base = (paddr_t) pmlTop;
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -117,20 +122,24 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     if (perm & MUL_PAGE_X)
         pgFlags &= ~(PF_NX);
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
-    MmPtabWalkAndMap (space, space->mulSpace.base, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
+    MmPtabWalkAndMap (space,
+                      space->mulSpace.base,
+                      mulDecanonical (virt),
+                      (perm & MUL_PAGE_KE) == MUL_PAGE_KE,
+                      pte);
 }
 
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
-    MmPtabWalkAndUnmap (space, space->mulSpace.base, virt);
+    MmPtabWalkAndUnmap (space, space->mulSpace.base, mulDecanonical (virt));
 }
 
 // Gets mapping for specified virtual address
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
     // Grab address
-    paddr_t addr = MmPtabGetPte (space, space->mulSpace.base, virt) & PT_FRAME;
+    paddr_t addr = MmPtabGetPte (space, space->mulSpace.base, mulDecanonical (virt)) & PT_FRAME;
     return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
 }
 

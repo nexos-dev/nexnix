@@ -71,7 +71,7 @@ static uint8_t idxShiftTab[] = {0, 12, 21, 30, 39, 48};
 #define MUL_PTCACHE_TABLE_BASE 0xFFFFFFFF7FFDE000
 #define MUL_PTCACHE_ENTRY_BASE 0xFFFFFFFF7FFDD000
 
-#define MUL_MAX_USER_PML4E 511
+#define MUL_MAX_USER_PMLTOP 511
 
 // Obtains PTE address of specified PT cache entry
 static inline pte_t* MmMulGetCacheAddr (uintptr_t addr)
