@@ -47,6 +47,10 @@ typedef uint32_t pte_t;
 static pde_t* pdir = NULL;
 // Is paging on?
 static bool isPgOn = true;
+// Is this is a 386 (e.g., no invlpg)?
+static bool is386 = false;
+
+extern NbloadDetect_t* nbDetectGlobal;
 
 void NbCpuAsInit()
 {
@@ -61,6 +65,9 @@ void NbCpuAsInit()
     // write protect paging structures
     uint64_t cr0 = NbReadCr0();
     NbWriteCr0 (cr0 & ~(NB_CR0_WP));
+    // Figure out if we are on a 386
+    if (nbDetectGlobal->cpu.version == NBLOAD_CPU_VERSION_386)
+        is386 = true;
 }
 
 static pte_t* cpuAsAllocTab (uintptr_t virt, uint32_t flags)
@@ -117,7 +124,12 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     PT_SETFRAME (*pte, phys);
     // Invalidate TLB entry
     if (isPgOn)
-        NbInvlpg (virt);
+    {
+        if (!is386)
+            NbInvlpg (virt);
+        else
+            NbWriteCr3 (NbReadCr3());    // Flush whole TLB on 386
+    }
     return true;
 }
 
@@ -133,7 +145,12 @@ void NbCpuAsUnmap (uintptr_t virt)
     pte_t* pte = &pgTab[tabIdx];
     *pte = 0;
     if (isPgOn)
-        NbInvlpg (virt);
+    {
+        if (!is386)
+            NbInvlpg (virt);
+        else
+            NbWriteCr3 (NbReadCr3());    // Flush whole TLB on 386
+    }
 }
 
 // Enables paging

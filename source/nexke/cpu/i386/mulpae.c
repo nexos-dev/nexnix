@@ -127,7 +127,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
         pgFlags &= ~(PF_NX);
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
     // Check if we need a new page directory
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     paddr_t pdir = 0;
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
@@ -150,7 +150,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
     // Get page directory to unmap
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     // Check if it is valid
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
@@ -167,7 +167,7 @@ void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
     // Get page directory to unmap
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     // Check if it is valid
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))

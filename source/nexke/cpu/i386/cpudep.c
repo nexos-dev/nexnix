@@ -183,7 +183,7 @@ void CpuFreeSeg (int segNum)
 // Prepares CCB data structure
 void CpuInitCcb()
 {
-    NkLogDebug ("nexke: Initializing CCB\n");
+    memset (&ccb, 0, sizeof (NkCcb_t));
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
     // Set up basic fields
@@ -195,8 +195,30 @@ void CpuInitCcb()
 #error Unrecognized board for i386
 #endif
     strcpy (ccb.sysName, bootInfo->sysName);
-    // Detect CPUID features
-    CpuDetectCpuid (&ccb);
+    // Detect CPUID features. First figure out if CPUID is even available
+    if (!CpuCheckCpuid())
+    {
+        ccb.archCcb.physAddrBits = 32, ccb.archCcb.virtAddrBits = 32;
+        ccb.archCcb.vendor = CPU_VENDOR_INTEL;    // Assumption
+        // Determine if this is a 386 or a 486
+        if (CpuCheck486())
+        {
+            ccb.archCcb.features |= (CPU_FEATURE_INVLPG | CPU_FEATURE_AC);
+            ccb.archCcb.family = 4;    // Set family for 486
+        }
+        else
+            ccb.archCcb.family = 3;
+        // Check for an FPU
+        if (CpuCheckFpu())
+        {
+            ccb.archCcb.features |= CPU_FEATURE_FPU;
+        }
+    }
+    else
+    {
+        CpuDetectCpuid (&ccb);
+        ccb.archCcb.features |= CPU_FEATURE_INVLPG | CPU_FEATURE_AC;
+    }
     // Initialize GDT
     cpuInitGdt();
     // Initialize IDT
@@ -220,24 +242,28 @@ void CpuInitCcb()
     ccb.archCcb.idt = cpuIdt;
     // Setup CR0, CR4, and EFER
     uint32_t cr0 = CpuReadCr0();
-    cr0 |= (CPU_CR0_WP | CPU_CR0_AM);
+    if (CpuGetFeatures() & CPU_FEATURE_AC)
+        cr0 |= (CPU_CR0_WP | CPU_CR0_AM);    // AC implise WP
     CpuWriteCr0 (cr0);
-    uint32_t cr4 = CpuReadCr4();
-    // Setup PSE, MCE, PGE, SSE, and SMEP
-    if (CpuGetFeatures() & CPU_FEATURE_PSE)
-        cr4 |= CPU_CR4_PSE;
-    if (CpuGetFeatures() & CPU_FEATURE_MCE)
-        cr4 |= CPU_CR4_MCE;
-    if (CpuGetFeatures() & CPU_FEATURE_PGE)
-        cr4 |= CPU_CR4_PGE;
-    if (CpuGetFeatures() & CPU_FEATURE_SSE || CpuGetFeatures() & CPU_FEATURE_SSE2 ||
-        CpuGetFeatures() & CPU_FEATURE_SSE3)
+    if (ccb.archCcb.family > 4)
     {
-        cr4 |= (CPU_CR4_OSFXSR | CPU_CR4_OSXMMEXCPT);
+        uint32_t cr4 = CpuReadCr4();
+        // Setup PSE, MCE, PGE, SSE, and SMEP
+        if (CpuGetFeatures() & CPU_FEATURE_PSE)
+            cr4 |= CPU_CR4_PSE;
+        if (CpuGetFeatures() & CPU_FEATURE_MCE)
+            cr4 |= CPU_CR4_MCE;
+        if (CpuGetFeatures() & CPU_FEATURE_PGE)
+            cr4 |= CPU_CR4_PGE;
+        if (CpuGetFeatures() & CPU_FEATURE_SSE || CpuGetFeatures() & CPU_FEATURE_SSE2 ||
+            CpuGetFeatures() & CPU_FEATURE_SSE3)
+        {
+            cr4 |= (CPU_CR4_OSFXSR | CPU_CR4_OSXMMEXCPT);
+        }
+        if (CpuGetFeatures() & CPU_FEATURE_SMEP)
+            cr4 |= CPU_CR4_SMEP;
+        CpuWriteCr4 (cr4);
     }
-    if (CpuGetFeatures() & CPU_FEATURE_SMEP)
-        cr4 |= CPU_CR4_SMEP;
-    CpuWriteCr4 (cr4);
     // Set EFER
     if (CpuGetFeatures() & CPU_FEATURE_MSR)
     {

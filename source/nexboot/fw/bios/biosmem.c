@@ -168,8 +168,6 @@ bool nbMemWithE881()
             extMemPlus = out.edx;
         }
     }
-    extMem = NbPageAlignDown (extMem);
-    extMemPlus = NbPageAlignDown (extMemPlus);
     // Prepare memory entries
     memmap[0].base = 0;
     memmap[0].sz = 0x80000;
@@ -245,10 +243,9 @@ bool nbMemWith88()
         return false;
     // Get memory size
     uintmax_t memSize = out.ax;
-    memSize = NbPageAlignDown (memSize);
     // Prepare memory entries
     memmap[0].base = 0;
-    memmap[0].sz = 0x80000;
+    memmap[0].sz = 0xA0000;
     memmap[0].type = NEXBOOT_MEM_FREE;
     memmap[1].base = 0x100000;
     memmap[1].sz = memSize * 1024;
@@ -285,17 +282,15 @@ bool NbFwResvMem (uintptr_t base, size_t sz, int type)
             if (memmap[i].type != NEXBOOT_MEM_FREE && memmap[i].type != type)
                 return false;
             // Check if we need to split this region
-            if ((memmap[i].base + memmap[i].sz) < (base + sz))
+            if ((base + sz) < (memmap[i].base + memmap[i].sz))
             {
                 // Create a new region
                 memmap[memEntry].base = base + sz;
-                memmap[memEntry].sz = (memmap[i].base + sz) - (base + sz);
+                memmap[memEntry].sz = (memmap[i].base + memmap[i].sz) - (base + sz);
                 memmap[memEntry].flags = 0;
                 memmap[memEntry].type = NEXBOOT_MEM_FREE;
                 ++memEntry;
-                ++i;
             }
-            // Contract current region's size
             memmap[i].sz = base - memmap[i].base;
         }
         // Maybe the size of the new region protrudes into the new
@@ -341,6 +336,7 @@ void NbFwMemDetect()
     // Try AH=88h
     if (nbMemWith88())
         goto bootResv;
+
     // That's an error
     NbLogMessageEarly ("nexboot: error: not supported memory map found",
                        NEXBOOT_LOGLEVEL_EMERGENCY);

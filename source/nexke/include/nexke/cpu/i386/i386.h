@@ -120,4 +120,13 @@ typedef struct _icontext
 
 #define CPU_CTX_INTNUM(ctx) ((ctx)->intNo)
 
+// Checks if CPUID exists
+bool CpuCheckCpuid();
+
+// Check if this is a 486
+bool CpuCheck486();
+
+// Checks if an FPU exists
+bool CpuCheckFpu();
+
 #endif

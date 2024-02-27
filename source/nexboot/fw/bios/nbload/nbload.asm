@@ -150,14 +150,14 @@ NbStartDetect:
     cmp eax, ecx                    ; Check if they're different
     je .is486                       ; Nope, store that
 .is386:
-    mov word [di+14], NBLOAD_CPU_VERSION_386   ; Set it as 386
+    mov word [es:di+14], NBLOAD_CPU_VERSION_386   ; Set it as 386
     ; Print message
     mov si, cpu386Message
     mov cx, 3
     call NbloadLogMsg
     jmp .cpuCheckDone
 .is486:
-    mov word [di+14], NBLOAD_CPU_VERSION_486   ; Set it as 486
+    mov word [es:di+14], NBLOAD_CPU_VERSION_486   ; Set it as 486
      ; Print message
     mov si, cpu486Message
     mov cx, 3
@@ -204,15 +204,9 @@ NbStartDetect:
     fstsw ax                        ; Get status word
     cmp al, 0                       ; Check if its 0
     je .fpuExists                   ; If equal, FPU exists
-    mov eax, cr0
-    or eax, 1 << 2                  ; Set CR0.EM
-    mov cr0, eax
-    mov byte [es:di+16], 0            ; Inform nexboot of thisi
+    mov byte [es:di+16], 0            ; Inform nexboot of this
     jmp .fpuCheckDone
 .fpuExists:
-    mov eax, cr0
-    and eax, ~(1 << 2)
-    mov cr0, eax                        ; Clear CR0.EM
     mov byte [es:di+16], 1 << 0         ; Inform nexboot of this
     ; Print message
     mov si, fpuMessage

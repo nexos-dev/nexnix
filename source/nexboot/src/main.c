@@ -74,9 +74,14 @@ void nbLaunchConf()
     NbCrash();
 }
 
+// The detect structure
+// This is needed as a global for some bits
+NbloadDetect_t* nbDetectGlobal = NULL;
+
 // The main entry point into nexboot
 void NbMain (NbloadDetect_t* nbDetect)
 {
+    nbDetectGlobal = nbDetect;
     //   So, we are loaded by nbload, and all it has given us is the nbdetect
     //   structure. It's our job to create a usable environment.
     //     Initialize logging

@@ -24,6 +24,15 @@
 // Kernel page directory template
 static pte_t* mulKePgDir = NULL;
 
+// Is INVLPG support?
+static bool isInvlpg = false;
+
+// Flushes whole TLB
+void MmMulFlushTlb()
+{
+    CpuWriteCr3 (CpuReadCr3());
+}
+
 // Initializes MUL
 void MmMulInit()
 {
@@ -47,6 +56,9 @@ void MmMulInit()
     memset (pd, 0, MUL_MAX_USER * sizeof (pte_t));
     // Write out CR3 to flush TLB
     CpuWriteCr3 ((uint32_t) pd);
+    // Determine if invlpg is supported
+    if (CpuGetFeatures() & CPU_FEATURE_INVLPG)
+        isInvlpg = true;
     // Set base of directory
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pd;
     // Prepare page table cache
@@ -81,6 +93,14 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     return tab;
 }
 
+void MmMulFlushCacheEntry (uintptr_t addr)
+{
+    if (isInvlpg)
+        MmMulFlush (addr);
+    else
+        MmMulFlushTlb();
+}
+
 // Creates an MUL address space
 void MmMulCreateSpace (MmSpace_t* space)
 {
@@ -108,7 +128,19 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     MmPtabWalkAndMap (space, space->mulSpace.base, virt, pte);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
-        MmMulFlush (virt);
+    {
+        if (isInvlpg)
+            MmMulFlush (virt);
+        else
+        {
+            // If this is a user mapping, simply mark this space for flushing when we return to user
+            // mode If a kernel mapping, we unfortunatly have to do it know
+            if (space != MmGetKernelSpace())
+                space->mulSpace.tlbUpdatePending = true;
+            else
+                MmMulFlushTlb();
+        }
+    }
 }
 
 // Unmaps page out of address space
@@ -117,7 +149,19 @@ void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
     MmPtabWalkAndUnmap (space, space->mulSpace.base, virt);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
-        MmMulFlush (virt);
+    {
+        if (isInvlpg)
+            MmMulFlush (virt);
+        else
+        {
+            // If this is a user mapping, simply mark this space for flushing when we return to user
+            // mode If a kernel mapping, we unfortunatly have to do it know
+            if (space != MmGetKernelSpace())
+                space->mulSpace.tlbUpdatePending = true;
+            else
+                MmMulFlushTlb();
+        }
+    }
 }
 
 // Gets mapping for specified virtual address
@@ -180,7 +224,11 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
     if (*pte)
         NkPanic ("nexke: cannot map mapped page");
     *pte = phys | pgFlags;
-    MmMulFlush (virt);
+    // Check for INVLPG
+    if (CpuGetFeatures() & CPU_FEATURE_INVLPG)
+        MmMulFlush (virt);
+    else
+        MmMulFlushTlb();
 }
 
 // Gets physical address of virtual address early in boot process

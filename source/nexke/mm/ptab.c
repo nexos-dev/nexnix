@@ -35,7 +35,7 @@ void MmPtabInit (int numLevels)
 void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t pteVal)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys, MUL_IDX_PRIO (mmNumLevels));
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -46,14 +46,14 @@ void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t 
             // Failure results in panic
             MmMulVerify (*ent, pteVal);
             // Grab cache entry
-            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt);
+            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt, MUL_IDX_PRIO (i - 1));
         }
         else
         {
             // Allocate new table
             // This calls architecture specific code
             paddr_t newTab = MmMulAllocTable (space, vaddr, curSt, ent);
-            cacheEnt = MmPtabSwapCache (space, newTab, cacheEnt);
+            cacheEnt = MmPtabSwapCache (space, newTab, cacheEnt, MUL_IDX_PRIO (i - 1));
         }
     }
     // Map last entry
@@ -69,7 +69,7 @@ void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t 
 void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys, MUL_IDX_PRIO (mmNumLevels));
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -77,7 +77,7 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
         if (*ent)
         {
             // Grab cache entry
-            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt);
+            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt, MUL_IDX_PRIO (i - 1));
         }
         else
         {
@@ -98,7 +98,7 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
 pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys, MUL_IDX_PRIO (mmNumLevels));
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -106,7 +106,7 @@ pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
         if (*ent)
         {
             // Grab cache entry
-            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt);
+            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt, MUL_IDX_PRIO (i - 1));
         }
         else
         {
@@ -134,37 +134,109 @@ void MmPtabInitCache (MmSpace_t* space)
             entries[i].next = NULL;
         else
             entries[i].next = &entries[i + 1];
+        if (i == 0)
+            entries[i].prev = NULL;
+        else
+            entries[i].prev = &entries[i - 1];
     }
     // Set pointer head
-    space->mulSpace.ptCache = (MmPtCacheEnt_t*) MUL_PTCACHE_ENTRY_BASE;
+    space->mulSpace.ptFreeList = (MmPtCacheEnt_t*) MUL_PTCACHE_ENTRY_BASE;
 }
 
 // Returns entry and gets new entry
-MmPtCacheEnt_t* MmPtabSwapCache (MmSpace_t* space, paddr_t ptab, MmPtCacheEnt_t* cacheEnt)
+MmPtCacheEnt_t* MmPtabSwapCache (MmSpace_t* space,
+                                 paddr_t ptab,
+                                 MmPtCacheEnt_t* cacheEnt,
+                                 bool highPrio)
 {
-    MmPtabReturnCache (space, cacheEnt);
-    return MmPtabGetCache (space, ptab);
+    cacheEnt->inUse = false;
+    return MmPtabGetCache (space, ptab, highPrio);
 }
 
 // Grabs cache entry for table
-MmPtCacheEnt_t* MmPtabGetCache (MmSpace_t* space, paddr_t ptab)
+MmPtCacheEnt_t* MmPtabGetCache (MmSpace_t* space, paddr_t ptab, bool highPrio)
 {
-    // Grab entry from head
-    MmPtCacheEnt_t* entry = space->mulSpace.ptCache;
-    assert (entry);    // TODO: block here for entries to be returned
-    // Advance list
-    space->mulSpace.ptCache = entry->next;
-    // Map it
-    MmMulMapCacheEntry (entry->pte, ptab);
-    // Flush TLB entry
-    MmMulFlush (entry->addr);
-    return entry;
+    // Find entry on cache
+    MmPtCacheEnt_t* ent = space->mulSpace.ptUsedList;
+    while (ent)
+    {
+        if (ent->ptab == ptab)
+        {
+            // We found it
+            ent->inUse = true;
+            return ent;
+        }
+        ent = ent->next;
+    }
+    // Attempt to find completly free entry
+    ent = space->mulSpace.ptFreeList;
+    if (ent)
+    {
+        // Remove from list
+        space->mulSpace.ptFreeList = ent->next;
+        space->mulSpace.ptFreeList->prev = NULL;
+        // Set it up
+        ent->highPrio = highPrio;
+        if (!highPrio)
+            ++space->mulSpace.lowPrioCount;    // Increase counter
+        // Add to used list
+        if (space->mulSpace.ptUsedList)
+            space->mulSpace.ptUsedList->prev = ent;    // Set head back link
+        else
+            space->mulSpace.ptUsedListEnd = ent;    // Set tail
+        ent->next = space->mulSpace.ptUsedList;
+        ent->prev = NULL;
+        space->mulSpace.ptUsedList = ent;
+        goto setup;
+    }
+    // No available cache entry, we need to evict one
+    // Determine if we can evict high priority entries
+    bool evictHighPrio = false;
+    if (highPrio || space->mulSpace.lowPrioCount == 0)
+        evictHighPrio = true;
+    ent = space->mulSpace.ptUsedListEnd;
+    MmPtCacheEnt_t* foundEnt = NULL;
+    while (ent)
+    {
+        // Make sure entry is not in use
+        if (!ent->inUse)
+        {
+            // Check priority now
+            if (!ent->highPrio || evictHighPrio || highPrio)
+            {
+                foundEnt = ent;
+                break;
+            }
+        }
+        ent = ent->prev;
+    }
+    if (!foundEnt)
+    {
+        assert (false);    // TODO: block for entry to be released
+    }
+    // Set it up
+    // If we are going from high to low priority, or low to high priority, note that
+    if (ent->highPrio && !highPrio)
+    {
+        // Increase total low priority entries
+        ++space->mulSpace.lowPrioCount;
+    }
+    else if (!ent->highPrio && highPrio)
+    {
+        // Decrease
+        --space->mulSpace.lowPrioCount;
+    }
+setup:
+    ent->highPrio = highPrio;
+    ent->inUse = true;
+    ent->ptab = ptab;
+    MmMulMapCacheEntry (ent->pte, ent->ptab);
+    MmMulFlushCacheEntry (ent->addr);
+    return ent;
 }
 
 // Returns cache entry to cache
 void MmPtabReturnCache (MmSpace_t* space, MmPtCacheEnt_t* cacheEnt)
 {
-    // Add to head of list
-    cacheEnt->next = space->mulSpace.ptCache;
-    space->mulSpace.ptCache = cacheEnt;
+    cacheEnt->inUse = false;
 }

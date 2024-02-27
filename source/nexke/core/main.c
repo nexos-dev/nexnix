@@ -77,7 +77,6 @@ void NkMain (NexNixBoot_t* bootinf)
     bootInfo = bootinf;
     // Initialize MM phase 1
     MmInitPhase1();
-
     // Copy bootinfo into cache
     bootInfCache = MmCacheCreate (sizeof (NexNixBoot_t), NULL, NULL);
     NexNixBoot_t* bootInf = MmCacheAlloc (bootInfCache);
@@ -89,6 +88,8 @@ void NkMain (NexNixBoot_t* bootinf)
     cmdLine = malloc (argLen + 1);
     strcpy (cmdLine, bootInfo->args);
 
+    // Initialize CCB
+    CpuInitCcb();
     // Initialize boot drivers
     PltInitDrvs();
     // Initialize log
@@ -98,8 +99,8 @@ void NkMain (NexNixBoot_t* bootinf)
 NexNix version %s\n\
 Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
-    // Initialize CCB
-    CpuInitCcb();
+    // Log CPU specs
+    CpuPrintFeatures();
     // Initialize MM phase 2
     MmInitPhase2();
     for (;;)

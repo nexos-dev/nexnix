@@ -57,10 +57,15 @@ typedef uint64_t pte_t;
 
 // Shift table for each level for arch independent layer
 static uint8_t idxShiftTab[] = {0, 12, 21};
+// Priority of levels in cache
+static bool idxPrioTab[] = {false, false, true};
 
 // Macro to get level index
 #define MUL_IDX_MASK               0x1FF
 #define MUL_IDX_LEVEL(addr, level) (((addr) >> idxShiftTab[(level)]) & (MUL_IDX_MASK))
+#define MUL_IDX_PRIO(level)        (idxPrioTab[level])
+
+#define MmMulFlushCacheEntry MmMulFlush
 
 #else
 
@@ -93,15 +98,21 @@ typedef uint32_t pte_t;
 
 // Shift table for each level for arch independent layer
 static uint8_t idxShiftTab[] = {0, 12, 22};
+// Priority of levels in cache
+static bool idxPrioTab[] = {false, false, true};
 
 // Macro to get level index
 #define MUL_IDX_MASK               0x3FF
 #define MUL_IDX_LEVEL(addr, level) (((addr) >> idxShiftTab[(level)]) & (MUL_IDX_MASK))
+#define MUL_IDX_PRIO(level)        (idxPrioTab[level])
 
 // Max user directory entry
 #define MUL_MAX_USER               767
 #define MUL_KERNEL_START           768
 #define MUL_KERNEL_MAX             1023
+
+// Flushes TLB for cache entry
+void MmMulFlushCacheEntry (uintptr_t addr);
 
 #endif
 

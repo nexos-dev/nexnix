@@ -48,6 +48,9 @@ void CpuInitCcb();
 // Returns CCB to caller
 NkCcb_t* CpuGetCcb();
 
+// Print CPU features
+void CpuPrintFeatures();
+
 // Page aligning inlines
 static inline uintptr_t CpuPageAlignUp (uintptr_t ptr)
 {

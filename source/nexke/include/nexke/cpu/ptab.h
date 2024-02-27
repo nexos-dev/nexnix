@@ -25,8 +25,12 @@
 typedef struct _ptcache
 {
     uintptr_t addr;           // Address of this entry
+    paddr_t ptab;             // Physical address of page table being mapped
     pte_t* pte;               // PTE we should use to map this to a physical address
+    bool highPrio;            // If this entry is high priority
+    bool inUse;               // If this entry is in use
     struct _ptcache* next;    // Next entry in list
+    struct _ptcache* prev;
 } MmPtCacheEnt_t;
 
 typedef struct _page MmPage_t;
@@ -34,8 +38,13 @@ typedef struct _memspace MmSpace_t;
 
 typedef struct _mmspace
 {
-    paddr_t base;               // Physical base of top level table
-    MmPtCacheEnt_t* ptCache;    // List of free PT cache entries
+    paddr_t base;                     // Physical base of top level table
+    MmPtCacheEnt_t* ptFreeList;       // List of free PT cache entries
+    MmPtCacheEnt_t* ptUsedList;       // List of used PT cache entries
+    MmPtCacheEnt_t* ptUsedListEnd;    // List of used PT cache entries tail
+    int lowPrioCount;                 // Number of low priority PT cache entries available
+    bool tlbUpdatePending;            // Is a TLB update pending?
+                                      // Used to lazily update the TLB on CPUs where that is slow
 } MmMulSpace_t;
 
 // Initializes page table manager
@@ -54,13 +63,16 @@ pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr);
 void MmPtabInitCache (MmSpace_t* space);
 
 // Grabs cache entry for table
-MmPtCacheEnt_t* MmPtabGetCache (MmSpace_t* space, paddr_t ptab);
+MmPtCacheEnt_t* MmPtabGetCache (MmSpace_t* space, paddr_t ptab, bool highPrio);
 
 // Returns cache entry
 void MmPtabReturnCache (MmSpace_t* space, MmPtCacheEnt_t* cacheEnt);
 
 // Returns entry and gets new entry
-MmPtCacheEnt_t* MmPtabSwapCache (MmSpace_t* space, paddr_t ptab, MmPtCacheEnt_t* cacheEnt);
+MmPtCacheEnt_t* MmPtabSwapCache (MmSpace_t* space,
+                                 paddr_t ptab,
+                                 MmPtCacheEnt_t* cacheEnt,
+                                 bool highPrio);
 
 // Flushes a single TLB entry
 void MmMulFlush (uintptr_t vaddr);

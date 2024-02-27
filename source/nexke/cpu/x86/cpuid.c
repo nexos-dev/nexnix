@@ -265,7 +265,7 @@ static const char* cpuFeatureStrings[] = {
     "POPCNT",       "LAHF",      "SYSCALL", "XD",       "1GB",    "RDTSCP",     "LM",
     "FSGSBASE",     "SMEP",      "INVPCID", "VMX",      "PCID",   "SSE42",      "X2APIC",
     "TSC_DEADLINE", "XSAVE",     "OSXSAVE", "AVX",      "RDRAND", "SYSENTER64", "SYSCALL64",
-    "SVM",          "SSE4A",     "SSE5"};
+    "SVM",          "SSE4A",     "SSE5",    "INVLPG",   "AC"};
 
 void CpuDetectCpuid (NkCcb_t* ccb)
 {
@@ -294,11 +294,16 @@ void CpuDetectCpuid (NkCcb_t* ccb)
     cpuidSetType (ccb);
     // Set address sizes
     cpuidSetAddrSz (ccb);
+}
+
+// Print CPU features
+void CpuPrintFeatures()
+{
     // Log out supported features
     NkLogInfo ("nexke: detected CPU features: ");
     for (int i = 0; i < 64; ++i)
     {
-        if (ccb->archCcb.features & (1ULL << i))
+        if (CpuGetCcb()->archCcb.features & (1ULL << i))
             NkLogInfo ("%s ", cpuFeatureStrings[i]);
     }
     NkLogInfo ("\n");

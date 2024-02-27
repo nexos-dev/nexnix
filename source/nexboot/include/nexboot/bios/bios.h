@@ -90,6 +90,7 @@ void NbFwEarlyPrint (char c);
 
 // Helper to get end of backbuffer area
 uintptr_t NbBiosGetBootEnd();
+uintptr_t NbBiosGetIdealEnd();
 
 // Reserve a mememory region
 bool NbFwResvMem (uintptr_t base, size_t sz, int type);

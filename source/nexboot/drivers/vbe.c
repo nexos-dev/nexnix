@@ -593,8 +593,19 @@ static bool VbeObjUnmapFb (void* objp, void* params)
     return true;
 }
 
+extern uintptr_t curMemLocation;
+
 // Helper to get end of backbuffer area
 uintptr_t NbBiosGetBootEnd()
+{
+    if (!vbeEnabled)
+        return curMemLocation;
+    // FIXME: a couple of MiB of memory may be wasted here
+    else
+        return NEXBOOT_BIOS_END + NbPageAlignUp (backSize);
+}
+
+uintptr_t NbBiosGetIdealEnd()
 {
     if (!vbeEnabled)
         return NEXBOOT_BIOS_END;
