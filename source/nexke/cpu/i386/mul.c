@@ -23,8 +23,6 @@
 
 // Kernel page directory template
 static pte_t* mulKePgDir = NULL;
-// Kernel directory version number
-static int mulKeVersion = 0;
 
 // Initializes MUL
 void MmMulInit()
@@ -64,8 +62,14 @@ void MmMulVerify (pte_t pte1, pte_t pte2)
 }
 
 // Allocates page table into ent
-paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel)
+paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t* ent)
 {
+    // Figure out if this is a kernel address
+    bool isKernel = false;
+    if (addr >= NEXKE_KERNEL_BASE)
+        isKernel = true;
+    else
+        isKernel = false;
     // Allocate the table
     paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
     // Set PTE
@@ -74,16 +78,6 @@ paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKer
         flags |= PF_US;
     // Map it
     *ent = tab | flags;
-    // If mapping a kernel table, we must update the template kernel directory
-    if (isKernel)
-    {
-        // Compute offset into directory we must update
-        size_t offset = ent - stBase;
-        // Copy it
-        *(mulKePgDir + offset) = *ent;
-        // Update version
-        ++mulKeVersion;
-    }
     return tab;
 }
 
@@ -111,13 +105,19 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     if (perm & MUL_PAGE_WT)
         pgFlags |= PF_WT;
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
-    MmPtabWalkAndMap (space, space->mulSpace.base, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
+    MmPtabWalkAndMap (space, space->mulSpace.base, virt, pte);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
 }
 
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
     MmPtabWalkAndUnmap (space, space->mulSpace.base, virt);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
 }
 
 // Gets mapping for specified virtual address

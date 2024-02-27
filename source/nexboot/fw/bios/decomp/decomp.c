@@ -16,7 +16,7 @@
     limitations under the License.
 */
 
-#include "tinf/tinf.h"
+#include "em_inflate.h"
 #include <elf.h>
 #include <nexboot/detect.h>
 #include <stdint.h>
@@ -31,10 +31,10 @@
 
 void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uintptr_t nbSize)
 {
-    // Decompress it
+    //  Decompress it
     uint32_t size = NEXBOOT_MAX_SIZE;
-    int res = tinf_gzip_uncompress ((void*) NEXBOOT_BASE_ADDR, &size, nbBase, nbSize);
-    if (res)
+    size_t res = em_inflate ((void*) nbBase, nbSize, (void*) NEXBOOT_BASE_ADDR, size);
+    if (res == -1)
     {
         // We can't print anything right now, just halt as the chance of this
         // is extremely low

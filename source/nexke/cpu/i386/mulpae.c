@@ -67,8 +67,14 @@ void MmMulVerify (pte_t pte1, pte_t pte2)
 }
 
 // Allocates page table into ent
-paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel)
+paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t* ent)
 {
+    // Figure out if this is a kernel address
+    bool isKernel = false;
+    if (addr >= NEXKE_KERNEL_BASE)
+        isKernel = true;
+    else
+        isKernel = false;
     // Allocate the table
     paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
     // Set PTE
@@ -86,7 +92,7 @@ static paddr_t mulAllocDir (MmSpace_t* space, pdpte_t* ent)
     paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
     *ent = PF_P | tab;
     // Flush PDPTE registers on CPU
-    if (space == MmGetCurrentSpace())
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlushTlb();
     return tab;
 }
@@ -134,7 +140,10 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
         pdir = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
     }
     MmPtabReturnCache (space, cacheEnt);
-    MmPtabWalkAndMap (space, pdir, virt, (perm & MUL_PAGE_KE) == MUL_PAGE_KE, pte);
+    MmPtabWalkAndMap (space, pdir, virt, pte);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
 }
 
 // Unmaps page out of address space
@@ -149,6 +158,9 @@ void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
     paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
     MmPtabReturnCache (space, cacheEnt);
     MmPtabWalkAndUnmap (space, pdirAddr, virt);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
 }
 
 // Gets mapping for specified virtual address

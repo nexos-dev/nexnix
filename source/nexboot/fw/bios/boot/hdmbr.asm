@@ -129,17 +129,15 @@ HdMbrEntry:
     push dx             ; Save head
     ; Get sector
     add word [bp-14], 1 ; Add 1 to LBA % SPT
-    mov ax, [bp-14]
-    push ax             ; Re-push it
+    push word [bp-14]   ; Re-push it
     ; Call BIOS to read in sector now
     ; Reset disk system
     mov dx, word [bp-16]
-    mov dl, ch          ; Store cylinder low CH for BIOS
+    mov ch, dl           ; Store cylinder low CH for BIOS
     and dh, 3           ; Clear top 6 bits. Cylinder high is in DH
     mov bx, word [bp-20]   ; Get sector
     mov cl, bl          ; Stick sector in CL for BIOS
-    shl dh, 6           ; Move cylinder high to top two bits of DH
-    and dh, 0xC0
+    shl dh, 6           ; Move cylinder high to top two bits of CL
     or cl, dh           ; Stick cylinder high in CL
     mov dx, [bp-18]     ; Get head
     mov dh, dl          ; Stick head in DH

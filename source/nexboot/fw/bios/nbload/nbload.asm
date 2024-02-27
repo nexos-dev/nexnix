@@ -130,11 +130,48 @@ NbStartDetect:
     pop eax
     cmp eax, ecx                    ; Check if they're different
     je .isCpuid                     ; Nope, store that
-    ; Print out error, CPUID required
-    mov si, cpuOldMessage
+    ; We are on either or 486 or a 386.
+    ; On PAE builds, go ahead and panic as the system surely doesn't have PAE
+%ifdef NEXNIX_I386_PAE
+    mov si, noPaeMessage
     mov cx, 1
     call NbloadLogMsg
     call NbloadPanic
+%endif
+    ; How do we decide? Based on wheter EFLAGS.AC is modifiable
+    pushfd                          ; Get EFLAGS
+    pop eax
+    xor eax, 1 << 18                ; Change EFLAGS.AC
+    mov ecx, eax                    ; Store for reference
+    push eax                        ; Store new EFLAGS
+    popfd
+    pushfd                          ; Get new EFLAGS
+    pop eax
+    cmp eax, ecx                    ; Check if they're different
+    je .is486                       ; Nope, store that
+.is386:
+    mov word [di+14], NBLOAD_CPU_VERSION_386   ; Set it as 386
+    ; Print message
+    mov si, cpu386Message
+    mov cx, 3
+    call NbloadLogMsg
+    jmp .cpuCheckDone
+.is486:
+    mov word [di+14], NBLOAD_CPU_VERSION_486   ; Set it as 486
+     ; Print message
+    mov si, cpu486Message
+    mov cx, 3
+    call NbloadLogMsg
+    ; Set CR0.WP
+    mov eax, cr0
+    or eax, 1 << 16
+    mov cr0, eax
+    jmp .cpuCheckDone
+    ; Set CR0.WP
+    mov eax, cr0
+    or eax, 1 << 16
+    mov cr0, eax
+    jmp .cpuCheckDone
 .isCpuid:
     mov word [es:di+14], NBLOAD_CPU_VERSION_CPUID ; Let other layers know to use CPUID
 %ifdef NEXNIX_I386_PAE
@@ -147,7 +184,7 @@ NbStartDetect:
 %endif
     ; Print message
     mov si, cpuCpuidMessage
-    mov cx, 4
+    mov cx, 3
     call NbloadLogMsg
     ; Set CR0.WP
     mov eax, cr0
@@ -170,15 +207,12 @@ NbStartDetect:
     mov eax, cr0
     or eax, 1 << 2                  ; Set CR0.EM
     mov cr0, eax
-    mov byte [es:di+16], $0            ; Inform nexboot of this
-    ; As of now, software-emulated FPU isn't supported
-    ; Error out if an FPU doesn't exist
-    mov si, noFpuMessage
-    mov cx, 1
-    call NbloadLogMsg
-    call NbloadPanic
+    mov byte [es:di+16], 0            ; Inform nexboot of thisi
     jmp .fpuCheckDone
 .fpuExists:
+    mov eax, cr0
+    and eax, ~(1 << 2)
+    mov cr0, eax                        ; Clear CR0.EM
     mov byte [es:di+16], 1 << 0         ; Inform nexboot of this
     ; Print message
     mov si, fpuMessage
@@ -419,7 +453,9 @@ nexbootSz: dd 0
 logLocation: dw NBLOAD_LOG_START
 
 cpuCpuidMessage: db 0x0A, 0x0D, "nbload: detected CPU 486+", 0
-cpuOldMessage: db 0x0A, 0x0D, "nbload: CPU with CPUID required", 0
+cpu486Message: db 0x0A, 0x0D, "nbload: detected CPU 486", 0
+cpu386Message: db 0x0A, 0x0D, "nbload: detected CPU 386", 0
+cpuOldMessage: db 0x0A, 0x0D, "nbload: 386+ required", 0
 fpuMessage: db 0x0A, 0x0D, "nbload: x87 FPU found", 0x0A, 0x0D, 0
 noFpuMessage: db 0x0A, 0x0D, "nbload: no x87 FPU found", 0
 a20failMessage: db 0x0A, 0x0D, "nbload: unable to enable A20 gate", 0

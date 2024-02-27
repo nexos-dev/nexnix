@@ -86,9 +86,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/znexboot
 add_custom_target(znexboot2 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/znexboot)
 
 # Build decompressor
-add_executable(ndecomp decomp/decomp.c decomp/tinf/tinflate.c
-    decomp/tinf/tinfgzip.c decomp/tinf/tinfzlib.c
-    decomp/tinf/adler32.c decomp/tinf/crc32.c)
+add_executable(ndecomp decomp/decomp.c decomp/em_inflate.c)
 
 # Set linker script
 target_link_options(ndecomp PRIVATE -Wl,-no-pie -T

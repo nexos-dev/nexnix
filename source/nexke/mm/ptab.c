@@ -32,11 +32,7 @@ void MmPtabInit (int numLevels)
 }
 
 // Walks to a page table entry and maps specfied value into it
-void MmPtabWalkAndMap (MmSpace_t* space,
-                       paddr_t asPhys,
-                       uintptr_t vaddr,
-                       bool isKernel,
-                       pte_t pteVal)
+void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t pteVal)
 {
     // Grab base and cache it
     MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys);
@@ -56,7 +52,7 @@ void MmPtabWalkAndMap (MmSpace_t* space,
         {
             // Allocate new table
             // This calls architecture specific code
-            paddr_t newTab = MmMulAllocTable (space, curSt, ent, isKernel);
+            paddr_t newTab = MmMulAllocTable (space, vaddr, curSt, ent);
             cacheEnt = MmPtabSwapCache (space, newTab, cacheEnt);
         }
     }
@@ -67,9 +63,6 @@ void MmPtabWalkAndMap (MmSpace_t* space,
     *lastEnt = pteVal;
     // Return cache entry
     MmPtabReturnCache (space, cacheEnt);
-    // Flush TLB if needed
-    if (space == MmGetCurrentSpace())
-        MmMulFlush (vaddr);
 }
 
 // Walks to a page table entry and unmaps it
@@ -99,9 +92,6 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
     *lastEnt = 0;
     // Return cache entry
     MmPtabReturnCache (space, cacheEnt);
-    // Flush TLB if needed
-    if (space == MmGetCurrentSpace())
-        MmMulFlush (vaddr);
 }
 
 // Walks to a page table entry and returns it's mapping

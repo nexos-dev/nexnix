@@ -83,13 +83,7 @@ static MmKvPage_t* mmKvAllocInArena (MmKvArena_t* arena)
                    physPage,
                    page->vaddr - kmemSpace.startAddr);
         // Map into virtual address space
-        // Note that we map it into the current address space and not the kernel one
-        // This is because the mapping routine will automatically add it to the kernel address
-        // space
-        MmMulMapPage (MmGetCurrentSpace(),
-                      page->vaddr,
-                      physPage,
-                      MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+        MmMulMapPage (&kmemSpace, page->vaddr, physPage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     }
     return page;
 }
@@ -167,7 +161,7 @@ void MmFreeKvPage (MmKvPage_t* page)
             NkPanic ("MmFreeKvPage: attempted to free unallocated page");
         MmRemovePage (pgList, physPage);
         // Free the page
-        MmMulUnmapPage (MmGetCurrentSpace(), page->vaddr);
+        MmMulUnmapPage (&kmemSpace, page->vaddr);
         MmDeRefPage (physPage);
     }
 }

@@ -61,6 +61,8 @@ bool PltAcpiInit()
 AcpiSdt_t* PltAcpiFindTable (const char* sig)
 {
     assert (strlen (sig) == 4);
+    if (!isAcpiSys)
+        return NULL;
     // Check wheter to look through XSDT or RSDT
     if (isAcpi2)
     {

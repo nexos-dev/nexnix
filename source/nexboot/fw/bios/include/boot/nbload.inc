@@ -85,6 +85,7 @@ NbloadReadSector:
     pusha
     ; Set BP to stack top at current moment
     ; This is neccesary for us to read local variables
+    push bp
     mov bp, sp
     mov cl, [driveNumber]
     xor ch, ch                      ; Clear upper portion of DX
@@ -125,9 +126,9 @@ NbloadReadSector:
     mov es, bx
     mov di, bx
     int 0x13
-    jc .diskError
     pop di
     pop es
+    jc .diskError
     and cl, 0x3F        ; Clear upper 2 bits of cylinder to get SPT
     xor ch, ch          ; Clear CH
     push cx             ; Save SPT
@@ -160,7 +161,6 @@ NbloadReadSector:
     mov bx, [bp-20]     ; Get sector
     mov cl, bl          ; Stick sector in CL for BIOS
     shl dh, 6           ; Move cylinder high to top two bits of DH
-    and dh, 0xC0
     or cl, dh           ; Stick cylinder high in CL
     mov dx, [bp-18]     ; Get head
     mov dh, dl          ; Stick head in DH
@@ -176,6 +176,7 @@ NbloadReadSector:
     jmp .diskError
 .done:
     mov sp, bp          ; Restore stack pointer
+    pop bp
     popa
     ret
 .diskError:

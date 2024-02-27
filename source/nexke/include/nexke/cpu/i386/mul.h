@@ -129,6 +129,6 @@ void MmMulVerify (pte_t pte1, pte_t pte2);
 typedef struct _memspace MmSpace_t;
 
 // Allocates page table into ent
-paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel);
+paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t* ent);
 
 #endif
