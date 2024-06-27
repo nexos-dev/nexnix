@@ -108,6 +108,9 @@ uint64_t CpuRdmsr (uint32_t msr);
 // Writes specified MSR
 void CpuWrmsr (uint32_t msr, uint64_t val);
 
+// Reads TSC
+uint64_t CpuRdtsc (void);
+
 // Invalidates TLB for page
 void CpuInvlpg (uintptr_t addr);
 
@@ -190,6 +193,7 @@ void CpuFreeSeg (int segNum);
 
 // Generic x86 IDT stuff
 #define CPU_IDT_MAX 256
+#define NK_MAX_INTS 256
 
 // System call interrupt
 #define CPU_SYSCALL_INT 0x20
@@ -207,6 +211,12 @@ void CpuInstallIdt (CpuTabPtr_t* idt);
 // Flushes GDT
 void CpuFlushGdt (CpuTabPtr_t* gdt);
 
+// Disables interrupts
+void CpuDisable();
+
+// Enables interrupts
+void CpuEnable();
+
 // CCB type
 typedef struct _nkccb NkCcb_t;
 
@@ -221,6 +231,8 @@ typedef struct _nkarchccb
     unsigned long long features;    // CPU feature flags
     CpuSegDesc_t* gdt;              // GDT pointer
     CpuIdtEntry_t* idt;             // IDT pointer
+    int intsDisabled;    // Number of times interrupts have been disabled so we know when to
+                         // re-enable
 } NkArchCcb_t;
 
 // Fills CCB with CPUID flags
@@ -259,5 +271,29 @@ extern uint8_t CpuTrapTable[];
 #define CPU_IDT_TASK      5
 #define CPU_IDT_PRESENT   (1 << 7)
 #define CPU_IDT_DPL_SHIFT 5
+
+// Exception numbers
+#define CPU_EXEC_DE  0
+#define CPU_EXEC_DB  1
+#define CPU_EXEC_NMI 2
+#define CPU_EXEC_BP  3
+#define CPU_EXEC_OF  4
+#define CPU_EXEC_BR  5
+#define CPU_EXEC_UD  6
+#define CPU_EXEC_NM  7
+#define CPU_EXEC_DF  8
+#define CPU_EXEC_CPO 9
+#define CPU_EXEC_TS  10
+#define CPU_EXEC_NP  11
+#define CPU_EXEC_SS  12
+#define CPU_EXEC_GP  13
+#define CPU_EXEC_PF  14
+#define CPU_EXEC_MF  16
+#define CPU_EXEC_AC  17
+#define CPU_EXEC_MC  18
+#define CPU_EXEC_XM  19
+#define CPU_EXEC_VE  20
+#define CPU_EXEC_CP  21
+#define CPU_EXEC_MAX 31
 
 #endif

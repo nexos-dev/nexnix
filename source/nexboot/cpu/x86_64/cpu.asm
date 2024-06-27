@@ -18,6 +18,7 @@ global nbCpuAsmLaunch
 bits 64
 
 nbCpuAsmLaunch:
+    cli
     ; Set stack
     mov rsp, rdi
     mov rbp, 0          ; Set a new zero frame

@@ -18,6 +18,8 @@
 #ifndef _NEXKE_H
 #define _NEXKE_H
 
+#include <nexke/types.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -42,6 +44,15 @@ const char* NkReadArg (const char* arg);
 
 // Log functions
 
+// Loglevels
+#define NK_LOGLEVEL_EMERGENCY 1
+#define NK_LOGLEVEL_CRITICAL  2
+#define NK_LOGLEVEL_ERROR     3
+#define NK_LOGLEVEL_WARNING   4
+#define NK_LOGLEVEL_NOTICE    5
+#define NK_LOGLEVEL_INFO      6
+#define NK_LOGLEVEL_DEBUG     7
+
 // Initializes log
 void NkLogInit();
 
@@ -51,6 +62,7 @@ void NkLogDebug (const char* fmt, ...);
 void NkLogWarning (const char* fmt, ...);
 void NkLogError (const char* fmt, ...);
 void __attribute__ ((noreturn)) NkPanic (const char* fmt, ...);
+void NkLogMessage (const char* fmt, int level, va_list ap);
 
 // Short hand for OOM condition
 #define NkPanicOom() (NkPanic ("nexke: out of memory"))

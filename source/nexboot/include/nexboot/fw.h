@@ -50,8 +50,8 @@
 // Memory map abstractions
 typedef struct _mementry
 {
-    uintmax_t base;        // Base of region
-    uintmax_t sz;          // Size of region
+    uint64_t base;         // Base of region
+    uint64_t sz;           // Size of region
     unsigned int type;     // Memory type
     unsigned int flags;    // Memory flags
 } NbMemEntry_t;

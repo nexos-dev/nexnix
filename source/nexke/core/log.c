@@ -23,15 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// Loglevels
-#define LOGLEVEL_EMERGENCY 1
-#define LOGLEVEL_CRITICAL  2
-#define LOGLEVEL_ERROR     3
-#define LOGLEVEL_WARNING   4
-#define LOGLEVEL_NOTICE    5
-#define LOGLEVEL_INFO      6
-#define LOGLEVEL_DEBUG     7
-
 // Log entry structure
 typedef struct _logentry
 {
@@ -60,7 +51,7 @@ __assert_failed (const char* expr, const char* file, int line, const char* func)
 }
 
 // Logs a message
-static void logMessage (const char* fmt, int level, va_list ap)
+void NkLogMessage (const char* fmt, int level, va_list ap)
 {
     NkLogEntry_t* newEntry = MmCacheAlloc (logCache);
     if (!newEntry)
@@ -91,12 +82,12 @@ void NkLogInit()
     // Set loglevel
     const char* logLevelStr = NkReadArg ("-loglevel");
     if (!logLevelStr)
-        loglevel = LOGLEVEL_ERROR;
+        loglevel = NK_LOGLEVEL_ERROR;
     else if (!(*logLevelStr))
     {
         // Print out a warning
         PltGetPrimaryCons()->write ("nexke: loglevel, argument invalid, ignoring\n");
-        loglevel = LOGLEVEL_ERROR;
+        loglevel = NK_LOGLEVEL_ERROR;
     }
     loglevel = atoi (logLevelStr);
     // Create a log entry cache
@@ -114,13 +105,13 @@ void NkLogInit()
     }
     // Convert to actual loglevel
     if (loglevel == 1)
-        loglevel = LOGLEVEL_ERROR;
+        loglevel = NK_LOGLEVEL_ERROR;
     else if (loglevel == 2)
-        loglevel = LOGLEVEL_WARNING;
+        loglevel = NK_LOGLEVEL_WARNING;
     else if (loglevel == 3)
-        loglevel = LOGLEVEL_INFO;
+        loglevel = NK_LOGLEVEL_INFO;
     else if (loglevel == 4)
-        loglevel = LOGLEVEL_DEBUG;
+        loglevel = NK_LOGLEVEL_DEBUG;
     else
         assert (!"Invalid loglevel");
 }
@@ -130,7 +121,7 @@ void __attribute__ ((noreturn)) NkPanic (const char* fmt, ...)
     // Log the message
     va_list ap;
     va_start (ap, fmt);
-    logMessage (fmt, LOGLEVEL_EMERGENCY, ap);
+    NkLogMessage (fmt, NK_LOGLEVEL_EMERGENCY, ap);
     va_end (ap);
     // Crash
     CpuCrash();
@@ -141,7 +132,7 @@ void NkLogInfo (const char* fmt, ...)
     // Log the message
     va_list ap;
     va_start (ap, fmt);
-    logMessage (fmt, LOGLEVEL_INFO, ap);
+    NkLogMessage (fmt, NK_LOGLEVEL_INFO, ap);
     va_end (ap);
 }
 
@@ -150,7 +141,7 @@ void NkLogWarning (const char* fmt, ...)
     // Log the message
     va_list ap;
     va_start (ap, fmt);
-    logMessage (fmt, LOGLEVEL_WARNING, ap);
+    NkLogMessage (fmt, NK_LOGLEVEL_WARNING, ap);
     va_end (ap);
 }
 
@@ -159,7 +150,7 @@ void NkLogError (const char* fmt, ...)
     // Log the message
     va_list ap;
     va_start (ap, fmt);
-    logMessage (fmt, LOGLEVEL_ERROR, ap);
+    NkLogMessage (fmt, NK_LOGLEVEL_ERROR, ap);
     va_end (ap);
 }
 
@@ -168,6 +159,6 @@ void NkLogDebug (const char* fmt, ...)
     // Log the message
     va_list ap;
     va_start (ap, fmt);
-    logMessage (fmt, LOGLEVEL_DEBUG, ap);
+    NkLogMessage (fmt, NK_LOGLEVEL_DEBUG, ap);
     va_end (ap);
 }

@@ -16,6 +16,7 @@
 global nbCpuAsmLaunch
 
 nbCpuAsmLaunch:
+    cli
     mov ebp, esp
     ; Get arguments
     mov eax, [ebp+4]

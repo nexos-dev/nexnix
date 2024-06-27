@@ -29,9 +29,9 @@
 static NkCcb_t ccb = {0};    // The CCB
 
 // The GDT
-static CpuSegDesc_t cpuGdt[CPU_GDT_MAX];
+static CpuSegDesc_t cpuGdt[CPU_GDT_MAX] = {0};
 // The IDT
-static CpuIdtEntry_t cpuIdt[CPU_IDT_MAX];
+static CpuIdtEntry_t cpuIdt[CPU_IDT_MAX] = {0};
 
 // Free list of segments
 static CpuFreeSeg_t* cpuSegFreeList = NULL;
@@ -100,31 +100,24 @@ static void cpuInitGdt()
     // Set up kernel code
     cpuSetGdtGate (&cpuGdt[1],
                    0,
-                   0xFFFFFFFF,
-                   CPU_SEG_LONG | CPU_SEG_GRAN | CPU_SEG_CODE | CPU_SEG_READABLE | CPU_SEG_NON_SYS,
+                   0,
+                   CPU_SEG_LONG | CPU_SEG_GRAN | CPU_SEG_CODE | CPU_SEG_NON_SYS,
                    CPU_DPL_KERNEL,
                    0);
     // Kernel data
-    cpuSetGdtGate (&cpuGdt[2],
-                   0,
-                   0xFFFFFFFF,
-                   CPU_SEG_DB | CPU_SEG_GRAN | CPU_SEG_WRITABLE | CPU_SEG_NON_SYS,
-                   CPU_DPL_KERNEL,
-                   0);
+    cpuSetGdtGate (&cpuGdt[2], 0, 0, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, CPU_DPL_KERNEL, 0);
     // User code
     cpuSetGdtGate (&cpuGdt[3],
                    0,
-                   0xFFFFFFFF,
-                   CPU_SEG_LONG | CPU_SEG_GRAN | CPU_SEG_CODE | CPU_SEG_READABLE | CPU_SEG_NON_SYS,
+                   0,
+                   CPU_SEG_LONG | CPU_SEG_GRAN | CPU_SEG_CODE | CPU_SEG_NON_SYS,
                    CPU_DPL_USER,
                    0);
     // User data
-    cpuSetGdtGate (&cpuGdt[4],
-                   0,
-                   0xFFFFFFFF,
-                   CPU_SEG_DB | CPU_SEG_GRAN | CPU_SEG_WRITABLE | CPU_SEG_NON_SYS,
-                   CPU_DPL_USER,
-                   0);
+    cpuSetGdtGate (&cpuGdt[4], 0, 0, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, CPU_DPL_USER, 0);
+    // Load new GDT into CPU
+    CpuTabPtr_t gdtr = {.base = (uintptr_t) cpuGdt, .limit = (CPU_GDT_MAX * 8) - 1};
+    CpuFlushGdt (&gdtr);
     // Prepare free list
     for (int i = 6; i < CPU_GDT_MAX; ++i)
     {
@@ -134,9 +127,6 @@ static void cpuInitGdt()
         freeSeg->next = cpuSegFreeList;
         cpuSegFreeList = freeSeg;
     }
-    // Load new GDT into CPU
-    CpuTabPtr_t gdtr = {.base = (uintptr_t) cpuGdt, .limit = NEXKE_CPU_PAGESZ - 1};
-    CpuFlushGdt (&gdtr);
 }
 
 // Sets up IDT gate
@@ -181,46 +171,12 @@ static void cpuInitIdt()
     // Install IDT
     CpuTabPtr_t idtPtr = {.base = (uintptr_t) cpuIdt, .limit = (CPU_IDT_MAX * 16) - 1};
     CpuInstallIdt (&idtPtr);
-    // Setup GDT and IDT pointers
-    ccb.archCcb.gdt = cpuGdt;
-    ccb.archCcb.idt = cpuIdt;
-    // Setup CR0, CR4, and EFER
-    uint64_t cr0 = CpuReadCr0();
-    cr0 |= (CPU_CR0_WP | CPU_CR0_AM);
-    CpuWriteCr0 (cr0);
-    uint64_t cr4 = CpuReadCr4();
-    // Setup PSE, MCE, PGE, SSE, and SMEP
-    if (CpuGetFeatures() & CPU_FEATURE_PSE)
-        cr4 |= CPU_CR4_PSE;
-    if (CpuGetFeatures() & CPU_FEATURE_MCE)
-        cr4 |= CPU_CR4_MCE;
-    if (CpuGetFeatures() & CPU_FEATURE_PGE)
-        cr4 |= CPU_CR4_PGE;
-    if (CpuGetFeatures() & CPU_FEATURE_SSE || CpuGetFeatures() & CPU_FEATURE_SSE2 ||
-        CpuGetFeatures() & CPU_FEATURE_SSE3)
-    {
-        cr4 |= (CPU_CR4_OSFXSR | CPU_CR4_OSXMMEXCPT);
-    }
-    if (CpuGetFeatures() & CPU_FEATURE_SMEP)
-        cr4 |= CPU_CR4_SMEP;
-    CpuWriteCr4 (cr4);
-    // Set EFER
-    if (CpuGetFeatures() & CPU_FEATURE_MSR)
-    {
-        if (CpuGetFeatures() & CPU_FEATURE_XD)
-        {
-            // Enable NX
-            uint64_t efer = CpuRdmsr (CPU_EFER_MSR);
-            efer |= CPU_EFER_NXE;
-            CpuWrmsr (CPU_EFER_MSR, efer);
-        }
-    }
 }
 
 // Prepares CCB data structure. This is the first thing called during boot
 void CpuInitCcb()
 {
-    NkLogDebug ("nexke: Initializing CCB\n");
+    memset (&ccb, 0, sizeof (NkCcb_t));
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
     // Set up basic fields
@@ -272,6 +228,8 @@ void CpuInitCcb()
             CpuWrmsr (CPU_EFER_MSR, efer);
         }
     }
+    // Log CPU specs
+    CpuPrintFeatures();
 }
 
 // Gets feature bits

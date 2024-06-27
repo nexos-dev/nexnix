@@ -84,6 +84,10 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
         isKernel = false;
     // Allocate the table
     paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    // Zero it
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
+    memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
+    MmPtabReturnCache (space, cacheEnt);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)

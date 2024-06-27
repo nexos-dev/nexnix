@@ -132,12 +132,12 @@ static void cpuInitIdt()
     // Set up each handler
     for (int i = 0; i < CPU_IDT_MAX; ++i)
     {
-        if (i == CPU_SYSCALL_INT || i == 1 || i == 3 || i == 4 || i == 5)
+        if (i <= CPU_SYSCALL_INT && i != 8)
             cpuSetIdtGate (&cpuIdt[i],
                            CPU_GETTRAP (i),
                            CPU_IDT_TRAP,
                            3,
-                           CPU_SEG_KCODE);    // System call is trap
+                           CPU_SEG_KCODE);    // Exception and system calls are traps
         else if (i == 8)
             cpuSetIdtGate (&cpuIdt[i], 0, CPU_IDT_TASK, 0, CPU_DFAULT_TSS);    // Double fault is
                                                                                // task gate
@@ -275,6 +275,8 @@ void CpuInitCcb()
             CpuWrmsr (CPU_EFER_MSR, efer);
         }
     }
+    // Log CPU specs
+    CpuPrintFeatures();
 }
 
 // Gets feature bits

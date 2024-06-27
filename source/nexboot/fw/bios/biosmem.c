@@ -32,6 +32,7 @@ typedef struct e820ent
     uint64_t base;
     uint64_t sz;
     uint32_t type;
+    uint32_t resvd;
 } __attribute__ ((packed)) nbE820Ent_t;
 
 #define E820_TYPE_FREE         1
@@ -51,31 +52,31 @@ bool nbMemWithE820()
     nbE820Ent_t* curEntry = (nbE820Ent_t*) NEXBOOT_BIOSBUF_BASE;
     memset (curEntry, 0, sizeof (nbE820Ent_t));
     // Call E820
-    NbBiosRegs_t in = {0}, out = {0};
-    in.eax = 0xE820;
-    in.edx = 0x534D4150;
-    in.ebx = 0x0;
-    in.ecx = sizeof (nbE820Ent_t);
-    in.es = ((uintptr_t) curEntry) >> 4;
-    in.di = ((uintptr_t) curEntry) & 0x0F;
-    NbBiosCall (0x15, &in, &out);
-    // Check results
-    if ((out.flags & NEXBOOT_CPU_CARRY_FLAG) == NEXBOOT_CPU_CARRY_FLAG)
-        return false;
-    if (out.eax != 0x534D4150)
-        return false;
-    uint32_t contVal = out.ebx;    // Save continuation value
-    // Get address
-    nbE820Ent_t* desc = (nbE820Ent_t*) ((out.es * 0x10) + out.di);
+    NbBiosRegs_t regs = {0};
+    uint32_t totalMem = 0;    // Total detected memory
     // Loop to get the rest of the entries
-    while (desc)
+    while (1)
     {
+        regs.eax = 0xE820;
+        regs.edx = 0x534D4150;
+        regs.ecx = 24;
+        regs.es = ((uintptr_t) curEntry) >> 4;
+        regs.di = ((uintptr_t) curEntry) & 0x0F;
+        NbBiosCall (0x15, &regs, &regs);
+        // Check results
+        if (regs.eax != 0x534D4150)
+            return false;
+        if ((regs.flags & NEXBOOT_CPU_CARRY_FLAG) == NEXBOOT_CPU_CARRY_FLAG)
+            break;
+        // Get address
+        nbE820Ent_t* desc = (nbE820Ent_t*) NEXBOOT_BIOSBUF_BASE;
         // Page align base and lengths
         if (desc->type == E820_TYPE_FREE || desc->type == E820_TYPE_ACPI_RECLAIM)
         {
             // Round up free base to next page to avoid infringing on a reserved
             // region
             memmap[memEntry].base = NbPageAlignUp (desc->base);
+            totalMem += (desc->sz / 1024);
         }
         else if (desc->type == E820_TYPE_RESVD)
         {
@@ -99,26 +100,9 @@ bool nbMemWithE820()
             memmap[memEntry].sz = NEXBOOT_CPU_PAGE_SIZE;
         }
         memmap[memEntry].type = e820ToNb[desc->type];
-        // Move to next memory map entry
         ++memEntry;
-        NbBiosRegs_t in = {0}, out = {0};
-        in.eax = 0xE820;
-        in.edx = 0x534D4150;
-        in.ebx = contVal;
-        in.ecx = sizeof (nbE820Ent_t);
-        in.es = ((uintptr_t) desc) >> 4;
-        in.di = ((uintptr_t) desc) & 0x0F;
-        NbBiosCall (0x15, &in, &out);
-        if (out.eax != 0x534D4150)
-            return false;
-        contVal = out.ebx;
-        // Check results
-        if ((out.flags & NEXBOOT_CPU_CARRY_FLAG) == NEXBOOT_CPU_CARRY_FLAG)
-            desc = NULL;    // Some BIOSes set CF on completion
-        else if (!contVal)
-            desc = NULL;
-        else
-            desc = (nbE820Ent_t*) ((out.es * 0x10) + out.di);
+        if (!regs.ebx)
+            break;
     }
     return true;
 }

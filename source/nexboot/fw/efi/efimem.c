@@ -112,5 +112,7 @@ NbMemEntry_t* NbGetMemMap (int* size)
 // Gets map key
 uint32_t NbEfiGetMapKey()
 {
+    int t = 0;
+    NbGetMemMap (&t);
     return mapKey;
 }

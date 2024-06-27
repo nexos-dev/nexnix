@@ -26,6 +26,7 @@ uint64_t CpuReadCr3();
 void CpuWriteCr3 (uint64_t val);
 uint64_t CpuReadCr4();
 void CpuWriteCr4 (uint64_t val);
+uint64_t CpuReadCr2();
 
 // User address end
 #ifndef NEXNIX_X86_64_LA57
@@ -67,6 +68,8 @@ typedef struct _intctx
     uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
     uint64_t intNo, errCode, rip, cs, rflags, rsp, ss;
 } __attribute__ ((packed)) CpuIntContext_t;
+
+#define CPU_CTX_INTNUM(ctx) ((ctx)->intNo)
 
 #include <nexke/cpu/x86_64/mul.h>
 

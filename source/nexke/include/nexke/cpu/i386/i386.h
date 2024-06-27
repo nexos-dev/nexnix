@@ -27,6 +27,7 @@ uint32_t CpuReadCr3();
 void CpuWriteCr3 (uint32_t val);
 uint32_t CpuReadCr4();
 void CpuWriteCr4 (uint32_t val);
+uint32_t CpuReadCr2();
 
 // Physical address type
 #ifdef NEXNIX_I386_PAE

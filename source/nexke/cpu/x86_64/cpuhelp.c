@@ -101,6 +101,13 @@ void CpuWriteCr4 (uint64_t val)
     asm volatile("mov %0, %%cr4" : : "a"(val));
 }
 
+uint64_t CpuReadCr2()
+{
+    uint64_t ret = 0;
+    asm volatile("mov %%cr2, %0" : "=a"(ret));
+    return ret;
+}
+
 void CpuWrmsr (uint32_t msr, uint64_t val)
 {
     asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
@@ -111,6 +118,13 @@ uint64_t CpuRdmsr (uint32_t msr)
     uint32_t ax, dx;
     asm volatile("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
     return ax | ((uint64_t) dx << 32ULL);
+}
+
+uint64_t CpuRdtsc (void)
+{
+    uint32_t low, high;
+    asm volatile("rdtsc" : "=a"(low), "=d"(high));
+    return ((uint64_t) high << 32) | low;
 }
 
 void CpuInvlpg (uintptr_t addr)

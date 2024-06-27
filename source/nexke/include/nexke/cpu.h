@@ -20,6 +20,7 @@
 
 // Include arch header. This makes use of computed includes
 #include NEXKE_ARCH_HEADER
+#include <nexke/types.h>
 
 // CCB structure (aka CPU control block)
 // This is the core data structure for the CPU, and hence, the kernel
@@ -29,6 +30,8 @@ typedef struct _nkccb
     int cpuFamily;    // Architecture family
     int sysBoard;     // System hardware / SOC type
     char sysName[64];
+    ipl_t curIpl;           // IPL system is running at
+    int spuriousInts;       // Number of spurious interrupts to occur
     NkArchCcb_t archCcb;    // Architecture dependent part of CCB
 } NkCcb_t;
 
@@ -45,11 +48,26 @@ typedef struct _nkccb
 // Initializes CPU control block
 void CpuInitCcb();
 
+// Registers exception handlers
+void CpuRegisterExecs();
+
 // Returns CCB to caller
 NkCcb_t* CpuGetCcb();
 
 // Print CPU features
 void CpuPrintFeatures();
+
+// Prints debug info about crash
+void CpuPrintDebug (CpuIntContext_t* context);
+
+// CPU exception info
+typedef struct _execinf
+{
+    const char* name;    // Exception name
+} CpuExecInf_t;
+
+// Gets exception diagnostic info from CPU
+void CpuGetExecInf (CpuExecInf_t* out, NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 
 // Page aligning inlines
 static inline uintptr_t CpuPageAlignUp (uintptr_t ptr)

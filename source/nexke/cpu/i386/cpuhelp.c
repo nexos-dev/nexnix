@@ -17,6 +17,9 @@
 
 #include <nexke/cpu.h>
 #include <nexke/nexke.h>
+#include <nexke/platform.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 void CpuIoWait()
 {
@@ -101,6 +104,13 @@ void CpuWriteCr4 (uint32_t val)
     asm volatile("mov %0, %%cr4" : : "a"(val));
 }
 
+uint32_t CpuReadCr2()
+{
+    uint32_t ret = 0;
+    asm volatile("mov %%cr2, %0" : "=a"(ret));
+    return ret;
+}
+
 void CpuWrmsr (uint32_t msr, uint64_t val)
 {
     asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
@@ -113,9 +123,71 @@ uint64_t CpuRdmsr (uint32_t msr)
     return ax | ((uint64_t) dx << 32);
 }
 
+uint64_t CpuRdtsc (void)
+{
+    uint32_t low, high;
+    asm volatile("rdtsc" : "=a"(low), "=d"(high));
+    return ((uint64_t) high << 32) | low;
+}
+
+void CpuDisable()
+{
+    ++CpuGetCcb()->archCcb.intsDisabled;
+    asm("cli");
+}
+
+void CpuEnable()
+{
+    --CpuGetCcb()->archCcb.intsDisabled;
+    if (CpuGetCcb()->archCcb.intsDisabled == 0)
+        asm("sti");
+}
+
 void __attribute__ ((noreturn)) CpuCrash()
 {
     asm("cli;hlt");
     for (;;)
         ;
+}
+
+void CpuPrintDebug (CpuIntContext_t* context)
+{
+    // Basically we just dump all the registers
+    va_list ap;
+    NkLogMessage ("CPU dump:\n", NK_LOGLEVEL_EMERGENCY, ap);
+    char buf[2048] = {0};
+    sprintf (buf,
+             "eax: %#08lX ebx: %#08lX ecx: %#08X edx: %#08X\n",
+             context->eax,
+             context->ebx,
+             context->ecx,
+             context->edx);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "esi: %#08lX edi: %#08lX ebp: %#08lX esp: %#08lX\n",
+             context->esi,
+             context->edi,
+             context->ebp,
+             context->esp);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "cr0: %#08lX cr2: %#08lX cr3: %#08lX cr4: %#08lX\n",
+             CpuReadCr0(),
+             CpuReadCr2(),
+             CpuReadCr3(),
+             CpuReadCr4());
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "cs: %#02lX ds: %#02lX es: %#02lX ss: %#02lX\n",
+             context->cs,
+             context->ds,
+             context->es,
+             context->ss);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "eflags: %#08lx errcode: %#lX intno: %#02lX",
+             context->eflags,
+             context->errCode,
+             context->intNo);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
 }

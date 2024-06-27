@@ -61,8 +61,12 @@ void MmMulInit()
         assert (curSt);
     }
     cacheTab = curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, 2)] & PT_FRAME;
+#define MUL_PTCACHE_PMLTOP_STAGE 0xFFFFFFFF7FFDC000
+    MmMulMapEarly (MUL_PTCACHE_PMLTOP_STAGE,
+                   (paddr_t) pmlTop,
+                   MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
-    memset (pmlTop, 0, (MUL_MAX_USER_PMLTOP * 8));
+    memset ((void*) MUL_PTCACHE_PMLTOP_STAGE, 0, (MUL_MAX_USER_PMLTOP * 8));
     // Write out CR3 to flush TLB
     CpuWriteCr3 ((uint64_t) pmlTop);
     // Set base of directory
@@ -72,10 +76,20 @@ void MmMulInit()
 }
 
 // Allocates page table into ent
-paddr_t MmMulAllocTable (MmSpace_t* space, pte_t* stBase, pte_t* ent, bool isKernel)
+paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t* ent)
 {
+    // Figure out if this is a kernel address
+    bool isKernel = false;
+    if (addr >= NEXKE_KERNEL_BASE)
+        isKernel = true;
+    else
+        isKernel = false;
     // Allocate the table
     paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    // Zero it
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
+    memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
+    MmPtabReturnCache (space, cacheEnt);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)
@@ -122,17 +136,19 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     if (perm & MUL_PAGE_X)
         pgFlags &= ~(PF_NX);
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
-    MmPtabWalkAndMap (space,
-                      space->mulSpace.base,
-                      mulDecanonical (virt),
-                      (perm & MUL_PAGE_KE) == MUL_PAGE_KE,
-                      pte);
+    MmPtabWalkAndMap (space, space->mulSpace.base, mulDecanonical (virt), pte);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
 }
 
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
     MmPtabWalkAndUnmap (space, space->mulSpace.base, mulDecanonical (virt));
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
 }
 
 // Gets mapping for specified virtual address

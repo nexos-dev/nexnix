@@ -86,7 +86,7 @@ bool NbShellLaunch (NbFile_t* confFile);
 void NbMenuAddEntry (StringRef_t* name, ListHead_t* cmdLine);
 
 // Minimum amount of memory NexNix requires (in MiB)
-#define NEXBOOT_MIN_MEM 8
+#define NEXBOOT_MIN_MEM 4
 
 // Log object functions
 #define NB_LOG_SET_LEVEL 6

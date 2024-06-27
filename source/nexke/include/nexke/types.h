@@ -1,5 +1,5 @@
-#[[
-    arch.cmake - contains build system for nexke x86_64
+/*
+    types.h - contains types used between headers in-kernel
     Copyright 2023 - 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,25 +13,14 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-# Option for LA57
-nexnix_add_option(NEXNIX_X86_64 "Specifies if LA57 is supported" OFF)
+#ifndef _NKTYPES_H
+#define _NKTYPES_H
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -z max-page-size=0x1000")
+typedef struct _nkcons NkConsole_t;
+typedef struct _int NkInterrupt_t;
 
-# Arch header
-set(NEXKE_ARCH_HEADER "${CMAKE_SOURCE_DIR}/include/nexke/cpu/x86_64/x86_64.h")
+typedef int ipl_t;
 
-# Set linker script
-set(NEXKE_LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/cpu/x86_64/link.ld")
-
-list(APPEND NEXKE_SOURCES
-    cpu/x86_64/cpudep.c
-    cpu/x86_64/cpuhelp.c
-    cpu/x86_64/mul.c
-    cpu/x86_64/cpu.asm
-    cpu/x86_64/trap.asm
-    cpu/x86/cpuid.c
-    cpu/x86/exec.c
-    mm/ptab.c)
+#endif
