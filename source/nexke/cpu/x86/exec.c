@@ -65,5 +65,5 @@ void CpuGetExecInf (CpuExecInf_t* out, NkInterrupt_t* intObj, CpuIntContext_t* c
 void CpuRegisterExecs()
 {
     // Install all interrupts
-    PltInstallInterrupt (CPU_EXEC_PF, PLT_INT_EXEC, PLT_NO_IPL, CpuPageFault);
+    PltInstallInterrupt (CPU_EXEC_PF, PLT_INT_EXEC, CpuPageFault);
 }

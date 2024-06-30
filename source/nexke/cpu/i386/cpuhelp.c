@@ -132,15 +132,12 @@ uint64_t CpuRdtsc (void)
 
 void CpuDisable()
 {
-    ++CpuGetCcb()->archCcb.intsDisabled;
     asm("cli");
 }
 
 void CpuEnable()
 {
-    --CpuGetCcb()->archCcb.intsDisabled;
-    if (CpuGetCcb()->archCcb.intsDisabled == 0)
-        asm("sti");
+    asm("sti");
 }
 
 void __attribute__ ((noreturn)) CpuCrash()

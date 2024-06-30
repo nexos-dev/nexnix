@@ -42,37 +42,41 @@ NkConsole_t* PltGetSecondaryCons();
 // Interrupt manager
 
 // IPLs
-#define PLT_NO_IPL   -1
-#define PLT_IPL_LOW  0
-#define PLT_IPL_HIGH 32
+#define PLT_NO_IPL    -1
+#define PLT_IPL_LOW   0
+#define PLT_IPL_CLOCK 30
+#define PLT_IPL_HIGH  31
 
 // Function pointer types for below
-typedef bool (*PltHwCheckSpurious) (NkCcb_t*, NkInterrupt_t*);
+typedef bool (*PltHwBeginInterrupt) (NkCcb_t*, NkInterrupt_t*);
 typedef void (*PltHwEndInterrupt) (NkCcb_t*, NkInterrupt_t*);
 typedef void (*PltHwDisableInterrupt) (NkCcb_t*, NkInterrupt_t*);
 typedef void (*PltHwEnableInterrupt) (NkCcb_t*, NkInterrupt_t*);
-typedef void (*PltHwRaiseIpl) (NkCcb_t*, ipl_t);
-typedef void (*PltHwLowerIpl) (NkCcb_t*, ipl_t);
-typedef void (*PltConnectInterrupt) (NkCcb_t*, NkInterrupt_t*);
-typedef void (*PltDisconnectInterrupt) (NkCcb_t*, NkInterrupt_t*);
+typedef void (*PltHwSetIpl) (NkCcb_t*, ipl_t);
+typedef void (*PltHwConnectInterrupt) (NkCcb_t*, NkInterrupt_t*);
+typedef void (*PltHwDisconnectInterrupt) (NkCcb_t*, NkInterrupt_t*);
+typedef int (*PltHwMapInterrupt) (int);
 
 // Hardware interrupt controller data structure
 typedef struct _hwintctrl
 {
     int type;
-    PltHwCheckSpurious checkSpurious;
+    PltHwBeginInterrupt beginInterrupt;
     PltHwEndInterrupt endInterrupt;
     PltHwDisableInterrupt disableInterrupt;
     PltHwEnableInterrupt enableInterrupt;
-    PltHwRaiseIpl raiseIpl;
-    PltHwLowerIpl lowerIpl;
-    PltConnectInterrupt connectInterrupt;
-    PltDisconnectInterrupt disconnectInterrupt;
+    PltHwSetIpl setIpl;
+    PltHwConnectInterrupt connectInterrupt;
+    PltHwDisconnectInterrupt disconnectInterrupt;
+    PltHwMapInterrupt mapInterrupt;
 } PltHwIntCtrl_t;
 
 // Valid controller types
-#define PLT_HWINT_8295A 1
+#define PLT_HWINT_8259A 1
 #define PLT_HWINT_APIC  2
+
+// Initializes system inerrupt controller
+PltHwIntCtrl_t* PltInitHwInts();
 
 // Interrupt function type
 typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
@@ -81,6 +85,7 @@ typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 typedef struct _int
 {
     int vector;               // Interrupt vector number
+    int line;                 // Interrupt line number for hardware interrupts
     int type;                 // Is this an exception, a service, or an external interrupt?
     ipl_t ipl;                // IPL this interrupt should run at. -1 means IPL doesn't apply
     long long callCount;      // Number of times this interrupt has been called
@@ -104,9 +109,12 @@ void PltLowerIpl (ipl_t oldIpl);
 void PltInitInterrupts();
 
 // Installs an interrupt handler
-NkInterrupt_t* PltInstallInterrupt (int vector, int type, ipl_t ipl, PltIntHandler hndlr);
+NkInterrupt_t* PltInstallInterrupt (int vector, int type, PltIntHandler hndlr);
 
 // Uninstalls an interrupt handler
 void PltUninstallInterrupt (NkInterrupt_t* intObj);
+
+// Connects an interrupt to hardware controller
+void PltConnectInterrupt (NkInterrupt_t* intObj, int line, int flags);
 
 #endif

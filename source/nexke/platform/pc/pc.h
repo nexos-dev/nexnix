@@ -18,6 +18,7 @@
 #ifndef _PC_H
 #define _PC_H
 
+#include <nexke/platform.h>
 #include <stdbool.h>
 
 // Initializes VGA console
@@ -25,5 +26,8 @@ void PltVgaInit();
 
 // Initializes UART 16550 driver
 bool PltUartInit();
+
+// Initializes 8259A PIC
+PltHwIntCtrl_t* PltPicInit();
 
 #endif

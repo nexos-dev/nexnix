@@ -32,7 +32,7 @@ static PltHwIntCtrl_t* nkHwIntCtrl = NULL;
 static SlabCache_t* nkIntCache = NULL;
 
 // Installs an interrupt handler
-NkInterrupt_t* PltInstallInterrupt (int vector, int type, ipl_t ipl, PltIntHandler hndlr)
+NkInterrupt_t* PltInstallInterrupt (int vector, int type, PltIntHandler hndlr)
 {
     // Ensure vector is free
     if (nkIntTable[vector])
@@ -46,19 +46,21 @@ NkInterrupt_t* PltInstallInterrupt (int vector, int type, ipl_t ipl, PltIntHandl
     obj->callCount = 0;
     assert (hndlr);
     obj->handler = hndlr;
-    obj->ipl = ipl;
     obj->type = type;
     obj->vector = vector;
     // Insert in table
     nkIntTable[vector] = obj;
-    // If this is a hardware interrupt, we need to connect it
-    if (type == PLT_INT_HWINT)
-    {
-        nkHwIntCtrl->connectInterrupt (CpuGetCcb(), obj);
-        nkHwIntCtrl->enableInterrupt (CpuGetCcb(), obj);
-    }
     CpuEnable();
     return obj;
+}
+
+// Connects an interrupt to hardware controller
+void PltConnectInterrupt (NkInterrupt_t* intObj, int line, int flags)
+{
+    CpuDisable();
+    intObj->line = line;
+    nkHwIntCtrl->connectInterrupt (CpuGetCcb(), intObj);
+    CpuEnable();
 }
 
 // Uninstalls an interrupt handler
@@ -72,7 +74,6 @@ void PltUninstallInterrupt (NkInterrupt_t* intObj)
     {
         // Disconnect and disable
         nkHwIntCtrl->disconnectInterrupt (CpuGetCcb(), intObj);
-        nkHwIntCtrl->disableInterrupt (CpuGetCcb(), intObj);
     }
     nkIntTable[intObj->vector] = NULL;
     CpuEnable();
@@ -82,9 +83,10 @@ void PltUninstallInterrupt (NkInterrupt_t* intObj)
 // Initializes interrupt system
 void PltInitInterrupts()
 {
-    CpuDisable();
     nkIntCache = MmCacheCreate (sizeof (NkInterrupt_t), NULL, NULL);
     assert (nkIntCache);
+    // Initialize hardware interrupt controllers
+    PltInitHwInts();
     // Register CPU exception handlers
     CpuRegisterExecs();
 }
@@ -97,10 +99,11 @@ ipl_t PltRaiseIpl (ipl_t newIpl)
     if (ccb->curIpl >= newIpl)
         NkPanic ("nexke: invalid IPL to raise to");
     ipl_t oldIpl = ccb->curIpl;
-    ccb->curIpl = newIpl;                   // Set IPL
-    nkHwIntCtrl->raiseIpl (ccb, newIpl);    // Do it on the hardware side
-    // NOTE: interrupts are re-enabled on the CPU in the hw function. We do it there
-    // because there are some cases where we don't want them re-enabled
+    ccb->curIpl = newIpl;                 // Set IPL
+    nkHwIntCtrl->setIpl (ccb, newIpl);    // Do it on the hardware side
+    // Re-enable if needed
+    if (newIpl != PLT_IPL_HIGH)
+        CpuEnable();
     return oldIpl;
 }
 
@@ -111,9 +114,11 @@ void PltLowerIpl (ipl_t oldIpl)
     NkCcb_t* ccb = CpuGetCcb();
     if (ccb->curIpl <= oldIpl)
         NkPanic ("nexke: Invalid IPL to lower to");
-    ccb->curIpl = oldIpl;                   // Restore it
-    nkHwIntCtrl->lowerIpl (ccb, oldIpl);    // Do it on the hardware side
-    CpuEnable();
+    ccb->curIpl = oldIpl;                 // Restore it
+    nkHwIntCtrl->setIpl (ccb, oldIpl);    // Do it on the hardware side
+    // Re-enable if needed
+    if (oldIpl != PLT_IPL_HIGH)
+        CpuEnable();
 }
 
 // Called when a trap goes bad and the system needs to crash
@@ -187,7 +192,7 @@ void PltTrapDispatch (CpuIntContext_t* context)
         ccb->curIpl = intObj->ipl;
         CpuEnable();
         // Check if this interrupt is spurious
-        if (nkHwIntCtrl->checkSpurious (ccb, intObj))
+        if (!nkHwIntCtrl->beginInterrupt (ccb, intObj))
         {
             // This interrupt is spurious. Increase counter and return
             ++ccb->spuriousInts;

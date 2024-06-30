@@ -17,4 +17,5 @@
 
 list(APPEND NEXKE_SOURCES
     platform/pc/pcdetect.c
-    platform/pc/earlycons.c)
+    platform/pc/earlycons.c
+    platform/pc/pic.c)

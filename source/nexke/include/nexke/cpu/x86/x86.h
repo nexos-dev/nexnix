@@ -231,8 +231,6 @@ typedef struct _nkarchccb
     unsigned long long features;    // CPU feature flags
     CpuSegDesc_t* gdt;              // GDT pointer
     CpuIdtEntry_t* idt;             // IDT pointer
-    int intsDisabled;    // Number of times interrupts have been disabled so we know when to
-                         // re-enable
 } NkArchCcb_t;
 
 // Fills CCB with CPUID flags
@@ -243,6 +241,9 @@ extern uint8_t CpuTrapTable[];
 
 // Gets trap from vector
 #define CPU_GETTRAP(vector) ((uintptr_t) (CpuTrapTable + (vector * 0x10)))
+
+// Base hardware interrupt number
+#define CPU_BASE_HWINT 40
 
 // Control register bits
 #define CPU_CR0_PE (1 << 0)

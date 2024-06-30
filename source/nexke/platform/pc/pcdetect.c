@@ -55,6 +55,13 @@ void PltInitDrvs()
         return;
 }
 
+// Initializes system inerrupt controller
+PltHwIntCtrl_t* PltInitHwInts()
+{
+    // For now all we support is 8259A PIC
+    return PltPicInit();
+}
+
 // Gets primary console
 NkConsole_t* PltGetPrimaryCons()
 {
