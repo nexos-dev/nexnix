@@ -30,4 +30,10 @@ bool PltUartInit();
 // Initializes 8259A PIC
 PltHwIntCtrl_t* PltPicInit();
 
+// PIC IRQ lines
+#define PLT_PIC_IRQ_PIT 0
+
+// Initializes PIT
+PltHwTimer_t* PltPitInit();
+
 #endif

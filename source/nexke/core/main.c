@@ -101,6 +101,7 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     MmInitPhase2();
     // Initialize interrupt manager
     PltInitInterrupts();
+    PltInitTimer();
     for (;;)
         ;
 }

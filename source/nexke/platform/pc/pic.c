@@ -17,7 +17,6 @@
 
 #include "pc.h"
 #include <assert.h>
-#include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 
@@ -53,11 +52,11 @@ static uint8_t pltPicIplMap[] = {0,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
                                  15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16};
 
 // Maps interrupt to IPL
-static inline ipl_t PltPicMapIpl (NkInterrupt_t* intObj)
+static inline ipl_t PltPicMapIpl (NkHwInterrupt_t* hwInt)
 {
     // So we have 16 interrupts. For simplicity we simply base the IPL off the vector
     // The +1 is because IPL 0 is reserved for IPL_LOW
-    return (intObj->vector - CPU_BASE_HWINT) + 1;
+    return PLT_IPL_CLOCK - (hwInt->line + 1);
 }
 
 // Reads ISR of both PICs
@@ -75,9 +74,8 @@ static int PltPicMapInterrupt (int line)
 }
 
 // Begins processing an interrupt
-static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
+static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    assert (intObj->type == PLT_INT_HWINT);
     // All we need to do is check if this interrupt is spurious
     if (intObj->line == 7 || intObj->line == 15)
     {
@@ -94,7 +92,7 @@ static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
 }
 
 // Ends processing of an interrupt
-static void PltPicEndInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
+static void PltPicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
     // Send EOI to PIC
     if (intObj->line >= 8)
@@ -104,7 +102,7 @@ static void PltPicEndInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
 }
 
 // Masks specified interrupt
-static void PltPicDisableInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
+static void PltPicDisableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
     int line = intObj->line;
     uint8_t picPort = PLT_PIC_MASTER_DATA;
@@ -119,7 +117,7 @@ static void PltPicDisableInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
 }
 
 // Unmasks specified interrupt
-static void PltPicEnableInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
+static void PltPicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
     int line = intObj->line;
     uint8_t picPort = PLT_PIC_MASTER_DATA;
@@ -140,23 +138,25 @@ static void PltPicSetIpl (NkCcb_t* ccb, ipl_t ipl)
     uint8_t prio = pltPicIplMap[ipl];
     // Convert to PIC mask
     uint16_t mask = (1 << prio) - 1;
+    // Throw in the saved mask
+    mask |= (CpuInb (PLT_PIC_MASTER_DATA) | (CpuInb (PLT_PIC_SLAVE_DATA) << 8));
     // Set the mask
     CpuOutb (PLT_PIC_MASTER_DATA, (uint8_t) mask);
     CpuOutb (PLT_PIC_SLAVE_DATA, mask >> 8);
 }
 
 // Connects interrupt to specified vector
-static void PltPicConnectInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
+static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
 {
-    // Set the IPL and enable it
-    intObj->ipl = PltPicMapIpl (intObj);
-    PltPicEnableInterrupt (ccb, intObj);
+    // Set the IPL
+    hwInt->ipl = PltPicMapIpl (hwInt);
+    return hwInt->line + CPU_BASE_HWINT;
 }
 
 // Disconnects interrupt from specified vector
-static void PltPicDisconnectInterrupt (NkCcb_t* ccb, NkInterrupt_t* intObj)
+static void PltPicDisconnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
 {
-    PltPicDisableInterrupt (ccb, intObj);
+    PltPicDisableInterrupt (ccb, hwInt);
 }
 
 // Basic structure

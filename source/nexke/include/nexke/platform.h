@@ -42,19 +42,18 @@ NkConsole_t* PltGetSecondaryCons();
 // Interrupt manager
 
 // IPLs
-#define PLT_NO_IPL    -1
 #define PLT_IPL_LOW   0
 #define PLT_IPL_CLOCK 30
 #define PLT_IPL_HIGH  31
 
 // Function pointer types for below
-typedef bool (*PltHwBeginInterrupt) (NkCcb_t*, NkInterrupt_t*);
-typedef void (*PltHwEndInterrupt) (NkCcb_t*, NkInterrupt_t*);
-typedef void (*PltHwDisableInterrupt) (NkCcb_t*, NkInterrupt_t*);
-typedef void (*PltHwEnableInterrupt) (NkCcb_t*, NkInterrupt_t*);
+typedef bool (*PltHwBeginInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
+typedef void (*PltHwEndInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
+typedef void (*PltHwDisableInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
+typedef void (*PltHwEnableInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
 typedef void (*PltHwSetIpl) (NkCcb_t*, ipl_t);
-typedef void (*PltHwConnectInterrupt) (NkCcb_t*, NkInterrupt_t*);
-typedef void (*PltHwDisconnectInterrupt) (NkCcb_t*, NkInterrupt_t*);
+typedef int (*PltHwConnectInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
+typedef void (*PltHwDisconnectInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
 typedef int (*PltHwMapInterrupt) (int);
 
 // Hardware interrupt controller data structure
@@ -78,6 +77,14 @@ typedef struct _hwintctrl
 // Initializes system inerrupt controller
 PltHwIntCtrl_t* PltInitHwInts();
 
+// Hardware interrupt
+typedef struct _hwint
+{
+    int line;     // Line number
+    int flags;    // Interrupt flags
+    ipl_t ipl;    // IPL value
+} NkHwInterrupt_t;
+
 // Interrupt function type
 typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 
@@ -85,11 +92,10 @@ typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 typedef struct _int
 {
     int vector;               // Interrupt vector number
-    int line;                 // Interrupt line number for hardware interrupts
     int type;                 // Is this an exception, a service, or an external interrupt?
-    ipl_t ipl;                // IPL this interrupt should run at. -1 means IPL doesn't apply
     long long callCount;      // Number of times this interrupt has been called
     PltIntHandler handler;    // Interrupt handler function
+    NkHwInterrupt_t hwInt;    // Hardware interrupt structure for hardware ints
 } NkInterrupt_t;
 
 #define PLT_INT_EXEC  0
@@ -109,12 +115,41 @@ void PltLowerIpl (ipl_t oldIpl);
 void PltInitInterrupts();
 
 // Installs an interrupt handler
-NkInterrupt_t* PltInstallInterrupt (int vector, int type, PltIntHandler hndlr);
+NkInterrupt_t* PltInstallInterrupt (int vector,
+                                    int type,
+                                    PltIntHandler hndlr,
+                                    NkHwInterrupt_t* hwInt);
 
 // Uninstalls an interrupt handler
 void PltUninstallInterrupt (NkInterrupt_t* intObj);
 
-// Connects an interrupt to hardware controller
-void PltConnectInterrupt (NkInterrupt_t* intObj, int line, int flags);
+// Connects an interrupt to hardware controller. Returns a vector to install it to
+int PltConnectInterrupt (NkHwInterrupt_t* hwInt);
+
+// Timer system
+
+typedef void (*PltHwSetTimerCallback) (void (*)());
+typedef void (*PltHwArmTimer) (uint64_t);
+typedef uint64_t (*PltHwGetCounter)();
+
+// Hardware timer data structure
+typedef struct _hwtimer
+{
+    int type;         // Timer type
+    int precision;    // Precision of timer in nanoseconds
+    // Private data
+    void (*callback)();    // Interrupt callback
+    uint64_t counter;      // Used when timer doesn't have a free-running counter in hardware
+    uint64_t delta;        // Last used delta
+    // Function interface
+    PltHwArmTimer armTimer;
+    PltHwSetTimerCallback setCallback;
+    PltHwGetCounter getCounter;
+} PltHwTimer_t;
+
+#define PLT_TIMER_PIT 1
+
+// Initializes system timer
+PltHwTimer_t* PltInitTimer();
 
 #endif
