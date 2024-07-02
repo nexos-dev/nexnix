@@ -182,7 +182,8 @@ void CpuPrintDebug (CpuIntContext_t* context)
              context->ss);
     NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
     sprintf (buf,
-             "eflags: %#08lx errcode: %#lX intno: %#02lX",
+             "eip: %#08lx eflags: %#08lx errcode: %#lX intno: %#02lX",
+             context->eip,
              context->eflags,
              context->errCode,
              context->intNo);

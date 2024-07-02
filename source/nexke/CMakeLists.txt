@@ -79,6 +79,7 @@ list(APPEND NEXKE_SOURCES
     core/main.c
     core/log.c
     core/fbcons.c
+    core/time.c
     mm/slab.c
     mm/space.c
     mm/malloc.c

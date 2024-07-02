@@ -126,30 +126,49 @@ void PltUninstallInterrupt (NkInterrupt_t* intObj);
 // Connects an interrupt to hardware controller. Returns a vector to install it to
 int PltConnectInterrupt (NkHwInterrupt_t* hwInt);
 
+// Clock system
+
+typedef uint64_t (*PltHwGetTime)();
+
+// Hardware clock
+typedef struct _hwclock
+{
+    int type;                  // Underlying device
+    int precision;             // Precision in nanoseconds
+    PltHwGetTime getTime;      // Gets current time on clock
+    uint64_t internalCount;    // Used for software clocking on some systems
+} PltHwClock_t;
+
+#define PLT_CLOCK_PIT 1
+
+// Initializes clock system
+PltHwClock_t* PltInitClock();
+
 // Timer system
 
 typedef void (*PltHwSetTimerCallback) (void (*)());
 typedef void (*PltHwArmTimer) (uint64_t);
-typedef uint64_t (*PltHwGetCounter)();
 
 // Hardware timer data structure
 typedef struct _hwtimer
 {
-    int type;         // Timer type
-    int precision;    // Precision of timer in nanoseconds
+    int type;                // Timer type
+    int precision;           // Precision of timer in nanoseconds
+    uint64_t maxInterval;    // Max interval we can be armed for
     // Private data
     void (*callback)();    // Interrupt callback
-    uint64_t counter;      // Used when timer doesn't have a free-running counter in hardware
-    uint64_t delta;        // Last used delta
     // Function interface
     PltHwArmTimer armTimer;
     PltHwSetTimerCallback setCallback;
-    PltHwGetCounter getCounter;
 } PltHwTimer_t;
 
-#define PLT_TIMER_PIT 1
+#define PLT_TIMER_PIT  1
+#define PLT_TIMER_SOFT 2
 
 // Initializes system timer
 PltHwTimer_t* PltInitTimer();
+
+// Nanoseconds in a second
+#define PLT_NS_IN_SEC 1000000000
 
 #endif

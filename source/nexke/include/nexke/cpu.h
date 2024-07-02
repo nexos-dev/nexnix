@@ -26,13 +26,17 @@
 // This is the core data structure for the CPU, and hence, the kernel
 typedef struct _nkccb
 {
+    // General CPU info
     int cpuArch;      // CPU architecture
     int cpuFamily;    // Architecture family
     int sysBoard;     // System hardware / SOC type
     char sysName[64];
-    ipl_t curIpl;           // IPL system is running at
-    int spuriousInts;       // Number of spurious interrupts to occur
     NkArchCcb_t archCcb;    // Architecture dependent part of CCB
+    // Interrupt handling data
+    ipl_t curIpl;        // IPL system is running at
+    int spuriousInts;    // Number of spurious interrupts to occur
+    // Timer related data
+    NkTimeEvent_t* timeEvents;    // Linked list of time events waiting to occur
 } NkCcb_t;
 
 // Defined CPU architectures

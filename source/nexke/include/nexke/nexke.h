@@ -105,4 +105,35 @@ void* MmCacheAlloc (SlabCache_t* cache);
 // Frees an object back to slab cache
 void MmCacheFree (SlabCache_t* cache, void* obj);
 
+// Timer interface
+
+// Callback type
+typedef void (*NkTimeCallback) (NkTimeEvent_t*, void*);
+
+// Timer event structure
+typedef struct _timeevt
+{
+    uint64_t deadline;          // Deadline for this event
+                                // NOTE: this is internal, as this is in internal clock ticks
+    NkTimeCallback callback;    // Callback function
+    void* arg;                  // Argument to pass to callback
+    struct _timeevt* prev;
+    struct _timeevt* next;    // Links
+} NkTimeEvent_t;
+
+// Initializes timing subsystem
+void NkInitTime();
+
+// Registers a time event
+void NkTimeRegEvent (NkTimeEvent_t*, uint64_t delta, NkTimeCallback callback, void* arg);
+
+// Deregisters a time event
+void NkTimeDeRegEvent (NkTimeEvent_t* event);
+
+// Allocates a timer event
+NkTimeEvent_t* NkTimeNewEvent();
+
+// Frees a timer event
+void NkTimeFreeEvent (NkTimeEvent_t* event);
+
 #endif

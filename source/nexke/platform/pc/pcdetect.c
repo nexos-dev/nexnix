@@ -62,19 +62,17 @@ PltHwIntCtrl_t* PltInitHwInts()
     return PltPicInit();
 }
 
-void testcb()
+// Initializes system clock
+PltHwClock_t* PltInitClock()
 {
-    NkLogInfo ("Test message\n");
+    return PltPitInitClk();
 }
 
 // Initializes system timer
 PltHwTimer_t* PltInitTimer()
 {
     // More timers coming soon!
-    PltHwTimer_t* timer = PltPitInit();
-    timer->setCallback (testcb);
-    timer->armTimer (1000000);
-    return timer;
+    return PltPitInitTimer();
 }
 
 // Gets primary console

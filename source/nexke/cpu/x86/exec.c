@@ -17,8 +17,6 @@
 
 #include <assert.h>
 #include <nexke/cpu.h>
-#include <nexke/mm.h>
-#include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <string.h>

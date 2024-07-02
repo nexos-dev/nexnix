@@ -28,6 +28,7 @@
 
 // PIT frequency
 #define PLT_PIT_FREQUENCY 1193180
+#define PLT_PIT_HZ        100
 
 // PIT mode / cmd register bits
 #define PLT_PIT_BCD        (1 << 0)
@@ -45,6 +46,10 @@
 #define PLT_PIT_READBACK   (3 << 6)
 
 extern PltHwTimer_t pitTimer;
+extern PltHwClock_t pitClock;
+
+// Is PIT being used for clock
+static bool nkIsPitClock = false;
 
 // Sets callback of timer
 static void PltPitSetCallback (void (*cb)())
@@ -52,64 +57,97 @@ static void PltPitSetCallback (void (*cb)())
     pitTimer.callback = cb;
 }
 
-// Gets counter
-static uint64_t PltPitGetCounter()
-{
-    return pitTimer.counter;
-}
-
 // Arms timer to delta
 static void PltPitArmTimer (uint64_t delta)
 {
-    // For safety raise IPL to disable interrupts
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    pitTimer.delta = delta;
-    // Convert our delta to PIT precision
-    delta /= PLT_PIT_FREQUENCY;
-    // Ensure it is less than 16 bits
-    if (delta > 0xFFFF)
-        NkPanic ("nexke: can't arm PIT to non-16-bit value");
+    assert (delta <= pitTimer.maxInterval);
     // Set it
     CpuOutb (PLT_PIT_CHAN0, delta & 0xFF);
     CpuOutb (PLT_PIT_CHAN0, delta >> 8);
-    PltLowerIpl (ipl);
 }
 
-// Private PIT dispatch handler
+// PIT clock interrupt handler
 static bool PltPitDispatch (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 {
-    // Update clock counter and fire callback
-    // We update the internal counter every event fire. This means that it isn't over accurate,
-    // but it should be accurate enough
-    pitTimer.counter += pitTimer.delta;
-    // Call the timer handler if one is installed
+    // Check if PIT is in periodic mode or not
+    if (nkIsPitClock)
+        pitClock.internalCount += pitClock.precision;    // Increase count
+    // Call the callback. In periodic mode software must check for deadlines on every tick
+    // In one shot this will drain the current deadline
     if (pitTimer.callback)
         pitTimer.callback();
     return true;
 }
 
+// Gets current PIT time
+static uint64_t PltPitGetTime()
+{
+    return pitClock.internalCount;
+}
+
 PltHwTimer_t pitTimer = {.type = PLT_TIMER_PIT,
                          .armTimer = PltPitArmTimer,
-                         .getCounter = PltPitGetCounter,
-                         .setCallback = PltPitSetCallback};
+                         .setCallback = PltPitSetCallback,
+                         .callback = NULL,
+                         .precision = 0,
+                         .maxInterval = 0};
 
-// Initializes PIT
-PltHwTimer_t* PltPitInit()
+PltHwClock_t pitClock = {.type = PLT_CLOCK_PIT,
+                         .precision = 0,
+                         .internalCount = 0,
+                         .getTime = PltPitGetTime};
+
+// Installs PIT interrupt
+static void PltPitInstallInt()
 {
-    // Initialize private data to 0
-    pitTimer.counter = 0;
-    pitTimer.delta = 0;
-    pitTimer.callback = NULL;
-    // Program channel 0 to one shot
-    CpuOutb (PLT_PIT_MODE_CMD, PLT_PIT_SEL_CHAN0 | PLT_PIT_ONESHOT | PLT_PIT_LOHI);
-    // Set precision
-    pitTimer.precision = 1000000000 / PLT_PIT_FREQUENCY;
     // Prepare interrupt
-    NkHwInterrupt_t hwInt = {0};
-    hwInt.line = PLT_PIC_IRQ_PIT;
-    int vector = PltConnectInterrupt (&hwInt);
-    // Now set IPL to special clock IPL
-    hwInt.ipl = PLT_IPL_CLOCK;
-    PltInstallInterrupt (vector, PLT_INT_HWINT, PltPitDispatch, &hwInt);
+    NkHwInterrupt_t pitInt = {0};
+    pitInt.line = PLT_PIC_IRQ_PIT;
+    int vector = PltConnectInterrupt (&pitInt);
+    // We always run at clock IPL
+    pitInt.ipl = PLT_IPL_CLOCK;
+    // Install interrupt
+    PltInstallInterrupt (vector, PLT_INT_HWINT, PltPitDispatch, &pitInt);
+}
+
+// Initializes PIT clock
+PltHwClock_t* PltPitInitClk()
+{
+    nkIsPitClock = true;
+    // Initialize PIT to perodic mode, with an interrupt every 10 ms
+    CpuOutb (PLT_PIT_MODE_CMD, PLT_PIT_RATEGEN | PLT_PIT_LOHI | PLT_PIT_SEL_CHAN0);
+    // Set divisor
+    uint16_t div = PLT_PIT_FREQUENCY / PLT_PIT_HZ;
+    CpuOutb (PLT_PIT_CHAN0, (uint8_t) div);
+    CpuOutb (PLT_PIT_CHAN0, div >> 8);
+    // Set precision of clock
+    pitClock.precision = PLT_NS_IN_SEC / PLT_PIT_HZ;
+    // Install interrupt handler
+    PltPitInstallInt();
+    return &pitClock;
+}
+
+// Initializes PIT timer part
+PltHwTimer_t* PltPitInitTimer()
+{
+    // Check if PIT is being used as clock
+    if (nkIsPitClock)
+    {
+        // In this case, we are actually a software timer. Basically we will call the callback
+        // on every tick and the callback will manually trigger each event. This is slower
+        // but is neccesary for old PCs with no invariant TSC, HPET, or ACPI PM timer
+        pitTimer.type = PLT_TIMER_SOFT;
+        pitTimer.precision = pitClock.precision;
+    }
+    else
+    {
+        // Otherwise, put it in one-shot mode and then we will arm the timer for each event
+        // This is more precise then a software clock
+        CpuOutb (PLT_PIT_MODE_CMD, PLT_PIT_ONESHOT | PLT_PIT_LOHI | PLT_PIT_SEL_CHAN0);
+        pitTimer.precision = PLT_NS_IN_SEC / PLT_PIT_FREQUENCY;
+        pitTimer.maxInterval = UINT16_MAX * (PLT_NS_IN_SEC / PLT_PIT_FREQUENCY);
+        // Install the interrupt
+        PltPitInstallInt();
+    }
     return &pitTimer;
 }

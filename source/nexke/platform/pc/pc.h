@@ -33,7 +33,10 @@ PltHwIntCtrl_t* PltPicInit();
 // PIC IRQ lines
 #define PLT_PIC_IRQ_PIT 0
 
-// Initializes PIT
-PltHwTimer_t* PltPitInit();
+// Initializes PIT clock part
+PltHwClock_t* PltPitInitClk();
+
+// Initializes PIT timer part
+PltHwTimer_t* PltPitInitTimer();
 
 #endif
