@@ -25,8 +25,7 @@ extern NkConsole_t vgaCons;
 extern NkConsole_t uartCons;
 extern NkConsole_t fbCons;
 
-static NkConsole_t* primaryCons = NULL;      // Primary console
-static NkConsole_t* secondaryCons = NULL;    // Secondary console
+static NkPlatform_t nkPlatform = {.type = PLT_TYPE_PC, .subType = PLT_PC_SUBTYPE_ISA};
 
 // Initialize boot drivers
 void PltInitDrvs()
@@ -37,52 +36,78 @@ void PltInitDrvs()
     {
         // Initialize VGA text driver
         PltVgaInit();
-        primaryCons = &vgaCons;    // This is the primary console
+        nkPlatform.primaryCons = &vgaCons;    // This is the primary console
     }
     else
     {
         NkFbConsInit();
-        primaryCons = &fbCons;
+        nkPlatform.primaryCons = &fbCons;
     }
     // Initialize UART
     if (PltUartInit())
     {
-        if (!primaryCons)
-            primaryCons = &uartCons;
-        secondaryCons = &uartCons;
+        if (!nkPlatform.primaryCons)
+            nkPlatform.primaryCons = &uartCons;
+        nkPlatform.secondaryCons = &uartCons;
     }
     if (!PltAcpiInit())
         return;
+}
+
+// Initialize phase 2
+void PltInitPhase2()
+{
+    PltInitHwInts();
+    PltInitInterrupts();
+    PltInitClock();
+    PltInitTimer();
 }
 
 // Initializes system inerrupt controller
 PltHwIntCtrl_t* PltInitHwInts()
 {
     // For now all we support is 8259A PIC
-    return PltPicInit();
+    PltHwIntCtrl_t* ctrl = PltPicInit();
+    nkPlatform.intCtrl = ctrl;
+    return ctrl;
 }
 
 // Initializes system clock
 PltHwClock_t* PltInitClock()
 {
-    return PltPitInitClk();
+    // Try ACPI timer
+    PltHwClock_t* clock = PltAcpiInitClock();
+    if (!clock)
+        clock = PltPitInitClk();
+    nkPlatform.clock = clock;
+    return clock;
 }
 
 // Initializes system timer
 PltHwTimer_t* PltInitTimer()
 {
     // More timers coming soon!
-    return PltPitInitTimer();
+    PltHwTimer_t* timer = PltPitInitTimer();
+    nkPlatform.timer = timer;
+    return timer;
 }
+
+// Maps an MMIO range to pages and returns the page
 
 // Gets primary console
 NkConsole_t* PltGetPrimaryCons()
 {
-    return primaryCons;
+    return nkPlatform.primaryCons;
 }
 
 // Gets secondary console
 NkConsole_t* PltGetSecondaryCons()
 {
-    return secondaryCons;
+    return nkPlatform.secondaryCons;
+}
+
+// Gets platform
+NkPlatform_t* PltGetPlatform()
+{
+    return &nkPlatform;
 }

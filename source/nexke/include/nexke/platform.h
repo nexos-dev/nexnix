@@ -22,9 +22,13 @@
 #include <nexke/platform/acpi.h>
 #include <nexke/types.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 // Initialize boot drivers
 void PltInitDrvs();
+
+// Initialize phase 2
+void PltInitPhase2();
 
 // Early console structure
 typedef struct _nkcons
@@ -137,9 +141,11 @@ typedef struct _hwclock
     int precision;             // Precision in nanoseconds
     PltHwGetTime getTime;      // Gets current time on clock
     uint64_t internalCount;    // Used for software clocking on some systems
+    uintptr_t private;
 } PltHwClock_t;
 
-#define PLT_CLOCK_PIT 1
+#define PLT_CLOCK_PIT  1
+#define PLT_CLOCK_ACPI 2
 
 // Initializes clock system
 PltHwClock_t* PltInitClock();
@@ -157,6 +163,7 @@ typedef struct _hwtimer
     uint64_t maxInterval;    // Max interval we can be armed for
     // Private data
     void (*callback)();    // Interrupt callback
+    uintptr_t private;
     // Function interface
     PltHwArmTimer armTimer;
     PltHwSetTimerCallback setCallback;
@@ -170,5 +177,32 @@ PltHwTimer_t* PltInitTimer();
 
 // Nanoseconds in a second
 #define PLT_NS_IN_SEC 1000000000
+
+// Platform structure
+typedef struct _nkplt
+{
+    int type;    // Type of platform
+    int subType;
+    NkConsole_t* primaryCons;    // Consoles
+    NkConsole_t* secondaryCons;
+    PltHwClock_t* clock;        // System clock
+    PltHwTimer_t* timer;        // System timer
+    PltHwIntCtrl_t* intCtrl;    // Interrupt controller
+    // ACPI related things
+    int acpiVer;       // ACPI version we are working with
+    void* rsdt;        // Physical RSDT / XSDT pointer
+    size_t rsdtLen;    // Length of RSDT
+    void* acpiTabCache;
+} NkPlatform_t;
+
+#define PLT_TYPE_PC   1
+#define PLT_TYPE_SBSA 2
+
+#define PLT_PC_SUBTYPE_ACPI 1
+#define PLT_PC_SUBTYPE_MPS  2
+#define PLT_PC_SUBTYPE_ISA  3
+
+// Gets platform
+NkPlatform_t* PltGetPlatform();
 
 #endif

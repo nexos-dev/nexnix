@@ -27,6 +27,7 @@ typedef struct _kvarena
 {
     MmKvPage_t* freeList;    // Free list of pages
     uintptr_t resvdPlace;    // Next place for a page structure
+    uintptr_t resvdMap;      // Last reserved place mapped
 
     size_t resvdSpace;    // Amount of resverved space left
     size_t numResvd;      // Number of pages reserved for free list
@@ -50,6 +51,21 @@ static uintptr_t bootPoolEnd = 0;
 static size_t bootPoolSz = NEXBOOT_MEMPOOL_SZ;
 static bool mmInit = false;    // Wheter normal MM is up yet
 
+// Creates a new MmKvPage_t
+static MmKvPage_t* mmKvNewPage (MmKvArena_t* arena)
+{
+    uintptr_t nextPage = arena->resvdPlace;
+    // Figure out if we need to map it in
+    if ((arena->resvdMap + NEXKE_CPU_PAGESZ) <= (nextPage + sizeof (MmKvPage_t)) && arena->needsMap)
+    {
+        arena->resvdMap += NEXKE_CPU_PAGESZ;
+        MmBackendPageIn (kmemSpace.entryList->obj, arena->resvdMap - kmemSpace.startAddr);
+    }
+    arena->resvdPlace += sizeof (MmKvPage_t);
+    arena->resvdSpace -= sizeof (MmKvPage_t);
+    return (MmKvPage_t*) nextPage;
+}
+
 // Allocates a page from inside an arena
 static MmKvPage_t* mmKvAllocInArena (MmKvArena_t* arena)
 {
@@ -61,9 +77,7 @@ static MmKvPage_t* mmKvAllocInArena (MmKvArena_t* arena)
         assert (arena->resvdSpace >= sizeof (MmKvPage_t));
         // Else, we need to placement alloc
         // First allocate a page structure
-        page = (MmKvPage_t*) arena->resvdPlace;
-        arena->resvdPlace += sizeof (MmKvPage_t);
-        arena->resvdSpace -= sizeof (MmKvPage_t);
+        page = (MmKvPage_t*) mmKvNewPage (arena);
         // Initialize page
         page->next = NULL;
         page->vaddr = arena->place;
@@ -74,18 +88,25 @@ static MmKvPage_t* mmKvAllocInArena (MmKvArena_t* arena)
     // Map this page
     if (arena->needsMap)
     {
-        // Allocate a physical page
-        MmPage_t* physPage = MmAllocPage();
-        if (!physPage)
-            return NULL;
-        // Add to object
-        MmAddPage (&kmemSpace.entryList->obj->pageList,
-                   physPage,
-                   page->vaddr - kmemSpace.startAddr);
-        // Map into virtual address space
-        MmMulMapPage (&kmemSpace, page->vaddr, physPage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+        // Page it in
+        MmBackendPageIn (kmemSpace.entryList->obj, page->vaddr - kmemSpace.startAddr);
     }
     return page;
+}
+
+// Adds arena to list
+static void mmKvmAddArena (MmKvArena_t* arena)
+{
+    if (!mmArenas)
+    {
+        mmArenas = arena;
+        arena->next = NULL;
+    }
+    else
+    {
+        arena->next = mmArenas;
+        mmArenas = arena;
+    }
 }
 
 // Initializes boot pool
@@ -114,7 +135,7 @@ void MmInitKvm1()
     arena->needsMap = false;
     // Set next reserved spot
     arena->resvdPlace = (uintptr_t) bootPoolBase + sizeof (MmKvArena_t);
-    mmArenas = arena;
+    mmKvmAddArena (arena);
 }
 
 // Second phase KVM init
@@ -123,6 +144,27 @@ void MmInitKvm2()
     // Setup kernel MM space
     kmemSpace.startAddr = NEXKE_KERNEL_ADDR_START;
     kmemSpace.endAddr = NEXKE_KERNEL_ADDR_END;
+    size_t numPages = ((NEXKE_KV_ADDR_END + 1) - NEXKE_KERNEL_ADDR_START) / NEXKE_CPU_PAGESZ;
+    // Allocate object
+    MmObject_t* object =
+        MmCreateObject (numPages, MM_BACKEND_KERNEL, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_RW);
+    assert (object);
+    kmemSpace.entryList = MmAllocSpace (&kmemSpace, object, NEXKE_KERNEL_ADDR_START, numPages);
+    // Map in first page of arena
+    MmBackendPageIn (object, 0);
+    // Create new arena
+    MmKvArena_t* arena = (MmKvArena_t*) kmemSpace.startAddr;
+    arena->freeList = NULL;
+    arena->next = NULL;
+    arena->resvdSpace = CpuPageAlignUp ((numPages * sizeof (MmKvPage_t)) + sizeof (MmKvArena_t));
+    arena->numFree = numPages - (arena->resvdSpace / NEXKE_CPU_PAGESZ);
+    arena->numPages = arena->numFree;
+    arena->numResvd = arena->resvdSpace / NEXKE_CPU_PAGESZ;
+    arena->place = kmemSpace.startAddr + arena->resvdSpace;
+    arena->resvdPlace = kmemSpace.startAddr + sizeof (MmKvArena_t);
+    arena->resvdMap = kmemSpace.startAddr;
+    arena->needsMap = true;
+    mmKvmAddArena (arena);
 }
 
 // Allocates a memory page for kernel
@@ -166,6 +208,37 @@ void MmFreeKvPage (MmKvPage_t* page)
     }
 }
 
+// Allocates an address region for MMIO
+MmSpaceEntry_t* MmAllocMmioMem (size_t numPages, uintptr_t phys, int perm)
+{
+    MmObject_t* obj = MmCreateObject (numPages, MM_BACKEND_KERNEL, perm);
+    if (!obj)
+        return NULL;
+    MmSpaceEntry_t* mem = MmAllocSpace (&kmemSpace, obj, NEXKE_MMIO_ADDR_START, numPages);
+    if (!mem)
+        return NULL;
+    // Go through each page now
+    pfn_t basePfn = (phys / NEXKE_CPU_PAGESZ);
+    for (int i = 0; i < numPages; ++i)
+    {
+        // Get page
+        MmPage_t* page = MmFindPagePfn (basePfn + 1);
+        assert (page->state == MM_PAGE_STATE_UNUSABLE);
+        // Add to object
+        MmAddPage (&obj->pageList, page, i * NEXKE_CPU_PAGESZ);
+        // Map it
+        MmMulMapPage (&kmemSpace, mem->vaddr + (i * NEXKE_CPU_PAGESZ), page, perm);
+    }
+    return mem;
+}
+
+// Deallocates MMIO region
+void MmFreeMmioMem (MmSpaceEntry_t* mem)
+{
+    MmDeRefObject (mem->obj);
+    MmFreeSpace (&kmemSpace, mem);
+}
+
 // Returns kernel address space
 MmSpace_t* MmGetKernelSpace()
 {
@@ -186,6 +259,17 @@ bool KvmDestroyObj (MmObject_t* obj)
 
 bool KvmPageIn (MmObject_t* obj, uintptr_t offset)
 {
+    // Allocate a physical page
+    MmPage_t* physPage = MmAllocPage();
+    if (!physPage)
+        return NULL;
+    // Add to object
+    MmAddPage (&obj->pageList, physPage, offset);
+    // Map into virtual address space
+    MmMulMapPage (&kmemSpace,
+                  kmemSpace.startAddr + offset,
+                  physPage,
+                  MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     return true;
 }
 

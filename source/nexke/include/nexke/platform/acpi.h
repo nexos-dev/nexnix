@@ -18,6 +18,7 @@
 #ifndef _ACPI_H
 #define _ACPI_H
 
+#include <nexke/platform.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -68,6 +69,68 @@ typedef struct _sdt
     uint32_t creatorId;
     uint32_t creatorRev;
 } __attribute__ ((packed)) AcpiSdt_t;
+
+// FADT table
+typedef struct _fadt
+{
+    AcpiSdt_t sdt;
+    uint32_t facs;          // Address of FACS
+    uint32_t dsdt;          // Address of DSDT
+    uint8_t intModel;       // ACPI 1.0 only
+    uint8_t pmProfile;      // Power management profile
+    uint16_t sciInt;        // Contains SCI interrupt
+    uint32_t smiCmd;        // SMI command port
+    uint8_t acpiEnable;     // Value to write to SMI command to enable ACPI
+    uint8_t acpiDisable;    // Opposite
+    uint8_t s4biosReq;
+    uint32_t pm1aEvtBlk;    // Hardware model stuff from here on
+    uint32_t pm1bEvtBlk;
+    uint32_t pm1aCntBlk;
+    uint32_t pm1bCntBlk;
+    uint32_t pm2CntBlk;
+    uint32_t pmTmrBlk;
+    uint32_t gpe0Blk;
+    uint32_t gpe1Blk;
+    uint8_t pm1EvtLen;
+    uint8_t pm1CntLen;
+    uint8_t pm2CntLen;
+    uint8_t pmTmrLen;
+    uint8_t gpe0Len;
+    uint8_t gpe1Len;
+    uint8_t gpe1Base;
+    uint8_t cstCnt;
+    uint16_t plvl2Lat;
+    uint16_t plvl3Lat;
+    uint16_t flushSz;
+    uint16_t flushStride;
+    uint8_t dutyOffset;
+    uint8_t dutyWidth;
+    uint8_t dayAlarm;
+    uint8_t monAlarm;
+    uint8_t centReg;
+    uint16_t iapcFlags;
+    uint8_t resvd;
+    uint32_t flags;
+    AcpiGas_t resetReg;
+    uint8_t resetVal;
+    uint8_t resvd1[3];
+    uint64_t xFacs;
+    uint64_t xDsdt;
+    AcpiGas_t xPm1aEvtBlk;    // Extended stuff for ACPI 2.0+
+    AcpiGas_t xPm1bEvtBlk;
+    AcpiGas_t xPm1aCntBlk;
+    AcpiGas_t xPm1bCntBlk;
+    AcpiGas_t xPm2CntBlk;
+    AcpiGas_t xPmTmrBlk;
+    AcpiGas_t xGpe0Blk;
+    AcpiGas_t xGpe1Blk;
+    AcpiGas_t sleepCtrl;
+    AcpiGas_t sleepStatus;
+} __attribute__ ((packed)) AcpiFadt_t;
+
+// IA-PC flags
+#define ACPI_IAPC_LEGACY_DEVS (1 << 0)
+#define ACPI_IAPC_8042_EXISTS (1 << 1)
 
 // DBG2 table
 typedef struct _dbgdesc
@@ -126,5 +189,8 @@ bool PltAcpiInit();
 
 // Finds an ACPI table
 AcpiSdt_t* PltAcpiFindTable (const char* sig);
+
+// Initializes ACPI PM timer
+PltHwClock_t* PltAcpiInitClock();
 
 #endif

@@ -20,11 +20,8 @@
 #include <nexke/platform.h>
 #include <string.h>
 
-// Hardware timer
-static PltHwTimer_t* nkHwTimer = NULL;
-
-// Hardware clock source
-static PltHwClock_t* nkHwClock = NULL;
+// Platform pointer
+static NkPlatform_t* platform = NULL;
 
 // Event cache
 static SlabCache_t* nkEventCache = NULL;
@@ -41,6 +38,7 @@ NkTimeEvent_t* NkTimeNewEvent()
 // Frees a timer event
 void NkTimeFreeEvent (NkTimeEvent_t* event)
 {
+    assert (!event->next && !event->prev && CpuGetCcb()->timeEvents != event);
     MmCacheFree (nkEventCache, event);
 }
 
@@ -48,7 +46,7 @@ void NkTimeFreeEvent (NkTimeEvent_t* event)
 static uint64_t NkTimeDeltaToDeadline (uint64_t* delta)
 {
     // Get ref tick
-    uint64_t refTick = nkHwClock->getTime();
+    uint64_t refTick = platform->clock->getTime();
     uint64_t deadline = refTick + *delta;
     // Convert delta from nanosec precision to precision of clock base / timer (whichever is the
     // limiting factor)
@@ -123,16 +121,16 @@ void NkTimeRegEvent (NkTimeEvent_t* event, uint64_t delta, NkTimeCallback callba
     if (event == ccb->timeEvents)
     {
         // Arm timer if needed
-        if (nkHwTimer->type != PLT_TIMER_SOFT)
+        if (platform->timer->type != PLT_TIMER_SOFT)
         {
             // Check delta and ensure it is in range
-            if (delta > nkHwTimer->maxInterval)
+            if (delta > platform->timer->maxInterval)
             {
                 // TODO: support this case
                 NkPanic ("nexke: unimplemented");
             }
             // Arm timer
-            nkHwTimer->armTimer (delta);
+            platform->timer->armTimer (delta);
         }
     }
     PltLowerIpl (ipl);
@@ -156,14 +154,14 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
     {
         ccb->timeEvents = event->next;
         // Now we need to re-arm the timer
-        if (nkHwTimer->type != PLT_TIMER_SOFT)
+        if (platform->timer->type != PLT_TIMER_SOFT)
         {
             uint64_t deadline = event->deadline * nkLimitPrecision;
-            uint64_t delta = deadline - nkHwClock->getTime();
+            uint64_t delta = deadline - platform->clock->getTime();
             delta /= nkLimitPrecision;
             if (!delta)
                 delta++;
-            nkHwTimer->armTimer (delta);
+            platform->timer->armTimer (delta);
         }
     }
     event->next = event->prev = NULL;
@@ -178,10 +176,11 @@ static void NkTimeHandler()
     // If this is a software timer, we need to tick through the event until it expires
     // Otherwise, then an event has occured and we just need to execute each handler for this
     // deadline
-    if (nkHwTimer->type == PLT_TIMER_SOFT)
+    if (platform->timer->type == PLT_TIMER_SOFT)
     {
         // Check if timers have expired
-        while (event && nkHwClock->getTime() == (event->deadline * nkHwClock->precision))
+        while (event &&
+               platform->clock->getTime() == (event->deadline * platform->clock->precision))
         {
             // Event has expired, remove from list and call handler
             ccb->timeEvents = event->next;
@@ -207,18 +206,15 @@ static void NkTimeHandler()
 // Initializes timing subsystem
 void NkInitTime()
 {
-    nkHwClock = PltInitClock();
-    nkHwTimer = PltInitTimer();
+    platform = PltGetPlatform();
     // Set limiting precision
-    if (nkHwClock->precision > nkHwTimer->precision)
-        nkLimitPrecision = nkHwClock->precision;
+    if (platform->clock->precision > platform->timer->precision)
+        nkLimitPrecision = platform->clock->precision;
     else
-        nkLimitPrecision = nkHwTimer->precision;
+        nkLimitPrecision = platform->timer->precision;
     // Set up callback
     CpuGetCcb()->timeEvents = NULL;    // Initialize list
     nkEventCache = MmCacheCreate (sizeof (NkTimeEvent_t), NULL, NULL);
     // Set callback
-    nkHwTimer->setCallback (NkTimeHandler);
-    NkTimeEvent_t* event = NkTimeNewEvent();
-    NkTimeRegEvent (event, PLT_NS_IN_SEC + 410003, test, NULL);
+    platform->timer->setCallback (NkTimeHandler);
 }

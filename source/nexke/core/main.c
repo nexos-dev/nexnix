@@ -99,8 +99,8 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     CpuInitCcb();
     // Initialize MM phase 2
     MmInitPhase2();
-    // Initialize interrupt manager
-    PltInitInterrupts();
+    // Initialize phase 2 of platform
+    PltInitPhase2();
     // Initialize timing subsystem
     NkInitTime();
     for (;;)

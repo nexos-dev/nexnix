@@ -16,22 +16,14 @@
 */
 
 #include <assert.h>
+#include <nexke/mm.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <string.h>
 
-// Does ACPI exist?
-static bool isAcpiSys = false;
-
-// RSDT base address
-static AcpiSdt_t* rsdt;
-
-// XSDT base
-static AcpiSdt_t* xsdt;
-
-// Is this ACPI 1 or 2+?
-static bool isAcpi2 = false;
+// Memory for RSDT
+static MmSpaceEntry_t* rsdtMem = NULL;
 
 // Initializes ACPI
 bool PltAcpiInit()
@@ -40,7 +32,6 @@ bool PltAcpiInit()
     // Find ACPI component
     if (!(boot->detectedComps & (1 << NB_TABLE_ACPI)))
         return false;    // ACPI doesn't exist
-    isAcpiSys = true;
     // Parse RSDP
     AcpiRsdp_t* rsdp = (AcpiRsdp_t*) boot->comps[NB_TABLE_ACPI];
     // Check validity
@@ -49,11 +40,16 @@ bool PltAcpiInit()
     // Check verions
     if (rsdp->rev >= 2)
     {
-        isAcpi2 = true;
-        xsdt = (AcpiSdt_t*) ((uintptr_t) rsdp->xsdtAddr);
+        PltGetPlatform()->acpiVer = 2;
+        PltGetPlatform()->rsdt = (AcpiSdt_t*) ((uintptr_t) rsdp->xsdtAddr);
     }
     else
-        rsdt = (AcpiSdt_t*) ((uintptr_t) rsdp->rsdtAddr);
+    {
+        PltGetPlatform()->acpiVer = 1;
+        PltGetPlatform()->rsdt = (AcpiSdt_t*) ((uintptr_t) rsdp->rsdtAddr);
+    }
+    // Say we are ACPI
+    PltGetPlatform()->subType = PLT_PC_SUBTYPE_ACPI;
     return true;
 }
 
@@ -61,14 +57,15 @@ bool PltAcpiInit()
 AcpiSdt_t* PltAcpiFindTable (const char* sig)
 {
     assert (strlen (sig) == 4);
-    if (!isAcpiSys)
+    if (PltGetPlatform()->subType != PLT_PC_SUBTYPE_ACPI)
         return NULL;
+    AcpiSdt_t* rsdt = PltGetPlatform()->rsdt;
     // Check wheter to look through XSDT or RSDT
-    if (isAcpi2)
+    if (PltGetPlatform()->acpiVer >= 2)
     {
         // Get number of entries
-        size_t numEnt = (xsdt->length - sizeof (AcpiSdt_t)) / sizeof (uint64_t);
-        uint64_t* entList = (uint64_t*) (xsdt + 1);
+        size_t numEnt = (rsdt->length - sizeof (AcpiSdt_t)) / sizeof (uint64_t);
+        uint64_t* entList = (uint64_t*) (rsdt + 1);
         for (int i = 0; i < numEnt; ++i)
         {
             AcpiSdt_t* curSdt = (AcpiSdt_t*) ((uintptr_t) entList[i]);

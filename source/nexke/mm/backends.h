@@ -29,6 +29,6 @@ bool KvmPageOut (MmObject_t* obj, uintptr_t offset);
 
 static void* kvmBackend[] = {KvmPageIn, KvmPageOut, KvmInitObj, KvmDestroyObj};
 
-static void* backends[] = {kvmBackend};
+static void* backends[] = {NULL, kvmBackend};
 
 #endif

@@ -22,6 +22,7 @@ typedef struct _nkcons NkConsole_t;
 typedef struct _int NkInterrupt_t;
 typedef struct _hwint NkHwInterrupt_t;
 typedef struct _timeevt NkTimeEvent_t;
+typedef struct _hwclock PltHwClock_t;
 
 typedef int ipl_t;
 

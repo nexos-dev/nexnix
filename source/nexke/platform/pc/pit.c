@@ -48,8 +48,12 @@
 extern PltHwTimer_t pitTimer;
 extern PltHwClock_t pitClock;
 
-// Is PIT being used for clock
-static bool nkIsPitClock = false;
+typedef struct _pitpvt
+{
+    bool isPitClock;    // Is PIT being used for clock
+} pltPitPrivate_t;
+
+static pltPitPrivate_t pitPvt = {0};
 
 // Sets callback of timer
 static void PltPitSetCallback (void (*cb)())
@@ -70,7 +74,7 @@ static void PltPitArmTimer (uint64_t delta)
 static bool PltPitDispatch (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 {
     // Check if PIT is in periodic mode or not
-    if (nkIsPitClock)
+    if (pitPvt.isPitClock)
         pitClock.internalCount += pitClock.precision;    // Increase count
     // Call the callback. In periodic mode software must check for deadlines on every tick
     // In one shot this will drain the current deadline
@@ -90,7 +94,8 @@ PltHwTimer_t pitTimer = {.type = PLT_TIMER_PIT,
                          .setCallback = PltPitSetCallback,
                          .callback = NULL,
                          .precision = 0,
-                         .maxInterval = 0};
+                         .maxInterval = 0,
+                         .private = &pitPvt};
 
 PltHwClock_t pitClock = {.type = PLT_CLOCK_PIT,
                          .precision = 0,
@@ -113,7 +118,8 @@ static void PltPitInstallInt()
 // Initializes PIT clock
 PltHwClock_t* PltPitInitClk()
 {
-    nkIsPitClock = true;
+    pltPitPrivate_t* pitPvt = (pltPitPrivate_t*) pitTimer.private;
+    pitPvt->isPitClock = true;
     // Initialize PIT to perodic mode, with an interrupt every 10 ms
     CpuOutb (PLT_PIT_MODE_CMD, PLT_PIT_RATEGEN | PLT_PIT_LOHI | PLT_PIT_SEL_CHAN0);
     // Set divisor
@@ -130,8 +136,9 @@ PltHwClock_t* PltPitInitClk()
 // Initializes PIT timer part
 PltHwTimer_t* PltPitInitTimer()
 {
+    pltPitPrivate_t* pitPvt = (pltPitPrivate_t*) pitTimer.private;
     // Check if PIT is being used as clock
-    if (nkIsPitClock)
+    if (pitPvt->isPitClock)
     {
         // In this case, we are actually a software timer. Basically we will call the callback
         // on every tick and the callback will manually trigger each event. This is slower

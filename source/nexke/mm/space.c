@@ -209,9 +209,9 @@ void MmInitPhase2()
     mmEntryCache = MmCacheCreate (sizeof (MmSpaceEntry_t), NULL, NULL);
     if (!mmSpaceCache || !mmEntryCache)
         NkPanicOom();
+    // Set up MUL
+    MmMulInit();
     // Second phase of KVM
     MmInitKvm2();
     mmCurSpace = MmGetKernelSpace();
-    // Set up MUL
-    MmMulInit();
 }

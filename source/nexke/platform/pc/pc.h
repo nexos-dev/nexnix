@@ -39,4 +39,7 @@ PltHwClock_t* PltPitInitClk();
 // Initializes PIT timer part
 PltHwTimer_t* PltPitInitTimer();
 
+// Enable ACPI
+void PltAcpiPcEnable();
+
 #endif

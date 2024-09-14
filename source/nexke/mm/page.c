@@ -235,18 +235,24 @@ static MmZone_t* mmZoneFindByPfn (pfn_t pfn)
 // Frees an MmPage
 static void mmFreePage (MmPage_t* page)
 {
-    MmZone_t* zone = page->zone;
-    --page->refCount;
-    // Add to free list
-    if (zone->freeList)
-        zone->freeList->prev = page;
-    page->next = zone->freeList;
-    page->prev = NULL;
-    zone->freeList = page;
-    // Update stats
-    ++zone->freeCount;
-    ++mmFreePages;
-    page->state = MM_PAGE_STATE_FREE;
+    // Don't free an unusable page
+    if (page->state == MM_PAGE_STATE_UNUSABLE)
+        MmCacheFree (mmFakePageCache, page);
+    else
+    {
+        MmZone_t* zone = page->zone;
+        --page->refCount;
+        // Add to free list
+        if (zone->freeList)
+            zone->freeList->prev = page;
+        page->next = zone->freeList;
+        page->prev = NULL;
+        zone->freeList = page;
+        // Update stats
+        ++zone->freeCount;
+        ++mmFreePages;
+        page->state = MM_PAGE_STATE_FREE;
+    }
 }
 
 // Allocates an MmPage, with specified characteristics
@@ -310,7 +316,7 @@ MmPage_t* MmFindPagePfn (pfn_t pfn)
         NkPanic ("nexke: out of memory\n");
     memset (page, 0, sizeof (MmPage_t));
     page->state = MM_PAGE_STATE_UNUSABLE;
-    page->refCount = 1;
+    ++page->refCount;
     return page;
 }
 
@@ -372,7 +378,6 @@ void MmFreePages (MmPage_t* pages, size_t count)
 // Adds a page to a page hash list
 void MmAddPage (MmPageList_t* list, MmPage_t* page, size_t off)
 {
-    assert (page->state != MM_PAGE_STATE_UNUSABLE);
     // Find bucket
     size_t bucket = MM_GET_BUCKET (off);
     // Add to bucket

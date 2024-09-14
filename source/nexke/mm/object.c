@@ -49,6 +49,7 @@ MmObject_t* MmCreateObject (size_t pages, int backend, int perm)
     obj->backendTab = backends[backend];
     // Tell backend
     MmBackendInit (obj);
+    return obj;
 }
 
 // References a memory object

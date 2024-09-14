@@ -42,6 +42,7 @@ void MmInitPage();
 typedef struct _kvpage
 {
     uintptr_t vaddr;    // Virtual address of page
+                        // This is a uintptr for alignment's sake
     struct _kvpage* next;
 } MmKvPage_t;
 
@@ -285,5 +286,11 @@ void MmMulCreateSpace (MmSpace_t* space);
 
 // Destroys an MUL address space
 void MmMulDestroySpace (MmSpace_t* space);
+
+// Allocates an address region for MMIO
+MmSpaceEntry_t* MmAllocMmioMem (size_t numPages, uintptr_t phys, int perm);
+
+// Deallocates MMIO region
+void MmFreeMmioMem (MmSpaceEntry_t* mem);
 
 #endif

@@ -87,6 +87,7 @@ list(APPEND NEXKE_SOURCES
     mm/object.c
     mm/kvmm.c
     platform/acpi.c
+    platform/acpipm.c
     platform/interrupt.c)
 
 # Create kernel

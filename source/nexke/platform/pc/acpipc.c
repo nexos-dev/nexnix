@@ -1,5 +1,5 @@
-#[[
-    platform.cmake - contains platform CMake stuff
+/*
+    acpipc.c - contains PC specific ACPI parts
     Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,11 +13,16 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-]]
+*/
 
-list(APPEND NEXKE_SOURCES
-    platform/pc/pcdetect.c
-    platform/pc/earlycons.c
-    platform/pc/pic.c
-    platform/pc/pit.c
-    platform/pc/acpipc.c)
+#include "pc.h"
+#include <assert.h>
+#include <nexke/nexke.h>
+#include <nexke/platform.h>
+
+// Enable ACPI
+void PltAcpiPcEnable()
+{
+    // Get FADT
+    AcpiFadt_t* fadt = (AcpiFadt_t*) PltAcpiFindTable ("FACP");
+}
