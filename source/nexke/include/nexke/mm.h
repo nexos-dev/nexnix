@@ -38,19 +38,11 @@ void MmInitPage();
 
 // Kernel memory management
 
-// Kernel free virtual page structure
-typedef struct _kvpage
-{
-    uintptr_t vaddr;    // Virtual address of page
-                        // This is a uintptr for alignment's sake
-    struct _kvpage* next;
-} MmKvPage_t;
-
 // Allocates a memory page for kernel
-MmKvPage_t* MmAllocKvPage();
+void* MmAllocKvPage();
 
 // Frees a memory page for kernel
-void MmFreeKvPage (MmKvPage_t* page);
+void MmFreeKvPage (void* page);
 
 // Page management
 
@@ -253,6 +245,12 @@ MmSpace_t* MmGetKernelSpace();
 // Gets active address space
 MmSpace_t* MmGetCurrentSpace();
 
+// Fault entry point
+bool MmPageFault (uintptr_t vaddr, int prot);
+
+// Brings a page into memory during a page fault
+bool MmPageFaultIn (MmObject_t* obj, size_t offset, int prot);
+
 // MUL basic interfaces
 
 // MUL page flags
@@ -262,6 +260,7 @@ MmSpace_t* MmGetCurrentSpace();
 #define MUL_PAGE_X  (1 << 3)
 #define MUL_PAGE_CD (1 << 4)
 #define MUL_PAGE_WT (1 << 5)
+#define MUL_PAGE_P  (1 << 6)
 
 // Initializes MUL
 void MmMulInit();
@@ -286,11 +285,5 @@ void MmMulCreateSpace (MmSpace_t* space);
 
 // Destroys an MUL address space
 void MmMulDestroySpace (MmSpace_t* space);
-
-// Allocates an address region for MMIO
-MmSpaceEntry_t* MmAllocMmioMem (size_t numPages, uintptr_t phys, int perm);
-
-// Deallocates MMIO region
-void MmFreeMmioMem (MmSpaceEntry_t* mem);
 
 #endif

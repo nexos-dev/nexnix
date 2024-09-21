@@ -103,6 +103,10 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase2();
     // Initialize timing subsystem
     NkInitTime();
+    void* p = MmAllocKvRegion (4);
+    void* p2 = MmAllocKvRegion (6);
+    MmFreeKvRegion (p);
+    MmFreeKvRegion (p2);
     for (;;)
         ;
 }

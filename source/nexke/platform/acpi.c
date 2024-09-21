@@ -22,9 +22,6 @@
 #include <nexke/platform.h>
 #include <string.h>
 
-// Memory for RSDT
-static MmSpaceEntry_t* rsdtMem = NULL;
-
 // Initializes ACPI
 bool PltAcpiInit()
 {
@@ -37,53 +34,67 @@ bool PltAcpiInit()
     // Check validity
     if (memcmp (rsdp, "RSD PTR ", 8) != 0)
         return false;
-    // Check verions
-    if (rsdp->rev >= 2)
-    {
-        PltGetPlatform()->acpiVer = 2;
-        PltGetPlatform()->rsdt = (AcpiSdt_t*) ((uintptr_t) rsdp->xsdtAddr);
-    }
-    else
-    {
-        PltGetPlatform()->acpiVer = 1;
-        PltGetPlatform()->rsdt = (AcpiSdt_t*) ((uintptr_t) rsdp->rsdtAddr);
-    }
+    PltGetPlatform()->acpiVer = rsdp->rev;
+    memcpy (&PltGetPlatform()->rsdp, rsdp, sizeof (AcpiRsdp_t));
     // Say we are ACPI
     PltGetPlatform()->subType = PLT_PC_SUBTYPE_ACPI;
     return true;
+}
+
+// Finds entry in table cache
+static AcpiCacheEnt_t* pltAcpiFindCache (const char* sig)
+{
+    AcpiCacheEnt_t* curEnt = PltGetPlatform()->tableCache;
+    while (curEnt)
+    {
+        if (!strcmp (curEnt->table.sig, sig))    // Check signature
+            return curEnt;
+        curEnt = curEnt->next;
+    }
+    return NULL;    // Table not cached
+}
+
+// Gets table from firmware
+static void* pltAcpiFindTableFw (const char* sig)
+{
+    // Special case for RSDT or XSDT
+    if (!strcmp (sig, "XSDT"))
+    {
+        // Get from RSDP
+        AcpiRsdp_t* rsdp = &PltGetPlatform()->rsdp;
+        if (rsdp->rev < 2)
+            return NULL;
+        return (void*) rsdp->xsdtAddr;
+    }
+    else if (!strcmp (sig, "RSDT"))
+        return (void*) PltGetPlatform()->rsdp.rsdtAddr;
+    // Otherwise get the RSDT or XSDT and search it
+    AcpiSdt_t* xsdt = PltAcpiFindTable ("XSDT");
+    if (xsdt)
+    {
+        // Get number of entries
+        size_t numEntries = (xsdt->length / sizeof (uint64_t)) - sizeof (AcpiSdt_t);
+        uint64_t* tables =
+            (uint64_t*) ((uintptr_t) xsdt + sizeof (AcpiSdt_t));    // Get pointer to table array
+        for (int i = 0; i < numEntries; ++i)
+        {
+        }
+    }
 }
 
 // Finds an ACPI table
 AcpiSdt_t* PltAcpiFindTable (const char* sig)
 {
     assert (strlen (sig) == 4);
+    // Check if this is an ACPI system
     if (PltGetPlatform()->subType != PLT_PC_SUBTYPE_ACPI)
         return NULL;
-    AcpiSdt_t* rsdt = PltGetPlatform()->rsdt;
-    // Check wheter to look through XSDT or RSDT
-    if (PltGetPlatform()->acpiVer >= 2)
-    {
-        // Get number of entries
-        size_t numEnt = (rsdt->length - sizeof (AcpiSdt_t)) / sizeof (uint64_t);
-        uint64_t* entList = (uint64_t*) (rsdt + 1);
-        for (int i = 0; i < numEnt; ++i)
-        {
-            AcpiSdt_t* curSdt = (AcpiSdt_t*) ((uintptr_t) entList[i]);
-            if (!memcmp (curSdt->sig, sig, 4))
-                return curSdt;
-        }
-    }
-    else
-    {
-        // Get number of entries
-        size_t numEnt = (rsdt->length - sizeof (AcpiSdt_t)) / sizeof (uint32_t);
-        uint32_t* entList = (uint32_t*) (rsdt + 1);
-        for (int i = 0; i < numEnt; ++i)
-        {
-            AcpiSdt_t* curSdt = (AcpiSdt_t*) ((uintptr_t) entList[i]);
-            if (!memcmp (curSdt->sig, sig, 4))
-                return curSdt;
-        }
-    }
+    // First we need to check the cache for an entry
+    AcpiCacheEnt_t* ent = pltAcpiFindCache (sig);
+    if (ent)
+        return &ent->table;    // We're done
+    // Table not cached, we first need to get the table from the FW
+    // and map, and then add it to the cache
+    void* tablePhys = pltAcpiFindTableFw (sig);
     return NULL;
 }

@@ -86,6 +86,7 @@ list(APPEND NEXKE_SOURCES
     mm/page.c
     mm/object.c
     mm/kvmm.c
+    mm/fault.c
     platform/acpi.c
     platform/acpipm.c
     platform/interrupt.c)

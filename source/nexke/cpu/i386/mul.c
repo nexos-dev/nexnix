@@ -180,7 +180,7 @@ MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 
 static pte_t* mulEarlyAllocTab (pde_t* pdir, uintptr_t virt, int flags)
 {
-    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage());
     memset (tab, 0, NEXKE_CPU_PAGESZ);
     // Grab PDE
     pde_t* tabPde = &pdir[PG_ADDR_DIR (virt)];

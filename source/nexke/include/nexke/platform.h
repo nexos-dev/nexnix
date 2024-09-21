@@ -189,10 +189,9 @@ typedef struct _nkplt
     PltHwTimer_t* timer;        // System timer
     PltHwIntCtrl_t* intCtrl;    // Interrupt controller
     // ACPI related things
-    int acpiVer;       // ACPI version we are working with
-    void* rsdt;        // Physical RSDT / XSDT pointer
-    size_t rsdtLen;    // Length of RSDT
-    void* acpiTabCache;
+    int acpiVer;                   // ACPI version
+    AcpiRsdp_t rsdp;               // Copy of RSDP
+    AcpiCacheEnt_t* tableCache;    // ACPI table cache
 } NkPlatform_t;
 
 #define PLT_TYPE_PC   1

@@ -51,7 +51,6 @@ static SlabCache_t caches = {0};
 // Slab structure
 typedef struct _slab
 {
-    MmKvPage_t* page;      // Page underlying this slab
     SlabCache_t* cache;    // Parent cache
     void* slabEnd;         // End of slab
     size_t sz;             // Size of one object
@@ -91,15 +90,12 @@ static inline Slab_t* slabGetObjSlab (void* obj)
 // Allocates a slab of memory
 static Slab_t* slabAllocSlab (SlabCache_t* cache)
 {
-    // Allocate page
-    MmKvPage_t* page = MmAllocKvPage();
     // Initialize slab
     size_t slabSz = slabRoundTo8 (sizeof (Slab_t));
-    Slab_t* slab = (Slab_t*) page->vaddr;
-    slab->page = page;
+    Slab_t* slab = (Slab_t*) MmAllocKvPage();
     slab->cache = cache;
-    slab->allocMark = (void*) page->vaddr + slabRoundTo8 (sizeof (Slab_t));
-    slab->slabEnd = (void*) page->vaddr + NEXKE_CPU_PAGESZ;
+    slab->allocMark = (void*) slab + slabRoundTo8 (sizeof (Slab_t));
+    slab->slabEnd = (void*) slab + NEXKE_CPU_PAGESZ;
     slab->freeList = NULL;
     slab->sz = cache->objAlign;    // NOTE: we use the aligned size here
     slab->state =
@@ -132,7 +128,7 @@ static void slabFreeSlab (SlabCache_t* cache, Slab_t* slab)
         cache->emptySlabs->prev = NULL;
     --cache->numEmpty;
     // Free frame to allocator
-    MmFreeKvPage (slab->page);
+    MmFreeKvPage (slab);
 }
 
 // Allocates object in specified slab

@@ -184,6 +184,14 @@ typedef struct _spcr
     uint32_t preciseBaud;
 } __attribute__ ((packed)) AcpiSpcr_t;
 
+// ACPI table cache entry
+typedef struct _acpicache
+{
+    struct _acpicache* next;    // Forward and backward pointers
+    struct _acpicache* prev;
+    AcpiSdt_t table;    // Actual table data, which is after this struct
+} AcpiCacheEnt_t;
+
 // Initalizes ACPI
 bool PltAcpiInit();
 

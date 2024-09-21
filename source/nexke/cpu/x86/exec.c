@@ -17,6 +17,7 @@
 
 #include <assert.h>
 #include <nexke/cpu.h>
+#include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <string.h>
@@ -44,9 +45,28 @@ static const char* cpuExecNameTab[] = {"division by zero",
                                        "virtualization failure",
                                        "control flow failure"};
 
+// Page fault error code flags
+#define CPU_PF_P     (1 << 0)
+#define CPU_PF_W     (1 << 1)
+#define CPU_PF_U     (1 << 2)
+#define CPU_PF_RESVD (1 << 3)
+#define CPU_PF_IF    (1 << 4)
+
 // System page fault handler
 static bool CpuPageFault (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 {
+    size_t err = ctx->errCode;
+    int protMask = MUL_PAGE_KE;    // The flags that caused the fault
+    if (err & CPU_PF_P)
+        protMask |= MUL_PAGE_P;
+    if (err & CPU_PF_W)
+        protMask |= MUL_PAGE_RW;
+    if (err & CPU_PF_U)
+        protMask &= ~(MUL_PAGE_KE);
+    if (err & CPU_PF_IF)
+        protMask |= MUL_PAGE_X;
+    assert (!(err & CPU_PF_RESVD));    // There shouldn't be a reserved bit violation ever
+    MmPageFault (CpuReadCr2(), protMask);
     return false;
 }
 
