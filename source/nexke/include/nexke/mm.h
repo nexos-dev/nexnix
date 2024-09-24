@@ -38,6 +38,14 @@ void MmInitPage();
 
 // Kernel memory management
 
+// Allocates a region of memory in pages
+void* MmAllocKvRegion (size_t numPages, int flags);
+
+#define MM_KV_NO_DEMAND (1 << 0)    // Allocates a page immediatly instead of lazily
+
+// Frees a region of memory
+void MmFreeKvRegion (void* mem);
+
 // Allocates a memory page for kernel
 void* MmAllocKvPage();
 
@@ -68,14 +76,17 @@ typedef struct _zone
 #define MM_ZONE_ALLOCATABLE (1 << 4)
 #define MM_ZONE_NO_GENERIC  (1 << 5)    // Generic memory allocations are not allowed
 
+// Page back mapping
+typedef struct _mmpgmap MmPageMap_t;
+
 // Page data structure
 typedef struct _page
 {
     pfn_t pfn;             // PFN of this page
     MmZone_t* zone;        // Zone this page resides in
-    int refCount;          // Number of MmObject_t's using this page
     int state;             // State this page is in
     size_t offset;         // Offset in object. Used for page lookup
+    MmPageMap_t* maps;     // Mappings of this page
     struct _page* next;    // Links to track this page on a list of free / resident pages
     struct _page* prev;
 } MmPage_t;
@@ -105,11 +116,8 @@ MmPage_t* MmAllocPage();
 // Technically the page is usable, but only in certain situations (e.g., MMIO)
 MmPage_t* MmFindPagePfn (pfn_t pfn);
 
-// References a page
-void MmRefPage (MmPage_t* page);
-
-// Dereferences a page
-void MmDeRefPage (MmPage_t* page);
+// Frees a page
+void MmFreePage (MmPage_t* page);
 
 // Dereferences a page
 
@@ -248,8 +256,8 @@ MmSpace_t* MmGetCurrentSpace();
 // Fault entry point
 bool MmPageFault (uintptr_t vaddr, int prot);
 
-// Brings a page into memory during a page fault
-bool MmPageFaultIn (MmObject_t* obj, size_t offset, int prot);
+// Faults a page in
+bool MmPageFaultIn (MmObject_t* obj, size_t offset, int* prot, MmPage_t** page);
 
 // MUL basic interfaces
 
@@ -285,5 +293,19 @@ void MmMulCreateSpace (MmSpace_t* space);
 
 // Destroys an MUL address space
 void MmMulDestroySpace (MmSpace_t* space);
+
+// Page mapping management
+typedef struct _mmpgmap
+{
+    MmSpace_t* space;         // Address space this mapping resides in
+    uintptr_t addr;           // Address of mapping in address space
+    struct _mmpgmap* next;    // Pointer for list
+} MmPageMap_t;
+
+// Adds mapping to page
+void MmPageAddMap (MmPage_t* page, MmSpace_t* space, uintptr_t addr);
+
+// Clears mappings from page
+void MmPageClearMaps (MmPage_t* page);
 
 #endif

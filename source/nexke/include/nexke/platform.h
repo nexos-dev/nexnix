@@ -30,6 +30,9 @@ void PltInitDrvs();
 // Initialize phase 2
 void PltInitPhase2();
 
+// Initialize phase 3
+void PltInitPhase3();
+
 // Early console structure
 typedef struct _nkcons
 {

@@ -34,6 +34,8 @@ static SlabCache_t* mmFakePageCache = NULL;    // Fake page cache
 
 static MmZone_t* freeHint = NULL;    // Free zone hint
 
+static SlabCache_t* mmPageMapCache = NULL;
+
 // Informational variables
 static uintmax_t mmNumPages = 0;     // Number of pages in system
 static uintmax_t mmFreePages = 0;    // Number of free pages in system
@@ -45,7 +47,6 @@ static void mmInitPage (MmPage_t* page, pfn_t pfn, MmZone_t* zone)
     page->pfn = pfn;
     page->state = MM_PAGE_STATE_FREE;
     page->prev = NULL;
-    page->refCount = 0;
     if (zone->freeList)
         zone->freeList->prev = page;
     page->next = zone->freeList;
@@ -233,7 +234,7 @@ static MmZone_t* mmZoneFindByPfn (pfn_t pfn)
 }
 
 // Frees an MmPage
-static void mmFreePage (MmPage_t* page)
+void MmFreePage (MmPage_t* page)
 {
     // Don't free an unusable page
     if (page->state == MM_PAGE_STATE_UNUSABLE)
@@ -241,7 +242,6 @@ static void mmFreePage (MmPage_t* page)
     else
     {
         MmZone_t* zone = page->zone;
-        --page->refCount;
         // Add to free list
         if (zone->freeList)
             zone->freeList->prev = page;
@@ -274,24 +274,8 @@ MmPage_t* MmAllocPage()
     // Update state fields
     --zone->freeCount;
     --mmFreePages;
-    // Reference page
-    ++page->refCount;
     page->state = MM_PAGE_STATE_IN_OBJECT;
     return page;    // Return this page
-}
-
-// References a page
-void MmRefPage (MmPage_t* page)
-{
-    ++page->refCount;
-}
-
-// Dereferences a page
-void MmDeRefPage (MmPage_t* page)
-{
-    --page->refCount;
-    if (!page->refCount)
-        mmFreePage (page);
 }
 
 // Finds/creates page structure at specified PFN
@@ -316,7 +300,6 @@ MmPage_t* MmFindPagePfn (pfn_t pfn)
         NkPanic ("nexke: out of memory\n");
     memset (page, 0, sizeof (MmPage_t));
     page->state = MM_PAGE_STATE_UNUSABLE;
-    ++page->refCount;
     return page;
 }
 
@@ -354,7 +337,6 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
                     page->prev->next = page->prev;
                 if (page == zone->freeList)
                     zone->freeList = page->next;
-                page->refCount = 1;
                 page->state = MM_PAGE_STATE_IN_OBJECT;
             }
             // Update stats
@@ -370,7 +352,7 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
 void MmFreePages (MmPage_t* pages, size_t count)
 {
     for (int i = 0; i < count; ++i)
-        MmDeRefPage (&pages[i]);
+        MmFreePage (&pages[i]);
 }
 
 #define MM_GET_BUCKET(off) (((off) / NEXKE_CPU_PAGESZ) % MM_MAX_BUCKETS)
@@ -421,6 +403,30 @@ void MmRemovePage (MmPageList_t* list, MmPage_t* page)
     if (page->prev)
         page->prev->next = page->next;
     page->offset = 0;    // For error checking
+}
+
+// Adds mapping to page
+void MmPageAddMap (MmPage_t* page, MmSpace_t* space, uintptr_t addr)
+{
+    // Allocate page map
+    MmPageMap_t* map = MmCacheAlloc (mmPageMapCache);
+    map->addr = addr;
+    map->space = space;
+    map->next = page->maps;
+    page->maps = map;
+}
+
+// Clears mappings from page
+void MmPageClearMaps (MmPage_t* page)
+{
+    MmPageMap_t* map = page->maps;
+    while (map)
+    {
+        MmMulUnmapPage (map->space, map->addr);
+        MmPageMap_t* tmp = map;
+        map = map->next;
+        MmCacheFree (mmPageMapCache, tmp);
+    }
 }
 
 static char* zonesFlags[] = {"MM_ZONE_KERNEL ",
@@ -625,6 +631,9 @@ void MmInitPage()
     // Create fake page cache
     mmFakePageCache = MmCacheCreate (sizeof (MmPage_t), NULL, NULL);
     assert (mmFakePageCache);
+    // Create page map cache
+    mmPageMapCache = MmCacheCreate (sizeof (MmPageMap_t), NULL, NULL);
+    assert (mmPageMapCache);
 }
 
 // Dumps out page debugging info

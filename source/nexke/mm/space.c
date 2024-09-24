@@ -99,7 +99,7 @@ MmSpaceEntry_t* MmAllocSpace (MmSpace_t* as, MmObject_t* obj, uintptr_t hintAddr
     // If we reached the end without finding a region, there may be space at end of address space
     if (!entryFound)
     {
-        if ((as->endAddr - curAddr) >= (numPages * NEXKE_CPU_PAGESZ))
+        if (CpuPageAlignUp ((as->endAddr - curAddr)) >= (numPages * NEXKE_CPU_PAGESZ))
         {
             // We do have space at end
             entryFound = true;

@@ -70,7 +70,7 @@ void MmDeRefObject (MmObject_t* object)
             MmPage_t* iter = object->pageList.hashList[i];
             while (iter)
             {
-                MmDeRefPage (iter);
+                MmFreePage (iter);
                 iter = iter->next;
             }
         }

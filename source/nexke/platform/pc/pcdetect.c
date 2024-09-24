@@ -59,6 +59,11 @@ void PltInitPhase2()
 {
     PltInitHwInts();
     PltInitInterrupts();
+}
+
+// Initialize phase 3
+void PltInitPhase3()
+{
     PltInitClock();
     PltInitTimer();
 }

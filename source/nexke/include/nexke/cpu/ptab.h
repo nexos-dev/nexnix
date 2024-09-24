@@ -45,6 +45,9 @@ typedef struct _mmspace
     int lowPrioCount;                 // Number of low priority PT cache entries available
     bool tlbUpdatePending;            // Is a TLB update pending?
                                       // Used to lazily update the TLB on CPUs where that is slow
+#ifdef NEXNIX_ARCH_I386
+    int keVersion;    // Kernel page table version
+#endif
 } MmMulSpace_t;
 
 // Initializes page table manager

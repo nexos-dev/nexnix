@@ -73,7 +73,7 @@ static void* pltAcpiFindTableFw (const char* sig)
     if (xsdt)
     {
         // Get number of entries
-        size_t numEntries = (xsdt->length / sizeof (uint64_t)) - sizeof (AcpiSdt_t);
+        size_t numEntries = (xsdt->length - sizeof (AcpiSdt_t)) / sizeof (uint64_t);
         uint64_t* tables =
             (uint64_t*) ((uintptr_t) xsdt + sizeof (AcpiSdt_t));    // Get pointer to table array
         for (int i = 0; i < numEntries; ++i)

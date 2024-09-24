@@ -56,9 +56,9 @@ static const char* cpuExecNameTab[] = {"division by zero",
 static bool CpuPageFault (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 {
     size_t err = ctx->errCode;
-    int protMask = MUL_PAGE_KE;    // The flags that caused the fault
+    int protMask = MUL_PAGE_KE | MUL_PAGE_P;    // The flags that caused the fault
     if (err & CPU_PF_P)
-        protMask |= MUL_PAGE_P;
+        protMask &= ~(MUL_PAGE_P);
     if (err & CPU_PF_W)
         protMask |= MUL_PAGE_RW;
     if (err & CPU_PF_U)
@@ -66,8 +66,7 @@ static bool CpuPageFault (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
     if (err & CPU_PF_IF)
         protMask |= MUL_PAGE_X;
     assert (!(err & CPU_PF_RESVD));    // There shouldn't be a reserved bit violation ever
-    MmPageFault (CpuReadCr2(), protMask);
-    return false;
+    return MmPageFault (CpuReadCr2(), protMask);
 }
 
 // Gets exception diagnostic info

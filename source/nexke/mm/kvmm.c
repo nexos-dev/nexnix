@@ -55,6 +55,7 @@ typedef struct _kvarena
     MmKvBucket_t buckets[MM_KV_MAX_BUCKETS];    // Memory buckets
     size_t numPages;                            // Number of pages in arena
     size_t numFreePages;
+    bool needsMap;    // Whether this arena is pre-mapped
 
     MmKvRegion_t* freeList;    // Free list of pages
     size_t freeListSz;         // Number of pages in free list currently
@@ -138,7 +139,8 @@ static int mmKvGetBucket (size_t sz)
 static MmKvRegion_t* mmKvGetRegion (MmKvArena_t* arena, uintptr_t addr)
 {
     // Get offset in page count
-    pfn_t pageOffset = (addr - arena->start) / NEXKE_CPU_PAGESZ;
+    pfn_t pageOffset =
+        (addr - (arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ))) / NEXKE_CPU_PAGESZ;
     // Map into reserved area
     return (MmKvRegion_t*) arena->resvdStart + pageOffset;
 }
@@ -147,7 +149,9 @@ static MmKvRegion_t* mmKvGetRegion (MmKvArena_t* arena, uintptr_t addr)
 static MmKvFooter_t* mmKvGetRegionFooter (MmKvArena_t* arena, uintptr_t base, size_t sz)
 {
     // Get offset in page count
-    pfn_t pageOffset = ((base - arena->start) / NEXKE_CPU_PAGESZ) + (sz - 1);
+    pfn_t pageOffset =
+        ((base - (arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ))) / NEXKE_CPU_PAGESZ) +
+        (sz - 1);
     // Map into reserved area
     return (MmKvFooter_t*) (arena->resvdStart + (pageOffset * sizeof (MmKvRegion_t)));
 }
@@ -164,6 +168,7 @@ void MmInitKvm1()
     // Figure out how many pages we need to reserve
     MmKvArena_t* arena = (MmKvArena_t*) bootPoolBase;
     memset (arena, 0, sizeof (MmKvArena_t));
+    arena->needsMap = false;
     arena->resvdStart = bootPoolBase + sizeof (MmKvArena_t);
     arena->resvdSz =
         CpuPageAlignUp ((((bootInfo->memPoolSize / NEXKE_CPU_PAGESZ) * sizeof (MmKvRegion_t)) +
@@ -177,12 +182,15 @@ void MmInitKvm1()
     for (int i = 0; i < MM_KV_MAX_BUCKETS; ++i)
         arena->buckets[i].bucketNum = i;
     // Create a region for the entire arena
-    MmKvRegion_t* firstRegion = mmKvGetRegion (arena, bootPoolBase);
+    MmKvRegion_t* firstRegion =
+        mmKvGetRegion (arena, arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ));
     firstRegion->next = firstRegion->prev = NULL;
     firstRegion->numPages = arena->numPages;
     firstRegion->vaddr = arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ);
     // Create footer
-    MmKvFooter_t* footer = mmKvGetRegionFooter (arena, bootPoolBase, firstRegion->numPages);
+    MmKvFooter_t* footer = mmKvGetRegionFooter (arena,
+                                                arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ),
+                                                firstRegion->numPages);
     footer->magic = MM_KV_FOOTER_MAGIC;
     footer->regionSz = firstRegion->numPages;
     // Add to bucket
@@ -203,10 +211,39 @@ void MmInitKvm2()
         MmCreateObject (numPages, MM_BACKEND_KERNEL, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_RW);
     assert (object);
     kmemSpace.entryList = MmAllocSpace (&kmemSpace, object, NEXKE_KERNEL_ADDR_START, numPages);
-    // Map in first page of arena
-    MmBackendPageIn (object, 0);
     // Create new arena
     MmKvArena_t* arena = (MmKvArena_t*) kmemSpace.startAddr;
+    memset (arena, 0, sizeof (MmKvArena_t));
+    arena->needsMap = true;
+    arena->resvdStart = kmemSpace.startAddr + sizeof (MmKvArena_t);
+    arena->resvdSz =
+        CpuPageAlignUp (((((kmemSpace.endAddr - kmemSpace.startAddr) / NEXKE_CPU_PAGESZ) *
+                          sizeof (MmKvRegion_t)) +
+                         sizeof (MmKvArena_t))) /
+        NEXKE_CPU_PAGESZ;
+    arena->start = kmemSpace.startAddr;
+    arena->end = kmemSpace.endAddr;
+    arena->numPages =
+        ((kmemSpace.endAddr - kmemSpace.startAddr) / NEXKE_CPU_PAGESZ) - arena->resvdSz;
+    arena->numFreePages = arena->numPages;
+    // Initialize buckets
+    for (int i = 0; i < MM_KV_MAX_BUCKETS; ++i)
+        arena->buckets[i].bucketNum = i;
+    // Create a region for the entire arena
+    MmKvRegion_t* firstRegion =
+        mmKvGetRegion (arena, kmemSpace.startAddr + (arena->resvdSz * NEXKE_CPU_PAGESZ));
+    firstRegion->next = firstRegion->prev = NULL;
+    firstRegion->numPages = arena->numPages;
+    firstRegion->vaddr = arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ);
+    // Create footer
+    MmKvFooter_t* footer =
+        mmKvGetRegionFooter (arena,
+                             kmemSpace.startAddr + (arena->resvdSz * NEXKE_CPU_PAGESZ),
+                             firstRegion->numPages);
+    footer->magic = MM_KV_FOOTER_MAGIC;
+    footer->regionSz = firstRegion->numPages;
+    // Add to bucket
+    arena->buckets[MM_BUCKET_32PLUS].regionList = firstRegion;
     mmKvAddArena (arena);
 }
 
@@ -306,8 +343,47 @@ void* mmAllocKvInArena (MmKvArena_t* arena, size_t numPages)
     return (void*) foundRegion->vaddr;
 }
 
+// Brings memory in for region
+void mmKvGetMemory (void* p, size_t numPages)
+{
+    // Get base offset
+    uintptr_t offset = (uintptr_t) p - kmemSpace.startAddr;
+    MmObject_t* kmemObj = kmemSpace.entryList->obj;
+    for (int i = 0; i < numPages; ++i)
+    {
+        MmPage_t* pg = MmAllocPage();
+        if (!pg)
+            NkPanicOom();
+        MmAddPage (&kmemObj->pageList, pg, offset + (i * NEXKE_CPU_PAGESZ));
+        MmMulMapPage (&kmemSpace,
+                      (uintptr_t) p + (i * NEXKE_CPU_PAGESZ),
+                      pg,
+                      MUL_PAGE_KE | MUL_PAGE_RW | MUL_PAGE_R);
+        MmBackendPageIn (kmemObj, offset + (i * NEXKE_CPU_PAGESZ));
+    }
+}
+
+// Frees memory for page
+void mmKvFreeMemory (void* p, size_t numPages)
+{
+    assert (kmemSpace.startAddr == kmemSpace.entryList->vaddr);
+    size_t offset = (size_t) p - kmemSpace.startAddr;
+    MmObject_t* kmemObj = kmemSpace.entryList->obj;
+    for (int i = 0; i < numPages; ++i)
+    {
+        MmPage_t* page = MmLookupPage (&kmemObj->pageList, offset);
+        if (page)
+        {
+            // Free it
+            MmPageClearMaps (page);
+            MmFreePage (page);
+        }
+        offset += NEXKE_CPU_PAGESZ;
+    }
+}
+
 // Allocates a region of memory
-void* MmAllocKvRegion (size_t numPages)
+void* MmAllocKvRegion (size_t numPages, int flags)
 {
     // Find arena that has enough free pages
     MmKvArena_t* arena = mmArenas;
@@ -317,7 +393,14 @@ void* MmAllocKvRegion (size_t numPages)
         {
             void* p = mmAllocKvInArena (arena, numPages);
             if (p)
+            {
+                if (!(flags & MM_KV_NO_DEMAND) && arena->needsMap)
+                {
+                    // Go ahead and bring in pages for this memory region
+                    mmKvGetMemory (p, numPages);
+                }
                 return p;
+            }
         }
         arena = arena->next;
     }
@@ -331,6 +414,7 @@ void MmFreeKvRegion (void* mem)
     MmKvArena_t* arena = mmKvGetArena (mem);
     // Get region header
     MmKvRegion_t* region = mmKvGetRegion (arena, (uintptr_t) mem);
+    size_t numPages = region->numPages;
     region->isFree = true;
     arena->numFreePages += region->numPages;
     // Check if we need to join this block with any adjacent blocks
@@ -371,12 +455,15 @@ void MmFreeKvRegion (void* mem)
     }
     // Add region to appropriate bucket
     mmKvAddToBucket (&arena->buckets[mmKvGetBucket (region->numPages)], region);
+    // Unmap and free memory
+    if (arena->needsMap)
+        mmKvFreeMemory (mem, numPages);
 }
 
 // Allocates a memory page for kernel
 void* MmAllocKvPage()
 {
-    return MmAllocKvRegion (1);
+    return MmAllocKvRegion (1, MM_KV_NO_DEMAND);
 }
 
 // Frees a memory page for kernel
@@ -389,6 +476,32 @@ void MmFreeKvPage (void* page)
 MmSpace_t* MmGetKernelSpace()
 {
     return &kmemSpace;
+}
+
+// Maps in MMIO / FW memory
+void* MmAllocKvMmio (void* phys, int numPages, int perm)
+{
+    // Allocate number of virtual pages for this memory
+    void* virt = MmAllocKvRegion (numPages, 0);
+    if (!virt)
+        NkPanicOom();
+    uintptr_t off = (uintptr_t) virt - kmemSpace.startAddr;
+    // Loop through every page and map and add it
+    pfn_t curPfn = (pfn_t) phys;
+    for (int i = 0; i < numPages; ++i)
+    {
+        MmPage_t* page = MmFindPagePfn (curPfn);
+        assert (page);
+        MmAddPage (&kmemSpace.entryList->obj->pageList, page, off + i * (NEXKE_CPU_PAGESZ));
+        MmMulMapPage (&kmemSpace, virt + (i * NEXKE_CPU_PAGESZ), page, perm);
+    }
+    return virt;
+}
+
+// Unmaps MMIO / FW memory
+void MmFreeKvmMmio (void* virt)
+{
+    MmFreeKvRegion (virt);
 }
 
 // Kernel backend functions
@@ -405,17 +518,6 @@ bool KvmDestroyObj (MmObject_t* obj)
 
 bool KvmPageIn (MmObject_t* obj, uintptr_t offset)
 {
-    // Allocate a physical page
-    MmPage_t* physPage = MmAllocPage();
-    if (!physPage)
-        return NULL;
-    // Add to object
-    MmAddPage (&obj->pageList, physPage, offset);
-    // Map into virtual address space
-    MmMulMapPage (&kmemSpace,
-                  kmemSpace.startAddr + offset,
-                  physPage,
-                  MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     return true;
 }
 

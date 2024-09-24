@@ -97,16 +97,15 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
     // Initialize CCB
     CpuInitCcb();
-    // Initialize MM phase 2
-    MmInitPhase2();
     // Initialize phase 2 of platform
     PltInitPhase2();
+    // Initialize MM phase 2
+    MmInitPhase2();
+    // Initialize phase 3 of platform
+    PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    void* p = MmAllocKvRegion (4);
-    void* p2 = MmAllocKvRegion (6);
-    MmFreeKvRegion (p);
-    MmFreeKvRegion (p2);
+    PltAcpiFindTable ("FACP");
     for (;;)
         ;
 }

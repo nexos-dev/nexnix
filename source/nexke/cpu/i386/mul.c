@@ -15,17 +15,18 @@
     limitations under the License.
 */
 
+#include <assert.h>
 #include <nexke/cpu.h>
 #include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
 
-// Kernel page directory template
-static pte_t* mulKePgDir = NULL;
-
 // Is INVLPG support?
 static bool isInvlpg = false;
+
+// Kernel directory version
+static int mulKeVersion = 0;
 
 // Flushes whole TLB
 void MmMulFlushTlb()
@@ -50,8 +51,9 @@ void MmMulInit()
     paddr_t cacheTab = pd[MUL_IDX_LEVEL (MUL_PTCACHE_TABLE_BASE, 2)] & PT_FRAME;
     MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Map kernel directory
-    mulKePgDir = (pte_t*) NEXKE_KERNEL_DIRBASE;
-    MmMulMapEarly ((uintptr_t) mulKePgDir, (paddr_t) pd, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    MmMulMapEarly ((uintptr_t) NEXKE_KERNEL_DIRBASE,
+                   (paddr_t) pd,
+                   MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Clear out all user PDEs
     memset (pd, 0, MUL_MAX_USER * sizeof (pte_t));
     // Write out CR3 to flush TLB
@@ -61,6 +63,7 @@ void MmMulInit()
         isInvlpg = true;
     // Set base of directory
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pd;
+    MmGetKernelSpace()->mulSpace.keVersion = 0;
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -79,7 +82,11 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     // Figure out if this is a kernel address
     bool isKernel = false;
     if (addr >= NEXKE_KERNEL_BASE)
+    {
         isKernel = true;
+        assert (space == MmGetKernelSpace());
+        ++mulKeVersion;
+    }
     else
         isKernel = false;
     // Allocate the table
@@ -145,6 +152,8 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
                 MmMulFlushTlb();
         }
     }
+    // Add mapping to this page
+    MmPageAddMap (page, space, virt);
 }
 
 // Unmaps page out of address space

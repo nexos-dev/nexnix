@@ -140,6 +140,8 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlush (virt);
+    // Add mapping to this page
+    MmPageAddMap (page, space, virt);
 }
 
 // Unmaps page out of address space
