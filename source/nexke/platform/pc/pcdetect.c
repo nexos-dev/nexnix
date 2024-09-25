@@ -25,11 +25,14 @@ extern NkConsole_t vgaCons;
 extern NkConsole_t uartCons;
 extern NkConsole_t fbCons;
 
-static NkPlatform_t nkPlatform = {.type = PLT_TYPE_PC, .subType = PLT_PC_SUBTYPE_ISA};
+static NkPlatform_t nkPlatform = {0};
 
 // Initialize boot drivers
 void PltInitDrvs()
 {
+    // Initialize platform
+    nkPlatform.type = PLT_TYPE_PC;
+    nkPlatform.subType = PLT_PC_SUBTYPE_ISA;
     NexNixBoot_t* boot = NkGetBootArgs();
     // Figure out whether we are in a graphical mode or VGA text mode
     if (boot->displayDefault)

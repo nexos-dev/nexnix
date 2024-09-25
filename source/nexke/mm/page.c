@@ -237,7 +237,7 @@ static MmZone_t* mmZoneFindByPfn (pfn_t pfn)
 void MmFreePage (MmPage_t* page)
 {
     // Don't free an unusable page
-    if (page->state == MM_PAGE_STATE_UNUSABLE)
+    if (page->state == MM_PAGE_STATE_UNUSABLE && !page->zone)
         MmCacheFree (mmFakePageCache, page);
     else
     {
@@ -300,6 +300,7 @@ MmPage_t* MmFindPagePfn (pfn_t pfn)
         NkPanic ("nexke: out of memory\n");
     memset (page, 0, sizeof (MmPage_t));
     page->state = MM_PAGE_STATE_UNUSABLE;
+    page->pfn = pfn;
     return page;
 }
 
@@ -427,6 +428,7 @@ void MmPageClearMaps (MmPage_t* page)
         map = map->next;
         MmCacheFree (mmPageMapCache, tmp);
     }
+    page->maps = NULL;
 }
 
 static char* zonesFlags[] = {"MM_ZONE_KERNEL ",

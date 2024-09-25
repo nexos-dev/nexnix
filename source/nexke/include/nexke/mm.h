@@ -52,6 +52,12 @@ void* MmAllocKvPage();
 // Frees a memory page for kernel
 void MmFreeKvPage (void* page);
 
+// Maps in MMIO / FW memory
+void* MmAllocKvMmio (void* phys, int numPages, int perm);
+
+// Unmaps MMIO / FW memory
+void MmFreeKvMmio (void* virt);
+
 // Page management
 
 typedef paddr_t pfn_t;

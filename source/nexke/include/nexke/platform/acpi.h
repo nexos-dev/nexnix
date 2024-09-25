@@ -187,9 +187,8 @@ typedef struct _spcr
 // ACPI table cache entry
 typedef struct _acpicache
 {
-    struct _acpicache* next;    // Forward and backward pointers
-    struct _acpicache* prev;
-    AcpiSdt_t table;    // Actual table data, which is after this struct
+    struct _acpicache* next;    // Forward pointer
+    AcpiSdt_t* table;           // Actual table data, which is after this struct
 } AcpiCacheEnt_t;
 
 // Initalizes ACPI

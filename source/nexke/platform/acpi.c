@@ -22,6 +22,8 @@
 #include <nexke/platform.h>
 #include <string.h>
 
+static SlabCache_t* acpiCache = NULL;
+
 // Initializes ACPI
 bool PltAcpiInit()
 {
@@ -38,6 +40,9 @@ bool PltAcpiInit()
     memcpy (&PltGetPlatform()->rsdp, rsdp, sizeof (AcpiRsdp_t));
     // Say we are ACPI
     PltGetPlatform()->subType = PLT_PC_SUBTYPE_ACPI;
+    // Setup cache
+    acpiCache = MmCacheCreate (sizeof (AcpiCacheEnt_t), NULL, NULL);
+    assert (acpiCache);
     return true;
 }
 
@@ -47,15 +52,27 @@ static AcpiCacheEnt_t* pltAcpiFindCache (const char* sig)
     AcpiCacheEnt_t* curEnt = PltGetPlatform()->tableCache;
     while (curEnt)
     {
-        if (!strcmp (curEnt->table.sig, sig))    // Check signature
+        if (!strcmp (curEnt->table->sig, sig))    // Check signature
             return curEnt;
         curEnt = curEnt->next;
     }
     return NULL;    // Table not cached
 }
 
+// Caches ACPI table
+static void pltAcpiCacheTable (AcpiSdt_t* sdt)
+{
+    // Create cache entry
+    AcpiCacheEnt_t* cacheEnt = MmCacheAlloc (acpiCache);
+    if (!cacheEnt)
+        NkPanicOom();
+    cacheEnt->table = sdt;
+    cacheEnt->next = PltGetPlatform()->tableCache;
+    PltGetPlatform()->tableCache = cacheEnt;
+}
+
 // Gets table from firmware
-static void* pltAcpiFindTableFw (const char* sig)
+static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
 {
     // Special case for RSDT or XSDT
     if (!strcmp (sig, "XSDT"))
@@ -64,10 +81,25 @@ static void* pltAcpiFindTableFw (const char* sig)
         AcpiRsdp_t* rsdp = &PltGetPlatform()->rsdp;
         if (rsdp->rev < 2)
             return NULL;
+        // Map it so we have the length
+        AcpiSdt_t* sdt = MmAllocKvMmio ((void*) rsdp->xsdtAddr, 1, MUL_PAGE_KE | MUL_PAGE_R);
+        if (!sdt)
+            NkPanicOom();
+        *len = sdt->length;
+        MmFreeKvMmio (sdt);
         return (void*) rsdp->xsdtAddr;
     }
     else if (!strcmp (sig, "RSDT"))
+    {
+        // Map it so we have the length
+        AcpiSdt_t* sdt =
+            MmAllocKvMmio ((void*) PltGetPlatform()->rsdp.rsdtAddr, 1, MUL_PAGE_KE | MUL_PAGE_R);
+        if (!sdt)
+            NkPanicOom();
+        *len = sdt->length;
+        MmFreeKvMmio (sdt);
         return (void*) PltGetPlatform()->rsdp.rsdtAddr;
+    }
     // Otherwise get the RSDT or XSDT and search it
     AcpiSdt_t* xsdt = PltAcpiFindTable ("XSDT");
     if (xsdt)
@@ -78,8 +110,45 @@ static void* pltAcpiFindTableFw (const char* sig)
             (uint64_t*) ((uintptr_t) xsdt + sizeof (AcpiSdt_t));    // Get pointer to table array
         for (int i = 0; i < numEntries; ++i)
         {
+            void* table = (void*) tables[i];
+            // Map this table
+            AcpiSdt_t* sdt = (AcpiSdt_t*) MmAllocKvMmio (table, 1, MUL_PAGE_KE | MUL_PAGE_R);
+            if (!sdt)
+                NkPanicOom();
+            if (!strcmp (sdt->sig, sig))
+            {
+                // Unmap and return, and set length
+                *len = sdt->length;
+                MmFreeKvMmio (sdt);
+                return table;
+            }
         }
     }
+    else
+    {
+        AcpiSdt_t* rsdt = PltAcpiFindTable ("RSDT");
+        assert (rsdt);
+        // Get number of entries
+        size_t numEntries = (rsdt->length - sizeof (AcpiSdt_t)) / sizeof (uint32_t);
+        uint32_t* tables =
+            (uint32_t*) ((uintptr_t) rsdt + sizeof (AcpiSdt_t));    // Get pointer to table array
+        for (int i = 0; i < numEntries; ++i)
+        {
+            void* table = (void*) tables[i];
+            // Map this table
+            AcpiSdt_t* sdt = (AcpiSdt_t*) MmAllocKvMmio (table, 1, MUL_PAGE_KE | MUL_PAGE_R);
+            if (!sdt)
+                NkPanicOom();
+            if (!memcmp (sdt->sig, sig, 4))
+            {
+                // Unmap and return
+                *len = sdt->length;
+                MmFreeKvMmio (sdt);
+                return (void*) table;
+            }
+        }
+    }
+    return NULL;
 }
 
 // Finds an ACPI table
@@ -92,9 +161,19 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig)
     // First we need to check the cache for an entry
     AcpiCacheEnt_t* ent = pltAcpiFindCache (sig);
     if (ent)
-        return &ent->table;    // We're done
+        return ent->table;    // We're done
     // Table not cached, we first need to get the table from the FW
     // and map, and then add it to the cache
-    void* tablePhys = pltAcpiFindTableFw (sig);
-    return NULL;
+    uint32_t len = 0;
+    void* tablePhys = pltAcpiFindTableFw (sig, &len);
+    if (!tablePhys)
+        return NULL;
+    // Map it and then cache it
+    AcpiSdt_t* res = MmAllocKvMmio (tablePhys,
+                                    CpuPageAlignUp (len) / NEXKE_CPU_PAGESZ,
+                                    MUL_PAGE_KE | MUL_PAGE_R);
+    if (!res)
+        NkPanicOom();
+    pltAcpiCacheTable (res);
+    return res;
 }
