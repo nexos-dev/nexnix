@@ -105,6 +105,9 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
+    MmSpace_t* space = MmCreateSpace();
+    MmAllocSpace (space, NULL, 0x43505, 12);
+    MmAllocSpace (space, NULL, 0x43505, 12);
     for (;;)
         ;
 }

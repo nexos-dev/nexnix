@@ -232,7 +232,9 @@ typedef struct _memspace
 {
     uintptr_t startAddr;          // Address the address space starts at
     uintptr_t endAddr;            // End address
+    size_t numEntries;            // Number of entries
     MmSpaceEntry_t* entryList;    // List of address space entries
+    MmSpaceEntry_t* faultHint;    // Last faulting area
     MmMulSpace_t mulSpace;        // MUL address space
 } MmSpace_t;
 
@@ -243,13 +245,19 @@ MmSpace_t* MmCreateSpace();
 void MmDestroySpace();
 
 // Allocates an address space entry
-MmSpaceEntry_t* MmAllocSpace (MmSpace_t* as, MmObject_t* obj, uintptr_t hintAddr, size_t numPages);
+MmSpaceEntry_t* MmAllocSpace (MmSpace_t* space,
+                              MmObject_t* obj,
+                              uintptr_t hintAddr,
+                              size_t numPages);
 
 // Frees an address space entry
-void MmFreeSpace (MmSpace_t* as, MmSpaceEntry_t* entry);
+void MmFreeSpace (MmSpace_t* space, MmSpaceEntry_t* entry);
 
-// Finds address space entry for given address
-MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* as, uintptr_t addr);
+// Finds address space entry for given address, or immediatley preceding entry
+MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* space, uintptr_t addr);
+
+// Finds faulting entry
+MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr);
 
 // Dumps address space
 void MmDumpSpace (MmSpace_t* as);
@@ -259,6 +267,9 @@ void MmInitKvm1();
 
 // Second phase KVM init
 void MmInitKvm2();
+
+// Creates kernel space
+void MmCreateKernelSpace (MmObject_t* kernelObj);
 
 // Returns kernel address space
 MmSpace_t* MmGetKernelSpace();

@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
+#include <string.h>
 
 // Address spaces start at 64 KiB so that null pointer references
 // always crash instead of causing corruption
@@ -30,138 +31,202 @@ static SlabCache_t* mmEntryCache = NULL;
 // Currently active address space
 static MmSpace_t* mmCurSpace = NULL;
 
+// Gets actual first entry, skipping over fake first entry
+static inline MmSpaceEntry_t* mmGetFirstEntry (MmSpace_t* space)
+{
+    return (space == MmGetKernelSpace()) ? space->entryList : space->entryList->next;
+}
+
+// Gets end of entry
+static inline uintptr_t mmEntryEnd (MmSpaceEntry_t* entry)
+{
+    return entry->vaddr + (entry->count * NEXKE_CPU_PAGESZ);
+}
+
 // Creates a new empty address space
 MmSpace_t* MmCreateSpace()
 {
     MmSpace_t* newSpace = MmCacheAlloc (mmSpaceCache);
+    memset (newSpace, 0, sizeof (MmSpace_t));
     if (!newSpace)
         NkPanic ("nexke: out of memory");
     newSpace->startAddr = MM_SPACE_USER_START;
     newSpace->endAddr = NEXKE_USER_ADDR_END;
+    // Create a fake entry
+    MmSpaceEntry_t* fake = MmCacheAlloc (mmEntryCache);
+    if (!fake)
+        NkPanicOom();
+    memset (fake, 0, sizeof (MmSpaceEntry_t));
+    fake->vaddr = newSpace->startAddr;
+    newSpace->entryList = fake;
+    // Create fake end
+    MmSpaceEntry_t* fakeEnd = MmCacheAlloc (mmEntryCache);
+    if (!fakeEnd)
+        NkPanicOom();
+    memset (fakeEnd, 0, sizeof (MmSpaceEntry_t));
+    fakeEnd->vaddr = newSpace->endAddr;
+    fakeEnd->prev = fake;
+    fake->next = fakeEnd;
     return newSpace;
 }
 
 // Destroys address space
 void MmDestroySpace (MmSpace_t* space)
 {
+    assert (space != MmGetKernelSpace());    // Can't operate on kernel space
     // Free every allocated space entry
     MmSpaceEntry_t* curEntry = space->entryList;
-    while (curEntry)
+    while (curEntry->vaddr != space->endAddr)
     {
         MmFreeSpace (space, curEntry);
         curEntry = curEntry->next;
     }
-    MmCacheFree (mmEntryCache, space);
+    // Free both fake entries
+    MmCacheFree (mmEntryCache, space->entryList->next);
+    MmCacheFree (mmEntryCache, space->entryList);
+    MmCacheFree (mmSpaceCache, space);
+}
+
+// Adds entry to space
+static void mmAddEntry (MmSpace_t* space, MmSpaceEntry_t* prec, MmSpaceEntry_t* new)
+{
+    new->next = prec->next;
+    new->prev = prec;
+    new->next->prev = new;
+    new->prev->next = new;
+    ++space->numEntries;
+}
+
+// Removes entry
+static void mmRemoveEntry (MmSpace_t* space, MmSpaceEntry_t* entry)
+{
+    entry->next->prev = entry->prev;
+    entry->prev->next = entry->next;
+    --space->numEntries;
+}
+
+// Finds free address based on hint. Returns preceding entry
+static MmSpaceEntry_t* mmFindFree (MmSpace_t* space, uintptr_t* addr, size_t numPages)
+{
+    uintptr_t hint = *addr;
+    if (hint > space->endAddr && hint < space->startAddr)
+        return NULL;    // Can't use out of bounds hint
+    // Find entry closest to hint
+    MmSpaceEntry_t* cur = NULL;
+    if (hint == 0)
+        cur = space->entryList;
+    else
+        cur = MmFindSpaceEntry (space, hint);
+    while (cur->vaddr != space->endAddr)
+    {
+        // See if there is enough free space after this entry
+        MmSpaceEntry_t* next = cur->next;
+        if (next->vaddr - mmEntryEnd (cur) >= (numPages * NEXKE_CPU_PAGESZ))
+        {
+            // If there was numPages between next entry start and current entry end and next entry
+            // start, use this hole
+            *addr = mmEntryEnd (cur);
+            return cur;
+        }
+        cur = next;
+    }
+    return NULL;
 }
 
 // Allocates an address space entry for object
-MmSpaceEntry_t* MmAllocSpace (MmSpace_t* as, MmObject_t* obj, uintptr_t hintAddr, size_t numPages)
+MmSpaceEntry_t* MmAllocSpace (MmSpace_t* space,
+                              MmObject_t* obj,
+                              uintptr_t hintAddr,
+                              size_t numPages)
 {
-    // Ensure hintAddr is before address space end and after start
-    if (hintAddr && (hintAddr >= as->endAddr || hintAddr < as->startAddr))
-        return NULL;
-    // Find a free hole, but first, advance to hintAddr
-    MmSpaceEntry_t* nextEntry = as->entryList;
-    MmSpaceEntry_t* lastEntry = nextEntry;
-    uintptr_t curAddr = as->startAddr;
-    while (nextEntry)
-    {
-        curAddr = nextEntry->vaddr + (nextEntry->count * NEXKE_CPU_PAGESZ);
-        // Check if this entry exceeds the hint
-        if ((nextEntry->vaddr + (nextEntry->count * NEXKE_CPU_PAGESZ)) >= hintAddr)
-            break;
-        lastEntry = nextEntry;
-        nextEntry = nextEntry->next;
-    }
-    bool entryFound = false;
-    // If loop to get us to hint reached end of list, then we don't need to find a free region
-    if (nextEntry)
-    {
-        while ((nextEntry = nextEntry->next) != NULL)
-        {
-            // Check if end of last entry is less than start of this entry
-            if ((nextEntry->vaddr - curAddr) >= (numPages * NEXKE_CPU_PAGESZ))
-            {
-                // This hole checks out
-                entryFound = true;
-                break;
-            }
-            lastEntry = nextEntry;
-            curAddr = nextEntry->vaddr + (nextEntry->count * NEXKE_CPU_PAGESZ);
-        }
-    }
-    // Figure out end of free region
-    uintptr_t freeAreaEnd = 0;
-    if (nextEntry)
-        freeAreaEnd = nextEntry->vaddr;
-    else
-        freeAreaEnd = as->endAddr;
-    // If we reached the end without finding a region, there may be space at end of address space
-    if (!entryFound)
-    {
-        if (CpuPageAlignUp ((as->endAddr - curAddr)) >= (numPages * NEXKE_CPU_PAGESZ))
-        {
-            // We do have space at end
-            entryFound = true;
-        }
-        else
-        {
-            // FIXME: if there was a hint address, we may end up ignoring potentially
-            // free memory under the hint address. This should be fixed
-            return NULL;
-        }
-    }
-    assert (entryFound);
-    // We found an address space entry, now we need to add it to the list
+    assert (space != MmGetKernelSpace());    // Can't operate on kernel space
+    // Get free space
+    uintptr_t addr = hintAddr;
+    MmSpaceEntry_t* prevEntry = mmFindFree (space, &addr, numPages);
+    if (!prevEntry)
+        return NULL;    // Not enough space
+    // Create a new entry
     MmSpaceEntry_t* newEntry = MmCacheAlloc (mmEntryCache);
     if (!newEntry)
         NkPanicOom();
-    // Figure out where to put this entry. If we have a hint, we would like to keep it at the
-    // hint if at all possible
-    if (hintAddr && hintAddr >= curAddr && hintAddr < freeAreaEnd)
-        newEntry->vaddr = hintAddr;
-    else
-        newEntry->vaddr = curAddr;
     newEntry->count = numPages;
+    newEntry->vaddr = addr;
     newEntry->obj = obj;
-    // Add to list
-    newEntry->next = nextEntry;
-    newEntry->prev = lastEntry;
-    if (newEntry->next)
-        newEntry->next->prev = newEntry;
-    if (newEntry->prev)
-        newEntry->prev->next = newEntry;
-    if (newEntry->prev == NULL)
-        as->entryList = newEntry;
+    mmAddEntry (space, prevEntry, newEntry);
     return newEntry;
 }
 
 // Frees an address space entry
-void MmFreeSpace (MmSpace_t* as, MmSpaceEntry_t* entry)
+void MmFreeSpace (MmSpace_t* space, MmSpaceEntry_t* entry)
 {
-    // Remove from list of entries
-    if (entry->next)
-        entry->next->prev = entry->prev;
-    if (entry->prev)
-        entry->prev->next = entry->next;
-    if (entry == as->entryList)
-        as->entryList = entry->next;
-    // Free entry
+    assert (space != MmGetKernelSpace());    // Can't operate on kernel space
+    mmRemoveEntry (space, entry);
+    MmDeRefObject (entry->obj);
     MmCacheFree (mmEntryCache, entry);
 }
 
 // Finds address space entry for given address
-MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* as, uintptr_t addr)
+MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* space, uintptr_t addr)
 {
-    MmSpaceEntry_t* curEntry = as->entryList;
-    while (curEntry)
+    MmSpaceEntry_t* cur = space->entryList;
+    while (cur->vaddr != space->endAddr)
     {
-        uintptr_t entryEnd = curEntry->vaddr + (curEntry->count * NEXKE_CPU_PAGESZ);
-        if (addr >= curEntry->vaddr && addr < entryEnd)
-            return curEntry;    // Found it!
-        curEntry = curEntry->next;
+        // CHeck if we are inside this entry
+        uintptr_t curEnd = mmEntryEnd (cur);
+        if (cur->vaddr <= addr && curEnd >= addr)
+            return cur;    // We have a match
+        // Now check if this address is free and this entry precedes said free area
+        uintptr_t upperBound = cur->next->vaddr;
+        if (addr > curEnd && addr < upperBound)
+            return cur;    // Found preceding entry
+        // Check if we are done
+        if (upperBound > addr)
+            break;    // Nothing left to do
+        cur = cur->next;
     }
     return NULL;
+}
+
+// Finds faulting entry
+MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr)
+{
+    // Check hint
+    if (space->faultHint)
+    {
+        if (space->faultHint->vaddr <= addr && mmEntryEnd (space->faultHint) >= addr)
+            return space->faultHint;
+    }
+    // Find it
+    MmSpaceEntry_t* cur = space->entryList;
+    while (cur && cur->vaddr != space->endAddr)
+    {
+        // CHeck if we are inside this entry
+        if (cur->vaddr <= addr && mmEntryEnd (cur) >= addr)
+        {
+            space->faultHint = cur;
+            return cur;    // We have a match
+        }
+        cur = cur->next;
+    }
+    return NULL;
+}
+
+// Creates kernel space
+void MmCreateKernelSpace (MmObject_t* kernelObj)
+{
+    MmSpace_t* space = MmGetKernelSpace();
+    space->endAddr = NEXKE_KERNEL_ADDR_END;
+    space->startAddr = NEXKE_KERNEL_ADDR_START;
+    space->faultHint = NULL;
+    space->numEntries = 0;
+    // Create entry covering whole address space
+    MmSpaceEntry_t* entry = MmCacheAlloc (mmEntryCache);
+    entry->count = kernelObj->count;
+    entry->obj = kernelObj;
+    entry->vaddr = space->startAddr;
+    entry->next = NULL;
+    entry->prev = NULL;
+    space->entryList = entry;
 }
 
 // Gets active address space

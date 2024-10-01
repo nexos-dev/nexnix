@@ -202,15 +202,13 @@ void MmInitKvm1()
 // Second phase KVM init
 void MmInitKvm2()
 {
-    // Setup kernel MM space
-    kmemSpace.startAddr = NEXKE_KERNEL_ADDR_START;
-    kmemSpace.endAddr = NEXKE_KERNEL_ADDR_END;
-    size_t numPages = ((NEXKE_KERNEL_ADDR_END + 1) - NEXKE_KERNEL_ADDR_START) / NEXKE_CPU_PAGESZ;
     // Allocate object
+    size_t numPages = ((NEXKE_KERNEL_ADDR_END + 1) - NEXKE_KERNEL_ADDR_START) / NEXKE_CPU_PAGESZ;
     MmObject_t* object =
         MmCreateObject (numPages, MM_BACKEND_KERNEL, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_RW);
     assert (object);
-    kmemSpace.entryList = MmAllocSpace (&kmemSpace, object, NEXKE_KERNEL_ADDR_START, numPages);
+    // Create kernel space entry
+    MmCreateKernelSpace (object);
     // Create new arena
     MmKvArena_t* arena = (MmKvArena_t*) kmemSpace.startAddr;
     memset (arena, 0, sizeof (MmKvArena_t));

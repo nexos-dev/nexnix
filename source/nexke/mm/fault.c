@@ -30,7 +30,7 @@ bool MmPageFault (uintptr_t vaddr, int prot)
     if (prot & MUL_PAGE_KE)
         space = MmGetKernelSpace();
     // Find the address space entry for this address
-    MmSpaceEntry_t* entry = MmFindSpaceEntry (space, vaddr);
+    MmSpaceEntry_t* entry = MmFindFaultEntry (space, vaddr);
     if (!entry)
         return false;    // Page just doesn't exist
     assert (entry->obj);
