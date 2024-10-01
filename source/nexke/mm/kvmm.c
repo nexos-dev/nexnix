@@ -522,7 +522,7 @@ bool KvmDestroyObj (MmObject_t* obj)
 bool KvmPageIn (MmObject_t* obj, size_t offset, MmPage_t* page)
 {
     // Zero this page
-    MmMulZeroPage (MmGetCurrentSpace(), page);
+    MmMulZeroPage (page);
     return true;
 }
 

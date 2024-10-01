@@ -305,7 +305,7 @@ void MmMulChangePerm (MmSpace_t* space, uintptr_t virt, int perm);
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt);
 
 // Zeroes a page with the MUL
-void MmMulZeroPage (MmSpace_t* space, MmPage_t* page);
+void MmMulZeroPage (MmPage_t* page);
 
 // Creates an MUL address space
 void MmMulCreateSpace (MmSpace_t* space);

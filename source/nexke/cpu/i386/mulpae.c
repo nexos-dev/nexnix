@@ -83,9 +83,7 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     MmPage_t* pg = MmAllocPage();
     paddr_t tab = pg->pfn * NEXKE_CPU_PAGESZ;
     // Zero it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
-    memset (cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
-    MmPtabReturnCache (space, cacheEnt);
+    MmMulZeroPage (pg);
     // Add to page list
     MmAddPage (&space->mulSpace.tablePages, pg, addr - space->startAddr);
     // Set PTE
@@ -103,9 +101,7 @@ static paddr_t mulAllocDir (MmSpace_t* space, pdpte_t* ent)
     MmPage_t* pg = MmAllocPage();
     paddr_t tab = pg->pfn * NEXKE_CPU_PAGESZ;
     // Zero it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
-    memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
-    MmPtabReturnCache (space, cacheEnt);
+    MmMulZeroPage (pg);
     *ent = PF_P | tab;
     // Flush PDPTE registers on CPU
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
@@ -145,7 +141,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
         pgFlags &= ~(PF_NX);
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
     // Check if we need a new page directory
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space->mulSpace.base, 3);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     paddr_t pdir = 0;
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
@@ -157,7 +153,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     {
         pdir = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
     }
-    MmPtabReturnCache (space, cacheEnt);
+    MmPtabReturnCache (cacheEnt);
     MmPtabWalkAndMap (space, pdir, virt, pte);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
@@ -170,7 +166,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
     // Get page directory to unmap
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space->mulSpace.base, 3);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     // Check if it is valid
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
@@ -187,13 +183,13 @@ void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
     // Get page directory to unmap
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space->mulSpace.base, 3);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     // Check if it is valid
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
         NkPanic ("nexke: cannot unmap invalid address");
     paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
-    MmPtabReturnCache (space, cacheEnt);
+    MmPtabReturnCache (cacheEnt);
     // Grab address
     paddr_t addr = MmPtabGetPte (space, pdirAddr, virt) & PT_FRAME;
     return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
@@ -218,18 +214,20 @@ void MmMulChangePerm (MmSpace_t* space, uintptr_t virt, int perm)
     if (perm & MUL_PAGE_X)
         pgFlags &= ~(PF_NX);
     // Get page directory to unmap
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space->mulSpace.base, 3);
     pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
     // Check if it is valid
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
         NkPanic ("nexke: cannot unmap invalid address");
     paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
-    MmPtabReturnCache (space, cacheEnt);
+    MmPtabReturnCache (cacheEnt);
     MmPtabWalkAndChange (space, pdirAddr, virt, pgFlags);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlush (virt);
 }
+
+// MUL early
 
 static pte_t* mulAllocTabEarly (pde_t* pdir, uintptr_t virt, int flags)
 {
