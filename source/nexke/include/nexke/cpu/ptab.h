@@ -19,6 +19,7 @@
 #define _PTAB_H
 
 #include <nexke/cpu.h>
+#include <nexke/types.h>
 #include <stdbool.h>
 
 // Page table cache entry
@@ -33,9 +34,6 @@ typedef struct _ptcache
     struct _ptcache* prev;
 } MmPtCacheEnt_t;
 
-typedef struct _page MmPage_t;
-typedef struct _memspace MmSpace_t;
-
 typedef struct _mmspace
 {
     paddr_t base;                     // Physical base of top level table
@@ -45,6 +43,8 @@ typedef struct _mmspace
     int lowPrioCount;                 // Number of low priority PT cache entries available
     bool tlbUpdatePending;            // Is a TLB update pending?
                                       // Used to lazily update the TLB on CPUs where that is slow
+    int freeCount;                    // Free number of cache entries
+    MmPageList_t tablePages;          // Page table pages
 #ifdef NEXNIX_ARCH_I386
     int keVersion;    // Kernel page table version
 #endif
@@ -54,13 +54,16 @@ typedef struct _mmspace
 void MmPtabInit (int numLevels);
 
 // Walks to a page table entry and maps specfied value into it
-void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t pteVal);
+void MmPtabWalkAndMap (MmSpace_t* space, paddr_t as, uintptr_t vaddr, pte_t pteVal);
 
 // Walks to a page table entry and unmaps it
-void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr);
+void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t as, uintptr_t vaddr);
 
 // Walks to a page table entry and returns it
-pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr);
+pte_t MmPtabGetPte (MmSpace_t* space, paddr_t as, uintptr_t vaddr);
+
+// Walks to a page table entry and changes its protection
+void MmPtabWalkAndChange (MmSpace_t* space, paddr_t as, uintptr_t vaddr, pte_t perm);
 
 // Initializes PT cache in specified space
 void MmPtabInitCache (MmSpace_t* space);
@@ -70,6 +73,9 @@ MmPtCacheEnt_t* MmPtabGetCache (MmSpace_t* space, paddr_t ptab, bool highPrio);
 
 // Returns cache entry
 void MmPtabReturnCache (MmSpace_t* space, MmPtCacheEnt_t* cacheEnt);
+
+// Frees cache entry to free list
+void MmPtabFreeToCache (MmSpace_t* space, MmPtCacheEnt_t* cacheEnt);
 
 // Returns entry and gets new entry
 MmPtCacheEnt_t* MmPtabSwapCache (MmSpace_t* space,

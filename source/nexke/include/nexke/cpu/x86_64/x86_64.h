@@ -71,9 +71,7 @@ typedef struct _intctx
 
 #define CPU_CTX_INTNUM(ctx) ((ctx)->intNo)
 
-#include <nexke/cpu/x86_64/mul.h>
-
-#include <nexke/cpu/ptab.h>
 #include <nexke/cpu/x86/x86.h>
+#include <nexke/cpu/x86_64/mul.h>
 
 #endif

@@ -107,7 +107,6 @@ typedef struct _i386tss
 } CpuTss_t;
 
 #include <nexke/cpu/i386/mul.h>
-#include <nexke/cpu/ptab.h>
 #include <nexke/cpu/x86/x86.h>
 
 // Interrupt context

@@ -218,11 +218,11 @@ void PltTrapDispatch (CpuIntContext_t* context)
             // Handle
             ++intObj->callCount;
             intObj->handler (intObj, context);
+            CpuDisable();
             // End the interrupt
             platform->intCtrl->endInterrupt (ccb, &intObj->hwInt);
         }
-        // Restore IPL and disable interrupts
-        CpuDisable();
+        // Restore IPL
         ccb->curIpl = oldIpl;
     }
     else

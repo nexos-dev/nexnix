@@ -23,6 +23,10 @@ typedef struct _int NkInterrupt_t;
 typedef struct _hwint NkHwInterrupt_t;
 typedef struct _timeevt NkTimeEvent_t;
 typedef struct _hwclock PltHwClock_t;
+typedef struct _mmspace MmMulSpace_t;
+typedef struct _page MmPage_t;
+typedef struct _memspace MmSpace_t;
+typedef struct _pageHash MmPageList_t;
 
 typedef int ipl_t;
 

@@ -61,7 +61,7 @@ bool MmPageFaultIn (MmObject_t* obj, size_t offset, int* prot, MmPage_t** outPag
         if (!page)
             NkPanicOom();
         MmAddPage (&obj->pageList, page, offset);
-        if (!MmBackendPageIn (obj, offset))
+        if (!MmBackendPageIn (obj, offset, page))
             NkPanic ("nexke: page in error\n");
     }
     // We have a page, now we need to figure out what we need to do (if anything)

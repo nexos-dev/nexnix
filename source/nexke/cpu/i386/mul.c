@@ -17,7 +17,6 @@
 
 #include <assert.h>
 #include <nexke/cpu.h>
-#include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
@@ -61,9 +60,13 @@ void MmMulInit()
     // Determine if invlpg is supported
     if (CpuGetFeatures() & CPU_FEATURE_INVLPG)
         isInvlpg = true;
-    // Set base of directory
+    // Setup MUL
+    memset (&MmGetKernelSpace()->mulSpace.tablePages, 0, sizeof (MmPageList_t));
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pd;
     MmGetKernelSpace()->mulSpace.keVersion = 0;
+    MmAddPage (&MmGetKernelSpace()->mulSpace.tablePages,
+               MmFindPagePfn (cachePage / NEXKE_CPU_PAGESZ),
+               MUL_PTCACHE_TABLE_BASE - MmGetKernelSpace()->startAddr);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -90,11 +93,14 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     else
         isKernel = false;
     // Allocate the table
-    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    MmPage_t* pg = MmAllocPage();
+    paddr_t tab = pg->pfn * NEXKE_CPU_PAGESZ;
     // Zero it
     MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
     memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
     MmPtabReturnCache (space, cacheEnt);
+    // Add to page list
+    MmAddPage (&space->mulSpace.tablePages, pg, addr - space->startAddr);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)
@@ -136,7 +142,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     if (perm & MUL_PAGE_WT)
         pgFlags |= PF_WT;
     pte_t pte = pgFlags | (page->pfn * NEXKE_CPU_PAGESZ);
-    MmPtabWalkAndMap (space, space->mulSpace.base, virt, pte);
+    MmPtabWalkAndMap (space, virt, pte);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
     {
@@ -159,7 +165,38 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
-    MmPtabWalkAndUnmap (space, space->mulSpace.base, virt);
+    MmPtabWalkAndUnmap (space, virt);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+    {
+        if (isInvlpg)
+            MmMulFlush (virt);
+        else
+        {
+            // If this is a user mapping, simply mark this space for flushing when we return to user
+            // mode If a kernel mapping, we unfortunatly have to do it know
+            if (space != MmGetKernelSpace())
+                space->mulSpace.tlbUpdatePending = true;
+            else
+                MmMulFlushTlb();
+        }
+    }
+}
+
+// Changes protection for a mapping
+void MmMulChangePerm (MmSpace_t* space, uintptr_t virt, int perm)
+{
+    // Translate flags
+    pte_t pgFlags = PF_P | PF_US;
+    if (perm & MUL_PAGE_RW)
+        pgFlags |= PF_RW;
+    if (perm & MUL_PAGE_KE)
+        pgFlags &= ~(PF_US);
+    if (perm & MUL_PAGE_CD)
+        pgFlags |= PF_CD;
+    if (perm & MUL_PAGE_WT)
+        pgFlags |= PF_WT;
+    MmPtabWalkAndChange (space, virt, pgFlags);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
     {
@@ -181,7 +218,7 @@ void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
     // Grab address
-    paddr_t addr = MmPtabGetPte (space, space->mulSpace.base, virt) & PT_FRAME;
+    paddr_t addr = MmPtabGetPte (space, virt) & PT_FRAME;
     return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
 }
 

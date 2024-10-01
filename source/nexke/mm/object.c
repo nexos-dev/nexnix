@@ -64,16 +64,7 @@ void MmDeRefObject (MmObject_t* object)
     --object->refCount;
     if (!object->refCount)
     {
-        // Destroy all the allocated pages in each bucket
-        for (int i = 0; i < object->pageList.maxBucket; ++i)
-        {
-            MmPage_t* iter = object->pageList.hashList[i];
-            while (iter)
-            {
-                MmFreePage (iter);
-                iter = iter->next;
-            }
-        }
+        MmClearPageList (&object->pageList);
         MmBackendDestroy (object);
     }
 }

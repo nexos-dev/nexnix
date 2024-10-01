@@ -147,6 +147,9 @@ MmPage_t* MmLookupPage (MmPageList_t* list, size_t off);
 // Removes a page from the specified hash list
 void MmRemovePage (MmPageList_t* list, MmPage_t* page);
 
+// Clears page list
+void MmClearPageList (MmPageList_t* list);
+
 // Misc. page functions
 
 // Dumps out page debugging info
@@ -179,14 +182,14 @@ typedef struct _memobject
 #define MM_BACKEND_INIT_OBJ    2
 #define MM_BACKEND_DESTROY_OBJ 3
 
-typedef bool (*MmPageIn) (MmObject_t*, uintptr_t);
-typedef bool (*MmPageOut) (MmObject_t*, uintptr_t);
+typedef bool (*MmPageIn) (MmObject_t*, size_t, MmPage_t*);
+typedef bool (*MmPageOut) (MmObject_t*, size_t);
 typedef bool (*MmBackendInit) (MmObject_t*);
 typedef bool (*MmBackendDestroy) (MmObject_t*);
 
 // Functions to call backend
-#define MmBackendPageIn(object, offset) \
-    (((MmPageIn) (object)->backendTab[MM_BACKEND_PAGEIN]) ((object), (offset)))
+#define MmBackendPageIn(object, offset, page) \
+    (((MmPageIn) (object)->backendTab[MM_BACKEND_PAGEIN]) ((object), (offset), (page)))
 #define MmBackendPageOut(object, offset) \
     (((MmPageOut) (object)->backendTab[MM_BACKEND_PAGEOUT]) ((object), (offset)))
 #define MmBackendInit(object) \
@@ -210,6 +213,10 @@ void MmProtectObject (MmObject_t* object, int newPerm);
 
 // Initializes object system
 void MmInitObject();
+
+#ifdef MM_PAGE_TABLES
+#include <nexke/cpu/ptab.h>
+#endif
 
 // Address space types
 typedef struct _mementry
@@ -291,8 +298,14 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm);
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt);
 
+// Changes protection for a mapping
+void MmMulChangePerm (MmSpace_t* space, uintptr_t virt, int perm);
+
 // Gets mapping for specified virtual address
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt);
+
+// Zeroes a page with the MUL
+void MmMulZeroPage (MmSpace_t* space, MmPage_t* page);
 
 // Creates an MUL address space
 void MmMulCreateSpace (MmSpace_t* space);

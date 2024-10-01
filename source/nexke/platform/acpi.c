@@ -115,7 +115,7 @@ static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
             AcpiSdt_t* sdt = (AcpiSdt_t*) MmAllocKvMmio (table, 1, MUL_PAGE_KE | MUL_PAGE_R);
             if (!sdt)
                 NkPanicOom();
-            if (!strcmp (sdt->sig, sig))
+            if (!memcmp (sdt->sig, sig, 4))
             {
                 // Unmap and return, and set length
                 *len = sdt->length;
@@ -168,12 +168,17 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig)
     void* tablePhys = pltAcpiFindTableFw (sig, &len);
     if (!tablePhys)
         return NULL;
-    // Map it and then cache it
-    AcpiSdt_t* res = MmAllocKvMmio (tablePhys,
-                                    CpuPageAlignUp (len) / NEXKE_CPU_PAGESZ,
-                                    MUL_PAGE_KE | MUL_PAGE_R);
+    // Map it and then copy it
+    AcpiSdt_t* fwTable = MmAllocKvMmio (tablePhys,
+                                        CpuPageAlignUp (len) / NEXKE_CPU_PAGESZ,
+                                        MUL_PAGE_KE | MUL_PAGE_R);
+    if (!fwTable)
+        NkPanicOom();
+    AcpiSdt_t* res = MmAllocKvRegion (CpuPageAlignUp (len) / NEXKE_CPU_PAGESZ, MM_KV_NO_DEMAND);
     if (!res)
         NkPanicOom();
+    memcpy (res, fwTable, len);
+    MmFreeKvMmio (fwTable);
     pltAcpiCacheTable (res);
     return res;
 }

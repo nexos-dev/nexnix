@@ -105,7 +105,6 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    PltAcpiFindTable ("FACP");
     for (;;)
         ;
 }

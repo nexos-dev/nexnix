@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+#define MM_PAGE_TABLES
+
 #define CPU_VENDOR_INTEL   0
 #define CPU_VENDOR_AMD     1
 #define CPU_VENDOR_UNKNOWN 0xFF

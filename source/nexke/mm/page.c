@@ -50,6 +50,7 @@ static void mmInitPage (MmPage_t* page, pfn_t pfn, MmZone_t* zone)
     if (zone->freeList)
         zone->freeList->prev = page;
     page->next = zone->freeList;
+    page->maps = NULL;
     zone->freeList = page;
 }
 
@@ -389,6 +390,22 @@ MmPage_t* MmLookupPage (MmPageList_t* list, size_t off)
         curPage = curPage->next;
     }
     return NULL;
+}
+
+// Clears page list
+void MmClearPageList (MmPageList_t* list)
+{
+    // Go through every bucket
+    for (int i = 0; i < MM_MAX_BUCKETS; ++i)
+    {
+        MmPage_t* page = list->hashList[i];
+        while (page)
+        {
+            MmPageClearMaps (page);
+            MmFreePage (page);
+            page = page->next;
+        }
+    }
 }
 
 // Removes a page from the specified hash list

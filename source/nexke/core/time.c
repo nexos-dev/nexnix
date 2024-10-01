@@ -190,8 +190,9 @@ static void NkTimeHandler()
     }
     else
     {
+        if (!event)
+            return;    // Return. no timer expired. Or assert maybe?
         // We know a timer (or multiple) has/have expired, execute each cb
-        assert (event);    // If list is empty something odd happened
         uint64_t tick = event->deadline;
         while (event && tick == event->deadline)
         {

@@ -16,7 +16,6 @@
 */
 
 #include <nexke/cpu.h>
-#include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
@@ -54,6 +53,11 @@ void MmMulInit()
     CpuWriteCr3 ((uint32_t) pdpt);
     // Set base of directory
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pdpt;
+    // Add cache page
+    memset (&MmGetKernelSpace()->mulSpace.tablePages, 0, sizeof (MmPageList_t));
+    MmAddPage (&MmGetKernelSpace()->mulSpace.tablePages,
+               MmFindPagePfn (cachePage / NEXKE_CPU_PAGESZ),
+               MUL_PTCACHE_TABLE_BASE - MmGetKernelSpace()->startAddr);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -76,11 +80,14 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     else
         isKernel = false;
     // Allocate the table
-    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    MmPage_t* pg = MmAllocPage();
+    paddr_t tab = pg->pfn * NEXKE_CPU_PAGESZ;
     // Zero it
     MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
     memset (cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
     MmPtabReturnCache (space, cacheEnt);
+    // Add to page list
+    MmAddPage (&space->mulSpace.tablePages, pg, addr - space->startAddr);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)
@@ -93,7 +100,8 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
 // Allocates a page directory into ent
 static paddr_t mulAllocDir (MmSpace_t* space, pdpte_t* ent)
 {
-    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    MmPage_t* pg = MmAllocPage();
+    paddr_t tab = pg->pfn * NEXKE_CPU_PAGESZ;
     // Zero it
     MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
     memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
@@ -102,6 +110,8 @@ static paddr_t mulAllocDir (MmSpace_t* space, pdpte_t* ent)
     // Flush PDPTE registers on CPU
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlushTlb();
+    // Add to page list
+    MmAddPage (&space->mulSpace.tablePages, pg, 0);
     return tab;
 }
 
@@ -189,9 +199,41 @@ MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
     return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
 }
 
+// Changes protection for a mapping
+void MmMulChangePerm (MmSpace_t* space, uintptr_t virt, int perm)
+{
+    // Translate flags
+    pte_t pgFlags = PF_P | PF_US;
+    // Check for NX
+    if (CpuGetFeatures() & CPU_FEATURE_XD)
+        pgFlags |= PF_NX;
+    if (perm & MUL_PAGE_RW)
+        pgFlags |= PF_RW;
+    if (perm & MUL_PAGE_KE)
+        pgFlags &= ~(PF_US);
+    if (perm & MUL_PAGE_CD)
+        pgFlags |= PF_CD;
+    if (perm & MUL_PAGE_WT)
+        pgFlags |= PF_WT;
+    if (perm & MUL_PAGE_X)
+        pgFlags &= ~(PF_NX);
+    // Get page directory to unmap
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, space->mulSpace.base, true);
+    pdpte_t* pdpt = (pdpte_t*) cacheEnt->addr;
+    // Check if it is valid
+    if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
+        NkPanic ("nexke: cannot unmap invalid address");
+    paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
+    MmPtabReturnCache (space, cacheEnt);
+    MmPtabWalkAndChange (space, pdirAddr, virt, pgFlags);
+    // Flush TLB if needed
+    if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
+        MmMulFlush (virt);
+}
+
 static pte_t* mulAllocTabEarly (pde_t* pdir, uintptr_t virt, int flags)
 {
-    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+    pte_t* tab = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage());
     memset (tab, 0, NEXKE_CPU_PAGESZ);
     // Grab PDE
     pde_t* tabPde = &pdir[PG_ADDR_DIR (virt)];
@@ -205,7 +247,7 @@ static pte_t* mulAllocTabEarly (pde_t* pdir, uintptr_t virt, int flags)
 
 static pde_t* mulAllocDirEarly (pdpte_t* pdpt, uintptr_t virt)
 {
-    pde_t* dir = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+    pde_t* dir = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage());
     memset (dir, 0, NEXKE_CPU_PAGESZ);
     // Map it
     pdpt[PG_ADDR_PDPT (virt)] = PF_P | (paddr_t) dir;

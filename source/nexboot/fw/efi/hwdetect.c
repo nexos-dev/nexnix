@@ -72,7 +72,7 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     if (acpiTab)
     {
         sysInfo.comps[NB_ARCH_COMP_ACPI] = (uintptr_t) acpiTab;
-        sysInfo.detectedComps |= NB_ARCH_COMP_ACPI;
+        sysInfo.detectedComps |= (1 << NB_ARCH_COMP_ACPI);
     }
     else
     {
@@ -81,7 +81,7 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
         if (acpiTab)
         {
             sysInfo.comps[NB_ARCH_COMP_ACPI] = (uintptr_t) acpiTab;
-            sysInfo.detectedComps |= NB_ARCH_COMP_ACPI;
+            sysInfo.detectedComps |= (1 << NB_ARCH_COMP_ACPI);
         }
     }
     // Find MPS
@@ -89,21 +89,21 @@ bool NbFwDetectHw (NbloadDetect_t* nbDetect)
     if (mpsTab)
     {
         sysInfo.comps[NB_ARCH_COMP_MPS] = (uintptr_t) mpsTab;
-        sysInfo.detectedComps |= NB_ARCH_COMP_MPS;
+        sysInfo.detectedComps |= (1 << NB_ARCH_COMP_MPS);
     }
     // Find SMBios
     void* smbiosTab = detectConfTable (&smbiosGuid);
     if (smbiosTab)
     {
         sysInfo.comps[NB_ARCH_COMP_SMBIOS] = (uintptr_t) smbiosTab;
-        sysInfo.detectedComps |= NB_ARCH_COMP_SMBIOS;
+        sysInfo.detectedComps |= (1 << NB_ARCH_COMP_SMBIOS);
     }
     // Find SMBios3
     void* smbios3Tab = detectConfTable (&smbios3Guid);
     if (smbios3Tab)
     {
         sysInfo.comps[NB_ARCH_COMP_SMBIOS3] = (uintptr_t) smbios3Tab;
-        sysInfo.detectedComps |= NB_ARCH_COMP_SMBIOS3;
+        sysInfo.detectedComps |= (1 << NB_ARCH_COMP_SMBIOS3);
     }
     // Create object
     NbObject_t* sysInfoObj = NbObjCreate ("/Devices/Sysinfo", OBJ_TYPE_SYSINFO, 0);

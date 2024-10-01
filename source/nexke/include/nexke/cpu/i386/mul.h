@@ -134,6 +134,13 @@ static inline void MmMulMapCacheEntry (pte_t* pte, paddr_t tab)
     *pte = tab | PF_P | PF_RW;
 }
 
+// Changes flags of entry
+static inline void MmMulChangePte (pte_t* pte, int perm)
+{
+    *pte &= PT_FRAME;
+    *pte |= perm;
+}
+
 // Validates that we can map pte2 to pte1
 void MmMulVerify (pte_t pte1, pte_t pte2);
 

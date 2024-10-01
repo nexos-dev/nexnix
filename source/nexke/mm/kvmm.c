@@ -359,7 +359,7 @@ static void mmKvGetMemory (void* p, size_t numPages)
                       (uintptr_t) p + (i * NEXKE_CPU_PAGESZ),
                       pg,
                       MUL_PAGE_KE | MUL_PAGE_RW | MUL_PAGE_R);
-        MmBackendPageIn (kmemObj, offset + (i * NEXKE_CPU_PAGESZ));
+        MmBackendPageIn (kmemObj, offset + (i * NEXKE_CPU_PAGESZ), pg);
     }
 }
 
@@ -504,7 +504,7 @@ void* MmAllocKvMmio (void* phys, int numPages, int perm)
 // Unmaps MMIO / FW memory
 void MmFreeKvMmio (void* virt)
 {
-    MmFreeKvRegion ((void*) CpuPageAlignDown (virt));
+    MmFreeKvRegion ((void*) CpuPageAlignDown ((uintptr_t) virt));
 }
 
 // Kernel backend functions
@@ -519,12 +519,14 @@ bool KvmDestroyObj (MmObject_t* obj)
     return true;
 }
 
-bool KvmPageIn (MmObject_t* obj, uintptr_t offset)
+bool KvmPageIn (MmObject_t* obj, size_t offset, MmPage_t* page)
 {
+    // Zero this page
+    MmMulZeroPage (MmGetCurrentSpace(), page);
     return true;
 }
 
-bool KvmPageOut (MmObject_t* obj, uintptr_t offset)
+bool KvmPageOut (MmObject_t* obj, size_t offset)
 {
     return false;
 }

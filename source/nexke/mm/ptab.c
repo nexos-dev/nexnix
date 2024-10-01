@@ -17,13 +17,16 @@
 
 #include <assert.h>
 #include <nexke/cpu.h>
-#include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
 
 // Number of levels of paging structures
 static int mmNumLevels = 0;
+
+// Tunables
+#define MM_PTAB_MINFREE    2
+#define MM_PTAB_FREETARGET 8
 
 // Initializes page table manager
 void MmPtabInit (int numLevels)
@@ -32,10 +35,10 @@ void MmPtabInit (int numLevels)
 }
 
 // Walks to a page table entry and maps specfied value into it
-void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t pteVal)
+void MmPtabWalkAndMap (MmSpace_t* space, paddr_t as, uintptr_t vaddr, pte_t pteVal)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys, MUL_IDX_PRIO (mmNumLevels));
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, as, MUL_IDX_PRIO (mmNumLevels));
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -65,11 +68,11 @@ void MmPtabWalkAndMap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr, pte_t 
     MmPtabReturnCache (space, cacheEnt);
 }
 
-// Walks to a page table entry and unmaps it
-void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
+// Walks to a pte and returns a cache entry
+static MmPtCacheEnt_t* mmPtabWalk (MmSpace_t* space, paddr_t as, uintptr_t vaddr)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys, MUL_IDX_PRIO (mmNumLevels));
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, as, MUL_IDX_PRIO (mmNumLevels));
     for (int i = mmNumLevels; i > 1; --i)
     {
         pte_t* curSt = (pte_t*) cacheEnt->addr;
@@ -85,6 +88,14 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
             NkPanic ("nexke: error: attempting to unmap invalid mapping");
         }
     }
+    return cacheEnt;
+}
+
+// Walks to a page table entry and unmaps it
+void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t as, uintptr_t vaddr)
+{
+    // Grab mapping
+    MmPtCacheEnt_t* cacheEnt = mmPtabWalk (space, as, vaddr);
     // Map last entry
     pte_t* lastSt = (pte_t*) cacheEnt->addr;
     pte_t* lastEnt = &lastSt[MUL_IDX_LEVEL (vaddr, 1)];
@@ -94,29 +105,41 @@ void MmPtabWalkAndUnmap (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
     MmPtabReturnCache (space, cacheEnt);
 }
 
-// Walks to a page table entry and returns it's mapping
-pte_t MmPtabGetPte (MmSpace_t* space, paddr_t asPhys, uintptr_t vaddr)
+// Walks to a page table entry and changes its protection
+void MmPtabWalkAndChange (MmSpace_t* space, paddr_t as, uintptr_t vaddr, pte_t perm)
 {
     // Grab base and cache it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, asPhys, MUL_IDX_PRIO (mmNumLevels));
-    for (int i = mmNumLevels; i > 1; --i)
-    {
-        pte_t* curSt = (pte_t*) cacheEnt->addr;
-        pte_t* ent = &curSt[MUL_IDX_LEVEL (vaddr, i)];
-        if (*ent)
-        {
-            // Grab cache entry
-            cacheEnt = MmPtabSwapCache (space, PT_GETFRAME (*ent), cacheEnt, MUL_IDX_PRIO (i - 1));
-        }
-        else
-        {
-            // Table doesn't exist, panic
-            NkPanic ("nexke: error: attempting to unmap invalid mapping");
-        }
-    }
+    MmPtCacheEnt_t* cacheEnt = mmPtabWalk (space, as, vaddr);
+    // Map last entry
+    pte_t* lastSt = (pte_t*) cacheEnt->addr;
+    pte_t* lastEnt = &lastSt[MUL_IDX_LEVEL (vaddr, 1)];
+    // Change value
+    MmMulChangePte (lastEnt, perm);
+    MmPtabReturnCache (space, cacheEnt);
+}
+
+// Walks to a page table entry and returns it's mapping
+pte_t MmPtabGetPte (MmSpace_t* space, paddr_t as, uintptr_t vaddr)
+{
+    // Grab base and cache it
+    MmPtCacheEnt_t* cacheEnt = mmPtabWalk (space, as, vaddr);
     // Get mapping
     pte_t* lastSt = (pte_t*) cacheEnt->addr;
-    return lastSt[MUL_IDX_LEVEL (vaddr, 1)];
+    pte_t pte = lastSt[MUL_IDX_LEVEL (vaddr, 1)];
+    MmPtabReturnCache (space, cacheEnt);
+    return pte;
+}
+
+// Zeroes a page with the MUL
+// This function is the same across MULs so it is implemented in the architecture independent module
+void MmMulZeroPage (MmSpace_t* space, MmPage_t* page)
+{
+    // Get physical address
+    paddr_t addr = page->pfn * NEXKE_CPU_PAGESZ;
+    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, addr, false);
+    memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
+    // Free the cache entry
+    MmPtabFreeToCache (space, cacheEnt);
 }
 
 // Initializes PT cache in specified space
@@ -187,6 +210,7 @@ MmPtCacheEnt_t* MmPtabGetCache (MmSpace_t* space, paddr_t ptab, bool highPrio)
         ent->next = space->mulSpace.ptUsedList;
         ent->prev = NULL;
         space->mulSpace.ptUsedList = ent;
+        --space->mulSpace.freeCount;
         goto setup;
     }
     // No available cache entry, we need to evict one
@@ -239,4 +263,49 @@ setup:
 void MmPtabReturnCache (MmSpace_t* space, MmPtCacheEnt_t* cacheEnt)
 {
     cacheEnt->inUse = false;
+    // Check if we need to free any entries
+    if (space->freeCount < MM_PTAB_MINFREE)
+    {
+        MmMulSpace_t* mulSpace = &space->mulSpace;
+        // Get to free target. To move entries from used to free, we go from the tail
+        MmPtCacheEnt_t* curEnt = mulSpace->ptUsedListEnd;
+        while (curEnt)
+        {
+            // Evict if not in use and not high priority
+            if (!curEnt->highPrio && !curEnt->inUse)
+            {
+                // Free it
+                MmPtabFreeToCache (space, curEnt);
+                // Check if we hit target
+                if (mulSpace->freeCount >= MM_PTAB_FREETARGET)
+                    break;
+            }
+        }
+    }
+}
+
+// Frees cache entry to free list
+void MmPtabFreeToCache (MmSpace_t* space, MmPtCacheEnt_t* cacheEnt)
+{
+    cacheEnt->inUse = false;
+    MmMulSpace_t* mulSpace = &space->mulSpace;
+    // Remove from used list
+    if (cacheEnt == mulSpace->ptUsedListEnd)
+        mulSpace->ptUsedListEnd = cacheEnt->prev;
+    if (cacheEnt == mulSpace->ptUsedList)
+        mulSpace->ptUsedList = cacheEnt->next;
+    if (cacheEnt->prev)
+        cacheEnt->prev->next = cacheEnt->next;
+    if (cacheEnt->next)
+        cacheEnt->next->prev = cacheEnt->prev;
+    // Add to front of free list
+    cacheEnt->prev = NULL;
+    cacheEnt->next = mulSpace->ptFreeList;
+    if (mulSpace->ptFreeList)
+        mulSpace->ptFreeList->prev = cacheEnt;
+    mulSpace->ptFreeList = cacheEnt;
+    // Update counter
+    ++mulSpace->freeCount;
+    if (!cacheEnt->highPrio)
+        --mulSpace->lowPrioCount;
 }

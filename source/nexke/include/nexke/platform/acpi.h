@@ -83,6 +83,7 @@ typedef struct _fadt
     uint8_t acpiEnable;     // Value to write to SMI command to enable ACPI
     uint8_t acpiDisable;    // Opposite
     uint8_t s4biosReq;
+    uint8_t pstateCnt;
     uint32_t pm1aEvtBlk;    // Hardware model stuff from here on
     uint32_t pm1bEvtBlk;
     uint32_t pm1aCntBlk;

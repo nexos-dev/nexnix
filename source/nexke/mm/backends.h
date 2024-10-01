@@ -24,8 +24,8 @@
 // Kernel backend functions
 bool KvmInitObj (MmObject_t* obj);
 bool KvmDestroyObj (MmObject_t* obj);
-bool KvmPageIn (MmObject_t* obj, uintptr_t offset);
-bool KvmPageOut (MmObject_t* obj, uintptr_t offset);
+bool KvmPageIn (MmObject_t* obj, size_t offset, MmPage_t* page);
+bool KvmPageOut (MmObject_t* obj, size_t offset);
 
 static void* kvmBackend[] = {KvmPageIn, KvmPageOut, KvmInitObj, KvmDestroyObj};
 
