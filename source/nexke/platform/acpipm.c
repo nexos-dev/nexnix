@@ -16,16 +16,35 @@
 */
 
 #include <assert.h>
+#include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <string.h>
 
 extern PltHwClock_t acpiPmClock;
 
 // PM clock base
-static AcpiGas_t* nkAcpiPmGas = NULL;
+static AcpiGas_t acpiPmGas = {0};
+
+// MMIO base if using MMIO
+static uint32_t* acpiPmBase = NULL;
+
+// Overflow counter
+static int overFlowCount = 0;
+
+// Is counter 32 bit?
+static bool is32Bit = false;
+
+#define ACPI_PM_FREQ 3579545
 
 static uint64_t PltAcpiGetTime()
 {
+    uint32_t val = 0;
+    if (acpiPmGas.asId == ACPI_GAS_IO)
+        val = CpuInl (acpiPmGas.addr);
+    else
+        val = *acpiPmBase;
+    return ((overFlowCount << ((is32Bit) ? 32ULL : 24)) + val) * acpiPmClock.precision;
 }
 
 PltHwClock_t acpiPmClock = {.type = PLT_CLOCK_ACPI,
@@ -42,4 +61,23 @@ PltHwClock_t* PltAcpiInitClock()
         return NULL;    // Doesn't exist
     if (!fadt->pmTmrLen)
         return NULL;    // ACPI doesn't support PM timer
+    // Create timer GAS
+    if (PltGetPlatform()->acpiVer > 1)
+        memcpy (&acpiPmGas, &fadt->xPmTmrBlk, sizeof (AcpiGas_t));
+    else
+    {
+        acpiPmGas.accessSz = 4;
+        acpiPmGas.addr = fadt->pmTmrBlk;
+        acpiPmGas.asId = ACPI_GAS_IO;
+    }
+    if (fadt->flags & ACPI_FADT_TMR_32BIT)
+        is32Bit = true;
+    // Check if we need to map it
+    if (acpiPmGas.asId == ACPI_GAS_MEM)
+    {
+        acpiPmBase =
+            MmAllocKvMmio ((void*) acpiPmGas.addr, 1, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_CD);
+    }
+    acpiPmClock.precision = PLT_NS_IN_SEC / ACPI_PM_FREQ;
+    return &acpiPmClock;
 }

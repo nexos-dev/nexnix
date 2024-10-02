@@ -48,10 +48,6 @@ static uint64_t NkTimeDeltaToDeadline (uint64_t* delta)
     // Get ref tick
     uint64_t refTick = platform->clock->getTime();
     uint64_t deadline = refTick + *delta;
-    // Convert delta from nanosec precision to precision of clock base / timer (whichever is the
-    // limiting factor)
-    deadline /= nkLimitPrecision;
-    *delta /= nkLimitPrecision;
     // If deadline equals ref tick (i.e., delta is 0) increase it by one tick
     if (refTick == deadline)
     {
@@ -123,12 +119,6 @@ void NkTimeRegEvent (NkTimeEvent_t* event, uint64_t delta, NkTimeCallback callba
         // Arm timer if needed
         if (platform->timer->type != PLT_TIMER_SOFT)
         {
-            // Check delta and ensure it is in range
-            if (delta > platform->timer->maxInterval)
-            {
-                // TODO: support this case
-                NkPanic ("nexke: unimplemented");
-            }
             // Arm timer
             platform->timer->armTimer (delta);
         }
@@ -156,11 +146,8 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
         // Now we need to re-arm the timer
         if (platform->timer->type != PLT_TIMER_SOFT)
         {
-            uint64_t deadline = event->deadline * nkLimitPrecision;
+            uint64_t deadline = event->deadline;
             uint64_t delta = deadline - platform->clock->getTime();
-            delta /= nkLimitPrecision;
-            if (!delta)
-                delta++;
             platform->timer->armTimer (delta);
         }
     }
@@ -179,8 +166,7 @@ static void NkTimeHandler()
     if (platform->timer->type == PLT_TIMER_SOFT)
     {
         // Check if timers have expired
-        while (event &&
-               platform->clock->getTime() == (event->deadline * platform->clock->precision))
+        while (event && platform->clock->getTime() == event->deadline)
         {
             // Event has expired, remove from list and call handler
             ccb->timeEvents = event->next;

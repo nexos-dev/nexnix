@@ -50,7 +50,9 @@ extern PltHwClock_t pitClock;
 
 typedef struct _pitpvt
 {
-    bool isPitClock;    // Is PIT being used for clock
+    bool isPitClock;      // Is PIT being used for clock
+    int armCount;         // The number of remaining arms to complete interval
+    uint16_t finalArm;    // THe final arm value
 } pltPitPrivate_t;
 
 static pltPitPrivate_t pitPvt = {0};
@@ -64,7 +66,23 @@ static void PltPitSetCallback (void (*cb)())
 // Arms timer to delta
 static void PltPitArmTimer (uint64_t delta)
 {
-    assert (delta <= pitTimer.maxInterval);
+    if (pitPvt.armCount)
+        pitPvt.armCount = 0, pitPvt.finalArm = 0;
+    // Convert delta from nanosec precision to PIT precision
+    delta /= pitTimer.precision;
+    // If delta is now zero, round to 1 so we have a wait value
+    if (!delta)
+        ++delta;
+    // Check if this is outside the native interval
+    uint16_t maxInterval = pitTimer.maxInterval / pitTimer.precision;
+    if (delta > maxInterval)
+    {
+        // Figure out the number of arms we will need to do
+        pitPvt.armCount = delta / maxInterval;
+        pitPvt.finalArm = delta % maxInterval;
+        // Set delta to max
+        delta = maxInterval;
+    }
     // Set it
     CpuOutb (PLT_PIT_CHAN0, delta & 0xFF);
     CpuOutb (PLT_PIT_CHAN0, delta >> 8);
@@ -76,10 +94,29 @@ static bool PltPitDispatch (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
     // Check if PIT is in periodic mode or not
     if (pitPvt.isPitClock)
         pitClock.internalCount += pitClock.precision;    // Increase count
-    // Call the callback. In periodic mode software must check for deadlines on every tick
-    // In one shot this will drain the current deadline
-    if (pitTimer.callback)
-        pitTimer.callback();
+    // Check if we have any pending arms
+    if (pitPvt.armCount)
+    {
+        --pitPvt.armCount;
+        if (!pitPvt.armCount)
+        {
+            // Set it to final arm
+            CpuOutb (PLT_PIT_CHAN0, pitPvt.finalArm & 0xFF);
+            CpuOutb (PLT_PIT_CHAN0, pitPvt.finalArm >> 8);
+        }
+        else
+        {
+            CpuOutb (PLT_PIT_CHAN0, pitTimer.maxInterval & 0xFF);
+            CpuOutb (PLT_PIT_CHAN0, pitTimer.maxInterval >> 8);
+        }
+    }
+    else
+    {
+        // Call the callback. In periodic mode software must check for deadlines on every tick
+        // In one shot this will drain the current deadline
+        if (pitTimer.callback)
+            pitTimer.callback();
+    }
     return true;
 }
 
@@ -108,7 +145,10 @@ static void PltPitInstallInt()
     // Prepare interrupt
     NkHwInterrupt_t pitInt = {0};
     pitInt.line = PLT_PIC_IRQ_PIT;
+    pitInt.mode = PLT_MODE_EDGE;
     int vector = PltConnectInterrupt (&pitInt);
+    if (vector == -1)
+        NkPanic ("nexke: unable to install PIT interrupt");
     // We always run at clock IPL
     pitInt.ipl = PLT_IPL_CLOCK;
     // Install interrupt

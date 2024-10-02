@@ -128,6 +128,8 @@ void PltLowerIpl (ipl_t oldIpl)
     NkCcb_t* ccb = CpuGetCcb();
     if (ccb->curIpl <= oldIpl)
         NkPanic ("nexke: Invalid IPL to lower to");
+    if (ccb->curIpl == PLT_IPL_HIGH)
+        CpuEnable();         // Make sure the int disable counter is correct
     ccb->curIpl = oldIpl;    // Restore it
     // Re-enable if needed
     if (oldIpl != PLT_IPL_HIGH)

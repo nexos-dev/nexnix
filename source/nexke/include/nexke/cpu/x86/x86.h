@@ -228,8 +228,9 @@ typedef struct _nkarchccb
     int stepping;    // CPU specifier
     int model;
     int family;
-    int physAddrBits;               // Number of bits in a physical address
-    int virtAddrBits;               // Number of bits in virtual address
+    int physAddrBits;    // Number of bits in a physical address
+    int virtAddrBits;    // Number of bits in virtual address
+    int intDisableCount;
     unsigned long long features;    // CPU feature flags
     CpuSegDesc_t* gdt;              // GDT pointer
     CpuIdtEntry_t* idt;             // IDT pointer

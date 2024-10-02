@@ -67,6 +67,7 @@ void PltInitPhase2()
 // Initialize phase 3
 void PltInitPhase3()
 {
+    PltAcpiPcEnable();
     PltInitClock();
     PltInitTimer();
 }

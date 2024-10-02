@@ -31,12 +31,6 @@ static SlabCache_t* mmEntryCache = NULL;
 // Currently active address space
 static MmSpace_t* mmCurSpace = NULL;
 
-// Gets actual first entry, skipping over fake first entry
-static inline MmSpaceEntry_t* mmGetFirstEntry (MmSpace_t* space)
-{
-    return (space == MmGetKernelSpace()) ? space->entryList : space->entryList->next;
-}
-
 // Gets end of entry
 static inline uintptr_t mmEntryEnd (MmSpaceEntry_t* entry)
 {

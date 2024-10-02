@@ -182,3 +182,9 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig)
     pltAcpiCacheTable (res);
     return res;
 }
+
+// SCI handler
+bool PltAcpiSciHandler (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
+{
+    return true;
+}

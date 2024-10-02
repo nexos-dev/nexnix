@@ -133,6 +133,18 @@ typedef struct _fadt
 #define ACPI_IAPC_LEGACY_DEVS (1 << 0)
 #define ACPI_IAPC_8042_EXISTS (1 << 1)
 
+// Flags
+#define ACPI_FADT_TMR_32BIT (1 << 8)
+#define ACPI_FADT_HW_REDUCE (1 << 20)
+
+// PM1 event bits
+#define ACPI_TMR_EN  (1 << 0)
+#define ACPI_TMR_STS (1 << 0)
+
+// PM1 control bits
+#define ACPI_SCI_EN  (1 << 0)
+#define ACPI_GBL_RLS (1 << 2)
+
 // DBG2 table
 typedef struct _dbgdesc
 {

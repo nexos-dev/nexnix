@@ -89,8 +89,12 @@ typedef struct _hwint
 {
     int line;     // Line number
     int flags;    // Interrupt flags
+    int mode;     // Level or edge
     ipl_t ipl;    // IPL value
 } NkHwInterrupt_t;
+
+#define PLT_MODE_EDGE  0
+#define PLT_MODE_LEVEL 1
 
 // Interrupt function type
 typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);

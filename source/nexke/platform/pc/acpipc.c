@@ -20,9 +20,29 @@
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 
+bool PltAcpiSciHandler (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
+
 // Enable ACPI
 void PltAcpiPcEnable()
 {
     // Get FADT
     AcpiFadt_t* fadt = (AcpiFadt_t*) PltAcpiFindTable ("FACP");
+    // Check if SCI_EN is set
+    if (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
+    {
+        CpuOutb (fadt->smiCmd, fadt->acpiEnable);    // Enable ACPI
+        while (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
+            ;
+    }
+    // Install SCI handler
+    if (fadt->sciInt)
+    {
+        NkHwInterrupt_t sciInt = {0};
+        sciInt.line = fadt->sciInt;
+        sciInt.mode = PLT_MODE_LEVEL;
+        int vector = PltConnectInterrupt (&sciInt);
+        if (vector == -1)
+            NkPanic ("nexke: unable to install SCI");
+        PltInstallInterrupt (vector, PLT_INT_HWINT, PltAcpiSciHandler, &sciInt);
+    }
 }

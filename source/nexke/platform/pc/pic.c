@@ -28,6 +28,10 @@
 #define PLT_PIC_SLAVE_STATUS  0xA0
 #define PLT_PIC_SLAVE_DATA    0xA1
 
+// ELCR
+#define PLT_PIC_ELCR 0x4D0
+static bool isElcr = false;
+
 // ICW1 bits
 #define PLT_PIC_ICW4   (1 << 0)    // Should it expect ICW4
 #define PLT_PIC_SINGLE (1 << 1)    // Should it run in single PIC mode
@@ -148,6 +152,19 @@ static void PltPicSetIpl (NkCcb_t* ccb, ipl_t ipl)
 // Connects interrupt to specified vector
 static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
 {
+    if (!isElcr && hwInt->mode == PLT_MODE_LEVEL)
+        return -1;    // Error
+    if (isElcr)
+    {
+        // Set as edge or level
+        uint16_t elcr = CpuInb (PLT_PIC_ELCR) | (CpuInb (PLT_PIC_ELCR + 1) << 8);
+        if (hwInt->mode == PLT_MODE_LEVEL)
+            elcr |= (1 << hwInt->line);
+        else
+            elcr &= ~(1 << hwInt->line);
+        CpuOutb (PLT_PIC_ELCR, elcr & 0xFF);
+        CpuOutb (PLT_PIC_ELCR + 1, elcr >> 8);
+    }
     // Set the IPL
     hwInt->ipl = PltPicMapIpl (hwInt);
     return hwInt->line + CPU_BASE_HWINT;
@@ -190,5 +207,10 @@ PltHwIntCtrl_t* PltPicInit()
     // Except for the cascading ones
     CpuOutb (PLT_PIC_MASTER_DATA, 0xFB);
     CpuOutb (PLT_PIC_SLAVE_DATA, 0xFF);
+    // Cofigure ELCR
+    uint16_t elcr = CpuInb (PLT_PIC_ELCR) | (CpuInb (PLT_PIC_ELCR + 1) << 8);
+    // If bits 0, 1, 2, and 13 are clear ELCR is supported
+    if (!(elcr & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 13))))
+        isElcr = true;
     return &plt8259A;
 }

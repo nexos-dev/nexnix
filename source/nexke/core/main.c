@@ -71,6 +71,11 @@ const char* NkReadArg (const char* arg)
     return NULL;
 }
 
+void t (NkTimeEvent_t* evt, void*)
+{
+    NkLogError ("got here\n");
+}
+
 void NkMain (NexNixBoot_t* bootinf)
 {
     // Set bootinfo
@@ -97,6 +102,7 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
     // Initialize CCB
     CpuInitCcb();
+    CpuDisable();    // Hold interrupts till we are ready
     // Initialize phase 2 of platform
     PltInitPhase2();
     // Initialize MM phase 2
@@ -105,9 +111,9 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    MmSpace_t* space = MmCreateSpace();
-    MmAllocSpace (space, NULL, 0x43505, 12);
-    MmAllocSpace (space, NULL, 0x43505, 12);
+    CpuEnable();
+    NkTimeEvent_t* evt = NkTimeNewEvent();
+    NkTimeRegEvent (evt, (uint64_t) PLT_NS_IN_SEC * 2, t, NULL);
     for (;;)
         ;
 }
