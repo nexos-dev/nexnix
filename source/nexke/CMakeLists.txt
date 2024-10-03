@@ -60,6 +60,10 @@ nexnix_add_parameter(NEXNIX_LOGLEVEL
     "Value that defines what should and shouldn't be logged"
     2)
 
+if(NEXKE_UP STREQUAL "1")
+    add_definitions(-DNEXKE_UP)
+endif()
+
 # Include includes directory
 include_directories(include)
 

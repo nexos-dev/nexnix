@@ -86,7 +86,7 @@ void NkLogInit()
     else if (!(*logLevelStr))
     {
         // Print out a warning
-        PltGetPrimaryCons()->write ("nexke: loglevel, argument invalid, ignoring\n");
+        PltGetPrimaryCons()->write ("nexke: argument \"-loglevel\" invalid, ignoring\n");
         loglevel = NK_LOGLEVEL_ERROR;
     }
     loglevel = atoi (logLevelStr);

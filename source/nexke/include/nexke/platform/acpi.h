@@ -145,6 +145,101 @@ typedef struct _fadt
 #define ACPI_SCI_EN  (1 << 0)
 #define ACPI_GBL_RLS (1 << 2)
 
+// MADT
+typedef struct _madt
+{
+    AcpiSdt_t sdt;
+    uint32_t localBase;    // Processor local address of each interrupt controller
+    uint32_t flags;
+} __attribute__ ((packed)) AcpiMadt_t;
+
+#define ACPI_PCAT_COMAPT (1 << 10)
+
+#define ACPI_MADT_LAPIC     0
+#define ACPI_MADT_IOAPIC    1
+#define ACPI_MADT_ISO       2
+#define ACPI_MADT_X2APIC    9
+#define ACPI_MADT_MP_WAKEUP 16
+
+typedef struct _madtgen
+{
+    uint8_t type;
+    uint8_t length;
+} __attribute__ ((packed)) AcpiMadtEntry_t;
+
+// LAPIC structure
+typedef struct _madtlapic
+{
+    uint8_t type;      // Equals 0
+    uint8_t length;    // 8
+    uint8_t uid;
+    uint8_t id;    // This processor's APIC ID
+    uint32_t flags;
+} __attribute__ ((packed)) AcpiLapic_t;
+
+#define ACPI_LAPIC_ENABLED    (1 << 0)
+#define ACPI_LAPIC_ONLINE_CAP (1 << 1)
+
+// I/O APIC
+typedef struct _madtioapic
+{
+    uint8_t type;      // 1
+    uint8_t length;    // 12
+    uint8_t id;        // ID of this I/O APIC
+    uint8_t resvd;
+    uint32_t addr;       // Address of I/O APIC
+    uint32_t gsiBase;    // GSI base of this APIC
+} __attribute__ ((packed)) AcpiIoApic_t;
+
+// Interrupt source override
+typedef struct _madtiso
+{
+    uint8_t type;      // 2
+    uint8_t length;    // 10
+    uint8_t bus;       // Always 0 for ISA
+    uint8_t line;      // Bus-relative line
+    uint32_t gsi;      // GSI of this interrupt
+    uint16_t flags;
+} __attribute__ ((packed)) AcpiIso_t;
+
+#define ACPI_ISO_BUS         0
+#define ACPI_ISO_ACTIVE_HIGH 1
+#define ACPI_ISO_ACTIVE_LOW  3
+#define ACPI_ISO_EDGE        (1 << 2)
+#define ACPI_ISO_LEVEL       (3 << 2)
+
+// X2APIC
+typedef struct _madtx2apic
+{
+    uint8_t type;      // 9
+    uint8_t length;    // 16
+    uint16_t resvd;
+    uint32_t id;
+    uint32_t flags;
+    uint32_t uid;
+} __attribute__ ((packed)) AcpiX2Apic_t;
+
+// MP Wakeup
+typedef struct _madtmpwakeup
+{
+    uint8_t type;        // 16
+    uint8_t length;      // 16
+    uint16_t version;    // 0
+    uint32_t resvd;
+    uint64_t addr;    // Mailbox address
+} __attribute__ ((packed)) AcpiMpWakeup_t;
+
+typedef struct _mpmailbox
+{
+    uint16_t cmd;    // Command to run on AP
+    uint16_t resvd;
+    uint32_t apicId;          // APIC to start up
+    uint64_t wakeupVector;    // Physical address to jump to upon wake-up
+} __attribute__ ((packed)) AcpiMpMailbox_t;
+
+#define ACPI_MP_CMD_NOOP 0
+#define ACPI_MP_CMD_WAKE 1
+
 // DBG2 table
 typedef struct _dbgdesc
 {
@@ -212,5 +307,8 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig);
 
 // Initializes ACPI PM timer
 PltHwClock_t* PltAcpiInitClock();
+
+// Detects all CPUs attached to the platform
+bool PltAcpiDetectCpus();
 
 #endif

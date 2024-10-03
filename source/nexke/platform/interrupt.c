@@ -174,8 +174,22 @@ void PltTrapDispatch (CpuIntContext_t* context)
     NkInterrupt_t* intObj = nkIntTable[CPU_CTX_INTNUM (context)];
     if (!intObj)
     {
-        // Unhandled interrupt, that's a bad trap
-        PltBadTrap (context, "unhandled interrupt %#X", CPU_CTX_INTNUM (context));
+        // First see if hardware interrupt controller knows how to handle it
+        NkHwInterrupt_t hwInt = {0};
+        hwInt.line = CPU_CTX_INTNUM (context);
+        hwInt.flags = PLT_HWINT_FAKE;
+        if (!platform->intCtrl->beginInterrupt (ccb, &hwInt))
+        {
+            // It handled it, see if we need to increate spurious counter
+            if (hwInt.flags & PLT_HWINT_SPURIOUS)
+                ++ccb->spuriousInts;
+            return;    // We are done
+        }
+        else
+        {
+            // Unhandled interrupt, that's a bad trap
+            PltBadTrap (context, "unhandled interrupt %#X", CPU_CTX_INTNUM (context));
+        }
     }
     // Now we need to determine what kind of trap this is. There are 3 possibilities
     // If this is an exception, first we call the registered handler. If the handler fails to handle

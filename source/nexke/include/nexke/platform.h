@@ -61,7 +61,6 @@ typedef void (*PltHwEnableInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
 typedef void (*PltHwSetIpl) (NkCcb_t*, ipl_t);
 typedef int (*PltHwConnectInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
 typedef void (*PltHwDisconnectInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
-typedef int (*PltHwMapInterrupt) (int);
 
 // Hardware interrupt controller data structure
 typedef struct _hwintctrl
@@ -74,7 +73,6 @@ typedef struct _hwintctrl
     PltHwSetIpl setIpl;
     PltHwConnectInterrupt connectInterrupt;
     PltHwDisconnectInterrupt disconnectInterrupt;
-    PltHwMapInterrupt mapInterrupt;
 } PltHwIntCtrl_t;
 
 // Valid controller types
@@ -95,6 +93,9 @@ typedef struct _hwint
 
 #define PLT_MODE_EDGE  0
 #define PLT_MODE_LEVEL 1
+
+#define PLT_HWINT_FAKE     (1 << 0)
+#define PLT_HWINT_SPURIOUS (1 << 1)
 
 // Interrupt function type
 typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
@@ -185,6 +186,43 @@ PltHwTimer_t* PltInitTimer();
 // Nanoseconds in a second
 #define PLT_NS_IN_SEC 1000000000
 
+// CPU system
+
+typedef struct _hwcpu
+{
+    int id;      // ID according to platform
+    int type;    // CPU interrupt controller type
+    struct _hwcpu* next;
+    struct _hwcpu* prev;
+} PltCpu_t;
+
+#define PLT_CPU_APIC   0
+#define PLT_CPU_X2APIC 1
+
+// Interrupt overrides
+typedef struct _hwintsrc
+{
+    int line;        // Line on bus
+    int bus;         // Bus attached to
+    int mode;        // Trigger mode
+    uint32_t gsi;    // Global system inerrupt of interrupt
+    struct _hwintsrc* next;
+    struct _hwintsrc* prev;
+} PltIntOverride_t;
+
+#define PLT_BUS_ISA 0
+
+typedef struct _hwintctl
+{
+    int type;            // Type
+    uint64_t addr;       // ADdress of it
+    uint32_t gsiBase;    // Base interrupt number
+    struct _hwintctl* next;
+    struct _hwintctl* prev;
+} PltIntCtrl_t;
+
+#define PLT_INTCTRL_IOAPIC 0
+
 // Platform structure
 typedef struct _nkplt
 {
@@ -195,6 +233,12 @@ typedef struct _nkplt
     PltHwClock_t* clock;        // System clock
     PltHwTimer_t* timer;        // System timer
     PltHwIntCtrl_t* intCtrl;    // Interrupt controller
+    PltCpu_t* cpus;             // List of CPUs
+    PltCpu_t* bsp;              // BSP CPU
+    PltIntOverride_t* ints;     // List of interrupt sources
+    PltIntCtrl_t* intCtrls;     // List of interrupt controllers
+    int numCpus;
+    int numIntCtrls;
     // ACPI related things
     int acpiVer;                   // ACPI version
     AcpiRsdp_t rsdp;               // Copy of RSDP
@@ -210,5 +254,14 @@ typedef struct _nkplt
 
 // Gets platform
 NkPlatform_t* PltGetPlatform();
+
+// Adds CPU to platform
+void PltAddCpu (PltCpu_t* cpu);
+
+// Adds interrupt to platform
+void PltAddInterrupt (PltIntOverride_t* intSrc);
+
+// Adds interrupt controller to platform
+void PltAddIntCtrl (PltIntCtrl_t* intCtrl);
 
 #endif

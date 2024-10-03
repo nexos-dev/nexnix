@@ -23,6 +23,9 @@
 #include <string.h>
 
 static SlabCache_t* acpiCache = NULL;
+static SlabCache_t* cpuCache = NULL;
+static SlabCache_t* intCache = NULL;
+static SlabCache_t* intCtrlCache = NULL;
 
 // Initializes ACPI
 bool PltAcpiInit()
@@ -187,4 +190,81 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig)
 bool PltAcpiSciHandler (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 {
     return true;
+}
+
+// Detects all CPUs attached to the platform
+bool PltAcpiDetectCpus()
+{
+    if (PltGetPlatform()->subType != PLT_PC_SUBTYPE_ACPI)
+        return false;
+    // Create slab cache for CPUs
+    cpuCache = MmCacheCreate (sizeof (PltCpu_t), NULL, NULL);
+    intCache = MmCacheCreate (sizeof (PltIntOverride_t), NULL, NULL);
+    intCtrlCache = MmCacheCreate (sizeof (PltIntCtrl_t), NULL, NULL);
+    // Get the MADT
+    AcpiMadt_t* madt = (AcpiMadt_t*) PltAcpiFindTable ("APIC");
+    if (!madt)
+        return false;
+    uint32_t len = madt->sdt.length - sizeof (AcpiMadt_t);
+    AcpiMadtEntry_t* cur = (AcpiMadtEntry_t*) (madt + 1);
+    for (int i = 0; i < len;)
+    {
+        // See what this is
+        if (cur->type == ACPI_MADT_LAPIC)
+        {
+            // Prepare a CPU
+            AcpiLapic_t* lapic = (AcpiLapic_t*) cur;
+            if ((lapic->flags & ACPI_LAPIC_ENABLED) || (lapic->flags & ACPI_LAPIC_ONLINE_CAP))
+            {
+                PltCpu_t* cpu = MmCacheAlloc (cpuCache);
+                cpu->id = lapic->id;
+                cpu->type = PLT_CPU_APIC;
+                PltAddCpu (cpu);
+            }
+        }
+        else if (cur->type == ACPI_MADT_X2APIC)
+        {
+            // Prepare a CPU
+            AcpiX2Apic_t* lapic = (AcpiX2Apic_t*) cur;
+            if ((lapic->flags & ACPI_LAPIC_ENABLED) || (lapic->flags & ACPI_LAPIC_ONLINE_CAP))
+            {
+                PltCpu_t* cpu = MmCacheAlloc (cpuCache);
+                cpu->id = lapic->id;
+                cpu->type = PLT_CPU_X2APIC;
+                PltAddCpu (cpu);
+            }
+        }
+        else if (cur->type == ACPI_MADT_IOAPIC)
+        {
+            // Prepare an I/O APIC
+            AcpiIoApic_t* ioapic = (AcpiIoApic_t*) cur;
+            PltIntCtrl_t* intCtrl = MmCacheAlloc (intCtrlCache);
+            intCtrl->addr = ioapic->addr;
+            intCtrl->gsiBase = ioapic->gsiBase;
+            intCtrl->type = PLT_INTCTRL_IOAPIC;
+            PltAddIntCtrl (intCtrl);
+        }
+        else if (cur->type == ACPI_MADT_ISO)
+        {
+            // Prepare an interrupt override
+            AcpiIso_t* iso = (AcpiIso_t*) cur;
+            PltIntOverride_t* intSrc = MmCacheAlloc (intCache);
+            intSrc->bus = PLT_BUS_ISA;
+            intSrc->gsi = iso->gsi;
+            intSrc->line = iso->line;
+            if (iso->flags & ACPI_ISO_LEVEL)
+                intSrc->mode = PLT_MODE_LEVEL;
+            else if (iso->flags & ACPI_ISO_EDGE)
+                intSrc->mode = PLT_MODE_EDGE;
+            else
+            {
+                if (intSrc->bus == PLT_BUS_ISA)
+                    intSrc->mode = PLT_MODE_EDGE;
+            }
+            PltAddInterrupt (intSrc);
+        }
+        // To next entry
+        i += cur->length;
+        cur = (void*) cur + cur->length;
+    }
 }

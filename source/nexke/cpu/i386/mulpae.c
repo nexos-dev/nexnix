@@ -172,7 +172,7 @@ void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
     if (!(pdpt[PG_ADDR_PDPT (virt)] & PF_P))
         NkPanic ("nexke: cannot unmap invalid address");
     paddr_t pdirAddr = pdpt[PG_ADDR_PDPT (virt)] & PT_FRAME;
-    MmPtabReturnCache (space, cacheEnt);
+    MmPtabReturnCache (cacheEnt);
     MmPtabWalkAndUnmap (space, pdirAddr, virt);
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())

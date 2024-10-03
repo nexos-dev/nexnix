@@ -13,11 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if [ "$NNTARGETISMP" = "1" ]
+then
+    uparg="-DNEXKE_UP=0"
+else
+    uparg="-DNEXKE_UP=1"
+fi
+
 pkg_name=nexke
 pkg_iskernel=1
 pkg_buildsys=cmake
 pkg_prefix="/System/Core/Boot"
-pkg_confopts="-DNEXNIX_LOGLEVEL=$NNLOGLEVEL -DNEXNIX_GRAPHICS_MODE=$NNGRAPHICSMODE"
+pkg_confopts="-DNEXNIX_LOGLEVEL=$NNLOGLEVEL -DNEXNIX_GRAPHICS_MODE=$NNGRAPHICSMODE $uparg"
 if [ "$NNARCH" = "i386" ]
 then
     if [ "$NNISPAE" = "1" ]

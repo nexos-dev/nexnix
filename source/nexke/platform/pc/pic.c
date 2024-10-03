@@ -71,15 +71,15 @@ static inline uint16_t PltPicGetIsr()
     return (CpuInb (PLT_PIC_SLAVE_CMD) << 8) | CpuInb (PLT_PIC_MASTER_CMD);
 }
 
-// Maps interrupt to vector
-static int PltPicMapInterrupt (int line)
-{
-    return line + CPU_BASE_HWINT;
-}
-
 // Begins processing an interrupt
 static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
+    // If this is a fake interrupt convert vector
+    // What is a fake interrupt? When the interrupt dispatcher gets an interrupt it doesn't
+    // recognize it attempts to see if the interrupt controller can handle it. It sends a fake
+    // interrupt object so we have something to work with
+    if (intObj->flags & PLT_HWINT_FAKE)
+        intObj->line -= CPU_BASE_HWINT;
     // All we need to do is check if this interrupt is spurious
     if (intObj->line == 7 || intObj->line == 15)
     {
@@ -87,10 +87,18 @@ static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
         {
             // Still send EOI to master
             CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
+            // Check if this is a fake interrupt
+            if (intObj->flags & PLT_HWINT_FAKE)
+                intObj->flags |= PLT_HWINT_SPURIOUS;    // Let caller know we are spurious
             return false;    // If interrupt isn't actually in service it's spurious
         }
         if (!(PltPicGetIsr() & (1 << 7)) && intObj->line == 7)
+        {
+            // Check if this is a fake interrupt
+            if (intObj->flags & PLT_HWINT_FAKE)
+                intObj->flags |= PLT_HWINT_SPURIOUS;    // Let caller know we are spurious
             return false;
+        }
     }
     return true;
 }
@@ -184,8 +192,7 @@ static PltHwIntCtrl_t plt8259A = {.type = PLT_HWINT_8259A,
                                   .enableInterrupt = PltPicEnableInterrupt,
                                   .setIpl = PltPicSetIpl,
                                   .connectInterrupt = PltPicConnectInterrupt,
-                                  .disconnectInterrupt = PltPicDisconnectInterrupt,
-                                  .mapInterrupt = PltPicMapInterrupt};
+                                  .disconnectInterrupt = PltPicDisconnectInterrupt};
 
 // Intialization
 PltHwIntCtrl_t* PltPicInit()

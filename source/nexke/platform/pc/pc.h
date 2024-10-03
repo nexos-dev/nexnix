@@ -30,6 +30,9 @@ bool PltUartInit();
 // Initializes 8259A PIC
 PltHwIntCtrl_t* PltPicInit();
 
+// Initializes I/O and Local APICs
+PltHwIntCtrl_t* PltApicInit();
+
 // PIC IRQ lines
 #define PLT_PIC_IRQ_PIT 0
 
