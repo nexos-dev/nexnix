@@ -197,9 +197,9 @@ then
     echo "Building toolchain libraries..."
     if [ "$NNTOOLCHAIN" = "gnu" ]
     then
-        gmpver=6.2.1
-        mpfrver=4.1.0
-        mpcver=1.2.1
+        gmpver=6.3.0
+        mpfrver=4.2.1
+        mpcver=1.3.1
         islver=0.24
         cloogver=0.20.0
 

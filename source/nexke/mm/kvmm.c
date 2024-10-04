@@ -486,7 +486,7 @@ void* MmAllocKvMmio (void* phys, int numPages, int perm)
         NkPanicOom();
     uintptr_t off = (uintptr_t) virt - kmemSpace.startAddr;
     // Loop through every page and map and add it
-    pfn_t curPfn = (pfn_t) phys / NEXKE_CPU_PAGESZ;
+    pfn_t curPfn = (pfn_t) ((uintptr_t) phys / NEXKE_CPU_PAGESZ);
     for (int i = 0; i < numPages; ++i)
     {
         MmPage_t* page = MmFindPagePfn (curPfn);

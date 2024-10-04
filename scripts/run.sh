@@ -522,13 +522,13 @@ then
     # Set the sound device
     if [ "$EMU_SOUNDDEV" = "hda" ]
     then
-        QEMUARGS="${QEMUARGS} -device ich9-intel-hda -audiodev id=coreaudio,driver=coreaudio -device hda-duplex,audiodev=coreaudio"
+        QEMUARGS="${QEMUARGS} -device ich9-intel-hda -audiodev id=alsa,driver=alsa -device hda-duplex,audiodev=alsa"
     elif [ "$EMU_SOUNDDEV" = "ac97" ]
     then
-        QEMUARGS="${QEMUARGS} -device AC97,audiodev=coreaudio -audiodev id=coreaudio,driver=coreaudio"
+        QEMUARGS="${QEMUARGS} -device AC97,audiodev=alsa -audiodev id=alsa,driver=alsa"
     elif [ "$EMU_SOUNDDEV" = "sb16" ]
     then
-        QEMUARGS="${QEMUARGS} -device sb16,audiodev=coreaudio -audiodev id=coreaudio,driver=coreaudio"
+        QEMUARGS="${QEMUARGS} -device sb16,audiodev=alsa -audiodev id=alsa,driver=alsa"
     else
         echo "$0: invalid sound device \"$EMU_SOUNDDEV\""
         exit 1
