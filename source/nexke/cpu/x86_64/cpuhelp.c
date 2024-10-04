@@ -17,35 +17,36 @@
 
 #include <nexke/cpu.h>
 #include <nexke/nexke.h>
+#include <stdio.h>
 
 void CpuIoWait()
 {
-    asm("mov $0, %al; outb %al, $0x80");
+    asm ("mov $0, %al; outb %al, $0x80");
 }
 
 void CpuOutb (uint16_t port, uint8_t val)
 {
     CpuIoWait();
-    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void CpuOutw (uint16_t port, uint16_t val)
 {
     CpuIoWait();
-    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void CpuOutl (uint16_t port, uint32_t val)
 {
     CpuIoWait();
-    asm volatile("outl %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
 }
 
 uint8_t CpuInb (uint16_t port)
 {
     CpuIoWait();
     uint8_t ret;
-    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -53,7 +54,7 @@ uint16_t CpuInw (uint16_t port)
 {
     CpuIoWait();
     uint16_t ret;
-    asm volatile("inw %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inw %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -61,80 +62,142 @@ uint32_t CpuInl (uint16_t port)
 {
     CpuIoWait();
     uint32_t ret;
-    asm volatile("inl %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inl %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
 uint64_t CpuReadCr0()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr0, %0" : "=a"(ret));
+    asm volatile ("mov %%cr0, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWriteCr0 (uint64_t val)
 {
-    asm volatile("mov %0, %%cr0" : : "a"(val));
+    asm volatile ("mov %0, %%cr0" : : "a"(val));
 }
 
 uint64_t CpuReadCr3()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr3, %0" : "=a"(ret));
+    asm volatile ("mov %%cr3, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWriteCr3 (uint64_t val)
 {
-    asm volatile("mov %0, %%cr3" : : "a"(val));
+    asm volatile ("mov %0, %%cr3" : : "a"(val));
 }
 
 uint64_t CpuReadCr4()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr4, %0" : "=a"(ret));
+    asm volatile ("mov %%cr4, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWriteCr4 (uint64_t val)
 {
-    asm volatile("mov %0, %%cr4" : : "a"(val));
+    asm volatile ("mov %0, %%cr4" : : "a"(val));
 }
 
 uint64_t CpuReadCr2()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr2, %0" : "=a"(ret));
+    asm volatile ("mov %%cr2, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWrmsr (uint32_t msr, uint64_t val)
 {
-    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
+    asm volatile ("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
 }
 
 uint64_t CpuRdmsr (uint32_t msr)
 {
     uint32_t ax, dx;
-    asm volatile("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
+    asm volatile ("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
     return ax | ((uint64_t) dx << 32ULL);
 }
 
 uint64_t CpuRdtsc (void)
 {
     uint32_t low, high;
-    asm volatile("rdtsc" : "=a"(low), "=d"(high));
+    asm volatile ("rdtsc" : "=a"(low), "=d"(high));
     return ((uint64_t) high << 32) | low;
 }
 
 void CpuInvlpg (uintptr_t addr)
 {
-    asm volatile("invlpg (%0)" : : "r"(addr) : "memory");
+    asm volatile ("invlpg (%0)" : : "r"(addr) : "memory");
 }
 
 void __attribute__ ((noreturn)) CpuCrash()
 {
-    asm("cli;hlt");
+    asm ("cli;hlt");
     for (;;)
         ;
+}
+
+void CpuDisable()
+{
+    CpuGetCcb()->archCcb.intDisableCount++;
+    asm ("cli");
+}
+
+void CpuEnable()
+{
+    if (--CpuGetCcb()->archCcb.intDisableCount == 0)
+        asm ("sti");
+}
+
+void CpuPrintDebug (CpuIntContext_t* context)
+{
+    // Basically we just dump all the registers
+    va_list ap;
+    NkLogMessage ("CPU dump:\n", NK_LOGLEVEL_EMERGENCY, ap);
+    char buf[2048] = {0};
+    sprintf (buf,
+             "rax: %#016llX rbx: %#016llX rcx: %#08llX rdx: %#016llX\n",
+             context->rax,
+             context->rbx,
+             context->rcx,
+             context->rdx);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "rsi: %#016llX rdi: %#016llX rbp: %#016llX rsp: %#016llX\n",
+             context->rsi,
+             context->rdi,
+             context->rbp,
+             context->rsp);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "r8: %#016llX r9: %#016llX r10: %#016llX r11: %#016llX\n",
+             context->r8,
+             context->r9,
+             context->r10,
+             context->r11);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "r12: %#016llX r13: %#016llX r14: %#016llX r15: %#016llX\n",
+             context->r8,
+             context->r9,
+             context->r10,
+             context->r11);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "cr0: %#016llX cr2: %#016llX cr3: %#016llX cr4: %#016llX\n",
+             CpuReadCr0(),
+             CpuReadCr2(),
+             CpuReadCr3(),
+             CpuReadCr4());
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
+    sprintf (buf,
+             "rip: %#016llx rflags: %#016llx errcode: %#lX intno: %#02lX",
+             context->rip,
+             context->rflags,
+             context->errCode,
+             context->intNo);
+    NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
 }

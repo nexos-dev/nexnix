@@ -60,7 +60,7 @@ static inline ipl_t PltPicMapIpl (NkHwInterrupt_t* hwInt)
 {
     // So we have 16 interrupts. For simplicity we simply base the IPL off the vector
     // The +1 is because IPL 0 is reserved for IPL_LOW
-    return PLT_IPL_CLOCK - (hwInt->line + 1);
+    return PLT_IPL_TIMER - (hwInt->gsi + 1);
 }
 
 // Reads ISR of both PICs
@@ -79,11 +79,11 @@ static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     // recognize it attempts to see if the interrupt controller can handle it. It sends a fake
     // interrupt object so we have something to work with
     if (intObj->flags & PLT_HWINT_FAKE)
-        intObj->line -= CPU_BASE_HWINT;
+        intObj->gsi -= CPU_BASE_HWINT;
     // All we need to do is check if this interrupt is spurious
-    if (intObj->line == 7 || intObj->line == 15)
+    if (intObj->gsi == 7 || intObj->gsi == 15)
     {
-        if (!(PltPicGetIsr() & (1 << 15)) && intObj->line == 15)
+        if (!(PltPicGetIsr() & (1 << 15)) && intObj->gsi == 15)
         {
             // Still send EOI to master
             CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
@@ -92,7 +92,7 @@ static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
                 intObj->flags |= PLT_HWINT_SPURIOUS;    // Let caller know we are spurious
             return false;    // If interrupt isn't actually in service it's spurious
         }
-        if (!(PltPicGetIsr() & (1 << 7)) && intObj->line == 7)
+        if (!(PltPicGetIsr() & (1 << 7)) && intObj->gsi == 7)
         {
             // Check if this is a fake interrupt
             if (intObj->flags & PLT_HWINT_FAKE)
@@ -107,7 +107,7 @@ static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 static void PltPicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
     // Send EOI to PIC
-    if (intObj->line >= 8)
+    if (intObj->gsi >= 8)
         CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_EOI);
     // Master gets EOI either way
     CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
@@ -116,30 +116,30 @@ static void PltPicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 // Masks specified interrupt
 static void PltPicDisableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    int line = intObj->line;
+    uint32_t gsi = intObj->gsi;
     uint8_t picPort = PLT_PIC_MASTER_DATA;
-    if (line >= 8)
+    if (gsi >= 8)
     {
         // Set things for slave PIC
-        line -= 8;
+        gsi -= 8;
         picPort = PLT_PIC_SLAVE_DATA;
     }
-    uint8_t mask = CpuInb (picPort) | (1 << line);
+    uint8_t mask = CpuInb (picPort) | (1 << gsi);
     CpuOutb (picPort, mask);
 }
 
 // Unmasks specified interrupt
 static void PltPicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    int line = intObj->line;
+    uint32_t gsi = intObj->gsi;
     uint8_t picPort = PLT_PIC_MASTER_DATA;
-    if (line >= 8)
+    if (gsi >= 8)
     {
         // Set things for slave PIC
-        line -= 8;
+        gsi -= 8;
         picPort = PLT_PIC_SLAVE_DATA;
     }
-    uint8_t mask = CpuInb (picPort) & ~(1 << line);
+    uint8_t mask = CpuInb (picPort) & ~(1 << gsi);
     CpuOutb (picPort, mask);
 }
 
@@ -167,15 +167,21 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
         // Set as edge or level
         uint16_t elcr = CpuInb (PLT_PIC_ELCR) | (CpuInb (PLT_PIC_ELCR + 1) << 8);
         if (hwInt->mode == PLT_MODE_LEVEL)
-            elcr |= (1 << hwInt->line);
+            elcr |= (1 << hwInt->gsi);
         else
-            elcr &= ~(1 << hwInt->line);
+            elcr &= ~(1 << hwInt->gsi);
         CpuOutb (PLT_PIC_ELCR, elcr & 0xFF);
         CpuOutb (PLT_PIC_ELCR + 1, elcr >> 8);
     }
     // Set the IPL
-    hwInt->ipl = PltPicMapIpl (hwInt);
-    return hwInt->line + CPU_BASE_HWINT;
+    if (hwInt->ipl != PLT_IPL_TIMER)
+        hwInt->ipl = PltPicMapIpl (hwInt);
+    else
+    {
+        if (hwInt->gsi != 0)
+            return -1;    // Timer IPL only valid on PIT
+    }
+    return hwInt->gsi + CPU_BASE_HWINT;
 }
 
 // Disconnects interrupt from specified vector

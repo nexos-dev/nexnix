@@ -143,16 +143,16 @@ PltHwClock_t pitClock = {.type = PLT_CLOCK_PIT,
 static void PltPitInstallInt()
 {
     // Prepare interrupt
-    NkHwInterrupt_t pitInt = {0};
-    pitInt.line = PLT_PIC_IRQ_PIT;
-    pitInt.mode = PLT_MODE_EDGE;
-    int vector = PltConnectInterrupt (&pitInt);
+    NkHwInterrupt_t* pitInt = PltAllocHwInterrupt();
+    pitInt->gsi = PltGetGsi (PLT_BUS_ISA, PLT_PIC_IRQ_PIT);
+    pitInt->mode = PLT_MODE_EDGE;
+    pitInt->ipl = PLT_IPL_TIMER;
+    pitInt->flags = 0;
+    int vector = PltConnectInterrupt (pitInt);
     if (vector == -1)
         NkPanic ("nexke: unable to install PIT interrupt");
-    // We always run at clock IPL
-    pitInt.ipl = PLT_IPL_CLOCK;
     // Install interrupt
-    PltInstallInterrupt (vector, PLT_INT_HWINT, PltPitDispatch, &pitInt);
+    PltInstallInterrupt (vector, PLT_INT_HWINT, PltPitDispatch, pitInt);
 }
 
 // Initializes PIT clock

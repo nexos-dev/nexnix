@@ -124,6 +124,7 @@
 #define PLT_IOAPIC_LEVEL         (1 << 15)
 #define PLT_IOAPIC_EDGE          (0 << 15)
 #define PLT_IOAPIC_MASK          (1 << 16)
+#define PLT_IOAPIC_DEST_SHIFT    56ULL
 
 // Array of all IO APICs
 #define PLT_IOAPIC_MAX 128
@@ -138,11 +139,28 @@ typedef struct _ioapic
 
 static pltIoApic_t ioApics[PLT_IOAPIC_MAX + 1] = {0};
 
+#define PLT_APIC_MAX_IPL             25
+#define PLT_APIC_CLASS_TO_PRI(class) ((class) << 4)
+#define PLT_APIC_PRI_TO_CLASS(pri)   ((pri) >> 4)
+
+// Vector allocation map
+typedef struct _priority
+{
+    bool vectors[16];    // Vector allocation map
+} pltApicPriority_t;
+
+// Vector map
+#define PLT_APIC_NUM_PRIORITY 16
+static pltApicPriority_t vectorMap[PLT_APIC_NUM_PRIORITY] = {0};
+
+static uint8_t prioToIplMap[] = {0, 0, 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24};
+
 // Vectors of reserved interrupts
-#define PLT_APIC_SPURIOUS    (CPU_BASE_HWINT + 8)    // Some CPUs need spurious vector bits 3:0 to be 0
-#define PLT_APIC_ERROR       (CPU_BASE_HWINT + 1)
-#define PLT_APIC_TIMER       (CPU_BASE_HWINT + 2)
-#define PLT_APIC_BASE_VECTOR (CPU_BASE_HWINT + 9)
+#define PLT_APIC_SPURIOUS       240    // Some CPUs need spurious vector bits 3:0 to be 0
+#define PLT_APIC_ERROR          241
+#define PLT_APIC_TIMER          242
+#define PLT_APIC_BASE_VECTOR    (CPU_BASE_HWINT)
+#define PLT_APIC_LAST_USER_PRIO 15
 
 // Base address of APIC
 static volatile void* apicBase = NULL;
@@ -150,7 +168,21 @@ static volatile void* apicBase = NULL;
 // Maps IPL to APIC priority
 static inline uint8_t pltLapicMapIpl (ipl_t ipl)
 {
-    return (uint8_t) ipl - 1;
+    // Bounds check
+    if (ipl == PLT_IPL_TIMER)
+    {
+        // Ensure we have max prio
+        return PLT_APIC_CLASS_TO_PRI (PLT_APIC_NUM_PRIORITY - 1);
+    }
+    if (ipl > PLT_APIC_MAX_IPL)
+        ipl = PLT_APIC_MAX_IPL;
+    return (uint8_t) PLT_APIC_CLASS_TO_PRI ((ipl / 2) + 3);
+}
+
+// Maps priority to IPL
+static inline ipl_t pltLapicMapPrio (uint8_t class)
+{
+    return prioToIplMap[class];
 }
 
 // Reads lapic register
@@ -189,6 +221,14 @@ static void pltIoApicWriteRedir (pltIoApic_t* apic, uint8_t vector, uint64_t ent
     pltIoApicWrite (apic, PLT_IOAPIC_BASE_REDIR + (vector * 2) + 1, entry >> 32ULL);
 }
 
+// Reads redirection entry
+static uint64_t pltIoApicReadRedir (pltIoApic_t* apic, uint8_t vector)
+{
+    uint64_t redir = pltIoApicRead (apic, PLT_IOAPIC_BASE_REDIR + (vector * 2));
+    redir |= (uint64_t) (pltIoApicRead (apic, PLT_IOAPIC_BASE_REDIR + (vector * 2) + 1)) << 32ULL;
+    return redir;
+}
+
 // Gets I/O APIC associated with GSI
 static pltIoApic_t* pltApicGetIoApic (uint32_t gsi)
 {
@@ -215,24 +255,24 @@ static pltIoApic_t* pltApicGetIoApic (uint32_t gsi)
 static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
     // If not fake convert line to vector
-    int line = intObj->line;
+    uint32_t gsi = intObj->gsi;
     if (!(intObj->flags & PLT_HWINT_FAKE))
-        line += CPU_BASE_HWINT;
+        gsi += CPU_BASE_HWINT;
     // Check if this is spurious, error, or timer
-    if (line == PLT_APIC_SPURIOUS)
+    if (gsi == PLT_APIC_SPURIOUS)
     {
         // If fake let caller know we are spurious
         if (intObj->flags & PLT_HWINT_FAKE)
             intObj->flags |= PLT_HWINT_SPURIOUS;
         return false;
     }
-    else if (intObj->line == PLT_APIC_ERROR)
+    else if (gsi == PLT_APIC_ERROR)
     {
         // An APIC error occured, panic
         // Or should we not panic?
         NkPanic ("nexke: internal APIC error\n");
     }
-    else if (intObj->line == PLT_APIC_TIMER)
+    else if (gsi == PLT_APIC_TIMER)
     {
         // TODO
     }
@@ -246,28 +286,150 @@ static void PltApicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 
 static void PltApicDisableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    // TODO
+    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+    assert (apic);
+    uint32_t line = intObj->gsi - apic->gsiBase;
+    pltIoApicWriteRedir (apic, line, pltIoApicReadRedir (apic, line) | PLT_IOAPIC_MASK);
 }
 
 static void PltApicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    // TODO
+    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+    assert (apic);
+    uint32_t line = intObj->gsi - apic->gsiBase;
+    pltIoApicWriteRedir (apic, line, pltIoApicReadRedir (apic, line) & ~(PLT_IOAPIC_MASK));
 }
 
 static void PltApicSetIpl (NkCcb_t* ccb, ipl_t ipl)
 {
-    // Convert IPL to APIC priority
-    uint8_t priority = pltLapicMapIpl (ipl);
-    // Set the TPR
-    pltLapicWrite (PLT_LAPIC_TPR, priority);
+    // Special case for timer
+    if (ipl == PLT_IPL_TIMER)
+    {
+        // Set the TPR
+        pltLapicWrite (PLT_LAPIC_TPR, 0xE0);
+    }
+    else if (!ipl)
+        pltLapicWrite (PLT_LAPIC_TPR, 0);
+    else
+    {
+        // Convert IPL to APIC priority
+        uint8_t priority = pltLapicMapIpl (ipl - 1);
+        // Set the TPR
+        pltLapicWrite (PLT_LAPIC_TPR, priority);
+    }
 }
 
 static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
+    // First allocate a vector for this interrupt
+    uint8_t priority = pltLapicMapIpl (intObj->ipl);
+    assert (priority >= PLT_APIC_CLASS_TO_PRI (2));
+    // Get allocation map entry
+    pltApicPriority_t* baseMapEnt = &vectorMap[PLT_APIC_PRI_TO_CLASS (priority)];
+    pltApicPriority_t* curMapEnt = baseMapEnt;
+    int vector = 0;
+    int baseClass = PLT_APIC_PRI_TO_CLASS (priority);
+    int curClass = baseClass;
+    int curDist = 0;
+    bool isUp = false;
+    bool downDone = false;
+    bool upDone = false;
+    while (!vector)
+    {
+        // Find a free vector in map entry
+        for (int i = 0; i < 16; ++i)
+        {
+            if (!curMapEnt->vectors[i])
+            {
+                vector = (curClass << 4) + i;    // We have the vector
+                break;
+            }
+        }
+        if (!vector)
+        {
+            // Check if we're done
+            if (downDone && upDone)
+                break;
+            // Move to next priority
+            // The way we do this is by alternating up and down, i.e., down one,
+            // up one, down two, up two, down three, up three, etc
+            if (!isUp)
+            {
+                ++curDist;       // Move to next distance
+                if (curClass)    // Don't go too far
+                {
+                    // Move down from base to curDist
+                    curMapEnt = baseMapEnt - curDist;
+                    curClass = baseClass - curDist;
+                }
+                else
+                    downDone = true;
+            }
+            else
+            {
+                // Move up
+                if (curClass < PLT_APIC_LAST_USER_PRIO)
+                {
+                    curMapEnt = baseMapEnt + curDist;
+                    curClass = baseClass + curDist;
+                }
+                else
+                    upDone = true;
+            }
+        }
+    }
+    if (!vector)
+    {
+        // No free vectors
+        // TODO: vector / line sharing
+        return -1;
+    }
+    // We found a vector, make sure we set the right IPL
+    // Exception for PLT_IPL_TIMER
+    if (intObj->ipl == PLT_IPL_TIMER)
+    {
+        // Make sure we got max class
+        if (curClass != PLT_APIC_NUM_PRIORITY - 1)
+            return -1;    // Not valid
+    }
+    else
+        intObj->ipl = pltLapicMapPrio (curClass);
+    // Get IO APIC
+    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+    if (!apic)
+        return false;    // Invalid line
+    // We are error safe, reserve the vector
+    curMapEnt->vectors[vector - (curClass << 4)] = true;
+    intObj->vector = vector;
+    // Setup the redirection entry
+    uint64_t redir = PLT_APIC_FIXED | PLT_IOAPIC_MASK;
+    if (intObj->flags & PLT_HWINT_ACTIVE_LOW)
+        redir |= PLT_IOAPIC_ACTIVE_LOW;
+    else
+        redir |= PLT_IOAPIC_ACTIVE_HIGH;
+    if (intObj->mode == PLT_MODE_EDGE)
+        redir |= PLT_IOAPIC_EDGE;
+    else
+        redir |= PLT_IOAPIC_LEVEL;
+    redir |= vector & 0xFF;
+    redir |= (uint64_t) (PltGetPlatform()->bsp->id) << PLT_IOAPIC_DEST_SHIFT;
+    // Now write it out
+    pltIoApicWriteRedir (apic, intObj->gsi - apic->gsiBase, redir);
+    return vector;
 }
 
 static void PltApicDisconnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
+    // Grab the vector and free it
+    int class = PLT_APIC_PRI_TO_CLASS (intObj->vector);
+    pltApicPriority_t* mapEntry = &vectorMap[class];
+    // Free it
+    mapEntry->vectors[intObj->vector - PLT_APIC_CLASS_TO_PRI (class)] = false;
+    // Unmap interrupt from vector
+    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+    assert (apic);
+    // Disconnect it
+    pltIoApicWriteRedir (apic, intObj->gsi - apic->gsiBase, PLT_IOAPIC_MASK);
 }
 
 PltHwIntCtrl_t pltApic = {.type = PLT_HWINT_APIC,
@@ -276,7 +438,8 @@ PltHwIntCtrl_t pltApic = {.type = PLT_HWINT_APIC,
                           .disableInterrupt = PltApicDisableInterrupt,
                           .disconnectInterrupt = PltApicDisconnectInterrupt,
                           .enableInterrupt = PltApicEnableInterrupt,
-                          .endInterrupt = PltApicEndInterrupt};
+                          .endInterrupt = PltApicEndInterrupt,
+                          .setIpl = PltApicSetIpl};
 
 static bool pltLapicInit()
 {

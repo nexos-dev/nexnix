@@ -246,7 +246,7 @@ extern uint8_t CpuTrapTable[];
 #define CPU_GETTRAP(vector) ((uintptr_t) (CpuTrapTable + (vector * 0x10)))
 
 // Base hardware interrupt number
-#define CPU_BASE_HWINT 40
+#define CPU_BASE_HWINT 48
 
 // Control register bits
 #define CPU_CR0_PE (1 << 0)

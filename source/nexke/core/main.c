@@ -111,7 +111,9 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    // CpuEnable();
+    CpuEnable();
+    NkTimeEvent_t* event = NkTimeNewEvent();
+    NkTimeRegEvent (event, PLT_NS_IN_SEC, t, NULL);
     for (;;)
         ;
 }

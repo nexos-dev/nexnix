@@ -69,9 +69,9 @@ static bool idxPrioTable[] = {false, false, false, true, true, true};
 
 // PT cache defines
 #define MUL_MAX_PTCACHE        50
-#define MUL_PTCACHE_BASE       0xFFFFFFFF7FFDF000
-#define MUL_PTCACHE_TABLE_BASE 0xFFFFFFFF7FFDE000
-#define MUL_PTCACHE_ENTRY_BASE 0xFFFFFFFF7FFDD000
+#define MUL_PTCACHE_BASE       0xFFFFFFFF7FFC2000
+#define MUL_PTCACHE_TABLE_BASE 0xFFFFFFFF7FFC1000
+#define MUL_PTCACHE_ENTRY_BASE 0xFFFFFFFF7FFC0000
 
 #ifdef NEXNIX_X86_64_LA57
 #define MUL_MAX_USER_PMLTOP 511
@@ -89,6 +89,13 @@ static inline pte_t* MmMulGetCacheAddr (uintptr_t addr)
 static inline void MmMulMapCacheEntry (pte_t* pte, paddr_t tab)
 {
     *pte = tab | PF_P | PF_RW;
+}
+
+// Changes flags of entry
+static inline void MmMulChangePte (pte_t* pte, int perm)
+{
+    *pte &= PT_FRAME;
+    *pte |= perm;
 }
 
 #define MmMulFlushCacheEntry MmMulFlush

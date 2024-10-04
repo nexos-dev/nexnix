@@ -19,6 +19,7 @@
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <string.h>
 
 // Console struct externs
 extern NkConsole_t vgaCons;
@@ -89,6 +90,21 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
     ++nkPlatform.numIntCtrls;
 }
 
+// Resolves an interrupt line from bus-specific to a GSI
+uint32_t PltGetGsi (int bus, int line)
+{
+    // Search through interrupt overrides
+    PltIntOverride_t* intSrc = nkPlatform.ints;
+    while (intSrc)
+    {
+        // Check if this is it
+        if (intSrc->bus == bus && intSrc->line == line)
+            return intSrc->gsi;
+        intSrc = intSrc->next;
+    }
+    return line;
+}
+
 bool PltAcpiSciHandler (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 
 // Enable ACPI
@@ -108,13 +124,15 @@ void PltAcpiPcEnable()
     // Install SCI handler
     if (fadt->sciInt)
     {
-        NkHwInterrupt_t sciInt = {0};
-        sciInt.line = fadt->sciInt;
-        sciInt.mode = PLT_MODE_LEVEL;
-        int vector = PltConnectInterrupt (&sciInt);
+        NkHwInterrupt_t* sciInt = PltAllocHwInterrupt();
+        memset (sciInt, 0, sizeof (NkHwInterrupt_t));
+        sciInt->gsi = PltGetGsi (PLT_BUS_ISA, fadt->sciInt);
+        sciInt->mode = PLT_MODE_LEVEL;
+        sciInt->flags = PLT_HWINT_ACTIVE_LOW;
+        int vector = PltConnectInterrupt (sciInt);
         if (vector == -1)
             NkPanic ("nexke: unable to install SCI");
-        PltInstallInterrupt (vector, PLT_INT_HWINT, PltAcpiSciHandler, &sciInt);
+        PltInstallInterrupt (vector, PLT_INT_HWINT, PltAcpiSciHandler, sciInt);
     }
 }
 

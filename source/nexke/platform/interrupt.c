@@ -28,6 +28,7 @@ static NkInterrupt_t* nkIntTable[NK_MAX_INTS] = {NULL};
 
 // Slab cache
 static SlabCache_t* nkIntCache = NULL;
+static SlabCache_t* nkHwIntCache = NULL;
 
 // Platform static pointer
 static NkPlatform_t* platform = NULL;
@@ -55,9 +56,9 @@ NkInterrupt_t* PltInstallInterrupt (int vector,
     if (hwInt)
     {
         assert (obj->type == PLT_INT_HWINT);
-        memcpy (&obj->hwInt, hwInt, sizeof (NkHwInterrupt_t));
+        obj->hwInt = hwInt;
         // Enable it
-        platform->intCtrl->enableInterrupt (CpuGetCcb(), &obj->hwInt);
+        platform->intCtrl->enableInterrupt (CpuGetCcb(), obj->hwInt);
     }
     // Insert in table
     nkIntTable[vector] = obj;
@@ -65,9 +66,20 @@ NkInterrupt_t* PltInstallInterrupt (int vector,
     return obj;
 }
 
+// Allocates a hardware interrupt
+NkHwInterrupt_t* PltAllocHwInterrupt()
+{
+    return MmCacheAlloc (nkHwIntCache);
+}
+
 // Connects an interrupt to hardware controller
 int PltConnectInterrupt (NkHwInterrupt_t* hwInt)
 {
+    // Validate it
+    if (hwInt->ipl > PLT_IPL_TIMER)
+        return -1;
+    if (hwInt->ipl == 0)
+        ++hwInt->ipl;    // Default to lowest priority
     CpuDisable();
     int vector = platform->intCtrl->connectInterrupt (CpuGetCcb(), hwInt);
     CpuEnable();
@@ -84,9 +96,11 @@ void PltUninstallInterrupt (NkInterrupt_t* intObj)
     if (intObj->type == PLT_INT_HWINT)
     {
         // Disconnect and disable
-        platform->intCtrl->disconnectInterrupt (CpuGetCcb(), &intObj->hwInt);
+        platform->intCtrl->disconnectInterrupt (CpuGetCcb(), intObj->hwInt);
     }
     nkIntTable[intObj->vector] = NULL;
+    if (intObj->type == PLT_INT_HWINT)
+        MmCacheFree (nkHwIntCache, intObj->hwInt);
     CpuEnable();
     MmCacheFree (nkIntCache, intObj);
 }
@@ -98,7 +112,7 @@ void PltInitInterrupts()
     platform = PltGetPlatform();
     // Create cache
     nkIntCache = MmCacheCreate (sizeof (NkInterrupt_t), NULL, NULL);
-    assert (nkIntCache);
+    nkHwIntCache = MmCacheCreate (sizeof (NkHwInterrupt_t), NULL, NULL);
     // Register CPU exception handlers
     CpuRegisterExecs();
 }
@@ -176,7 +190,7 @@ void PltTrapDispatch (CpuIntContext_t* context)
     {
         // First see if hardware interrupt controller knows how to handle it
         NkHwInterrupt_t hwInt = {0};
-        hwInt.line = CPU_CTX_INTNUM (context);
+        hwInt.gsi = CPU_CTX_INTNUM (context);
         hwInt.flags = PLT_HWINT_FAKE;
         if (!platform->intCtrl->beginInterrupt (ccb, &hwInt))
         {
@@ -221,10 +235,10 @@ void PltTrapDispatch (CpuIntContext_t* context)
     {
         // Set the IPL and enable interrupts
         ipl_t oldIpl = ccb->curIpl;
-        ccb->curIpl = intObj->hwInt.ipl;
+        ccb->curIpl = intObj->hwInt->ipl;
         CpuEnable();
         // Check if this interrupt is spurious
-        if (!platform->intCtrl->beginInterrupt (ccb, &intObj->hwInt))
+        if (!platform->intCtrl->beginInterrupt (ccb, intObj->hwInt))
         {
             // This interrupt is spurious. Increase counter and return
             ++ccb->spuriousInts;
@@ -236,7 +250,7 @@ void PltTrapDispatch (CpuIntContext_t* context)
             intObj->handler (intObj, context);
             CpuDisable();
             // End the interrupt
-            platform->intCtrl->endInterrupt (ccb, &intObj->hwInt);
+            platform->intCtrl->endInterrupt (ccb, intObj->hwInt);
         }
         // Restore IPL
         ccb->curIpl = oldIpl;

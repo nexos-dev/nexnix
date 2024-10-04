@@ -50,8 +50,8 @@ NkConsole_t* PltGetSecondaryCons();
 
 // IPLs
 #define PLT_IPL_LOW   0
-#define PLT_IPL_CLOCK 30
-#define PLT_IPL_HIGH  31
+#define PLT_IPL_TIMER 32
+#define PLT_IPL_HIGH  33
 
 // Function pointer types for below
 typedef bool (*PltHwBeginInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
@@ -85,17 +85,19 @@ PltHwIntCtrl_t* PltInitHwInts();
 // Hardware interrupt
 typedef struct _hwint
 {
-    int line;     // Line number
-    int flags;    // Interrupt flags
-    int mode;     // Level or edge
-    ipl_t ipl;    // IPL value
+    uint32_t gsi;    // GSI number
+    int flags;       // Interrupt flags
+    int mode;        // Level or edge
+    ipl_t ipl;       // IPL value
+    int vector;      // Vector we're connected to
 } NkHwInterrupt_t;
 
 #define PLT_MODE_EDGE  0
 #define PLT_MODE_LEVEL 1
 
-#define PLT_HWINT_FAKE     (1 << 0)
-#define PLT_HWINT_SPURIOUS (1 << 1)
+#define PLT_HWINT_FAKE       (1 << 0)
+#define PLT_HWINT_SPURIOUS   (1 << 1)
+#define PLT_HWINT_ACTIVE_LOW (1 << 2)
 
 // Interrupt function type
 typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
@@ -103,11 +105,11 @@ typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 // Interrupt object
 typedef struct _int
 {
-    int vector;               // Interrupt vector number
-    int type;                 // Is this an exception, a service, or an external interrupt?
-    long long callCount;      // Number of times this interrupt has been called
-    PltIntHandler handler;    // Interrupt handler function
-    NkHwInterrupt_t hwInt;    // Hardware interrupt structure for hardware ints
+    int vector;                // Interrupt vector number
+    int type;                  // Is this an exception, a service, or an external interrupt?
+    long long callCount;       // Number of times this interrupt has been called
+    PltIntHandler handler;     // Interrupt handler function
+    NkHwInterrupt_t* hwInt;    // Hardware interrupt structure for hardware ints
 } NkInterrupt_t;
 
 #define PLT_INT_EXEC  0
@@ -137,6 +139,9 @@ void PltUninstallInterrupt (NkInterrupt_t* intObj);
 
 // Connects an interrupt to hardware controller. Returns a vector to install it to
 int PltConnectInterrupt (NkHwInterrupt_t* hwInt);
+
+// Allocates a hardware interrupt
+NkHwInterrupt_t* PltAllocHwInterrupt();
 
 // Clock system
 
@@ -263,5 +268,8 @@ void PltAddInterrupt (PltIntOverride_t* intSrc);
 
 // Adds interrupt controller to platform
 void PltAddIntCtrl (PltIntCtrl_t* intCtrl);
+
+// Resolves an interrupt line from bus-specific to a GSI
+uint32_t PltGetGsi (int bus, int line);
 
 #endif

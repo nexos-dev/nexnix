@@ -393,7 +393,7 @@ void* MmAllocKvRegion (size_t numPages, int flags)
             void* p = mmAllocKvInArena (arena, numPages);
             if (p)
             {
-                if (!(flags & MM_KV_NO_DEMAND) && arena->needsMap)
+                if (flags & MM_KV_NO_DEMAND && arena->needsMap)
                 {
                     // Go ahead and bring in pages for this memory region
                     mmKvGetMemory (p, numPages);

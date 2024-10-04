@@ -17,7 +17,6 @@
 
 #include <assert.h>
 #include <nexke/cpu.h>
-#include <nexke/cpu/ptab.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <string.h>
@@ -69,8 +68,12 @@ void MmMulInit()
     memset ((void*) MUL_PTCACHE_PMLTOP_STAGE, 0, (MUL_MAX_USER_PMLTOP * 8));
     // Write out CR3 to flush TLB
     CpuWriteCr3 ((uint64_t) pmlTop);
-    // Set base of directory
+    // Setup MUL
+    memset (&MmGetKernelSpace()->mulSpace, 0, sizeof (MmMulSpace_t));
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pmlTop;
+    MmAddPage (&MmGetKernelSpace()->mulSpace.tablePages,
+               MmFindPagePfn (cachePage / NEXKE_CPU_PAGESZ),
+               MUL_PTCACHE_TABLE_BASE - MmGetKernelSpace()->startAddr);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -85,11 +88,12 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     else
         isKernel = false;
     // Allocate the table
-    paddr_t tab = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    MmPage_t* pg = MmAllocPage();
+    paddr_t tab = pg->pfn * NEXKE_CPU_PAGESZ;
     // Zero it
-    MmPtCacheEnt_t* cacheEnt = MmPtabGetCache (space, tab, false);
-    memset ((void*) cacheEnt->addr, 0, NEXKE_CPU_PAGESZ);
-    MmPtabReturnCache (space, cacheEnt);
+    MmMulZeroPage (pg);
+    // Add to page list
+    MmAddPage (&space->mulSpace.tablePages, pg, addr - space->startAddr);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)
@@ -228,17 +232,13 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         // Is it mapped?
         if (*ent)
         {
-            // If PF_US is not set here and is set in pgFlags, panic
-            // We try to keep kernel mappings well isolated from user mappings
-            if (!(*ent & PF_US) && pgFlags & PF_US)
-                NkPanic ("nexke: cannot map user page to kernel memory area");
             // Grab the structure and move to next level
             curSt = (pte_t*) (PT_GETFRAME (*ent));
         }
         else
         {
             // Allocate a new table
-            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage());
             memset (newSt, 0, NEXKE_CPU_PAGESZ);
             // Determine new flags
             uint32_t tabFlags = PF_P | PF_RW;
