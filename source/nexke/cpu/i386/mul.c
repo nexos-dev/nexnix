@@ -36,6 +36,7 @@ void MmMulFlushTlb()
 // Initializes MUL
 void MmMulInit()
 {
+    NkLogDebug ("nexke: intializing MUL\n");
     MmPtabInit (2);    // Initialize page table manager with 2 levels
     // Grab page directory
     pte_t* pd = (pte_t*) CpuReadCr3();

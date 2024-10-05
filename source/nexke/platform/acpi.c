@@ -33,7 +33,10 @@ bool PltAcpiInit()
     NexNixBoot_t* boot = NkGetBootArgs();
     // Find ACPI component
     if (!(boot->detectedComps & (1 << NB_TABLE_ACPI)))
+    {
+        NkLogInfo ("nexke: ACPI check failed\n");
         return false;    // ACPI doesn't exist
+    }
     // Parse RSDP
     AcpiRsdp_t* rsdp = (AcpiRsdp_t*) boot->comps[NB_TABLE_ACPI];
     // Check validity

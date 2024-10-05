@@ -89,7 +89,10 @@ PltHwClock_t* PltAcpiInitClock()
         acpiPmGas.asId = ACPI_GAS_IO;
     }
     if (fadt->flags & ACPI_FADT_TMR_32BIT)
+    {
+        NkLogDebug ("nexke: using 32 bit ACPI PM\n");
         is32Bit = true;
+    }
     // Check if we need to map it
     if (acpiPmGas.asId == ACPI_GAS_MEM)
     {
@@ -97,5 +100,6 @@ PltHwClock_t* PltAcpiInitClock()
             MmAllocKvMmio ((void*) acpiPmGas.addr, 1, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_CD);
     }
     acpiPmClock.precision = PLT_NS_IN_SEC / ACPI_PM_FREQ;
+    NkLogDebug ("nexke: using ACPI as clock, precision %uns\n", acpiPmClock.precision);
     return &acpiPmClock;
 }

@@ -204,6 +204,8 @@ typedef struct _hwcpu
     struct _hwcpu* prev;
 } PltCpu_t;
 
+static const char* pltCpuTypes[] = {"APIC", "x2APIC"};
+
 #define PLT_CPU_APIC   0
 #define PLT_CPU_X2APIC 1
 
@@ -218,6 +220,8 @@ typedef struct _hwintsrc
     struct _hwintsrc* prev;
 } PltIntOverride_t;
 
+static const char* pltBusTypes[] = {"ISA"};
+
 #define PLT_BUS_ISA 0
 
 typedef struct _hwintctl
@@ -228,6 +232,8 @@ typedef struct _hwintctl
     struct _hwintctl* next;
     struct _hwintctl* prev;
 } PltIntCtrl_t;
+
+static const char* pltIntCtrlTypes[] = {"IOAPIC"};
 
 #define PLT_INTCTRL_IOAPIC 0
 

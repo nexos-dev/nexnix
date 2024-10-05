@@ -305,6 +305,7 @@ static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     }
     else if (gsi == PLT_APIC_ERROR)
     {
+        NkLogWarning ("nexke: warning: APIC error\n");
         pltLapicWrite (PLT_LAPIC_EOI, 0);
         return false;
     }
@@ -555,6 +556,7 @@ static bool pltLapicInit()
         if (curCpu->id == selfId)
         {
             // Set this as BSP
+            NkLogDebug ("nexke: found BSP at CPU %d\n", curCpu->id);
             PltGetPlatform()->bsp = curCpu;
         }
         curCpu = curCpu->next;
@@ -630,5 +632,6 @@ PltHwTimer_t* PltApicInitTimer()
     isApicTimer = true;
     // Unmask the interrupt
     pltLapicWrite (PLT_LVT_TIMER, pltLapicRead (PLT_LVT_TIMER) & ~(PLT_APIC_MASKED));
+    NkLogDebug ("nexke: using APIC as timer, precision %uns\n", pltApicTimer.precision);
     return &pltApicTimer;
 }

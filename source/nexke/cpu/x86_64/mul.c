@@ -39,6 +39,7 @@ static inline uintptr_t mulDecanonical (uintptr_t addr)
 // Initializes MUL
 void MmMulInit()
 {
+    NkLogDebug ("nexke: intializing MUL\n");
 #ifdef NEXNIX_X86_64_LA57
     int levels = 5;
 #else

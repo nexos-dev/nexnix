@@ -208,6 +208,7 @@ MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr)
 // Creates kernel space
 void MmCreateKernelSpace (MmObject_t* kernelObj)
 {
+    NkLogDebug ("nexke: intializing kernel space\n");
     MmSpace_t* space = MmGetKernelSpace();
     space->endAddr = NEXKE_KERNEL_ADDR_END;
     space->startAddr = NEXKE_KERNEL_ADDR_START;

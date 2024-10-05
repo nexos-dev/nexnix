@@ -206,6 +206,8 @@ void MmInitKvm2()
     size_t numPages = ((NEXKE_KERNEL_ADDR_END + 1) - NEXKE_KERNEL_ADDR_START) / NEXKE_CPU_PAGESZ;
     MmObject_t* object =
         MmCreateObject (numPages, MM_BACKEND_KERNEL, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_RW);
+    NkLogDebug ("nexke: kernel page object has size %u KiB\n",
+                (numPages * NEXKE_CPU_PAGESZ) / 1024);
     assert (object);
     // Create kernel space entry
     MmCreateKernelSpace (object);

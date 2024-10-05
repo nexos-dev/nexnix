@@ -67,6 +67,9 @@ void PltAddCpu (PltCpu_t* cpu)
     cpu->prev = NULL;
     nkPlatform.cpus = cpu;
     ++nkPlatform.numCpus;
+    NkLogDebug ("nexke: found CPU, interrupt controller %s, ID %d\n",
+                pltCpuTypes[cpu->type],
+                cpu->id);
 }
 
 // Adds interrupt to platform
@@ -77,6 +80,11 @@ void PltAddInterrupt (PltIntOverride_t* intSrc)
         nkPlatform.ints->prev = intSrc;
     intSrc->prev = NULL;
     nkPlatform.ints = intSrc;
+    NkLogDebug ("nexke: found interrupt override, line %d, bus %s, mode %s, GSI %u\n",
+                intSrc->line,
+                pltBusTypes[intSrc->bus],
+                (intSrc->mode == PLT_MODE_EDGE) ? "edge" : "level",
+                intSrc->gsi);
 }
 
 // Adds interrupt controller to platform
@@ -88,6 +96,10 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
     intCtrl->prev = NULL;
     nkPlatform.intCtrls = intCtrl;
     ++nkPlatform.numIntCtrls;
+    NkLogDebug ("nexke: found interrupt controller, type %s, base GSI %u, address %llx\n",
+                pltIntCtrlTypes[intCtrl->type],
+                intCtrl->gsiBase,
+                intCtrl->addr);
 }
 
 // Resolves an interrupt line from bus-specific to a GSI
@@ -122,7 +134,10 @@ void PltAcpiPcEnable()
         CpuOutb (fadt->smiCmd, fadt->acpiEnable);    // Enable ACPI
         while (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
             ;
+        NkLogDebug ("nexke: enabled ACPI\n");
     }
+    else
+        NkLogDebug ("nexke: ACPI already enabled\n");
     // Install SCI handler
     if (fadt->sciInt)
     {

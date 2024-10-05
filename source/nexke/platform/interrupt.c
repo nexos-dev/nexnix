@@ -83,6 +83,7 @@ int PltConnectInterrupt (NkHwInterrupt_t* hwInt)
     CpuDisable();
     int vector = platform->intCtrl->connectInterrupt (CpuGetCcb(), hwInt);
     CpuEnable();
+    NkLogDebug ("nexke: connected interrupt %u to vector %d\n", hwInt->gsi, vector);
     return vector;
 }
 
@@ -95,6 +96,7 @@ void PltUninstallInterrupt (NkInterrupt_t* intObj)
     CpuDisable();
     if (intObj->type == PLT_INT_HWINT)
     {
+        NkLogDebug ("nexke: disconnected interrupt %u\n", intObj->hwInt->gsi);
         // Disconnect and disable
         platform->intCtrl->disconnectInterrupt (CpuGetCcb(), intObj->hwInt);
     }
@@ -196,7 +198,10 @@ void PltTrapDispatch (CpuIntContext_t* context)
         {
             // It handled it, see if we need to increate spurious counter
             if (hwInt.flags & PLT_HWINT_SPURIOUS)
+            {
+                NkLogWarning ("nexke: warning: spurious interrupt occurred\n");
                 ++ccb->spuriousInts;
+            }
             return;    // We are done
         }
         else

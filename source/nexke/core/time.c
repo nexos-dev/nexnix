@@ -201,6 +201,7 @@ void NkPoll (uint64_t time)
 // Initializes timing subsystem
 void NkInitTime()
 {
+    NkLogDebug ("nexke: intializing timer\n");
     platform = PltGetPlatform();
     // Set limiting precision
     if (platform->clock->precision > platform->timer->precision)

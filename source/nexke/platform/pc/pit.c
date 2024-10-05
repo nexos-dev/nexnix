@@ -180,6 +180,7 @@ PltHwClock_t* PltPitInitClk()
     pitClock.precision = PLT_NS_IN_SEC / PLT_PIT_HZ;
     // Install interrupt handler
     PltPitInstallInt();
+    NkLogDebug ("nexke: using PIT as clock, precision %uns\n", pitClock.precision);
     return &pitClock;
 }
 
@@ -193,6 +194,7 @@ PltHwTimer_t* PltPitInitTimer()
         // In this case, we are actually a software timer. Basically we will call the callback
         // on every tick and the callback will manually trigger each event. This is slower
         // but is neccesary for old PCs with no invariant TSC, HPET, or ACPI PM timer
+        NkLogDebug ("nexke: using software timer, precision %uns\n", pitClock.precision);
         pitTimer.type = PLT_TIMER_SOFT;
         pitTimer.precision = pitClock.precision;
     }
@@ -203,6 +205,7 @@ PltHwTimer_t* PltPitInitTimer()
         CpuOutb (PLT_PIT_MODE_CMD, PLT_PIT_ONESHOT | PLT_PIT_LOHI | PLT_PIT_SEL_CHAN0);
         pitTimer.precision = PLT_NS_IN_SEC / PLT_PIT_FREQUENCY;
         pitTimer.maxInterval = UINT16_MAX * (PLT_NS_IN_SEC / PLT_PIT_FREQUENCY);
+        NkLogDebug ("nexke: using PIT as timer, precision %uns\n", pitTimer.precision);
         // Install the interrupt
         PltPitInstallInt();
     }

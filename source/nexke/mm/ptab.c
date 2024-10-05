@@ -31,6 +31,7 @@ static int mmNumLevels = 0;
 // Initializes page table manager
 void MmPtabInit (int numLevels)
 {
+    NkLogDebug ("nexke: MUL has %d levels\n", numLevels);
     mmNumLevels = numLevels;
 }
 
@@ -162,6 +163,9 @@ void MmPtabInitCache (MmSpace_t* space)
         else
             entries[i].prev = &entries[i - 1];
     }
+    NkLogDebug ("nexke: intialized page table cache at %llu with %d entries\n",
+                (uint64_t) entries,
+                MUL_MAX_PTCACHE);
     // Set pointer head
     space->mulSpace.ptFreeList = (MmPtCacheEnt_t*) MUL_PTCACHE_ENTRY_BASE;
     space->mulSpace.freeCount = MUL_MAX_PTCACHE;
@@ -281,6 +285,7 @@ MmPtCacheEnt_t* MmPtabGetCache (paddr_t ptab, int level)
             if (!curEnt->inUse)
             {
                 // Evict it
+                NkLogDebug ("nexke: evicting ptcache entry %p\n", ent->addr);
                 mmPtabRemoveEntry (space, curEnt);
                 mmPtabAddToList (space, curEnt, level);
                 mmPtabSetupEntry (curEnt, ptab, level);
@@ -313,6 +318,7 @@ void MmPtabReturnCache (MmPtCacheEnt_t* cacheEnt)
             {
                 if (!ent->inUse)
                 {
+                    NkLogDebug ("nexke: evicting ptcache entry %p\n", ent->addr);
                     // Free this entry
                     mmPtabRemoveEntry (space, ent);
                     mmPtabFreeEntry (space, ent);

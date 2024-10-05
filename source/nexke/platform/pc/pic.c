@@ -161,7 +161,10 @@ static void PltPicSetIpl (NkCcb_t* ccb, ipl_t ipl)
 static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
 {
     if (!isElcr && hwInt->mode == PLT_MODE_LEVEL)
+    {
+        NkLogDebug ("nexke: attempt to install level-trigerred interrupt, ignoring\n");
         return -1;    // Error
+    }
     if (isElcr)
     {
         // Set as edge or level
@@ -225,5 +228,7 @@ PltHwIntCtrl_t* PltPicInit()
     // If bits 0, 1, 2, and 13 are clear ELCR is supported
     if (!(elcr & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 13))))
         isElcr = true;
+    else
+        NkLogDebug ("nexke: no ELCR found, only edge-triggered interrupts are supported\n");
     return &plt8259A;
 }
