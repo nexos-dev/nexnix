@@ -126,6 +126,15 @@ static uint64_t PltPitGetTime()
     return pitClock.internalCount;
 }
 
+// Polls for a amount of time
+static void PltPitPoll (uint64_t time)
+{
+    time /= pitClock.precision;
+    uint32_t target = time + pitClock.internalCount;
+    while (pitClock.internalCount < target)
+        ;
+}
+
 PltHwTimer_t pitTimer = {.type = PLT_TIMER_PIT,
                          .armTimer = PltPitArmTimer,
                          .setCallback = PltPitSetCallback,
@@ -137,7 +146,8 @@ PltHwTimer_t pitTimer = {.type = PLT_TIMER_PIT,
 PltHwClock_t pitClock = {.type = PLT_CLOCK_PIT,
                          .precision = 0,
                          .internalCount = 0,
-                         .getTime = PltPitGetTime};
+                         .getTime = PltPitGetTime,
+                         .poll = PltPitPoll};
 
 // Installs PIT interrupt
 static void PltPitInstallInt()

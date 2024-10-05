@@ -74,6 +74,16 @@
 #define PLT_APIC_TIMER_PERIODIC (1 << 17)
 #define PLT_APIC_TIMER_TSC      (2 << 17)
 
+// APIC divisors
+#define PLT_APIC_DIV_2   0
+#define PLT_APIC_DIV_4   1
+#define PLT_APIC_DIV_8   2
+#define PLT_APIC_DIV_16  3
+#define PLT_APIC_DIV_32  8
+#define PLT_APIC_DIV_64  9
+#define PLT_APIC_DIV_128 10
+#define PLT_APIC_DIV_1   11
+
 // Error bits
 #define PLT_APIC_ERR_SEND_CHECKSUM (1 << 0)
 #define PLT_APIC_ERR_RECV_CHECKSUM (1 << 1)
@@ -156,7 +166,7 @@ static pltApicPriority_t vectorMap[PLT_APIC_NUM_PRIORITY] = {0};
 static uint8_t prioToIplMap[] = {0, 0, 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24};
 
 // Vectors of reserved interrupts
-#define PLT_APIC_SPURIOUS       240    // Some CPUs need spurious vector bits 3:0 to be 0
+#define PLT_APIC_SPURIOUS       243
 #define PLT_APIC_ERROR          241
 #define PLT_APIC_TIMER          242
 #define PLT_APIC_BASE_VECTOR    (CPU_BASE_HWINT)
@@ -164,6 +174,12 @@ static uint8_t prioToIplMap[] = {0, 0, 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20,
 
 // Base address of APIC
 static volatile void* apicBase = NULL;
+
+// APIC timer state
+static bool isApicTimer = false;
+static int armCount = 0;
+static int finalArm = 0;
+extern PltHwTimer_t pltApicTimer;
 
 // Maps IPL to APIC priority
 static inline uint8_t pltLapicMapIpl (ipl_t ipl)
@@ -251,6 +267,27 @@ static pltIoApic_t* pltApicGetIoApic (uint32_t gsi)
     return NULL;
 }
 
+// Handles APIC timer event
+static void pltLapicTimer()
+{
+    if (armCount)
+    {
+        --armCount;    // Decrease pending arm counter
+        if (!armCount)
+        {
+            // Set final arm
+            pltLapicWrite (PLT_TIMER_INITIAL_COUNT, finalArm);
+        }
+        else
+            pltLapicWrite (PLT_TIMER_INITIAL_COUNT, 0xFFFFFFFF);
+    }
+    else
+    {
+        // Call the callback to drain the event queue
+        pltApicTimer.callback();
+    }
+}
+
 // Interface functions
 static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
@@ -268,13 +305,15 @@ static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     }
     else if (gsi == PLT_APIC_ERROR)
     {
-        // An APIC error occured, panic
-        // Or should we not panic?
-        NkPanic ("nexke: internal APIC error\n");
+        pltLapicWrite (PLT_LAPIC_EOI, 0);
+        return false;
     }
     else if (gsi == PLT_APIC_TIMER)
     {
-        // TODO
+        // A timer interrupt occured, call the handler
+        pltLapicTimer();
+        pltLapicWrite (PLT_LAPIC_EOI, 0);
+        return false;    // We handled it
     }
     return true;
 }
@@ -441,6 +480,33 @@ PltHwIntCtrl_t pltApic = {.type = PLT_HWINT_APIC,
                           .endInterrupt = PltApicEndInterrupt,
                           .setIpl = PltApicSetIpl};
 
+static void pltApicSetCallback (void (*cb)())
+{
+    pltApicTimer.callback = cb;
+}
+
+static void pltApicArmTimer (uint64_t delta)
+{
+    if (armCount)
+        armCount = 0, finalArm = 0;
+    delta /= pltApicTimer.precision;    // Get to timer precision
+    // Make sure delta is not 0
+    if (!delta)
+        ++delta;
+    // Make sure we are in the max interval
+    uint64_t maxInterval = pltApicTimer.maxInterval / pltApicTimer.precision;
+    if (delta > maxInterval)
+    {
+        // Figure out the number of arms we will need to do
+        armCount = delta / maxInterval;
+        finalArm = delta % maxInterval;
+        // Set delta to max
+        delta = maxInterval;
+    }
+    // Set it in the APIC
+    pltLapicWrite (PLT_TIMER_INITIAL_COUNT, (uint32_t) delta);
+}
+
 static bool pltLapicInit()
 {
     // Check if APIC exists
@@ -474,6 +540,9 @@ static bool pltLapicInit()
         pltLapicWrite (PLT_LVT_THERMAL, PLT_APIC_MASKED);
     // Mask timer for now
     pltLapicWrite (PLT_LVT_TIMER, PLT_APIC_MASKED);
+    // Clear ESR
+    pltLapicWrite (PLT_LAPIC_ESR, 0);
+    pltLapicWrite (PLT_LAPIC_ESR, 0);
     // Clear any potentially pending interrupts
     pltLapicWrite (PLT_LAPIC_EOI, 0);
     // Set TPR
@@ -533,4 +602,33 @@ PltHwIntCtrl_t* PltApicInit()
         cur = cur->next;
     }
     return &pltApic;
+}
+
+PltHwTimer_t pltApicTimer = {.type = PLT_TIMER_APIC,
+                             .setCallback = pltApicSetCallback,
+                             .armTimer = pltApicArmTimer};
+
+PltHwTimer_t* PltApicInitTimer()
+{
+    // Check if APIC exists
+    NkCcb_t* ccb = CpuGetCcb();
+    if (!(ccb->archCcb.features & CPU_FEATURE_APIC))
+        return false;
+    // Set up divide register
+    pltLapicWrite (PLT_TIMER_DIVIDE, PLT_APIC_DIV_16);
+    // Set up LVT entry, still keeping it masked
+    pltLapicWrite (PLT_LVT_TIMER, PLT_APIC_TIMER | PLT_APIC_TIMER_ONE_SHOT | PLT_APIC_MASKED);
+    // Set initial count
+    pltLapicWrite (PLT_TIMER_INITIAL_COUNT, 0xFFFFFFFF);
+    // Poll for 100ms
+    PltGetPlatform()->clock->poll (PLT_NS_IN_SEC / 10);
+    uint32_t ticks = 0xFFFFFFFF - pltLapicRead (PLT_TIMER_CURRENT_COUNT);
+    // Convert to precision
+    ticks *= 10;    // Ticks per second now
+    pltApicTimer.precision = PLT_NS_IN_SEC / ticks;
+    pltApicTimer.maxInterval = UINT32_MAX * pltApicTimer.precision;
+    isApicTimer = true;
+    // Unmask the interrupt
+    pltLapicWrite (PLT_LVT_TIMER, pltLapicRead (PLT_LVT_TIMER) & ~(PLT_APIC_MASKED));
+    return &pltApicTimer;
 }

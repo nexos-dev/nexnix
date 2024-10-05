@@ -47,10 +47,28 @@ static uint64_t PltAcpiGetTime()
     return ((overFlowCount << ((is32Bit) ? 32ULL : 24)) + val) * acpiPmClock.precision;
 }
 
+static void PltAcpiPoll (uint64_t time)
+{
+    uint64_t target = time + PltAcpiGetTime();
+    target /= acpiPmClock.precision;
+    while (1)
+    {
+        uint32_t val = 0;
+        if (acpiPmGas.asId == ACPI_GAS_IO)
+            val = CpuInl (acpiPmGas.addr);
+        else
+            val = *acpiPmBase;
+        val = ((overFlowCount << ((is32Bit) ? 32ULL : 24)) + val);
+        if (val >= target)
+            break;
+    }
+}
+
 PltHwClock_t acpiPmClock = {.type = PLT_CLOCK_ACPI,
                             .precision = 0,
                             .internalCount = 0,
-                            .getTime = PltAcpiGetTime};
+                            .getTime = PltAcpiGetTime,
+                            .poll = PltAcpiPoll};
 
 // Initializes ACPI PM timer
 PltHwClock_t* PltAcpiInitClock()

@@ -79,6 +79,7 @@
 #define CPU_FEATURE_SSE5         (1ULL << 51)
 #define CPU_FEATURE_INVLPG       (1ULL << 52)
 #define CPU_FEATURE_AC           (1ULL << 53)
+#define CPU_FEATURE_ARAT         (1ULL << 54)
 
 // Gets feature bits
 uint64_t CpuGetFeatures();

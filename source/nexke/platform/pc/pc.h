@@ -45,4 +45,7 @@ PltHwTimer_t* PltPitInitTimer();
 // Enable ACPI
 void PltAcpiPcEnable();
 
+// Initialize APIC timer
+PltHwTimer_t* PltApicInitTimer();
+
 #endif

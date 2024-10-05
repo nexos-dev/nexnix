@@ -72,6 +72,9 @@ typedef struct _cpuidInfo
 #define CPUID_FEATURE_AVX          (1 << 28)
 #define CPUID_FEATURE_RDRAND       (1 << 30)
 
+// 06h EAX
+#define CPUID_FEATURE_ARAT (1 << 2)
+
 // 07h EBX
 #define CPUID_FEATURE_FSGSBASE (1 << 0)
 #define CPUID_FEATURE_SMEP     (1 << 7)
@@ -97,9 +100,9 @@ static size_t maxExtEax = 0;
 // Executes cpuid instruction
 static void cpuCpuid (uint32_t code, uint32_t extCode, CpuCpuid_t* cpuid)
 {
-    asm volatile("cpuid"
-                 : "=a"(cpuid->eax), "=b"(cpuid->ebx), "=c"(cpuid->ecx), "=d"(cpuid->edx)
-                 : "a"(code), "c"(extCode));
+    asm volatile ("cpuid"
+                  : "=a"(cpuid->eax), "=b"(cpuid->ebx), "=c"(cpuid->ecx), "=d"(cpuid->edx)
+                  : "a"(code), "c"(extCode));
 }
 
 static void cpuidSetType (NkCcb_t* ccb)
@@ -200,6 +203,13 @@ static void cpuidSetFeatures (NkCcb_t* ccb)
         archCcb->features |= CPU_FEATURE_AVX;
     if (ecx & CPUID_FEATURE_RDRAND)
         archCcb->features |= CPU_FEATURE_RDRAND;
+    // Call 06H
+    if (maxEax >= 6)
+    {
+        cpuCpuid (6, 0, &cpuid);
+        if (cpuid.eax & CPUID_FEATURE_ARAT)
+            archCcb->features |= CPU_FEATURE_ARAT;
+    }
     // Call 07h
     if (maxEax >= 7)
     {
@@ -265,7 +275,7 @@ static const char* cpuFeatureStrings[] = {
     "POPCNT",       "LAHF",      "SYSCALL", "XD",       "1GB",    "RDTSCP",     "LM",
     "FSGSBASE",     "SMEP",      "INVPCID", "VMX",      "PCID",   "SSE42",      "X2APIC",
     "TSC_DEADLINE", "XSAVE",     "OSXSAVE", "AVX",      "RDRAND", "SYSENTER64", "SYSCALL64",
-    "SVM",          "SSE4A",     "SSE5",    "INVLPG",   "AC"};
+    "SVM",          "SSE4A",     "SSE5",    "INVLPG",   "AC",     "ARAT"};
 
 void CpuDetectCpuid (NkCcb_t* ccb)
 {

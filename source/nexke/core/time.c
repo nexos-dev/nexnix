@@ -190,6 +190,14 @@ static void NkTimeHandler()
     }
 }
 
+// Polls
+void NkPoll (uint64_t time)
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_TIMER);
+    platform->clock->poll (time);
+    PltLowerIpl (ipl);
+}
+
 // Initializes timing subsystem
 void NkInitTime()
 {

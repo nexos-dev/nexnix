@@ -146,6 +146,7 @@ NkHwInterrupt_t* PltAllocHwInterrupt();
 // Clock system
 
 typedef uint64_t (*PltHwGetTime)();
+typedef void (*PltHwPoll) (uint64_t time);
 
 // Hardware clock
 typedef struct _hwclock
@@ -153,6 +154,7 @@ typedef struct _hwclock
     int type;                  // Underlying device
     int precision;             // Precision in nanoseconds
     PltHwGetTime getTime;      // Gets current time on clock
+    PltHwPoll poll;            // Polls for a amount of time;
     uint64_t internalCount;    // Used for software clocking on some systems
     uintptr_t private;
 } PltHwClock_t;
@@ -184,6 +186,7 @@ typedef struct _hwtimer
 
 #define PLT_TIMER_PIT  1
 #define PLT_TIMER_SOFT 2
+#define PLT_TIMER_APIC 3
 
 // Initializes system timer
 PltHwTimer_t* PltInitTimer();

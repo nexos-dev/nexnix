@@ -50,9 +50,9 @@ target_link_libraries(nexboot-efi-1 PRIVATE nexboot gnuefi)
 
 # Options
 target_link_options(nexboot-efi-1 PUBLIC -shared -Wl,-Bsymbolic
-    -T ${CMAKE_SYSROOT}/${GNUEFI_LIBDIR}/elf_${GNUEFI_ARCH}_efi.lds
+    -T ${GNUEFI_LIBDIR}/elf_${GNUEFI_ARCH}_efi.lds
     -L ${GNUEFI_LIBDIR} -znocombreloc
-    ${CMAKE_SYSROOT}/${GNUEFI_LIBDIR}/crt0-efi-${GNUEFI_ARCH}.o)
+    ${GNUEFI_LIBDIR}/crt0-efi-${GNUEFI_ARCH}.o)
 
 target_compile_options(nexboot-efi-1 PUBLIC ${NEXBOOT_CFLAGS})
 

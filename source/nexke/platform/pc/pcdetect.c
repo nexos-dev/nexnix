@@ -93,6 +93,8 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
 // Resolves an interrupt line from bus-specific to a GSI
 uint32_t PltGetGsi (int bus, int line)
 {
+    if (nkPlatform.intCtrl->type == PLT_HWINT_8259A)
+        return line;
     // Search through interrupt overrides
     PltIntOverride_t* intSrc = nkPlatform.ints;
     while (intSrc)
@@ -176,13 +178,12 @@ PltHwClock_t* PltInitClock()
 // Initializes system timer
 PltHwTimer_t* PltInitTimer()
 {
-    // More timers coming soon!
-    PltHwTimer_t* timer = PltPitInitTimer();
+    PltHwTimer_t* timer = PltApicInitTimer();
+    if (!timer)
+        timer = PltPitInitTimer();
     nkPlatform.timer = timer;
     return timer;
 }
-
-// Maps an MMIO range to pages and returns the page
 
 // Gets primary console
 NkConsole_t* PltGetPrimaryCons()
