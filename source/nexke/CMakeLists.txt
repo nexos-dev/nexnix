@@ -91,9 +91,8 @@ list(APPEND NEXKE_SOURCES
     mm/object.c
     mm/kvmm.c
     mm/fault.c
-    platform/acpi.c
-    platform/acpipm.c
-    platform/interrupt.c)
+    platform/interrupt.c
+    platform/acpi.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})

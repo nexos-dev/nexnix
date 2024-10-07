@@ -60,6 +60,8 @@ static uint64_t NkTimeDeltaToDeadline (uint64_t* delta)
 // Registers a time event
 void NkTimeRegEvent (NkTimeEvent_t* event, uint64_t delta, NkTimeCallback callback, void* arg)
 {
+    if (event->inUse)
+        return;    // Don't register a in use event
     // Setup event
     event->arg = arg;
     event->callback = callback;
@@ -123,6 +125,7 @@ void NkTimeRegEvent (NkTimeEvent_t* event, uint64_t delta, NkTimeCallback callba
             platform->timer->armTimer (delta);
         }
     }
+    event->inUse = true;
     PltLowerIpl (ipl);
 }
 
@@ -147,7 +150,12 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
         if (platform->timer->type != PLT_TIMER_SOFT)
         {
             uint64_t deadline = event->deadline;
-            uint64_t delta = deadline - platform->clock->getTime();
+            int64_t delta = deadline - platform->clock->getTime();
+            if (delta < 0)
+            {
+                // TODO: is there a better way of handling this?
+                delta = 0;
+            }
             platform->timer->armTimer (delta);
         }
     }
@@ -186,6 +194,18 @@ static void NkTimeHandler()
             ccb->timeEvents = event->next;
             event->callback (event, event->arg);
             event = event->next;    // To next event
+        }
+        // Arm the next event
+        if (ccb->timeEvents)
+        {
+            event = ccb->timeEvents;
+            int64_t delta = event->deadline - platform->clock->getTime();
+            if (delta < 0)
+            {
+                // TODO: is there a better way of handling this?
+                delta = 0;
+            }
+            platform->timer->armTimer (delta);
         }
     }
 }

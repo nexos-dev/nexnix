@@ -18,6 +18,7 @@
 #ifndef _X86_H
 #define _X86_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define MM_PAGE_TABLES
@@ -214,12 +215,6 @@ void CpuInstallIdt (CpuTabPtr_t* idt);
 // Flushes GDT
 void CpuFlushGdt (CpuTabPtr_t* gdt);
 
-// Disables interrupts
-void CpuDisable();
-
-// Enables interrupts
-void CpuEnable();
-
 // CCB type
 typedef struct _nkccb NkCcb_t;
 
@@ -229,9 +224,10 @@ typedef struct _nkarchccb
     int stepping;    // CPU specifier
     int model;
     int family;
-    int physAddrBits;    // Number of bits in a physical address
-    int virtAddrBits;    // Number of bits in virtual address
-    int intDisableCount;
+    int physAddrBits;               // Number of bits in a physical address
+    int virtAddrBits;               // Number of bits in virtual address
+    bool intsHeld;                  // If interrupts are being held
+    bool intRequested;              // If unhold should enable interrupts
     unsigned long long features;    // CPU feature flags
     CpuSegDesc_t* gdt;              // GDT pointer
     CpuIdtEntry_t* idt;             // IDT pointer

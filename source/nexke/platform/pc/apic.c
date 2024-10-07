@@ -313,6 +313,7 @@ static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     {
         // A timer interrupt occured, call the handler
         pltLapicTimer();
+        CpuDisable();
         pltLapicWrite (PLT_LAPIC_EOI, 0);
         return false;    // We handled it
     }
@@ -321,6 +322,7 @@ static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 
 static void PltApicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
+    CpuDisable();
     pltLapicWrite (PLT_LAPIC_EOI, 0);    // Send EOI
 }
 

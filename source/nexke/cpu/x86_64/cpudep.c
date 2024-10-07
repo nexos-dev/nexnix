@@ -187,6 +187,8 @@ void CpuInitCcb()
 #else
 #error Unrecognized board
 #endif
+    ccb.archCcb.intsHeld = true;    // Keep interrupts held at first
+    ccb.archCcb.intRequested = true;
     strcpy (ccb.sysName, bootInfo->sysName);
     // Detect CPUID features
     CpuDetectCpuid (&ccb);

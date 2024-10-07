@@ -142,14 +142,30 @@ void __attribute__ ((noreturn)) CpuCrash()
 
 void CpuDisable()
 {
-    CpuGetCcb()->archCcb.intDisableCount++;
     asm ("cli");
 }
 
 void CpuEnable()
 {
-    if (--CpuGetCcb()->archCcb.intDisableCount == 0)
+    if (!CpuGetCcb()->archCcb.intsHeld)
         asm ("sti");
+    else
+        CpuGetCcb()->archCcb.intRequested = true;
+}
+
+void CpuHoldInts()
+{
+    CpuGetCcb()->archCcb.intsHeld = true;
+}
+
+void CpuUnholdInts()
+{
+    CpuGetCcb()->archCcb.intsHeld = false;
+    if (CpuGetCcb()->archCcb.intRequested)
+    {
+        asm ("sti");
+        CpuGetCcb()->archCcb.intRequested = false;
+    }
 }
 
 void CpuPrintDebug (CpuIntContext_t* context)

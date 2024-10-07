@@ -106,6 +106,7 @@ static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 // Ends processing of an interrupt
 static void PltPicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
+    CpuDisable();
     // Send EOI to PIC
     if (intObj->gsi >= 8)
         CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_EOI);

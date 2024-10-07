@@ -40,17 +40,17 @@ const char* NkReadArg (const char* arg)
     const char* cmdLineEnd = cmdLine + strlen (cmdLine);
     size_t argLen = strlen (arg);
     const char* iter = cmdLine;
-    while (iter < (cmdLineEnd - argLen))
+    while (iter < ((cmdLineEnd + 1) - argLen))
     {
         if (!memcmp (arg, iter, argLen))
         {
             iter += argLen;
-            // Ensure next character is a space
-            if (*iter != ' ')
-                goto next;
             // If next character is null terminator, then we are at the end
             if (*iter == 0)
                 return "";
+            // Ensure next character is a space
+            if (*iter != ' ')
+                goto next;
             ++iter;
             // Check if next character is dash
             if (*iter == '-')
@@ -102,7 +102,6 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
     // Initialize CCB
     CpuInitCcb();
-    CpuDisable();    // Hold interrupts till we are ready
     // Initialize phase 2 of platform
     PltInitPhase2();
     // Initialize MM phase 2
@@ -111,9 +110,16 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    CpuEnable();
     NkTimeEvent_t* event = NkTimeNewEvent();
     NkTimeRegEvent (event, PLT_NS_IN_SEC, t, NULL);
+    event = NkTimeNewEvent();
+    NkTimeRegEvent (event, PLT_NS_IN_SEC * 2, t, NULL);
+    event = NkTimeNewEvent();
+    NkTimeRegEvent (event, PLT_NS_IN_SEC * 2, t, NULL);
+    event = NkTimeNewEvent();
+    NkTimeRegEvent (event, PLT_NS_IN_SEC * (uint64_t) 3, t, NULL);
+    event = NkTimeNewEvent();
+    NkTimeRegEvent (event, PLT_NS_IN_SEC * (uint64_t) 4, t, NULL);
     for (;;)
         ;
 }

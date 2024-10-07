@@ -129,7 +129,6 @@ static uint64_t PltPitGetTime()
 // Polls for a amount of time
 static void PltPitPoll (uint64_t time)
 {
-    time /= pitClock.precision;
     uint32_t target = time + pitClock.internalCount;
     while (pitClock.internalCount < target)
         ;

@@ -117,6 +117,7 @@ typedef struct _timeevt
                                 // NOTE: this is internal, as this is in internal clock ticks
     NkTimeCallback callback;    // Callback function
     void* arg;                  // Argument to pass to callback
+    bool inUse;                 // Event current registered
     struct _timeevt* prev;
     struct _timeevt* next;    // Links
 } NkTimeEvent_t;

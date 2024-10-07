@@ -185,6 +185,9 @@ void PltExecDispatch (NkInterrupt_t* intObj, CpuIntContext_t* context)
 // Trap dispatcher
 void PltTrapDispatch (CpuIntContext_t* context)
 {
+    /*uint64_t start = 0;
+    if (PltGetPlatform()->clock)
+        start = PltGetPlatform()->clock->getTime();*/
     NkCcb_t* ccb = CpuGetCcb();
     // Grab the interrupt object
     NkInterrupt_t* intObj = nkIntTable[CPU_CTX_INTNUM (context)];
@@ -202,6 +205,11 @@ void PltTrapDispatch (CpuIntContext_t* context)
                 NkLogWarning ("nexke: warning: spurious interrupt occurred\n");
                 ++ccb->spuriousInts;
             }
+            /*if (PltGetPlatform()->clock)
+            {
+                uint64_t delta = PltGetPlatform()->clock->getTime() - start;
+                NkLogError ("%lld\n", delta / 1000);
+            }*/
             return;    // We are done
         }
         else

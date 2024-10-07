@@ -23,32 +23,32 @@
 
 void CpuIoWait()
 {
-    asm("mov $0, %al; outb %al, $0x80");
+    asm ("mov $0, %al; outb %al, $0x80");
 }
 
 void CpuOutb (uint16_t port, uint8_t val)
 {
     CpuIoWait();
-    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void CpuOutw (uint16_t port, uint16_t val)
 {
     CpuIoWait();
-    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void CpuOutl (uint16_t port, uint32_t val)
 {
     CpuIoWait();
-    asm volatile("outl %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
 }
 
 uint8_t CpuInb (uint16_t port)
 {
     CpuIoWait();
     uint8_t ret;
-    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -56,7 +56,7 @@ uint16_t CpuInw (uint16_t port)
 {
     CpuIoWait();
     uint16_t ret;
-    asm volatile("inw %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inw %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -64,87 +64,103 @@ uint32_t CpuInl (uint16_t port)
 {
     CpuIoWait();
     uint32_t ret;
-    asm volatile("inl %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inl %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
 uint32_t CpuReadCr0()
 {
     uint32_t ret = 0;
-    asm volatile("mov %%cr0, %0" : "=a"(ret));
+    asm volatile ("mov %%cr0, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWriteCr0 (uint32_t val)
 {
-    asm volatile("mov %0, %%cr0" : : "a"(val));
+    asm volatile ("mov %0, %%cr0" : : "a"(val));
 }
 
 uint32_t CpuReadCr3()
 {
     uint32_t ret = 0;
-    asm volatile("mov %%cr3, %0" : "=a"(ret));
+    asm volatile ("mov %%cr3, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWriteCr3 (uint32_t val)
 {
-    asm volatile("mov %0, %%cr3" : : "a"(val));
+    asm volatile ("mov %0, %%cr3" : : "a"(val));
 }
 
 uint32_t CpuReadCr4()
 {
     uint32_t ret = 0;
-    asm volatile("mov %%cr4, %0" : "=a"(ret));
+    asm volatile ("mov %%cr4, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWriteCr4 (uint32_t val)
 {
-    asm volatile("mov %0, %%cr4" : : "a"(val));
+    asm volatile ("mov %0, %%cr4" : : "a"(val));
 }
 
 uint32_t CpuReadCr2()
 {
     uint32_t ret = 0;
-    asm volatile("mov %%cr2, %0" : "=a"(ret));
+    asm volatile ("mov %%cr2, %0" : "=a"(ret));
     return ret;
 }
 
 void CpuWrmsr (uint32_t msr, uint64_t val)
 {
-    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
+    asm volatile ("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
 }
 
 uint64_t CpuRdmsr (uint32_t msr)
 {
     uint32_t ax, dx;
-    asm volatile("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
+    asm volatile ("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
     return ax | ((uint64_t) dx << 32);
 }
 
 uint64_t CpuRdtsc (void)
 {
     uint32_t low, high;
-    asm volatile("rdtsc" : "=a"(low), "=d"(high));
+    asm volatile ("rdtsc" : "=a"(low), "=d"(high));
     return ((uint64_t) high << 32) | low;
 }
 
 void CpuDisable()
 {
-    CpuGetCcb()->archCcb.intDisableCount++;
-    asm("cli");
+    asm ("cli");
 }
 
 void CpuEnable()
 {
-    if (--CpuGetCcb()->archCcb.intDisableCount == 0)
-        asm("sti");
+    if (!CpuGetCcb()->archCcb.intsHeld)
+        asm ("sti");
+    else
+        CpuGetCcb()->archCcb.intRequested = true;
+}
+
+void CpuHoldInts()
+{
+    CpuGetCcb()->archCcb.intsHeld = true;
+}
+
+void CpuUnholdInts()
+{
+    CpuGetCcb()->archCcb.intsHeld = false;
+    if (CpuGetCcb()->archCcb.intRequested)
+    {
+        asm ("sti");
+        CpuGetCcb()->archCcb.intRequested = false;
+    }
 }
 
 void __attribute__ ((noreturn)) CpuCrash()
 {
-    asm("cli;hlt");
+    asm ("cli;hlt");
     for (;;)
         ;
 }

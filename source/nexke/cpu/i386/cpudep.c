@@ -195,6 +195,8 @@ void CpuInitCcb()
 #else
 #error Unrecognized board for i386
 #endif
+    ccb.archCcb.intsHeld = true;    // Hold interrupts
+    ccb.archCcb.intRequested = true;
     strcpy (ccb.sysName, bootInfo->sysName);
     // Detect CPUID features. First figure out if CPUID is even available
     if (!CpuCheckCpuid())

@@ -139,7 +139,7 @@ void PltAcpiPcEnable()
     else
         NkLogDebug ("nexke: ACPI already enabled\n");
     // Install SCI handler
-    if (fadt->sciInt)
+    if (fadt->sciInt && !NkReadArg ("-nosci"))
     {
         NkHwInterrupt_t* sciInt = PltAllocHwInterrupt();
         memset (sciInt, 0, sizeof (NkHwInterrupt_t));
@@ -166,6 +166,8 @@ void PltInitPhase3()
     PltInitHwInts();
     PltAcpiPcEnable();
     PltInitClock();
+    CpuEnable();
+    CpuUnholdInts();
     PltInitTimer();
 }
 
@@ -182,8 +184,12 @@ PltHwIntCtrl_t* PltInitHwInts()
 // Initializes system clock
 PltHwClock_t* PltInitClock()
 {
-    // Try ACPI timer
-    PltHwClock_t* clock = PltAcpiInitClock();
+    PltHwClock_t* clock = NULL;
+    // Check if we're allowed to use ACPI clock
+    if (NkReadArg ("-nosci"))
+        NkLogDebug ("nexke: ACPI PM use suppressed by -nosci\n");
+    else
+        clock = PltAcpiInitClock();
     if (!clock)
         clock = PltPitInitClk();
     nkPlatform.clock = clock;

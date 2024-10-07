@@ -64,6 +64,18 @@ void CpuPrintFeatures();
 // Prints debug info about crash
 void CpuPrintDebug (CpuIntContext_t* context);
 
+// Holds interrupts
+void CpuHoldInts();
+
+// Lets interrupts occur
+void CpuUnholdInts();
+
+// Disables interrupts
+void CpuDisable();
+
+// Enables interrupts
+void CpuEnable();
+
 // CPU exception info
 typedef struct _execinf
 {

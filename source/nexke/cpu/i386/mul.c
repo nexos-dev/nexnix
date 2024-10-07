@@ -271,7 +271,10 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
     // Grab table entry
     pte_t* pte = &pgTab[tabIdx];
     if (*pte)
+    {
+        NkLogError ("%#lX\n", virt);
         NkPanic ("nexke: cannot map mapped page");
+    }
     *pte = phys | pgFlags;
     // Check for INVLPG
     if (CpuGetFeatures() & CPU_FEATURE_INVLPG)
