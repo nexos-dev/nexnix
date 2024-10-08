@@ -169,42 +169,6 @@ static bool PltHpetDispatch (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
     return true;
 }
 
-// Sets timer callback
-static void PltHpetSetCb (void (*cb)())
-{
-    pltHpetTimer.callback = cb;
-}
-
-// Arms timer
-static void PltHpetArmTimer (uint64_t delta)
-{
-    // Disarm if needed
-    if (hpet.armCount)
-        hpet.armCount = 0, hpet.finalArm = 0;
-    // Get comparator value
-    uint64_t refTick = PltGetPlatform()->clock->getTime();
-    uint64_t time = refTick + delta;
-    uint64_t compVal = pltToHpetTime (time);
-    // Check for overflow on 32 bit timers
-    if (!hpet.isTimer64 && compVal > UINT32_MAX)
-    {
-        // We have three parts: the intial arm, how many max arms,
-        // and the final arm
-        // Compute them
-        uint32_t firstArm = 0xFFFFFFFF - refTick;
-        compVal -= firstArm;
-        // Now get how many times we need to arm at UINT32_MAX
-        hpet.armCount = compVal / (UINT32_MAX + 1);
-        hpet.finalArm = compVal % (UINT32_MAX + 1);
-        compVal = firstArm;
-    }
-    // Write it
-    uint64_t minComp = pltToHpetTime (refTick) + hpet.minDelta;
-    if (compVal < minComp)
-        compVal = minComp;    // To avoid interrupt loss
-    pltHpetTimerWrite (0, PLT_HPET_TIMER_COMP, compVal);
-}
-
 // Gets time of clock
 static uint64_t PltHpetGetTime()
 {
@@ -246,6 +210,48 @@ static uint64_t PltHpetGetTime()
         }
     }
     return pltFromHpetTime (ret);
+}
+
+// Sets timer callback
+static void PltHpetSetCb (void (*cb)())
+{
+    pltHpetTimer.callback = cb;
+}
+
+// Arms timer
+static void PltHpetArmTimer (uint64_t delta)
+{
+    // Disarm if needed
+    if (hpet.armCount)
+        hpet.armCount = 0, hpet.finalArm = 0;
+    // Get comparator value
+    uint64_t refTick = PltGetPlatform()->clock->getTime();
+    uint64_t time = refTick + delta;
+    uint64_t compVal = pltToHpetTime (time);
+    // Check for overflow on 32 bit timers
+    if (!hpet.isTimer64 && compVal > UINT32_MAX)
+    {
+        // We have three parts: the intial arm, how many max arms,
+        // and the final arm
+        // Compute them
+        uint32_t firstArm = 0xFFFFFFFF - refTick;
+        compVal -= firstArm;
+        // Now get how many times we need to arm at UINT32_MAX
+        hpet.armCount = compVal / (UINT32_MAX + 1);
+        hpet.finalArm = compVal % (UINT32_MAX + 1);
+        compVal = firstArm;
+    }
+    // Write it
+    CpuDisable();
+    pltHpetTimerWrite (0, PLT_HPET_TIMER_COMP, compVal);
+    // Check if this was too small
+    if (PltHpetGetTime() > pltFromHpetTime (compVal))
+    {
+        pltHpetTimerWrite (0,
+                           PLT_HPET_TIMER_COMP,
+                           pltToHpetTime (PltHpetGetTime() + 2000));    // Set it 2us in the future
+    }
+    CpuEnable();
 }
 
 // Polls clock for specified ns
@@ -316,8 +322,6 @@ PltHwTimer_t* PltHpetInitTimer()
     pltHpetTimer.precision = pltHpetClock.precision;
     // Figure out max interval
     pltHpetTimer.maxInterval = pltFromHpetTime ((hpet.isTimer64) ? UINT64_MAX : UINT32_MAX);
-    // Set minimum delta that can occur without loss
-    hpet.minDelta = 10000 / pltHpetTimer.precision;
     // Program timer
     uint64_t timerCnf = pltHpetTimerRead (0, PLT_HPET_TIMER_CONF);
     if (timerCnf & PLT_HPET_FSB_CAP)

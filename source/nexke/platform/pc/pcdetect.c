@@ -187,7 +187,10 @@ PltHwClock_t* PltInitClock()
 {
     PltHwClock_t* clock = NULL;
     // Try TSC first
-    clock = CpuInitTscClock();
+    if (NkReadArg ("-notsc"))
+        NkLogDebug ("nexke: TSC use suppressed by -notsc\n");
+    else
+        clock = CpuInitTscClock();
     if (!clock)
     {
         // Try HPET
@@ -211,19 +214,15 @@ PltHwClock_t* PltInitClock()
 // Initializes system timer
 PltHwTimer_t* PltInitTimer()
 {
-    // Try TSC first
-    PltHwTimer_t* timer = CpuInitTscTimer();
+    PltHwTimer_t* timer = NULL;
+    // Only do HPET timer with HPET clock
+    if (nkPlatform.clock->type == PLT_CLOCK_HPET)
+        timer = PltHpetInitTimer();
     if (!timer)
     {
-        // Only do HPET timer with HPET clock
-        if (nkPlatform.clock->type == PLT_CLOCK_HPET)
-            timer = PltHpetInitTimer();
+        timer = PltApicInitTimer();
         if (!timer)
-        {
-            timer = PltApicInitTimer();
-            if (!timer)
-                timer = PltPitInitTimer();
-        }
+            timer = PltPitInitTimer();
     }
     assert (timer);
     nkPlatform.timer = timer;

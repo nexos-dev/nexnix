@@ -20,7 +20,7 @@
 #include <nexke/platform.h>
 #include <nexke/platform/pc.h>
 
-extern PltHwTimer_t tscTimer;
+extern PltHwClock_t tscClock;
 
 static int tscDivisor = 0;    // Value to divide/multply by for beyond nanosec precision
 
