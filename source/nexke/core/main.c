@@ -71,6 +71,15 @@ const char* NkReadArg (const char* arg)
     return NULL;
 }
 
+// Helper function to compute checksums
+bool NkVerifyChecksum (uint8_t* buf, size_t len)
+{
+    uint8_t sum = 0;
+    for (int i = 0; i < len; ++i)
+        sum += buf[i];
+    return !sum;
+}
+
 void t (NkTimeEvent_t* evt, void*)
 {
     NkLogError ("got here\n");

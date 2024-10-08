@@ -411,7 +411,7 @@ static void __getDataArg (_printfFmt_t* fmt, va_list* ap)
             fmt->ptr = (uintmax_t) va_arg (*ap, char*);
             break;
         case PRINTF_SIZE_UINTPTR:
-            fmt->ptr = (uintmax_t) va_arg (*ap, void*);
+            fmt->ptr = (uintptr_t) va_arg (*ap, void*);
             break;
     }
 }

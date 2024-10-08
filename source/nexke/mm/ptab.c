@@ -163,8 +163,8 @@ void MmPtabInitCache (MmSpace_t* space)
         else
             entries[i].prev = &entries[i - 1];
     }
-    NkLogDebug ("nexke: intialized page table cache at %llu with %d entries\n",
-                (uint64_t) entries,
+    NkLogDebug ("nexke: intialized page table cache at %p with %d entries\n",
+                (uintptr_t) entries,
                 MUL_MAX_PTCACHE);
     // Set pointer head
     space->mulSpace.ptFreeList = (MmPtCacheEnt_t*) MUL_PTCACHE_ENTRY_BASE;

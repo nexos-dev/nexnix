@@ -288,7 +288,7 @@ PltHwClock_t* PltHpetInitClock()
         return NULL;    // We only support MMIO HPET
     }
     // Map it
-    hpet.addr = (uintptr_t) MmAllocKvMmio ((void*) hpetAcpi->base.addr,
+    hpet.addr = (uintptr_t) MmAllocKvMmio ((paddr_t) hpetAcpi->base.addr,
                                            1,
                                            MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_CD);
     assert (hpet.addr);

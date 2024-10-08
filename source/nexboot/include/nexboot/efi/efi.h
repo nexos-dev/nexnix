@@ -80,12 +80,4 @@ EFI_DEVICE_PATH* NbEfiNextDev (EFI_DEVICE_PATH* dev);
 // Duplicates device path
 EFI_DEVICE_PATH* NbEfiDupDevicePath (EFI_DEVICE_PATH* dev);
 
-// EFI configuration tables
-#define NB_ARCH_COMP_ACPI    0
-#define NB_ARCH_COMP_MPS     1
-#define NB_ARCH_COMP_PNP     2
-#define NB_ARCH_COMP_APM     3
-#define NB_ARCH_COMP_SMBIOS  4
-#define NB_ARCH_COMP_SMBIOS3 5
-
 #endif

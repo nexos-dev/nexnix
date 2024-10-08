@@ -21,4 +21,5 @@ list(APPEND NEXKE_SOURCES
     platform/pc/pic.c
     platform/pc/pit.c
     platform/pc/apic.c
-    platform/pc/hpet.c)
+    platform/pc/hpet.c
+    platform/pc/mps.c)

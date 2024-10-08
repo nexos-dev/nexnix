@@ -40,12 +40,14 @@ static SlabCache_t* mmPageMapCache = NULL;
 static uintmax_t mmNumPages = 0;     // Number of pages in system
 static uintmax_t mmFreePages = 0;    // Number of free pages in system
 
+int y = 0;
+
 // Initializes an MmPage
 static void mmInitPage (MmPage_t* page, pfn_t pfn, MmZone_t* zone)
 {
     page->zone = zone;
     page->pfn = pfn;
-    page->state = MM_PAGE_STATE_FREE;
+    page->flags = MM_PAGE_FREE;
     page->prev = NULL;
     if (zone->freeList)
         zone->freeList->prev = page;
@@ -171,22 +173,25 @@ static void mmZoneCreate (pfn_t startPfn, size_t numPfns, int flags)
     zone->numPages = numPfns;
     zone->pfn = startPfn;
     zone->freeList = NULL;
-    // Compute PFN map location
-    zone->pfnMap = (MmPage_t*) pfnMapMark;
-    // Move marker up
-    pfnMapMark += zone->numPages * sizeof (MmPage_t);
-    // Initialize PFN structs
-    for (int i = 0; i < zone->numPages; ++i)
-        mmInitPage (&zone->pfnMap[i], startPfn + i, zone);
     if (zone->flags & MM_ZONE_ALLOCATABLE)
     {
+        // Compute PFN map location
+        zone->pfnMap = (MmPage_t*) pfnMapMark;
+        // Move marker up
+        pfnMapMark += zone->numPages * sizeof (MmPage_t);
+        // Initialize PFN structs
+        for (int i = 0; i < zone->numPages; ++i)
+            mmInitPage (&zone->pfnMap[i], startPfn + i, zone);
         zone->freeCount = zone->numPages;
         // Update state variables
         mmNumPages += zone->numPages;
         mmFreePages += zone->numPages;
     }
     else
+    {
+        zone->pfnMap = NULL;
         zone->freeCount = 0;
+    }
     // Insert it
     if (!mmZoneInsert (zone))
         NkLogWarning ("nexke: warning: ignoring overlapping memory region\n");
@@ -238,7 +243,7 @@ static MmZone_t* mmZoneFindByPfn (pfn_t pfn)
 void MmFreePage (MmPage_t* page)
 {
     // Don't free an unusable page
-    if (page->state == MM_PAGE_STATE_UNUSABLE && !page->zone)
+    if (page->flags & MM_PAGE_UNUSABLE && !page->zone)
         MmCacheFree (mmFakePageCache, page);
     else
     {
@@ -252,7 +257,7 @@ void MmFreePage (MmPage_t* page)
         // Update stats
         ++zone->freeCount;
         ++mmFreePages;
-        page->state = MM_PAGE_STATE_FREE;
+        page->flags = MM_PAGE_FREE;
     }
 }
 
@@ -275,7 +280,7 @@ MmPage_t* MmAllocPage()
     // Update state fields
     --zone->freeCount;
     --mmFreePages;
-    page->state = MM_PAGE_STATE_IN_OBJECT;
+    page->flags = MM_PAGE_ALLOCED;
     return page;    // Return this page
 }
 
@@ -284,15 +289,13 @@ MmPage_t* MmFindPagePfn (pfn_t pfn)
 {
     // Find zone with this page
     MmZone_t* zone = mmZoneFindByPfn (pfn);
-    if (zone)
+    if (zone && zone->flags & MM_ZONE_ALLOCATABLE)
     {
         // Grab from PFN map
         MmPage_t* map = zone->pfnMap;
         // Convert PFN into a PFN relative to base of zone map
         MmPage_t* page = map + (pfn - zone->pfn);
-        // If zone is not allocatable, ensure page is marked unusable
-        if (!(zone->flags & MM_ZONE_ALLOCATABLE))
-            page->state = MM_PAGE_STATE_UNUSABLE;
+        assert (page->pfn == pfn);
         return page;
     }
     // Else, we need to just forge a fake page
@@ -300,7 +303,7 @@ MmPage_t* MmFindPagePfn (pfn_t pfn)
     if (!page)
         NkPanic ("nexke: out of memory\n");
     memset (page, 0, sizeof (MmPage_t));
-    page->state = MM_PAGE_STATE_UNUSABLE;
+    page->flags = MM_PAGE_UNUSABLE;
     page->pfn = pfn;
     return page;
 }
@@ -320,13 +323,13 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
     // Attempt to find contigous range of PFNs
     for (int i = 0; i < zone->numPages; i += pfnAlign)
     {
-        if (pfnMap[i].state == MM_PAGE_STATE_FREE)
+        if (pfnMap[i].flags & MM_PAGE_FREE)
         {
             MmPage_t* firstPage = &pfnMap[i];
             // Find count more
             for (int j = 0; j < count; ++j, ++i)
             {
-                if (pfnMap[i].state != MM_PAGE_STATE_FREE)
+                if (!(pfnMap[i].flags & MM_PAGE_FREE))
                     break;    // Not a contigous run
             }
             // Found run, remove from list
@@ -339,7 +342,7 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
                     page->prev->next = page->prev;
                 if (page == zone->freeList)
                     zone->freeList = page->next;
-                page->state = MM_PAGE_STATE_IN_OBJECT;
+                page->flags = MM_PAGE_ALLOCED;
             }
             // Update stats
             zone->freeCount -= count;
@@ -374,6 +377,7 @@ void MmAddPage (MmPageList_t* list, MmPage_t* page, size_t off)
         list->maxBucket = bucket;
     // Set offset
     page->offset = off;
+    page->flags |= MM_PAGE_IN_OBJECT;
 }
 
 // Looks up page in page list, returning NULL if none is found
@@ -420,7 +424,8 @@ void MmRemovePage (MmPageList_t* list, MmPage_t* page)
         page->next->prev = page->prev;
     if (page->prev)
         page->prev->next = page->next;
-    page->offset = 0;    // For error checking
+    page->offset = 0;                  // For error checking
+    page->flags |= MM_PAGE_ALLOCED;    // Page is no longer in object but not free
 }
 
 // Adds mapping to page
@@ -475,8 +480,13 @@ void MmInitPage()
     size_t lastMapEnt = mapSize - 1;
     for (int i = 0; i < mapSize; ++i)
     {
-        if (!memMap[i].sz)
+        // Don't include reserved regions
+        if (!memMap[i].sz ||
+            !(memMap[i].type == NEXBOOT_MEM_FREE || memMap[i].type == NEXBOOT_MEM_FW_RECLAIM ||
+              memMap[i].type == NEXBOOT_MEM_BOOT_RECLAIM))
+        {
             continue;
+        }
         // Figure out number of PFNs to represent
         numPfns += (memMap[i].sz + (NEXKE_CPU_PAGESZ - 1)) / NEXKE_CPU_PAGESZ;
         // Figure out we exceeded max supported PFNs
@@ -511,7 +521,7 @@ void MmInitPage()
             if (memMap[i].sz > (numPfns * sizeof (MmPage_t)))
             {
                 // Decrease available space
-                memMap[i].sz -= CpuPageAlignDown (numPfns * sizeof (MmPage_t));
+                memMap[i].sz -= CpuPageAlignUp (numPfns * sizeof (MmPage_t));
                 // Determine our base address
                 paddr_t mapPhys = memMap[i].base + memMap[i].sz;
                 // Map it
@@ -689,12 +699,14 @@ void MmDumpPageInfo()
             char* flg = zonesFlags[0];
             s += appendFlag (s, flg);
         }
-        NkLogDebug ("Zone %d: physical base = %p, end = %p, free page count = %u, flags %s\n",
+        NkLogDebug ("Zone %d: physical base = %p, end = %p, free page count = %u, flags %s, is "
+                    "free hint = %s\n",
                     mmZones[i]->zoneIdx,
                     mmZones[i]->pfn * NEXKE_CPU_PAGESZ,
                     (mmZones[i]->pfn + mmZones[i]->numPages) * NEXKE_CPU_PAGESZ,
                     mmZones[i]->freeCount,
-                    typeS);
+                    typeS,
+                    mmZones[i] == freeHint ? "true" : "false");
     }
     // Dump variables
     NkLogDebug ("Total number of pages: %llu\n", mmNumPages);

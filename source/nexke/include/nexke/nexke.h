@@ -27,12 +27,6 @@
 
 // Initialization routines
 
-// Initializes phase 1 memory management
-void MmInitPhase1();
-
-// Initializes phase 2 memory management
-void MmInitPhase2();
-
 // Initializes FB console
 void NkFbConsInit();
 
@@ -41,6 +35,9 @@ void NkFbConsInit();
 // Gets specified argument value
 // Returns NULL if argument is non-existant, "" if argument is empty, value otherwose
 const char* NkReadArg (const char* arg);
+
+// Helper function to compute checksums
+bool NkVerifyChecksum (uint8_t* buf, size_t len);
 
 // Log functions
 

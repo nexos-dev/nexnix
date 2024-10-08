@@ -21,6 +21,12 @@
 #include <nexke/cpu.h>
 #include <nexke/nexke.h>
 
+// Initializes phase 1 memory management
+void MmInitPhase1();
+
+// Initializes phase 2 memory management
+void MmInitPhase2();
+
 // Initializes boot pool
 void MmInitKvm1();
 
@@ -53,7 +59,7 @@ void* MmAllocKvPage();
 void MmFreeKvPage (void* page);
 
 // Maps in MMIO / FW memory
-void* MmAllocKvMmio (void* phys, int numPages, int perm);
+void* MmAllocKvMmio (paddr_t phys, int numPages, int perm);
 
 // Unmaps MMIO / FW memory
 void MmFreeKvMmio (void* virt);
@@ -90,16 +96,17 @@ typedef struct _page
 {
     pfn_t pfn;             // PFN of this page
     MmZone_t* zone;        // Zone this page resides in
-    int state;             // State this page is in
+    int flags;             // Flags of this page
     size_t offset;         // Offset in object. Used for page lookup
     MmPageMap_t* maps;     // Mappings of this page
     struct _page* next;    // Links to track this page on a list of free / resident pages
     struct _page* prev;
 } MmPage_t;
 
-#define MM_PAGE_STATE_FREE      1
-#define MM_PAGE_STATE_IN_OBJECT 2
-#define MM_PAGE_STATE_UNUSABLE  3
+#define MM_PAGE_FREE      (1 << 0)    // Page is not in use
+#define MM_PAGE_IN_OBJECT (1 << 1)    // Page is currently in object
+#define MM_PAGE_UNUSABLE  (1 << 2)    // Page is not usable
+#define MM_PAGE_ALLOCED   (1 << 3)    // Page is allocated but not in object
 
 #define MM_MAX_BUCKETS 256
 

@@ -208,10 +208,11 @@ typedef struct _hwcpu
     struct _hwcpu* prev;
 } PltCpu_t;
 
-static const char* pltCpuTypes[] = {"APIC", "x2APIC"};
+static const char* pltCpuTypes[] = {"APIC", "x2APIC", "none"};
 
 #define PLT_CPU_APIC   0
 #define PLT_CPU_X2APIC 1
+#define PLT_CPU_UP     2    // CPU has no embedded interrupt controller
 
 // Interrupt overrides
 typedef struct _hwintsrc
@@ -219,10 +220,14 @@ typedef struct _hwintsrc
     int line;        // Line on bus
     int bus;         // Bus attached to
     int mode;        // Trigger mode
+    int polarity;    // Polarity of interrupt
     uint32_t gsi;    // Global system inerrupt of interrupt
     struct _hwintsrc* next;
     struct _hwintsrc* prev;
 } PltIntOverride_t;
+
+#define PLT_POL_ACTIVE_HIGH 0
+#define PLT_POL_ACTIVE_LOW  1
 
 static const char* pltBusTypes[] = {"ISA"};
 
@@ -231,15 +236,17 @@ static const char* pltBusTypes[] = {"ISA"};
 typedef struct _hwintctl
 {
     int type;            // Type
+    int id;              // ID of this controller
     uint64_t addr;       // ADdress of it
     uint32_t gsiBase;    // Base interrupt number
     struct _hwintctl* next;
     struct _hwintctl* prev;
 } PltIntCtrl_t;
 
-static const char* pltIntCtrlTypes[] = {"IOAPIC"};
+static const char* pltIntCtrlTypes[] = {"IOAPIC", "8259A"};
 
 #define PLT_INTCTRL_IOAPIC 0
+#define PLT_INTCTRL_8259A  1
 
 // Platform structure
 typedef struct _nkplt
@@ -252,9 +259,11 @@ typedef struct _nkplt
     PltHwTimer_t* timer;        // System timer
     PltHwIntCtrl_t* intCtrl;    // Interrupt controller
     PltCpu_t* cpus;             // List of CPUs
+    PltCpu_t* cpusEnd;          // End of CPUs
     PltCpu_t* bsp;              // BSP CPU
     PltIntOverride_t* ints;     // List of interrupt sources
     PltIntCtrl_t* intCtrls;     // List of interrupt controllers
+    PltIntCtrl_t* intCtrlsEnd;
     int numCpus;
     int numIntCtrls;
     // ACPI related things

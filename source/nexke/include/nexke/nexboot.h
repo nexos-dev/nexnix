@@ -35,12 +35,15 @@
 #define NB_FW_TYPE_BIOS 1
 
 #define NB_TABLE_ACPI    0
-#define NB_TABLE_PNP     1
-#define NB_TABLE_APM     2
-#define NB_TABLE_MPS     3
+#define NB_TABLE_MPS     1
+#define NB_TABLE_PNP     2
+#define NB_TABLE_APM     3
 #define NB_TABLE_SMBIOS  4
 #define NB_TABLE_SMBIOS3 5
-#define NB_TABLE_BIOS32  6
+#define NB_TABLE_PCI     6
+#define NB_TABLE_VESA    7
+#define NB_TABLE_BIOS32  8
+#define NB_TABLE_TCG_TPM 10
 
 // Memory types
 #define NEXBOOT_MEM_FREE         1

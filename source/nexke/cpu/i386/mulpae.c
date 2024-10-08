@@ -47,7 +47,7 @@ void MmMulInit()
     pte_t* dir = (pte_t*) (pdpt[PG_ADDR_PDPT (MUL_PTCACHE_ENTRY_BASE)] & PT_FRAME);
     paddr_t cacheTab = dir[PG_ADDR_DIR (MUL_PTCACHE_TABLE_BASE)] & PT_FRAME;
     MmMulMapEarly (MUL_PTCACHE_TABLE_BASE, cacheTab, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
-    // Clear out all user PDEs
+    // Clear out all user PDPTEs
     pdpt[0] = 0;
     pdpt[1] = 0;
     // Write out CR3 to flush TLB

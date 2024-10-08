@@ -98,7 +98,7 @@ static void pltAcpiCacheTable (AcpiSdt_t* sdt)
 }
 
 // Gets table from firmware
-static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
+static paddr_t pltAcpiFindTableFw (const char* sig, uint32_t* len)
 {
     // Special case for RSDT or XSDT
     if (!strcmp (sig, "XSDT"))
@@ -106,25 +106,25 @@ static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
         // Get from RSDP
         AcpiRsdp_t* rsdp = &PltGetPlatform()->rsdp;
         if (rsdp->rev < 2)
-            return NULL;
+            return 0;
         // Map it so we have the length
-        AcpiSdt_t* sdt = MmAllocKvMmio ((void*) rsdp->xsdtAddr, 1, MUL_PAGE_KE | MUL_PAGE_R);
+        AcpiSdt_t* sdt = MmAllocKvMmio (rsdp->xsdtAddr, 1, MUL_PAGE_KE | MUL_PAGE_R);
         if (!sdt)
             NkPanicOom();
         *len = sdt->length;
         MmFreeKvMmio (sdt);
-        return (void*) rsdp->xsdtAddr;
+        return (paddr_t) rsdp->xsdtAddr;
     }
     else if (!strcmp (sig, "RSDT"))
     {
         // Map it so we have the length
         AcpiSdt_t* sdt =
-            MmAllocKvMmio ((void*) PltGetPlatform()->rsdp.rsdtAddr, 1, MUL_PAGE_KE | MUL_PAGE_R);
+            MmAllocKvMmio (PltGetPlatform()->rsdp.rsdtAddr, 1, MUL_PAGE_KE | MUL_PAGE_R);
         if (!sdt)
             NkPanicOom();
         *len = sdt->length;
         MmFreeKvMmio (sdt);
-        return (void*) PltGetPlatform()->rsdp.rsdtAddr;
+        return PltGetPlatform()->rsdp.rsdtAddr;
     }
     // Otherwise get the RSDT or XSDT and search it
     AcpiSdt_t* xsdt = PltAcpiFindTable ("XSDT");
@@ -136,7 +136,7 @@ static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
             (uint64_t*) ((uintptr_t) xsdt + sizeof (AcpiSdt_t));    // Get pointer to table array
         for (int i = 0; i < numEntries; ++i)
         {
-            void* table = (void*) tables[i];
+            paddr_t table = (paddr_t) tables[i];
             // Map this table
             AcpiSdt_t* sdt = (AcpiSdt_t*) MmAllocKvMmio (table, 1, MUL_PAGE_KE | MUL_PAGE_R);
             if (!sdt)
@@ -160,7 +160,7 @@ static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
             (uint32_t*) ((uintptr_t) rsdt + sizeof (AcpiSdt_t));    // Get pointer to table array
         for (int i = 0; i < numEntries; ++i)
         {
-            void* table = (void*) tables[i];
+            paddr_t table = (paddr_t) tables[i];
             // Map this table
             AcpiSdt_t* sdt = (AcpiSdt_t*) MmAllocKvMmio (table, 1, MUL_PAGE_KE | MUL_PAGE_R);
             if (!sdt)
@@ -170,11 +170,11 @@ static void* pltAcpiFindTableFw (const char* sig, uint32_t* len)
                 // Unmap and return
                 *len = sdt->length;
                 MmFreeKvMmio (sdt);
-                return (void*) table;
+                return table;
             }
         }
     }
-    return NULL;
+    return 0;
 }
 
 // Finds an ACPI table
@@ -191,7 +191,7 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig)
     // Table not cached, we first need to get the table from the FW
     // and map, and then add it to the cache
     uint32_t len = 0;
-    void* tablePhys = pltAcpiFindTableFw (sig, &len);
+    paddr_t tablePhys = pltAcpiFindTableFw (sig, &len);
     if (!tablePhys)
         return NULL;
     // Map it and then copy it
@@ -259,6 +259,7 @@ bool PltAcpiDetectCpus()
             intCtrl->addr = ioapic->addr;
             intCtrl->gsiBase = ioapic->gsiBase;
             intCtrl->type = PLT_INTCTRL_IOAPIC;
+            intCtrl->id = ioapic->id;
             PltAddIntCtrl (intCtrl);
         }
         else if (cur->type == ACPI_MADT_ISO)
@@ -269,6 +270,7 @@ bool PltAcpiDetectCpus()
             intSrc->bus = PLT_BUS_ISA;
             intSrc->gsi = iso->gsi;
             intSrc->line = iso->line;
+            // Set trigger mode
             if (iso->flags & ACPI_ISO_LEVEL)
                 intSrc->mode = PLT_MODE_LEVEL;
             else if (iso->flags & ACPI_ISO_EDGE)
@@ -278,12 +280,28 @@ bool PltAcpiDetectCpus()
                 if (intSrc->bus == PLT_BUS_ISA)
                     intSrc->mode = PLT_MODE_EDGE;
             }
+            // Set polarity
+            if (iso->flags & ACPI_ISO_ACTIVE_LOW)
+                intSrc->polarity = PLT_POL_ACTIVE_LOW;
+            else if (iso->flags & ACPI_ISO_ACTIVE_HIGH)
+                intSrc->polarity = PLT_POL_ACTIVE_HIGH;
+            else
+            {
+                if (intSrc->bus == PLT_BUS_ISA)
+                {
+                    if (intSrc->mode == PLT_MODE_EDGE)
+                        intSrc->polarity = PLT_POL_ACTIVE_HIGH;
+                    else
+                        intSrc->polarity = PLT_POL_ACTIVE_LOW;
+                }
+            }
             PltAddInterrupt (intSrc);
         }
         // To next entry
         i += cur->length;
         cur = (void*) cur + cur->length;
     }
+    return true;
 }
 
 // ACPI register handling
@@ -313,7 +331,7 @@ static uint64_t pltAcpiMapReg (AcpiGas_t* gas)
 {
     if (gas->asId == ACPI_GAS_MEM)
     {
-        return (uint64_t) MmAllocKvMmio ((void*) gas->addr,
+        return (uint64_t) MmAllocKvMmio ((paddr_t) gas->addr,
                                          1,
                                          MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_CD | MUL_PAGE_RW);
     }
@@ -655,4 +673,36 @@ PltHwClock_t* PltAcpiInitClock()
             pltAcpiWriteReg (ACPI_REG_GPE1_EN, 0, i);
     }
     return &acpiPmClock;
+}
+
+// Enable ACPI
+void PltAcpiPcEnable()
+{
+    if (PltGetPlatform()->subType != PLT_PC_SUBTYPE_ACPI)
+        return;
+    // Get FADT
+    fadt = (AcpiFadt_t*) PltAcpiFindTable ("FACP");
+    // Check if SCI_EN is set
+    if (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
+    {
+        CpuOutb (fadt->smiCmd, fadt->acpiEnable);    // Enable ACPI
+        while (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
+            ;
+        NkLogDebug ("nexke: enabled ACPI\n");
+    }
+    else
+        NkLogDebug ("nexke: ACPI already enabled\n");
+    // Install SCI handler
+    if (fadt->sciInt && !NkReadArg ("-nosci"))
+    {
+        NkHwInterrupt_t* sciInt = PltAllocHwInterrupt();
+        memset (sciInt, 0, sizeof (NkHwInterrupt_t));
+        sciInt->gsi = PltGetGsi (PLT_BUS_ISA, fadt->sciInt);
+        sciInt->mode = PLT_MODE_LEVEL;
+        sciInt->flags = PLT_HWINT_ACTIVE_LOW;
+        int vector = PltConnectInterrupt (sciInt);
+        if (vector == -1)
+            NkPanic ("nexke: unable to install SCI");
+        PltInstallInterrupt (vector, PLT_INT_HWINT, PltAcpiSciHandler, sciInt);
+    }
 }

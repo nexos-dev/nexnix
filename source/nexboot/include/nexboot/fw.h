@@ -164,4 +164,16 @@ uintptr_t NbFwAllocPersistentPages (int count);
 #define NB_CPU_AS_NX     (1 << 3)
 #define NB_CPU_AS_WT     (1 << 4)
 
+// System detection macros
+#define NB_ARCH_COMP_ACPI    0
+#define NB_ARCH_COMP_MPS     1
+#define NB_ARCH_COMP_PNP     2
+#define NB_ARCH_COMP_APM     3
+#define NB_ARCH_COMP_SMBIOS  4
+#define NB_ARCH_COMP_SMBIOS3 5
+#define NB_ARCH_COMP_PCI     6
+#define NB_ARCH_COMP_VESA    7
+#define NB_ARCH_COMP_BIOS32  8
+#define NB_ARCH_COMP_TCG_TPM 10
+
 #endif

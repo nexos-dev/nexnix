@@ -140,7 +140,7 @@ PltHwTimer_t pitTimer = {.type = PLT_TIMER_PIT,
                          .callback = NULL,
                          .precision = 0,
                          .maxInterval = 0,
-                         .private = &pitPvt};
+                         .private = (uintptr_t) &pitPvt};
 
 PltHwClock_t pitClock = {.type = PLT_CLOCK_PIT,
                          .precision = 0,

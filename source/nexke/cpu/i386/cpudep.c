@@ -237,7 +237,7 @@ void CpuInitCcb()
     cpuDfaultTss.cr3 = CpuReadCr3();
     cpuDfaultTss.eip = CPU_GETTRAP (8);
     cpuDfaultTss.eflags = 2;
-    cpuDfaultTss.esp = MmAllocKvPage();
+    cpuDfaultTss.esp = (uint32_t) MmAllocKvPage();
     cpuDfaultTss.ss = CPU_SEG_KDATA;
     cpuDfaultTss.cs = CPU_SEG_KCODE;
     // Setup GDT and IDT pointers

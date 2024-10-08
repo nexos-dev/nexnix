@@ -86,8 +86,8 @@ static void detectMps()
         ebdaBase += 4;
     }
     // Check ROM
-    uintptr_t romBase = 0xF0000;
-    for (int i = 0; i < 0x10000; i += 4)
+    uintptr_t romBase = 0xE0000;
+    for (int i = 0; i < 0x20000; i += 4)
     {
         if (!memcmp ((const void*) romBase, "_MP_", 4))
         {

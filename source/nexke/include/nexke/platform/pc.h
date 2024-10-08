@@ -21,6 +21,8 @@
 #include <nexke/platform.h>
 #include <stdbool.h>
 
+#define PLT_IOAPIC_BASE 0xFEC00000
+
 // Initializes VGA console
 void PltVgaInit();
 
@@ -45,6 +47,9 @@ PltHwTimer_t* PltPitInitTimer();
 // Enable ACPI
 void PltAcpiPcEnable();
 
+// Use MPS to detect CPUs
+bool PltMpsDetectCpus();
+
 // Initialize APIC timer
 PltHwTimer_t* PltApicInitTimer();
 
@@ -54,12 +59,13 @@ PltHwClock_t* PltHpetInitClock();
 // HPET timer intialization function
 PltHwTimer_t* PltHpetInitTimer();
 
+// Helper function to get number of redirection entries for specified IOAPIC
+// Used by MP detection code
+int PltApicGetRedirs (paddr_t base);
+
 // There in a weird spot, but this header is the only place that works for these functions
 
 // Initialize TSC clock
 PltHwClock_t* CpuInitTscClock();
-
-// Initialize TSC timer
-PltHwTimer_t* CpuInitTscTimer();
 
 #endif

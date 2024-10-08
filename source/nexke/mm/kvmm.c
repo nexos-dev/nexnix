@@ -480,7 +480,7 @@ MmSpace_t* MmGetKernelSpace()
 }
 
 // Maps in MMIO / FW memory
-void* MmAllocKvMmio (void* phys, int numPages, int perm)
+void* MmAllocKvMmio (paddr_t phys, int numPages, int perm)
 {
     // Allocate number of virtual pages for this memory
     void* virt = MmAllocKvRegion (numPages, 0);
@@ -488,7 +488,7 @@ void* MmAllocKvMmio (void* phys, int numPages, int perm)
         NkPanicOom();
     uintptr_t off = (uintptr_t) virt - kmemSpace.startAddr;
     // Loop through every page and map and add it
-    pfn_t curPfn = (pfn_t) ((uintptr_t) phys / NEXKE_CPU_PAGESZ);
+    pfn_t curPfn = (pfn_t) (phys / NEXKE_CPU_PAGESZ);
     for (int i = 0; i < numPages; ++i)
     {
         MmPage_t* page = MmFindPagePfn (curPfn);

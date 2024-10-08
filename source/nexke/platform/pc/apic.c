@@ -20,6 +20,7 @@
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <nexke/platform/pc.h>
+#include <stdlib.h>
 
 // For disabing to 8259A
 #define PLT_PIC_MASTER_DATA 0x21
@@ -251,7 +252,7 @@ static pltIoApic_t* pltApicGetIoApic (uint32_t gsi)
     pltIoApic_t* cur = ioApics;
     while (cur->addr)
     {
-        if (gsi > cur->gsiBase)
+        if (gsi >= cur->gsiBase)
         {
             // Check if we are less than next entry's base, or if this is the last one
             if (!(cur + 1)->addr || (cur + 1)->gsiBase > gsi)
@@ -474,6 +475,21 @@ static void PltApicDisconnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     pltIoApicWriteRedir (apic, intObj->gsi - apic->gsiBase, PLT_IOAPIC_MASK);
 }
 
+// Helper function to get number of redirection entries for specified IOAPIC
+int PltApicGetRedirs (paddr_t base)
+{
+    // Read version register
+    volatile uint32_t* apic =
+        (volatile uint32_t*) MmAllocKvMmio (base,
+                                            2,
+                                            MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_CD);
+    assert (apic);
+    *(apic) = PLT_IOAPIC_VER;
+    uint32_t ver = *(apic + 4);
+    MmFreeKvMmio ((void*) apic);
+    return ((ver >> 16) & 0xFF) + 1;
+}
+
 PltHwIntCtrl_t pltApic = {.type = PLT_HWINT_APIC,
                           .beginInterrupt = PltApicBeginInterrupt,
                           .connectInterrupt = PltApicConnectInterrupt,
@@ -517,9 +533,8 @@ static bool pltLapicInit()
     if (!(ccb->archCcb.features & CPU_FEATURE_APIC))
         return false;    // APIC doesn't exist
     // Get APIC base
-    apicBase = MmAllocKvMmio ((void*) PLT_APIC_BASE,
-                              1,
-                              MUL_PAGE_CD | MUL_PAGE_RW | MUL_PAGE_R | MUL_PAGE_KE);
+    apicBase =
+        MmAllocKvMmio (PLT_APIC_BASE, 1, MUL_PAGE_CD | MUL_PAGE_RW | MUL_PAGE_R | MUL_PAGE_KE);
     // Enable it in the MSR
     uint64_t apicBase = CpuRdmsr (PLT_APIC_BASE_MSR);
     apicBase |= PLT_APIC_MSR_ENABLE;
@@ -590,7 +605,7 @@ PltHwIntCtrl_t* PltApicInit()
         size_t numPages = 1;
         if (((cur->addr + 0x20) / NEXKE_CPU_PAGESZ) > (cur->addr / NEXKE_CPU_PAGESZ))
             numPages = 2;
-        ioapic->addr = MmAllocKvMmio ((void*) cur->addr,
+        ioapic->addr = MmAllocKvMmio (cur->addr,
                                       numPages,
                                       MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_CD);
         ioapic->gsiBase = cur->gsiBase;
