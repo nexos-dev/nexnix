@@ -62,6 +62,15 @@ bool PltAcpiInit()
     // Check validity
     if (memcmp (rsdp, "RSD PTR ", 8) != 0)
         return false;
+    // Check ACPI 1 part checksum
+    if (!NkVerifyChecksum ((uint8_t*) rsdp, 20))
+        return false;
+    // Check ACPI 2 part
+    if (rsdp->rev >= 2)
+    {
+        if (!NkVerifyChecksum ((uint8_t*) rsdp, sizeof (AcpiRsdp_t)))
+            return false;
+    }
     PltGetPlatform()->acpiVer = rsdp->rev;
     memcpy (&PltGetPlatform()->rsdp, rsdp, sizeof (AcpiRsdp_t));
     // Say we are ACPI
@@ -200,6 +209,12 @@ AcpiSdt_t* PltAcpiFindTable (const char* sig)
                                         MUL_PAGE_KE | MUL_PAGE_R);
     if (!fwTable)
         NkPanicOom();
+    // Check checksum
+    if (!NkVerifyChecksum ((uint8_t*) fwTable, fwTable->length))
+    {
+        MmFreeKvMmio (fwTable);
+        return NULL;
+    }
     AcpiSdt_t* res = MmAllocKvRegion (CpuPageAlignUp (len) / NEXKE_CPU_PAGESZ, MM_KV_NO_DEMAND);
     if (!res)
         NkPanicOom();
