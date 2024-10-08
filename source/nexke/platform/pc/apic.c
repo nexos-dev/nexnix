@@ -268,7 +268,7 @@ static pltIoApic_t* pltApicGetIoApic (uint32_t gsi)
 }
 
 // Handles APIC timer event
-static void pltLapicTimer()
+static inline void pltLapicTimer()
 {
     if (armCount)
     {

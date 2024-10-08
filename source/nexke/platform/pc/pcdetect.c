@@ -16,6 +16,7 @@
 */
 
 #include "pc.h"
+#include <assert.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
@@ -185,13 +186,19 @@ PltHwIntCtrl_t* PltInitHwInts()
 PltHwClock_t* PltInitClock()
 {
     PltHwClock_t* clock = NULL;
-    // Check if we're allowed to use ACPI clock
-    if (NkReadArg ("-nosci"))
-        NkLogDebug ("nexke: ACPI PM use suppressed by -nosci\n");
-    else
-        clock = PltAcpiInitClock();
+    // Try HPET first
+    clock = PltHpetInitClock();
     if (!clock)
-        clock = PltPitInitClk();
+    {
+        // Check if ACPI clock use is allowed
+        if (NkReadArg ("-nosci"))
+            NkLogDebug ("nexke: ACPI PM use suppressed by -nosci\n");
+        else
+            clock = PltAcpiInitClock();
+        if (!clock)
+            clock = PltPitInitClk();
+    }
+    assert (clock);
     nkPlatform.clock = clock;
     return clock;
 }
@@ -199,9 +206,14 @@ PltHwClock_t* PltInitClock()
 // Initializes system timer
 PltHwTimer_t* PltInitTimer()
 {
-    PltHwTimer_t* timer = PltApicInitTimer();
+    PltHwTimer_t* timer = PltHpetInitTimer();
     if (!timer)
-        timer = PltPitInitTimer();
+    {
+        timer = PltApicInitTimer();
+        if (!timer)
+            timer = PltPitInitTimer();
+    }
+    assert (timer);
     nkPlatform.timer = timer;
     return timer;
 }

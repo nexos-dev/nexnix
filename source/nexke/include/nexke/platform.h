@@ -161,6 +161,7 @@ typedef struct _hwclock
 
 #define PLT_CLOCK_PIT  1
 #define PLT_CLOCK_ACPI 2
+#define PLT_CLOCK_HPET 3
 
 // Initializes clock system
 PltHwClock_t* PltInitClock();
@@ -187,6 +188,7 @@ typedef struct _hwtimer
 #define PLT_TIMER_PIT  1
 #define PLT_TIMER_SOFT 2
 #define PLT_TIMER_APIC 3
+#define PLT_TIMER_HPET 4
 
 // Initializes system timer
 PltHwTimer_t* PltInitTimer();

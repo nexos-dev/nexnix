@@ -48,4 +48,10 @@ void PltAcpiPcEnable();
 // Initialize APIC timer
 PltHwTimer_t* PltApicInitTimer();
 
+// HPET clock initialization function
+PltHwClock_t* PltHpetInitClock();
+
+// HPET timer intialization function
+PltHwTimer_t* PltHpetInitTimer();
+
 #endif

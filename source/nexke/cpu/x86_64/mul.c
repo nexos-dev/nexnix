@@ -52,15 +52,18 @@ void MmMulInit()
     paddr_t cachePage = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
     // Map it
     MmMulMapEarly (MUL_PTCACHE_ENTRY_BASE, cachePage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
+    // Map dummy page at base so we have the structure created
+    MmMulMapEarly (MUL_PTCACHE_BASE, 0, MUL_PAGE_R | MUL_PAGE_KE | MUL_PAGE_RW);
     // Find table for table cache
     paddr_t cacheTab = 0;
     pte_t* curSt = pmlTop;
     for (int i = levels; i > 2; --i)
     {
-        curSt = (pte_t*) (curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, i)] & PT_FRAME);
+        int idx = MUL_IDX_LEVEL (mulDecanonical (MUL_PTCACHE_BASE), i);
+        curSt = (pte_t*) (curSt[MUL_IDX_LEVEL (mulDecanonical (MUL_PTCACHE_BASE), i)] & PT_FRAME);
         assert (curSt);
     }
-    cacheTab = curSt[MUL_IDX_LEVEL (MUL_PTCACHE_ENTRY_BASE, 2)] & PT_FRAME;
+    cacheTab = curSt[MUL_IDX_LEVEL (mulDecanonical (MUL_PTCACHE_BASE), 2)] & PT_FRAME;
 #define MUL_PTCACHE_PMLTOP_STAGE 0xFFFFFFFF7FFDC000
     MmMulMapEarly (MUL_PTCACHE_PMLTOP_STAGE,
                    (paddr_t) pmlTop,

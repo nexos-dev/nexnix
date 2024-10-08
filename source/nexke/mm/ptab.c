@@ -285,7 +285,6 @@ MmPtCacheEnt_t* MmPtabGetCache (paddr_t ptab, int level)
             if (!curEnt->inUse)
             {
                 // Evict it
-                NkLogDebug ("nexke: evicting ptcache entry %p\n", ent->addr);
                 mmPtabRemoveEntry (space, curEnt);
                 mmPtabAddToList (space, curEnt, level);
                 mmPtabSetupEntry (curEnt, ptab, level);
@@ -318,7 +317,6 @@ void MmPtabReturnCache (MmPtCacheEnt_t* cacheEnt)
             {
                 if (!ent->inUse)
                 {
-                    NkLogDebug ("nexke: evicting ptcache entry %p\n", ent->addr);
                     // Free this entry
                     mmPtabRemoveEntry (space, ent);
                     mmPtabFreeEntry (space, ent);

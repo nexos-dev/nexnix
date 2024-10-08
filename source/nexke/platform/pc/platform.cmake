@@ -20,4 +20,5 @@ list(APPEND NEXKE_SOURCES
     platform/pc/earlycons.c
     platform/pc/pic.c
     platform/pc/pit.c
-    platform/pc/apic.c)
+    platform/pc/apic.c
+    platform/pc/hpet.c)
