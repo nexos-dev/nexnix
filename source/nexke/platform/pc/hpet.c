@@ -15,11 +15,11 @@
     limitations under the License.
 */
 
-#include "pc.h"
 #include <assert.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/platform/pc.h>
 
 // HPET ACPI table
 typedef struct _hpetacpi
@@ -135,7 +135,7 @@ static uint64_t pltHpetTimerRead (int timer, uint16_t reg)
 // Converts to HPET precision
 static inline uint64_t pltFromHpetTime (uint64_t val)
 {
-    if (pltHpetClock.precision == 0)
+    if (pltHpetClock.precision == 1)
         return val / hpet.div;
     return val * pltHpetClock.precision;
 }
@@ -143,7 +143,7 @@ static inline uint64_t pltFromHpetTime (uint64_t val)
 // Converts to ns precision
 static inline uint64_t pltToHpetTime (uint64_t val)
 {
-    if (pltHpetClock.precision == 0)
+    if (pltHpetClock.precision == 1)
         return val * hpet.div;
     return val / pltHpetClock.precision;
 }
@@ -291,7 +291,11 @@ PltHwClock_t* PltHpetInitClock()
     uint32_t prec = genCap >> PLT_HPET_PERIOD_SHIFT;
     // precision is currently in femtoseconds, get to nanoseconds
     uint32_t precNs = prec / 1000000;
+    if (!precNs)
+        ++precNs;
     hpet.div = 1000000 / prec;
+    if (!hpet.div)
+        ++hpet.div;
     pltHpetClock.precision = precNs;
     // Check for 64-bit
     if (genCap & PLT_HPET_COUNT_SZ)

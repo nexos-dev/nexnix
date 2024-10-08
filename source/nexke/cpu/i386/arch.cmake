@@ -33,6 +33,7 @@ list(APPEND NEXKE_SOURCES
     cpu/i386/trap.asm
     cpu/x86/cpuid.c
     cpu/x86/exec.c
+    cpu/x86/tsc.c
     mm/ptab.c)
 
 if(NEXNIX_I386_PAE)

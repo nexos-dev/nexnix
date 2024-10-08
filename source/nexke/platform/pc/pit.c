@@ -15,10 +15,10 @@
     limitations under the License.
 */
 
-#include "pc.h"
 #include <assert.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/platform/pc.h>
 
 // PIT ports
 #define PLT_PIT_CHAN0    0x40

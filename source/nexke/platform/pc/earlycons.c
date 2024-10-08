@@ -15,11 +15,11 @@
     limitations under the License.
 */
 
-#include "pc.h"
 #include <nexke/cpu.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/platform/pc.h>
 #include <stdlib.h>
 #include <string.h>
 

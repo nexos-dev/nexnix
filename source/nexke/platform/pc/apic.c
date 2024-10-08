@@ -15,11 +15,11 @@
     limitations under the License.
 */
 
-#include "pc.h"
 #include <assert.h>
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/platform/pc.h>
 
 // For disabing to 8259A
 #define PLT_PIC_MASTER_DATA 0x21

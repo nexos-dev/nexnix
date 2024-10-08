@@ -93,6 +93,9 @@ typedef struct _cpuidInfo
 #define CPUID_FEATURE_RDTSCP  (1 << 27)
 #define CPUID_FEATURE_LM      (1 << 29)
 
+// 80000007 EDX
+#define CPUID_FEATURE_INVARIANT_TSC (1 << 8)
+
 // Globals
 static size_t maxEax = 0;
 static size_t maxExtEax = 0;
@@ -247,6 +250,14 @@ static void cpuidSetFeatures (NkCcb_t* ccb)
         if (edx & CPUID_FEATURE_LM)
             archCcb->features |= CPU_FEATURE_LM;
     }
+    // Call 80000007h
+    if (maxExtEax >= 0x80000007)
+    {
+        cpuCpuid (0x80000001, 0, &cpuid);
+        uint32_t edx = cpuid.edx;
+        if (edx & CPUID_FEATURE_INVARIANT_TSC)
+            archCcb->features |= CPU_FEATURE_INVARIANT_TSC;
+    }
 }
 
 // Determine address sizes through CPUID
@@ -275,7 +286,7 @@ static const char* cpuFeatureStrings[] = {
     "POPCNT",       "LAHF",      "SYSCALL", "XD",       "1GB",    "RDTSCP",     "LM",
     "FSGSBASE",     "SMEP",      "INVPCID", "VMX",      "PCID",   "SSE42",      "X2APIC",
     "TSC_DEADLINE", "XSAVE",     "OSXSAVE", "AVX",      "RDRAND", "SYSENTER64", "SYSCALL64",
-    "SVM",          "SSE4A",     "SSE5",    "INVLPG",   "AC",     "ARAT"};
+    "SVM",          "SSE4A",     "SSE5",    "INVLPG",   "AC",     "ARAT",       "TSC_INVARIANT"};
 
 void CpuDetectCpuid (NkCcb_t* ccb)
 {

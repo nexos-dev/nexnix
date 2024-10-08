@@ -15,11 +15,11 @@
     limitations under the License.
 */
 
-#include "pc.h"
 #include <assert.h>
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/platform/pc.h>
 #include <string.h>
 
 // Console struct externs
@@ -186,17 +186,22 @@ PltHwIntCtrl_t* PltInitHwInts()
 PltHwClock_t* PltInitClock()
 {
     PltHwClock_t* clock = NULL;
-    // Try HPET first
-    clock = PltHpetInitClock();
+    // Try TSC first
+    clock = CpuInitTscClock();
     if (!clock)
     {
-        // Check if ACPI clock use is allowed
-        if (NkReadArg ("-nosci"))
-            NkLogDebug ("nexke: ACPI PM use suppressed by -nosci\n");
-        else
-            clock = PltAcpiInitClock();
+        // Try HPET
+        clock = PltHpetInitClock();
         if (!clock)
-            clock = PltPitInitClk();
+        {
+            // Check if ACPI clock use is allowed
+            if (NkReadArg ("-nosci"))
+                NkLogDebug ("nexke: ACPI PM use suppressed by -nosci\n");
+            else
+                clock = PltAcpiInitClock();
+            if (!clock)
+                clock = PltPitInitClk();
+        }
     }
     assert (clock);
     nkPlatform.clock = clock;
@@ -206,12 +211,19 @@ PltHwClock_t* PltInitClock()
 // Initializes system timer
 PltHwTimer_t* PltInitTimer()
 {
-    PltHwTimer_t* timer = PltHpetInitTimer();
+    // Try TSC first
+    PltHwTimer_t* timer = CpuInitTscTimer();
     if (!timer)
     {
-        timer = PltApicInitTimer();
+        // Only do HPET timer with HPET clock
+        if (nkPlatform.clock->type == PLT_CLOCK_HPET)
+            timer = PltHpetInitTimer();
         if (!timer)
-            timer = PltPitInitTimer();
+        {
+            timer = PltApicInitTimer();
+            if (!timer)
+                timer = PltPitInitTimer();
+        }
     }
     assert (timer);
     nkPlatform.timer = timer;

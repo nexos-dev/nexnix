@@ -54,4 +54,12 @@ PltHwClock_t* PltHpetInitClock();
 // HPET timer intialization function
 PltHwTimer_t* PltHpetInitTimer();
 
+// There in a weird spot, but this header is the only place that works for these functions
+
+// Initialize TSC clock
+PltHwClock_t* CpuInitTscClock();
+
+// Initialize TSC timer
+PltHwTimer_t* CpuInitTscTimer();
+
 #endif

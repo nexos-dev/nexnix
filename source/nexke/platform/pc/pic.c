@@ -15,10 +15,10 @@
     limitations under the License.
 */
 
-#include "pc.h"
 #include <assert.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/platform/pc.h>
 
 // PIC registers
 #define PLT_PIC_MASTER_CMD    0x20
