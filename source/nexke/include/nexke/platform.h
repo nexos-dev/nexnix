@@ -82,34 +82,38 @@ typedef struct _hwintctrl
 // Initializes system inerrupt controller
 PltHwIntCtrl_t* PltInitHwInts();
 
+// Interrupt function type
+typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
+
 // Hardware interrupt
 typedef struct _hwint
 {
-    uint32_t gsi;    // GSI number
-    int flags;       // Interrupt flags
-    int mode;        // Level or edge
-    ipl_t ipl;       // IPL value
-    int vector;      // Vector we're connected to
+    uint32_t gsi;             // GSI number
+    int flags;                // Interrupt flags
+    int mode;                 // Level or edge
+    ipl_t ipl;                // IPL value
+    int vector;               // Vector we're connected to
+    PltIntHandler handler;    // Handler for this interrupt
 } NkHwInterrupt_t;
 
 #define PLT_MODE_EDGE  0
 #define PLT_MODE_LEVEL 1
 
-#define PLT_HWINT_FAKE       (1 << 0)
+#define PLT_HWINT_INTERNAL   (1 << 0)
 #define PLT_HWINT_SPURIOUS   (1 << 1)
 #define PLT_HWINT_ACTIVE_LOW (1 << 2)
-
-// Interrupt function type
-typedef bool (*PltIntHandler) (NkInterrupt_t* intObj, CpuIntContext_t* ctx);
 
 // Interrupt object
 typedef struct _int
 {
-    int vector;                // Interrupt vector number
-    int type;                  // Is this an exception, a service, or an external interrupt?
-    long long callCount;       // Number of times this interrupt has been called
-    PltIntHandler handler;     // Interrupt handler function
-    NkHwInterrupt_t* hwInt;    // Hardware interrupt structure for hardware ints
+    int vector;             // Interrupt vector number
+    int type;               // Is this an exception, a service, or an external interrupt?
+    long long callCount;    // Number of times this interrupt has been called
+    union
+    {
+        PltIntHandler handler;     // Interrupt handler function
+        NkHwInterrupt_t* hwInt;    // Hardware interrupt structure for hardware ints
+    };
 } NkInterrupt_t;
 
 #define PLT_INT_EXEC  0
@@ -128,11 +132,14 @@ void PltLowerIpl (ipl_t oldIpl);
 // Initializes interrupt system
 void PltInitInterrupts();
 
-// Installs an interrupt handler
-NkInterrupt_t* PltInstallInterrupt (int vector,
-                                    int type,
-                                    PltIntHandler hndlr,
-                                    NkHwInterrupt_t* hwInt);
+// Installs an exception handler
+NkInterrupt_t* PltInstallExec (int vector, PltIntHandler hndlr);
+
+// Installs a service handler
+NkInterrupt_t* PltInstallSvc (int vector, PltIntHandler hndlr);
+
+// Installs a hardware interrupt
+NkInterrupt_t* PltInstallInterrupt (int vector, NkHwInterrupt_t* intObj);
 
 // Uninstalls an interrupt handler
 void PltUninstallInterrupt (NkInterrupt_t* intObj);

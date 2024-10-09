@@ -158,6 +158,9 @@ static inline PltIntCtrl_t* pltGetIntCtrl (int id)
 // Detect CPUs, interrupt controllers, interrupts, etc
 bool PltMpsDetectCpus()
 {
+    // Check if MPS is allowed
+    if (NkReadArg ("-nomps"))
+        return false;
     NexNixBoot_t* boot = NkGetBootArgs();
     // Find MPS component
     if (!(boot->detectedComps & (1 << NB_TABLE_MPS)))

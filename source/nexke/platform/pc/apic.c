@@ -292,27 +292,19 @@ static inline void pltLapicTimer()
 // Interface functions
 static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    // If not fake convert line to vector
-    uint32_t gsi = intObj->gsi;
-    if (!(intObj->flags & PLT_HWINT_FAKE))
-        gsi += CPU_BASE_HWINT;
     // Check if this is spurious, error, or timer
-    if (gsi == PLT_APIC_SPURIOUS)
-    {
-        // If fake let caller know we are spurious
-        if (intObj->flags & PLT_HWINT_FAKE)
-            intObj->flags |= PLT_HWINT_SPURIOUS;
+    if (intObj->vector == PLT_APIC_SPURIOUS)
         return false;
-    }
-    else if (gsi == PLT_APIC_ERROR)
+    else if (intObj->vector == PLT_APIC_ERROR)
     {
         NkLogWarning ("nexke: warning: APIC error\n");
         pltLapicWrite (PLT_LAPIC_EOI, 0);
         return false;
     }
-    else if (gsi == PLT_APIC_TIMER)
+    else if (intObj->vector == PLT_APIC_TIMER)
     {
         // A timer interrupt occured, call the handler
+        CpuEnable();
         pltLapicTimer();
         CpuDisable();
         pltLapicWrite (PLT_LAPIC_EOI, 0);
@@ -345,21 +337,14 @@ static void PltApicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 
 static void PltApicSetIpl (NkCcb_t* ccb, ipl_t ipl)
 {
-    // Special case for timer
-    if (ipl == PLT_IPL_TIMER)
-    {
-        // Set the TPR
-        pltLapicWrite (PLT_LAPIC_TPR, 0xE0);
-    }
-    else if (!ipl)
-        pltLapicWrite (PLT_LAPIC_TPR, 0);
-    else
+    uint8_t priority = 0;
+    if (ipl)
     {
         // Convert IPL to APIC priority
-        uint8_t priority = pltLapicMapIpl (ipl - 1);
-        // Set the TPR
-        pltLapicWrite (PLT_LAPIC_TPR, priority);
+        priority = pltLapicMapIpl (ipl - 1);
     }
+    // Set the TPR
+    pltLapicWrite (PLT_LAPIC_TPR, priority);
 }
 
 static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
@@ -579,6 +564,19 @@ static bool pltLapicInit()
         curCpu = curCpu->next;
     }
     assert (PltGetPlatform()->bsp);
+    // Install spurious and error interrupts
+    NkHwInterrupt_t* hwInt = PltAllocHwInterrupt();
+    hwInt->flags = PLT_HWINT_SPURIOUS | PLT_HWINT_INTERNAL;
+    hwInt->gsi = 0;
+    hwInt->ipl = PLT_IPL_HIGH;
+    hwInt->vector = PLT_APIC_SPURIOUS;
+    PltInstallInterrupt (hwInt->vector, hwInt);
+    // Error interrupt
+    hwInt = PltAllocHwInterrupt();
+    hwInt->ipl = PLT_IPL_HIGH;
+    hwInt->flags = PLT_HWINT_INTERNAL;
+    hwInt->vector = PLT_APIC_ERROR;
+    PltInstallInterrupt (hwInt->vector, hwInt);
     return true;
 }
 
@@ -647,6 +645,12 @@ PltHwTimer_t* PltApicInitTimer()
     pltApicTimer.precision = PLT_NS_IN_SEC / ticks;
     pltApicTimer.maxInterval = UINT32_MAX * pltApicTimer.precision;
     isApicTimer = true;
+    // Setup the interrupt
+    NkHwInterrupt_t* hwInt = PltAllocHwInterrupt();
+    hwInt->ipl = PLT_IPL_TIMER;
+    hwInt->flags = PLT_HWINT_INTERNAL;
+    hwInt->vector = PLT_APIC_TIMER;
+    PltInstallInterrupt (hwInt->vector, hwInt);
     // Unmask the interrupt
     pltLapicWrite (PLT_LVT_TIMER, pltLapicRead (PLT_LVT_TIMER) & ~(PLT_APIC_MASKED));
     NkLogDebug ("nexke: using APIC as timer, precision %uns\n", pltApicTimer.precision);

@@ -21,7 +21,7 @@ menuentry NexNix {
     set root Boot                           # Set root directory, Boot is mounted by default
     boottype nexnix
     payload /nexke
-    bootargs "-graphicsmode $NNGRAPHICSMODE -loglevel $NNLOGLEVEL"
+    bootargs "-graphicsmode $NNGRAPHICSMODE -loglevel $NNLOGLEVEL -nosci -noapic -notsc -nomps"
     boot            # Boot it up!
 }
 

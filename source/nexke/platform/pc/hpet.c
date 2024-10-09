@@ -367,11 +367,12 @@ PltHwTimer_t* PltHpetInitTimer()
     intObj->gsi = line;
     intObj->ipl = PLT_IPL_TIMER;
     intObj->flags = 0;
+    intObj->handler = PltHpetDispatch;
     int vector = PltConnectInterrupt (intObj);
     if (vector == -1)
         NkPanic ("nexke: unable to install HPET interrupt\n");
     // Install it
-    PltInstallInterrupt (vector, PLT_INT_HWINT, PltHpetDispatch, intObj);
+    PltInstallInterrupt (vector, intObj);
     NkLogDebug ("nexke: using HPET as timer, precision %ldns\n", pltHpetTimer.precision);
     return &pltHpetTimer;
 }

@@ -715,9 +715,10 @@ void PltAcpiPcEnable()
         sciInt->gsi = PltGetGsi (PLT_BUS_ISA, fadt->sciInt);
         sciInt->mode = PLT_MODE_LEVEL;
         sciInt->flags = PLT_HWINT_ACTIVE_LOW;
+        sciInt->handler = PltAcpiSciHandler;
         int vector = PltConnectInterrupt (sciInt);
         if (vector == -1)
             NkPanic ("nexke: unable to install SCI");
-        PltInstallInterrupt (vector, PLT_INT_HWINT, PltAcpiSciHandler, sciInt);
+        PltInstallInterrupt (vector, sciInt);
     }
 }

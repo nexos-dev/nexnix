@@ -33,11 +33,8 @@ static SlabCache_t* nkHwIntCache = NULL;
 // Platform static pointer
 static NkPlatform_t* platform = NULL;
 
-// Installs an interrupt handler
-NkInterrupt_t* PltInstallInterrupt (int vector,
-                                    int type,
-                                    PltIntHandler hndlr,
-                                    NkHwInterrupt_t* hwInt)
+// Interrupt allocation
+static inline NkInterrupt_t* pltAllocInterrupt (int vector, int type)
 {
     // Ensure vector is free
     if (nkIntTable[vector])
@@ -45,23 +42,54 @@ NkInterrupt_t* PltInstallInterrupt (int vector,
     NkInterrupt_t* obj = (NkInterrupt_t*) MmCacheAlloc (nkIntCache);
     if (!obj)
         NkPanic ("nexke: out of memory");
-    // Disable interrupts, we are in critical code
-    CpuDisable();
     // Initialize object
     obj->callCount = 0;
-    assert (hndlr);
-    obj->handler = hndlr;
     obj->type = type;
     obj->vector = vector;
-    if (hwInt)
-    {
-        assert (obj->type == PLT_INT_HWINT);
-        obj->hwInt = hwInt;
-        // Enable it
-        platform->intCtrl->enableInterrupt (CpuGetCcb(), obj->hwInt);
-    }
     // Insert in table
     nkIntTable[vector] = obj;
+    return obj;
+}
+
+// Installs an exception handler
+NkInterrupt_t* PltInstallExec (int vector, PltIntHandler hndlr)
+{
+    CpuDisable();
+    NkInterrupt_t* obj = pltAllocInterrupt (vector, PLT_INT_EXEC);
+    obj->handler = hndlr;
+    CpuEnable();
+    return obj;
+}
+
+// Installs a service handler
+NkInterrupt_t* PltInstallSvc (int vector, PltIntHandler hndlr)
+{
+    CpuDisable();
+    NkInterrupt_t* obj = pltAllocInterrupt (vector, PLT_INT_SVC);
+    obj->handler = hndlr;
+    CpuEnable();
+    return obj;
+}
+
+// Installs a hardware interrupt
+NkInterrupt_t* PltInstallInterrupt (int vector, NkHwInterrupt_t* hwInt)
+{
+    CpuDisable();
+    // Check if interrupt is installed
+    NkInterrupt_t* obj = nkIntTable[vector];
+    if (obj)
+    {
+        // Chain it
+        // TODO
+    }
+    else
+    {
+        obj = pltAllocInterrupt (vector, PLT_INT_HWINT);
+        obj->hwInt = hwInt;
+        // Enable it if not an internally managed interrupt
+        if (!hwInt->flags & PLT_HWINT_INTERNAL)
+            platform->intCtrl->enableInterrupt (CpuGetCcb(), hwInt);
+    }
     CpuEnable();
     return obj;
 }
@@ -186,29 +214,13 @@ void PltExecDispatch (NkInterrupt_t* intObj, CpuIntContext_t* context)
 void PltTrapDispatch (CpuIntContext_t* context)
 {
     NkCcb_t* ccb = CpuGetCcb();
+    ++ccb->intCount;
     // Grab the interrupt object
     NkInterrupt_t* intObj = nkIntTable[CPU_CTX_INTNUM (context)];
     if (!intObj)
     {
-        // First see if hardware interrupt controller knows how to handle it
-        NkHwInterrupt_t hwInt = {0};
-        hwInt.gsi = CPU_CTX_INTNUM (context);
-        hwInt.flags = PLT_HWINT_FAKE;
-        if (!platform->intCtrl->beginInterrupt (ccb, &hwInt))
-        {
-            // It handled it, see if we need to increate spurious counter
-            if (hwInt.flags & PLT_HWINT_SPURIOUS)
-            {
-                NkLogWarning ("nexke: warning: spurious interrupt occurred\n");
-                ++ccb->spuriousInts;
-            }
-            return;    // We are done
-        }
-        else
-        {
-            // Unhandled interrupt, that's a bad trap
-            PltBadTrap (context, "unhandled interrupt %#X", CPU_CTX_INTNUM (context));
-        }
+        // Unhandled interrupt, that's a bad trap
+        PltBadTrap (context, "unhandled interrupt %#X", CPU_CTX_INTNUM (context));
     }
     // Now we need to determine what kind of trap this is. There are 3 possibilities
     // If this is an exception, first we call the registered handler. If the handler fails to handle
@@ -241,18 +253,22 @@ void PltTrapDispatch (CpuIntContext_t* context)
         // Set the IPL and enable interrupts
         ipl_t oldIpl = ccb->curIpl;
         ccb->curIpl = intObj->hwInt->ipl;
-        CpuEnable();
         // Check if this interrupt is spurious
         if (!platform->intCtrl->beginInterrupt (ccb, intObj->hwInt))
         {
-            // This interrupt is spurious. Increase counter and return
-            ++ccb->spuriousInts;
+            if (intObj->hwInt->flags & PLT_HWINT_SPURIOUS)
+            {
+                // This interrupt is spurious. Increase counter and return
+                ++ccb->spuriousInts;
+            }
         }
         else
         {
+            // Re-enable interrupts
+            CpuEnable();
             // Handle
             ++intObj->callCount;
-            intObj->handler (intObj, context);
+            intObj->hwInt->handler (intObj, context);
             CpuDisable();
             // End the interrupt
             platform->intCtrl->endInterrupt (ccb, intObj->hwInt);

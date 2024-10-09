@@ -157,11 +157,12 @@ static void PltPitInstallInt()
     pitInt->mode = PLT_MODE_EDGE;
     pitInt->ipl = PLT_IPL_TIMER;
     pitInt->flags = 0;
+    pitInt->handler = PltPitDispatch;
     int vector = PltConnectInterrupt (pitInt);
     if (vector == -1)
         NkPanic ("nexke: unable to install PIT interrupt");
     // Install interrupt
-    PltInstallInterrupt (vector, PLT_INT_HWINT, PltPitDispatch, pitInt);
+    PltInstallInterrupt (vector, pitInt);
 }
 
 // Initializes PIT clock

@@ -63,42 +63,17 @@ static inline ipl_t PltPicMapIpl (NkHwInterrupt_t* hwInt)
     return PLT_IPL_TIMER - (hwInt->gsi + 1);
 }
 
-// Reads ISR of both PICs
-static inline uint16_t PltPicGetIsr()
-{
-    CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_READISR);
-    CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_READISR);
-    return (CpuInb (PLT_PIC_SLAVE_CMD) << 8) | CpuInb (PLT_PIC_MASTER_CMD);
-}
-
 // Begins processing an interrupt
 static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    // If this is a fake interrupt convert vector
-    // What is a fake interrupt? When the interrupt dispatcher gets an interrupt it doesn't
-    // recognize it attempts to see if the interrupt controller can handle it. It sends a fake
-    // interrupt object so we have something to work with
-    if (intObj->flags & PLT_HWINT_FAKE)
-        intObj->gsi -= CPU_BASE_HWINT;
-    // All we need to do is check if this interrupt is spurious
-    if (intObj->gsi == 7 || intObj->gsi == 15)
+    // Check if this is a spurious interrupt
+    if (intObj->flags & PLT_HWINT_SPURIOUS)
     {
-        if (!(PltPicGetIsr() & (1 << 15)) && intObj->gsi == 15)
-        {
-            // Still send EOI to master
-            CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
-            // Check if this is a fake interrupt
-            if (intObj->flags & PLT_HWINT_FAKE)
-                intObj->flags |= PLT_HWINT_SPURIOUS;    // Let caller know we are spurious
-            return false;    // If interrupt isn't actually in service it's spurious
-        }
-        if (!(PltPicGetIsr() & (1 << 7)) && intObj->gsi == 7)
-        {
-            // Check if this is a fake interrupt
-            if (intObj->flags & PLT_HWINT_FAKE)
-                intObj->flags |= PLT_HWINT_SPURIOUS;    // Let caller know we are spurious
-            return false;
-        }
+        // Check where we need to send EOI to
+        if (intObj->gsi == 15)
+            CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_EOI);
+        CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
+        return false;
     }
     return true;
 }
@@ -166,7 +141,7 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
         NkLogDebug ("nexke: attempt to install level-trigerred interrupt, ignoring\n");
         return -1;    // Error
     }
-    if (isElcr)
+    else
     {
         // Set as edge or level
         uint16_t elcr = CpuInb (PLT_PIC_ELCR) | (CpuInb (PLT_PIC_ELCR + 1) << 8);
@@ -178,13 +153,7 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
         CpuOutb (PLT_PIC_ELCR + 1, elcr >> 8);
     }
     // Set the IPL
-    if (hwInt->ipl != PLT_IPL_TIMER)
-        hwInt->ipl = PltPicMapIpl (hwInt);
-    else
-    {
-        if (hwInt->gsi != 0)
-            return -1;    // Timer IPL only valid on PIT
-    }
+    hwInt->ipl = PltPicMapIpl (hwInt);
     return hwInt->gsi + CPU_BASE_HWINT;
 }
 
@@ -231,5 +200,20 @@ PltHwIntCtrl_t* PltPicInit()
         isElcr = true;
     else
         NkLogDebug ("nexke: no ELCR found, only edge-triggered interrupts are supported\n");
+    // Install handlers for spurious interrupts
+    // IRQ 7
+    NkHwInterrupt_t* hwInt = PltAllocHwInterrupt();
+    hwInt->gsi = 7;
+    hwInt->ipl = PLT_IPL_LOW;
+    hwInt->vector = CPU_BASE_HWINT + 7;
+    hwInt->flags = PLT_HWINT_SPURIOUS | PLT_HWINT_INTERNAL;
+    PltInstallInterrupt (CPU_BASE_HWINT + 7, hwInt);
+    // IRQ 15
+    hwInt = PltAllocHwInterrupt();
+    hwInt->gsi = 15;
+    hwInt->ipl = PLT_IPL_LOW;
+    hwInt->vector = CPU_BASE_HWINT + 15;
+    hwInt->flags = PLT_HWINT_SPURIOUS | PLT_HWINT_INTERNAL;
+    PltInstallInterrupt (CPU_BASE_HWINT + 15, hwInt);
     return &plt8259A;
 }

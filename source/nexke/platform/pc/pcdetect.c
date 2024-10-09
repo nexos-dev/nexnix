@@ -215,9 +215,7 @@ PltHwClock_t* PltInitClock()
 {
     PltHwClock_t* clock = NULL;
     // Try TSC first
-    if (NkReadArg ("-notsc"))
-        NkLogDebug ("nexke: TSC use suppressed by -notsc\n");
-    else
+    if (!NkReadArg ("-notsc"))
         clock = CpuInitTscClock();
     if (!clock)
     {
@@ -226,9 +224,7 @@ PltHwClock_t* PltInitClock()
         if (!clock)
         {
             // Check if ACPI clock use is allowed
-            if (NkReadArg ("-nosci"))
-                NkLogDebug ("nexke: ACPI PM use suppressed by -nosci\n");
-            else
+            if (!NkReadArg ("-nosci"))
                 clock = PltAcpiInitClock();
             if (!clock)
                 clock = PltPitInitClk();

@@ -33,8 +33,9 @@ typedef struct _nkccb
     char sysName[64];
     NkArchCcb_t archCcb;    // Architecture dependent part of CCB
     // Interrupt handling data
-    ipl_t curIpl;        // IPL system is running at
-    int spuriousInts;    // Number of spurious interrupts to occur
+    ipl_t curIpl;          // IPL system is running at
+    int spuriousInts;      // Number of spurious interrupts to occur
+    long long intCount;    // Interrupt count
     // Timer related data
     NkTimeEvent_t* timeEvents;    // Linked list of time events waiting to occur
 } NkCcb_t;
