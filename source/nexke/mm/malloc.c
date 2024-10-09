@@ -70,7 +70,7 @@ void* malloc (size_t sz)
     else if (sz <= 2048)
         cache = caches[CACHE_SZ2048];
     else
-        NkPanic ("Invalid size of %u to malloc", sz);
+        NkPanic ("nexke: invalid size of %u to malloc", sz);
     return MmCacheAlloc (cache);
 }
 

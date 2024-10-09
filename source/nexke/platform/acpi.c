@@ -679,14 +679,6 @@ PltHwClock_t* PltAcpiInitClock()
     pltAcpiMapRegs();
     // Set overflow enable only
     pltAcpiWriteReg (ACPI_REG_PM1_EN, ACPI_TMR_EN, 0);
-    // Clear all GPE enable bits
-    for (int i = 0; i < fadt->gpe0Len / 2; i += 4)
-        pltAcpiWriteReg (ACPI_REG_GPE0_EN, 0, i);
-    if (acpiRegs[ACPI_REG_GPE1_EN].addr)
-    {
-        for (int i = 0; i < fadt->gpe1Len / 2; i += 4)
-            pltAcpiWriteReg (ACPI_REG_GPE1_EN, 0, i);
-    }
     return &acpiPmClock;
 }
 
@@ -711,7 +703,6 @@ void PltAcpiPcEnable()
     if (fadt->sciInt && !NkReadArg ("-nosci"))
     {
         NkHwInterrupt_t* sciInt = PltAllocHwInterrupt();
-        memset (sciInt, 0, sizeof (NkHwInterrupt_t));
         sciInt->gsi = PltGetGsi (PLT_BUS_ISA, fadt->sciInt);
         sciInt->mode = PLT_MODE_LEVEL;
         sciInt->flags = PLT_HWINT_ACTIVE_LOW;

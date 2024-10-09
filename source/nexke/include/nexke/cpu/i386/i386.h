@@ -50,9 +50,9 @@ typedef uint32_t paddr_t;
 // Addresses
 #define NEXKE_USER_ADDR_END     0xBFFFFFFF
 #define NEXKE_KERNEL_ADDR_START 0xD0040000
-#define NEXKE_KERNEL_ADDR_END   0xDFFFFFFF
+#define NEXKE_KERNEL_ADDR_END   0xDFFFF000
 
-#define NEXKE_KERNEL_DIRBASE 0xD003F000
+#define NEXKE_KERNEL_DIRBASE 0xDFFFF000
 
 // Framebuffer locations
 #define NEXKE_FB_BASE      0xF0000000

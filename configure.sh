@@ -329,7 +329,7 @@ fwtype=
 buildfw=1
 
 # System configuration options
-loglevel=3
+loglevel=4
 graphicsmode=gui
 
 # Target specific features

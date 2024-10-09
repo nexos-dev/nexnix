@@ -21,6 +21,7 @@
 #include <nexke/platform.h>
 #include <nexke/platform/pc.h>
 #include <stdlib.h>
+#include <string.h>
 
 // For disabing to 8259A
 #define PLT_PIC_MASTER_DATA 0x21
@@ -182,6 +183,8 @@ static int armCount = 0;
 static int finalArm = 0;
 extern PltHwTimer_t pltApicTimer;
 
+extern PltHwIntCtrl_t pltApic;
+
 // Maps IPL to APIC priority
 static inline uint8_t pltLapicMapIpl (ipl_t ipl)
 {
@@ -269,8 +272,10 @@ static pltIoApic_t* pltApicGetIoApic (uint32_t gsi)
 }
 
 // Handles APIC timer event
-static inline void pltLapicTimer()
+static bool pltLapicTimer (NkInterrupt_t* intObj, CpuIntContext_t* context)
 {
+    if (intObj->vector != PLT_APIC_TIMER)
+        return false;
     if (armCount)
     {
         --armCount;    // Decrease pending arm counter
@@ -287,79 +292,43 @@ static inline void pltLapicTimer()
         // Call the callback to drain the event queue
         pltApicTimer.callback();
     }
-}
-
-// Interface functions
-static bool PltApicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
-{
-    // Check if this is spurious, error, or timer
-    if (intObj->vector == PLT_APIC_SPURIOUS)
-        return false;
-    else if (intObj->vector == PLT_APIC_ERROR)
-    {
-        NkLogWarning ("nexke: warning: APIC error\n");
-        pltLapicWrite (PLT_LAPIC_EOI, 0);
-        return false;
-    }
-    else if (intObj->vector == PLT_APIC_TIMER)
-    {
-        // A timer interrupt occured, call the handler
-        CpuEnable();
-        pltLapicTimer();
-        CpuDisable();
-        pltLapicWrite (PLT_LAPIC_EOI, 0);
-        return false;    // We handled it
-    }
     return true;
 }
 
-static void PltApicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+// Spurious interrupt handler
+static bool pltLapicSpurious (NkInterrupt_t* intObj, CpuIntContext_t* context)
 {
-    CpuDisable();
-    pltLapicWrite (PLT_LAPIC_EOI, 0);    // Send EOI
-}
-
-static void PltApicDisableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
-{
-    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
-    assert (apic);
-    uint32_t line = intObj->gsi - apic->gsiBase;
-    pltIoApicWriteRedir (apic, line, pltIoApicReadRedir (apic, line) | PLT_IOAPIC_MASK);
-}
-
-static void PltApicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
-{
-    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
-    assert (apic);
-    uint32_t line = intObj->gsi - apic->gsiBase;
-    pltIoApicWriteRedir (apic, line, pltIoApicReadRedir (apic, line) & ~(PLT_IOAPIC_MASK));
-}
-
-static void PltApicSetIpl (NkCcb_t* ccb, ipl_t ipl)
-{
-    uint8_t priority = 0;
-    if (ipl)
+    if (intObj->vector == PLT_APIC_SPURIOUS)
     {
-        // Convert IPL to APIC priority
-        priority = pltLapicMapIpl (ipl - 1);
+        ++CpuGetCcb()->spuriousInts;    // Increase counter
+        return true;
     }
-    // Set the TPR
-    pltLapicWrite (PLT_LAPIC_TPR, priority);
+    return false;
 }
 
-static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+// Error interrupt handler
+static bool pltLapicError (NkInterrupt_t* intObj, CpuIntContext_t* context)
 {
-    // First allocate a vector for this interrupt
-    uint8_t priority = pltLapicMapIpl (intObj->ipl);
-    assert (priority >= PLT_APIC_CLASS_TO_PRI (2));
+    if (intObj->vector == PLT_APIC_ERROR)
+    {
+        NkLogWarning ("nexke: warning: APIC error detected\n");
+        return true;
+    }
+    return false;
+}
+
+// Allocates a new interrupt vector
+static pltApicPriority_t* pltApicAllocVector (uint8_t* class, int* vectorOut)
+{
     // Get allocation map entry
-    pltApicPriority_t* baseMapEnt = &vectorMap[PLT_APIC_PRI_TO_CLASS (priority)];
+    uint8_t baseClass = *class;
+    pltApicPriority_t* baseMapEnt = &vectorMap[baseClass];
     pltApicPriority_t* curMapEnt = baseMapEnt;
+    // State of allocation
     int vector = 0;
-    int baseClass = PLT_APIC_PRI_TO_CLASS (priority);
-    int curClass = baseClass;
-    int curDist = 0;
-    bool isUp = false;
+    uint8_t curClass = baseClass;
+    int curDist = 0;      // Distance from base class during allocation
+    bool isUp = false;    // Directional info
     bool downDone = false;
     bool upDone = false;
     while (!vector)
@@ -406,28 +375,36 @@ static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
             }
         }
     }
+    // Return the info
+    *class = curClass;
+    *vectorOut = vector;
+    return curMapEnt;
+}
+
+// Maps an interrupt to a redirection entry
+static bool pltApicMapInterrupt (NkHwInterrupt_t* intObj)
+{
+    // First allocate a vector for this interrupt
+    uint8_t priority = pltLapicMapIpl (intObj->ipl);
+    assert (priority >= PLT_APIC_CLASS_TO_PRI (2));
+    uint8_t class = PLT_APIC_PRI_TO_CLASS (priority);
+    int vector = 0;
+    pltApicPriority_t* mapEnt = pltApicAllocVector (&class, &vector);
     if (!vector)
     {
         // No free vectors
-        // TODO: vector / line sharing
-        return -1;
+        return false;
     }
     // We found a vector, make sure we set the right IPL
-    // Exception for PLT_IPL_TIMER
-    if (intObj->ipl == PLT_IPL_TIMER)
-    {
-        // Make sure we got max class
-        if (curClass != PLT_APIC_NUM_PRIORITY - 1)
-            return -1;    // Not valid
-    }
-    else
-        intObj->ipl = pltLapicMapPrio (curClass);
+    if (intObj->ipl == PLT_IPL_TIMER && class != PLT_APIC_NUM_PRIORITY - 1)
+        return false;    // Not valid
+    intObj->ipl = pltLapicMapPrio (class);
     // Get IO APIC
     pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
     if (!apic)
         return false;    // Invalid line
     // We are error safe, reserve the vector
-    curMapEnt->vectors[vector - (curClass << 4)] = true;
+    mapEnt->vectors[vector - (class << 4)] = true;
     intObj->vector = vector;
     // Setup the redirection entry
     uint64_t redir = PLT_APIC_FIXED | PLT_IOAPIC_MASK;
@@ -443,21 +420,114 @@ static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     redir |= (uint64_t) (PltGetPlatform()->bsp->id) << PLT_IOAPIC_DEST_SHIFT;
     // Now write it out
     pltIoApicWriteRedir (apic, intObj->gsi - apic->gsiBase, redir);
-    return vector;
+    return true;
+}
+
+// Interface functions
+static bool PltApicBeginInterrupt (NkCcb_t* ccb, int vector)
+{
+    return true;
+}
+
+static void PltApicEndInterrupt (NkCcb_t* ccb, int vector)
+{
+    pltLapicWrite (PLT_LAPIC_EOI, 0);    // Send EOI
+}
+
+static void PltApicDisableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+{
+    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+    assert (apic);
+    uint32_t line = intObj->gsi - apic->gsiBase;
+    pltIoApicWriteRedir (apic, line, pltIoApicReadRedir (apic, line) | PLT_IOAPIC_MASK);
+}
+
+static void PltApicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+{
+    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+    assert (apic);
+    uint32_t line = intObj->gsi - apic->gsiBase;
+    pltIoApicWriteRedir (apic, line, pltIoApicReadRedir (apic, line) & ~(PLT_IOAPIC_MASK));
+}
+
+static void PltApicSetIpl (NkCcb_t* ccb, ipl_t ipl)
+{
+    uint8_t priority = 0;
+    if (ipl)
+    {
+        // Convert IPL to APIC priority
+        priority = pltLapicMapIpl (ipl - 1);
+    }
+    // Set the TPR
+    pltLapicWrite (PLT_LAPIC_TPR, priority);
+}
+
+static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+{
+    // Check if this line is in use or not
+    assert (intObj->gsi < pltApic.mapEntries);
+    PltHwIntChain_t* curChain = &pltApic.lineMap[intObj->gsi];
+    if (curChain->head)
+    {
+        NkHwInterrupt_t* chainFront = curChain->head;
+        // Interrupt is in use, make sure this will work
+        if (intObj->flags & PLT_HWINT_NON_CHAINABLE || !PltAreIntsCompatible (intObj, chainFront) ||
+            intObj->mode == PLT_MODE_EDGE)
+        {
+            return -1;
+        }
+        // If interrupt is happy with any IPL, this will work
+        // If FORCE_IPL is set and the IPL of the interrupt and chain aren't equal
+        // we need to remap the chain
+        // Unless this chain is not remappable
+        if (intObj->flags & PLT_HWINT_FORCE_IPL)
+        {
+            // Remap if we can
+            if (curChain->noRemap)
+                return -1;    // Can't do it
+            // Map the interrupt object first
+            if (!pltApicMapInterrupt (intObj))
+                return -1;
+            // Remap everything to the vector we specified
+            NkInterrupt_t* obj = PltGetInterrupt (chainFront->vector);
+            assert (obj);
+            if (!PltRemapInterrupt (obj, intObj->vector, intObj->ipl))
+                return -1;
+        }
+        else
+        {
+            // Change IPL and vector to match
+            intObj->ipl = chainFront->ipl;
+            intObj->vector = chainFront->vector;
+        }
+    }
+    else
+    {
+        if (!pltApicMapInterrupt (intObj))
+            return -1;
+    }
+    // Set remappable flag
+    if (intObj->flags & PLT_HWINT_FORCE_IPL)
+        curChain->noRemap = true;
+    return intObj->vector;
 }
 
 static void PltApicDisconnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 {
-    // Grab the vector and free it
-    int class = PLT_APIC_PRI_TO_CLASS (intObj->vector);
-    pltApicPriority_t* mapEntry = &vectorMap[class];
-    // Free it
-    mapEntry->vectors[intObj->vector - PLT_APIC_CLASS_TO_PRI (class)] = false;
-    // Unmap interrupt from vector
-    pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
-    assert (apic);
-    // Disconnect it
-    pltIoApicWriteRedir (apic, intObj->gsi - apic->gsiBase, PLT_IOAPIC_MASK);
+    PltHwIntChain_t* chain = &pltApic.lineMap[intObj->gsi];
+    if (chain->chainLen == 0)
+    {
+        // Grab the vector and free it
+        int class = PLT_APIC_PRI_TO_CLASS (intObj->vector);
+        pltApicPriority_t* mapEntry = &vectorMap[class];
+        // Free it
+        mapEntry->vectors[intObj->vector - PLT_APIC_CLASS_TO_PRI (class)] = false;
+        // Unmap interrupt from vector
+        pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
+        assert (apic);
+        // Disconnect it
+        pltIoApicWriteRedir (apic, intObj->gsi - apic->gsiBase, PLT_IOAPIC_MASK);
+    }
 }
 
 // Helper function to get number of redirection entries for specified IOAPIC
@@ -560,22 +630,26 @@ static bool pltLapicInit()
             // Set this as BSP
             NkLogDebug ("nexke: found BSP at CPU %d\n", curCpu->id);
             PltGetPlatform()->bsp = curCpu;
+            break;
         }
         curCpu = curCpu->next;
     }
     assert (PltGetPlatform()->bsp);
     // Install spurious and error interrupts
     NkHwInterrupt_t* hwInt = PltAllocHwInterrupt();
-    hwInt->flags = PLT_HWINT_SPURIOUS | PLT_HWINT_INTERNAL;
-    hwInt->gsi = 0;
+    hwInt->flags = PLT_HWINT_INTERNAL;
+    hwInt->gsi = PLT_GSI_INTERNAL;
     hwInt->ipl = PLT_IPL_HIGH;
     hwInt->vector = PLT_APIC_SPURIOUS;
+    hwInt->handler = pltLapicSpurious;
     PltInstallInterrupt (hwInt->vector, hwInt);
     // Error interrupt
     hwInt = PltAllocHwInterrupt();
+    hwInt->gsi = PLT_GSI_INTERNAL;
     hwInt->ipl = PLT_IPL_HIGH;
     hwInt->flags = PLT_HWINT_INTERNAL;
     hwInt->vector = PLT_APIC_ERROR;
+    hwInt->handler = pltLapicError;
     PltInstallInterrupt (hwInt->vector, hwInt);
     return true;
 }
@@ -589,6 +663,7 @@ PltHwIntCtrl_t* PltApicInit()
     // Initialize I/O APICs
     PltIntCtrl_t* cur = PltGetPlatform()->intCtrls;
     int i = 0;
+    size_t numLines = 0;
     while (cur)
     {
         if (cur->type != PLT_INTCTRL_IOAPIC)
@@ -615,9 +690,17 @@ PltHwIntCtrl_t* PltApicInit()
             pltIoApicWriteRedir (ioapic, i, PLT_IOAPIC_MASK);    // Mask it
         }
         ioapic->numRedir = numRedir;
+        numLines += numRedir;
         ++i;
         cur = cur->next;
     }
+    // Set up line map
+    size_t mapSz = sizeof (PltHwIntChain_t) * numLines;
+    // NOTE: we would ideally malloc here, but for now, malloc sizes are limited
+    pltApic.lineMap = (PltHwIntChain_t*) MmAllocKvRegion (2, MM_KV_NO_DEMAND);
+    pltApic.mapEntries = numLines;
+    assert (pltApic.lineMap);
+    memset (pltApic.lineMap, 0, mapSz);
     return &pltApic;
 }
 
@@ -629,7 +712,7 @@ PltHwTimer_t* PltApicInitTimer()
 {
     // Check if APIC exists
     NkCcb_t* ccb = CpuGetCcb();
-    if (!(ccb->archCcb.features & CPU_FEATURE_APIC))
+    if (!(CpuGetFeatures() & CPU_FEATURE_APIC))
         return false;
     // Set up divide register
     pltLapicWrite (PLT_TIMER_DIVIDE, PLT_APIC_DIV_16);
@@ -650,6 +733,8 @@ PltHwTimer_t* PltApicInitTimer()
     hwInt->ipl = PLT_IPL_TIMER;
     hwInt->flags = PLT_HWINT_INTERNAL;
     hwInt->vector = PLT_APIC_TIMER;
+    hwInt->gsi = PLT_GSI_INTERNAL;
+    hwInt->handler = pltLapicTimer;
     PltInstallInterrupt (hwInt->vector, hwInt);
     // Unmask the interrupt
     pltLapicWrite (PLT_LVT_TIMER, pltLapicRead (PLT_LVT_TIMER) & ~(PLT_APIC_MASKED));

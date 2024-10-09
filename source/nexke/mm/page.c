@@ -534,8 +534,8 @@ void MmInitPage()
                                    MUL_PAGE_RW | MUL_PAGE_R | MUL_PAGE_KE);
                 }
                 NkLogDebug ("nexke: Allocating PFN map from %#llX to %#llX\n",
-                            (uintmax_t) mapPhys,
-                            (uintmax_t) mapPhys + (numPfnPages * NEXKE_CPU_PAGESZ));
+                            (uint64_t) mapPhys,
+                            (uint64_t) mapPhys + (numPfnPages * NEXKE_CPU_PAGESZ));
                 break;
             }
         }

@@ -44,8 +44,10 @@ static NkLogEntry_t* entryList = NULL;
 static NkLogEntry_t* entryListTail = NULL;
 
 // Assert implementation
-void __attribute__ ((noreturn))
-__assert_failed (const char* expr, const char* file, int line, const char* func)
+void __attribute__ ((noreturn)) __assert_failed (const char* expr,
+                                                 const char* file,
+                                                 int line,
+                                                 const char* func)
 {
     NkPanic ("Assertion '%s' failed: file %s, line %d, functions %s", expr, file, line, func);
 }
@@ -53,24 +55,37 @@ __assert_failed (const char* expr, const char* file, int line, const char* func)
 // Logs a message
 void NkLogMessage (const char* fmt, int level, va_list ap)
 {
-    NkLogEntry_t* newEntry = MmCacheAlloc (logCache);
-    if (!newEntry)
-        NkPanicOom();
-    newEntry->logLevel = level;
-    vsprintf (newEntry->msg, fmt, ap);
-    // Start list if needed
-    if (!entryList)
-        entryList = newEntry;
-    // Add to tail
-    if (entryListTail)
-        entryListTail->next = newEntry;
-    entryListTail = newEntry;
+    // If we're in an interrupt handler, we can't allocate memory
+    // Don't write to log in that case
+    char* msg = NULL;
+    if (!CPU_IS_INT())
+    {
+        NkLogEntry_t* newEntry = MmCacheAlloc (logCache);
+        if (!newEntry)
+            NkPanicOom();
+        newEntry->logLevel = level;
+        vsprintf (newEntry->msg, fmt, ap);
+        // Start list if needed
+        if (!entryList)
+            entryList = newEntry;
+        // Add to tail
+        if (entryListTail)
+            entryListTail->next = newEntry;
+        entryListTail = newEntry;
+        msg = newEntry->msg;
+    }
+    else
+    {
+        char buf[256];
+        vsprintf (buf, fmt, ap);
+        msg = buf;
+    }
     // Decide where to print it
     if (level <= loglevel)
-        PltGetPrimaryCons()->write (newEntry->msg);
+        PltGetPrimaryCons()->write (msg);
     // Always print to secondary console if one is available
     if (PltGetSecondaryCons())
-        PltGetSecondaryCons()->write (newEntry->msg);
+        PltGetSecondaryCons()->write (msg);
 }
 
 // Initializes kernel log

@@ -69,7 +69,7 @@ PltHwClock_t* CpuInitTscClock()
 {
     // Check for invariant TSC
     NkCcb_t* ccb = CpuGetCcb();
-    if (!ccb->archCcb.features & CPU_FEATURE_INVARIANT_TSC)
+    if (!(ccb->archCcb.features & CPU_FEATURE_INVARIANT_TSC))
     {
         return NULL;    // TSC is unsuitable for our use
     }

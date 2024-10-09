@@ -185,12 +185,23 @@ void CpuPrintDebug (CpuIntContext_t* context)
              context->ebp,
              context->esp);
     NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
-    sprintf (buf,
-             "cr0: %#08lX cr2: %#08lX cr3: %#08lX cr4: %#08lX\n",
-             CpuReadCr0(),
-             CpuReadCr2(),
-             CpuReadCr3(),
-             CpuReadCr4());
+    if (CpuGetCcb()->cpuFamily > 4)
+    {
+        sprintf (buf,
+                 "cr0: %#08lX cr2: %#08lX cr3: %#08lX cr4: %#08lX\n",
+                 CpuReadCr0(),
+                 CpuReadCr2(),
+                 CpuReadCr3(),
+                 CpuReadCr4());
+    }
+    else
+    {
+        sprintf (buf,
+                 "cr0: %#08lX cr2: %#08lX cr3: %#08lX\n",
+                 CpuReadCr0(),
+                 CpuReadCr2(),
+                 CpuReadCr3());
+    }
     NkLogMessage (buf, NK_LOGLEVEL_EMERGENCY, ap);
     sprintf (buf,
              "cs: %#02lX ds: %#02lX es: %#02lX ss: %#02lX\n",

@@ -19,6 +19,8 @@
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <nexke/platform/pc.h>
+#include <stdlib.h>
+#include <string.h>
 
 // PIC registers
 #define PLT_PIC_MASTER_CMD    0x20
@@ -48,42 +50,68 @@ static bool isElcr = false;
 // OCW3
 #define PLT_PIC_READISR 0x0B
 
-// IPL table
-// This table maps the 32 priority levels to PIC priority levels
-// On the PIC, 0 is the highest priority and 15 is the lowest
-// 16 means all ints are disabled
-static uint8_t pltPicIplMap[] = {0,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
-                                 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16};
+// Gets a mask from an IPL
+static uint16_t pltPicIplMap[] = {0,
+                                  0x8000,
+                                  0xC000,
+                                  0xE000,
+                                  0xF000,
+                                  0xF800,
+                                  0xFC00,
+                                  0xFE00,
+                                  0xFF00,
+                                  0xFF80,
+                                  0xFFC0,
+                                  0xFFE0,
+                                  0xFFF0,
+                                  0xFFF8,
+                                  0xFFFC,
+                                  0xFFFC,
+                                  0xFFFE};
+#define PLT_PIC_IPL_RANGE 16
 
-// Maps interrupt to IPL
-static inline ipl_t PltPicMapIpl (NkHwInterrupt_t* hwInt)
+// Maps priorities to IPLs
+static uint8_t pltPicPrioMap[] = {16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1};
+
+extern PltHwIntCtrl_t plt8259A;
+
+// Reads ISR of both PICs
+static inline uint16_t PltPicGetIsr()
 {
-    // So we have 16 interrupts. For simplicity we simply base the IPL off the vector
-    // The +1 is because IPL 0 is reserved for IPL_LOW
-    return PLT_IPL_TIMER - (hwInt->gsi + 1);
+    CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_READISR);
+    CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_READISR);
+    return (CpuInb (PLT_PIC_SLAVE_CMD) << 8) | CpuInb (PLT_PIC_MASTER_CMD);
 }
 
 // Begins processing an interrupt
-static bool PltPicBeginInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+static bool PltPicBeginInterrupt (NkCcb_t* ccb, int vector)
 {
-    // Check if this is a spurious interrupt
-    if (intObj->flags & PLT_HWINT_SPURIOUS)
+    if (vector == CPU_BASE_HWINT + 7)
     {
-        // Check where we need to send EOI to
-        if (intObj->gsi == 15)
+        if (!PltPicGetIsr() & (1 << 7))
+        {
+            CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);    // Send EOI
+            return false;
+        }
+    }
+    else if (vector == CPU_BASE_HWINT + 15)
+    {
+
+        if (!PltPicGetIsr() & (1 << 15))
+        {
+            CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);    // Send EOI
             CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_EOI);
-        CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
-        return false;
+            return false;
+        }
     }
     return true;
 }
 
 // Ends processing of an interrupt
-static void PltPicEndInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
+static void PltPicEndInterrupt (NkCcb_t* ccb, int vector)
 {
-    CpuDisable();
     // Send EOI to PIC
-    if (intObj->gsi >= 8)
+    if ((vector - CPU_BASE_HWINT) >= 8)
         CpuOutb (PLT_PIC_SLAVE_CMD, PLT_PIC_EOI);
     // Master gets EOI either way
     CpuOutb (PLT_PIC_MASTER_CMD, PLT_PIC_EOI);
@@ -122,10 +150,11 @@ static void PltPicEnableInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
 // Sets IPL to specified level
 static void PltPicSetIpl (NkCcb_t* ccb, ipl_t ipl)
 {
-    // Get PIC priority value
-    uint8_t prio = pltPicIplMap[ipl];
-    // Convert to PIC mask
-    uint16_t mask = (1 << prio) - 1;
+    // Get IPL in range
+    if (ipl > PLT_PIC_IPL_RANGE)
+        ipl = PLT_PIC_IPL_RANGE;
+    // Get PIC mask
+    uint16_t mask = pltPicIplMap[ipl];
     // Throw in the saved mask
     mask |= (CpuInb (PLT_PIC_MASTER_DATA) | (CpuInb (PLT_PIC_SLAVE_DATA) << 8));
     // Set the mask
@@ -141,9 +170,14 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
         NkLogDebug ("nexke: attempt to install level-trigerred interrupt, ignoring\n");
         return -1;    // Error
     }
-    else
+    // Get existing chain
+    assert (hwInt->gsi < 16);
+    PltHwIntChain_t* chain = &plt8259A.lineMap[hwInt->gsi];
+    if (chain->head && chain->head->mode != hwInt->mode)
+        return -1;    // Can't mix modes
+    // Set as edge or level if needed
+    if (!chain->head)
     {
-        // Set as edge or level
         uint16_t elcr = CpuInb (PLT_PIC_ELCR) | (CpuInb (PLT_PIC_ELCR + 1) << 8);
         if (hwInt->mode == PLT_MODE_LEVEL)
             elcr |= (1 << hwInt->gsi);
@@ -152,26 +186,29 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
         CpuOutb (PLT_PIC_ELCR, elcr & 0xFF);
         CpuOutb (PLT_PIC_ELCR + 1, elcr >> 8);
     }
-    // Set the IPL
-    hwInt->ipl = PltPicMapIpl (hwInt);
+    // Set the IPL. FORCE_IPL is ignored beacuse we have no control over IPL with 8259A
+    hwInt->ipl = pltPicPrioMap[hwInt->gsi];
     return hwInt->gsi + CPU_BASE_HWINT;
 }
 
 // Disconnects interrupt from specified vector
 static void PltPicDisconnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
 {
-    PltPicDisableInterrupt (ccb, hwInt);
+    assert (hwInt->gsi < 16);
+    PltHwIntChain_t* chain = &plt8259A.lineMap[hwInt->gsi];
+    if (chain->chainLen == 0)
+        PltPicDisableInterrupt (ccb, hwInt);
 }
 
 // Basic structure
-static PltHwIntCtrl_t plt8259A = {.type = PLT_HWINT_8259A,
-                                  .beginInterrupt = PltPicBeginInterrupt,
-                                  .endInterrupt = PltPicEndInterrupt,
-                                  .disableInterrupt = PltPicDisableInterrupt,
-                                  .enableInterrupt = PltPicEnableInterrupt,
-                                  .setIpl = PltPicSetIpl,
-                                  .connectInterrupt = PltPicConnectInterrupt,
-                                  .disconnectInterrupt = PltPicDisconnectInterrupt};
+PltHwIntCtrl_t plt8259A = {.type = PLT_HWINT_8259A,
+                           .beginInterrupt = PltPicBeginInterrupt,
+                           .endInterrupt = PltPicEndInterrupt,
+                           .disableInterrupt = PltPicDisableInterrupt,
+                           .enableInterrupt = PltPicEnableInterrupt,
+                           .setIpl = PltPicSetIpl,
+                           .connectInterrupt = PltPicConnectInterrupt,
+                           .disconnectInterrupt = PltPicDisconnectInterrupt};
 
 // Intialization
 PltHwIntCtrl_t* PltPicInit()
@@ -200,20 +237,11 @@ PltHwIntCtrl_t* PltPicInit()
         isElcr = true;
     else
         NkLogDebug ("nexke: no ELCR found, only edge-triggered interrupts are supported\n");
-    // Install handlers for spurious interrupts
-    // IRQ 7
-    NkHwInterrupt_t* hwInt = PltAllocHwInterrupt();
-    hwInt->gsi = 7;
-    hwInt->ipl = PLT_IPL_LOW;
-    hwInt->vector = CPU_BASE_HWINT + 7;
-    hwInt->flags = PLT_HWINT_SPURIOUS | PLT_HWINT_INTERNAL;
-    PltInstallInterrupt (CPU_BASE_HWINT + 7, hwInt);
-    // IRQ 15
-    hwInt = PltAllocHwInterrupt();
-    hwInt->gsi = 15;
-    hwInt->ipl = PLT_IPL_LOW;
-    hwInt->vector = CPU_BASE_HWINT + 15;
-    hwInt->flags = PLT_HWINT_SPURIOUS | PLT_HWINT_INTERNAL;
-    PltInstallInterrupt (CPU_BASE_HWINT + 15, hwInt);
+    // Set up line map
+    size_t mapSz = sizeof (PltHwIntChain_t) * 16;
+    plt8259A.lineMap = (PltHwIntChain_t*) malloc (mapSz);
+    plt8259A.mapEntries = 16;
+    assert (plt8259A.lineMap);
+    memset (plt8259A.lineMap, 0, mapSz);
     return &plt8259A;
 }

@@ -36,6 +36,8 @@ typedef struct _nkccb
     ipl_t curIpl;          // IPL system is running at
     int spuriousInts;      // Number of spurious interrupts to occur
     long long intCount;    // Interrupt count
+    bool intActive;        // Wheter an interrupt is active on this CPU
+                           // This flags is only set during hardware interrupt processing
     // Timer related data
     NkTimeEvent_t* timeEvents;    // Linked list of time events waiting to occur
 } NkCcb_t;
@@ -76,6 +78,13 @@ void CpuDisable();
 
 // Enables interrupts
 void CpuEnable();
+
+// Asserts that we are not in an interrupt
+#define CPU_ASSERT_NOT_INT()    \
+    if (CpuGetCcb()->intActive) \
+        NkPanic ("nexke: interrupt check failed\n");
+
+#define CPU_IS_INT() (CpuGetCcb()->intActive)
 
 // CPU exception info
 typedef struct _execinf

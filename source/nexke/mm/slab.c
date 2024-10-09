@@ -229,6 +229,7 @@ static inline void slabCacheCreate (SlabCache_t* cache,
 // Allocates an object from a cache
 void* MmCacheAlloc (SlabCache_t* cache)
 {
+    CPU_ASSERT_NOT_INT();
     // Attempt to grab object from empty list
     void* ret = NULL;
     if (cache->emptySlabs)
@@ -268,6 +269,7 @@ void* MmCacheAlloc (SlabCache_t* cache)
 // Frees an object back to slab cache
 void MmCacheFree (SlabCache_t* cache, void* obj)
 {
+    CPU_ASSERT_NOT_INT();
     // Destroy object
     if (cache->destructor)
         cache->destructor (obj);
@@ -291,6 +293,7 @@ void MmCacheFree (SlabCache_t* cache, void* obj)
 // Creates a slab cache
 SlabCache_t* MmCacheCreate (size_t objSz, SlabObjConstruct constuctor, SlabObjDestruct destructor)
 {
+    CPU_ASSERT_NOT_INT();
     if (objSz >= NEXKE_CPU_PAGESZ)
         return NULL;    // Can't allocate anything larger than that
     // Allocate cache from cache of caches
@@ -304,6 +307,7 @@ SlabCache_t* MmCacheCreate (size_t objSz, SlabObjConstruct constuctor, SlabObjDe
 // Destroys a slab cache
 void MmCacheDestroy (SlabCache_t* cache)
 {
+    CPU_ASSERT_NOT_INT();
     // Ensure cache is empty
     if (cache->numObjs)
     {

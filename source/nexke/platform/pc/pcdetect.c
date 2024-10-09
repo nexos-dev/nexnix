@@ -113,8 +113,6 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
 // Resolves an interrupt line from bus-specific to a GSI
 uint32_t PltGetGsi (int bus, int line)
 {
-    if (nkPlatform.intCtrl->type == PLT_HWINT_8259A)
-        return line;
     // Search through interrupt overrides
     PltIntOverride_t* intSrc = nkPlatform.ints;
     while (intSrc)
@@ -125,6 +123,21 @@ uint32_t PltGetGsi (int bus, int line)
         intSrc = intSrc->next;
     }
     return line;
+}
+
+// Gets an interrupt override based on the GSI
+PltIntOverride_t* PltGetOverride (uint32_t gsi)
+{
+    // Search through interrupt overrides
+    PltIntOverride_t* intSrc = nkPlatform.ints;
+    while (intSrc)
+    {
+        // Check if this is it
+        if (intSrc->gsi == gsi)
+            return intSrc;
+        intSrc = intSrc->next;
+    }
+    return NULL;
 }
 
 // Detects CPUs if there is no MPS or ACPI
