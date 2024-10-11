@@ -158,8 +158,11 @@ static pltIoApic_t ioApics[PLT_IOAPIC_MAX + 1] = {0};
 // Vector allocation map
 typedef struct _priority
 {
-    bool vectors[16];    // Vector allocation map
+    bool vectors[16];     // Vector allocation map
+    size_t numAlloced;    // Number of allocated vectors in map
 } pltApicPriority_t;
+
+#define PLT_APIC_PRIO_NUM_VECT 16
 
 // Vector map
 #define PLT_APIC_NUM_PRIORITY 16
@@ -317,68 +320,79 @@ static bool pltLapicError (NkInterrupt_t* intObj, CpuIntContext_t* context)
     return false;
 }
 
+#define PLT_APIC_DIST_UNUSABLE 16
+
+static inline pltApicPriority_t* pltApicGetClosestUp (uint8_t baseClass, int* dist)
+{
+    for (int i = baseClass; i < PLT_APIC_NUM_PRIORITY; ++i)
+    {
+        // Get the priority there
+        pltApicPriority_t* curPrio = &vectorMap[i];
+        if (curPrio->numAlloced < PLT_APIC_PRIO_NUM_VECT)
+        {
+            *dist = i - baseClass;
+            return curPrio;
+        }
+    }
+    *dist = PLT_APIC_DIST_UNUSABLE;    // Set it to something large so we don't use it
+    return NULL;
+}
+
+static inline pltApicPriority_t* pltApicGetClosestDown (uint8_t baseClass, int* dist)
+{
+    for (int i = baseClass; i >= 0; --i)
+    {
+        // Get the priority there
+        pltApicPriority_t* curPrio = &vectorMap[i];
+        if (curPrio->numAlloced < PLT_APIC_PRIO_NUM_VECT)
+        {
+            *dist = baseClass - i;
+            return curPrio;
+        }
+    }
+    *dist = PLT_APIC_DIST_UNUSABLE;    // Set it to something large so we don't use it
+    return NULL;
+}
+
+static inline int pltApicGetVector (pltApicPriority_t* prio, uint8_t class)
+{
+    for (int i = 0; i < PLT_APIC_PRIO_NUM_VECT; ++i)
+    {
+        if (!prio->vectors[i])
+            return (class << 4) + i;
+    }
+    return 0;
+}
+
 // Allocates a new interrupt vector
 static pltApicPriority_t* pltApicAllocVector (uint8_t* class, int* vectorOut)
 {
-    // Get allocation map entry
+    // Basically our algorithm is to check the desired class, if that's not available,
+    // we see what the closest priority upwards from the base class is, and what the closest one
+    // down from the base class is We will pick the closer of the two, or upwards if they are equal
     uint8_t baseClass = *class;
-    pltApicPriority_t* baseMapEnt = &vectorMap[baseClass];
-    pltApicPriority_t* curMapEnt = baseMapEnt;
-    // State of allocation
-    int vector = 0;
-    uint8_t curClass = baseClass;
-    int curDist = 0;      // Distance from base class during allocation
-    bool isUp = false;    // Directional info
-    bool downDone = false;
-    bool upDone = false;
-    while (!vector)
-    {
-        // Find a free vector in map entry
-        for (int i = 0; i < 16; ++i)
-        {
-            if (!curMapEnt->vectors[i])
-            {
-                vector = (curClass << 4) + i;    // We have the vector
-                break;
-            }
-        }
-        if (!vector)
-        {
-            // Check if we're done
-            if (downDone && upDone)
-                break;
-            // Move to next priority
-            // The way we do this is by alternating up and down, i.e., down one,
-            // up one, down two, up two, down three, up three, etc
-            if (!isUp)
-            {
-                ++curDist;       // Move to next distance
-                if (curClass)    // Don't go too far
-                {
-                    // Move down from base to curDist
-                    curMapEnt = baseMapEnt - curDist;
-                    curClass = baseClass - curDist;
-                }
-                else
-                    downDone = true;
-            }
-            else
-            {
-                // Move up
-                if (curClass < PLT_APIC_LAST_USER_PRIO)
-                {
-                    curMapEnt = baseMapEnt + curDist;
-                    curClass = baseClass + curDist;
-                }
-                else
-                    upDone = true;
-            }
-        }
-    }
-    // Return the info
-    *class = curClass;
-    *vectorOut = vector;
-    return curMapEnt;
+    // Get the closest one upwards
+    int distUp = 0, distDown = 0;
+    pltApicPriority_t* prioUp = pltApicGetClosestUp (baseClass, &distUp);
+    pltApicPriority_t* prioDown = pltApicGetClosestDown (baseClass, &distDown);
+    // Now handle the different cases
+    pltApicPriority_t* prio = NULL;
+    if (distUp <= distDown)
+        prio = prioUp;
+    else if (distDown < distUp)
+        prio = prioDown;
+    else
+        assert (0);
+    // Check if there is a priority
+    if (!prio)
+        return NULL;
+    // Get the class
+    *class = baseClass + (prio - &vectorMap[baseClass]);
+    // Now allocate it
+    *vectorOut = pltApicGetVector (prio, *class);
+    assert (*vectorOut);
+    // We're done
+    return prio;
 }
 
 // Maps an interrupt to a redirection entry
@@ -405,6 +419,7 @@ static bool pltApicMapInterrupt (NkHwInterrupt_t* intObj)
         return false;    // Invalid line
     // We are error safe, reserve the vector
     mapEnt->vectors[vector - (class << 4)] = true;
+    ++mapEnt->numAlloced;
     intObj->vector = vector;
     // Setup the redirection entry
     uint64_t redir = PLT_APIC_FIXED | PLT_IOAPIC_MASK;
@@ -520,9 +535,10 @@ static void PltApicDisconnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     {
         // Grab the vector and free it
         int class = PLT_APIC_PRI_TO_CLASS (intObj->vector);
-        pltApicPriority_t* mapEntry = &vectorMap[class];
+        pltApicPriority_t* mapEnt = &vectorMap[class];
         // Free it
-        mapEntry->vectors[intObj->vector - PLT_APIC_CLASS_TO_PRI (class)] = false;
+        mapEnt->vectors[intObj->vector - PLT_APIC_CLASS_TO_PRI (class)] = false;
+        --mapEnt->numAlloced;
         // Unmap interrupt from vector
         pltIoApic_t* apic = pltApicGetIoApic (intObj->gsi);
         assert (apic);

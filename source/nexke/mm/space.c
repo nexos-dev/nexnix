@@ -138,7 +138,13 @@ MmSpaceEntry_t* MmAllocSpace (MmSpace_t* space,
     uintptr_t addr = hintAddr;
     MmSpaceEntry_t* prevEntry = mmFindFree (space, &addr, numPages);
     if (!prevEntry)
-        return NULL;    // Not enough space
+    {
+        // Try again without the hint, as there may have been memory beneath the hint that we missed
+        addr = 0;
+        prevEntry = mmFindFree (space, &addr, numPages);
+        if (!prevEntry)
+            return NULL;    // Not enough space
+    }
     // Create a new entry
     MmSpaceEntry_t* newEntry = MmCacheAlloc (mmEntryCache);
     if (!newEntry)
