@@ -65,7 +65,7 @@ typedef void (*PltHwDisconnectInterrupt) (NkCcb_t*, NkHwInterrupt_t*);
 // Interupt chain structure
 typedef struct _intchain
 {
-    NkHwInterrupt_t* head;
+    NkList_t list;
     size_t chainLen;
     size_t maskCount;    // Number of masked interrupts in chain
     bool noRemap;        // If the chain is remappable
@@ -105,8 +105,7 @@ typedef struct _hwint
     ipl_t ipl;                // IPL value
     int vector;               // Vector we're connected to
     PltIntHandler handler;    // Handler for this interrupt
-    struct _hwint* next;      // Links for interupt chain
-    struct _hwint* prev;
+    NkLink_t link;
 } NkHwInterrupt_t;
 
 #define PLT_MODE_EDGE  0
@@ -249,8 +248,7 @@ typedef struct _hwcpu
 {
     int id;      // ID according to platform
     int type;    // CPU interrupt controller type
-    struct _hwcpu* next;
-    struct _hwcpu* prev;
+    NkLink_t link;
 } PltCpu_t;
 
 static const char* pltCpuTypes[] = {"APIC", "x2APIC", "none"};
@@ -267,8 +265,7 @@ typedef struct _hwintsrc
     int mode;        // Trigger mode
     int polarity;    // Polarity of interrupt
     uint32_t gsi;    // Global system inerrupt of interrupt
-    struct _hwintsrc* next;
-    struct _hwintsrc* prev;
+    NkLink_t link;
 } PltIntOverride_t;
 
 #define PLT_POL_ACTIVE_HIGH 0
@@ -284,8 +281,7 @@ typedef struct _hwintctl
     int id;              // ID of this controller
     uint64_t addr;       // ADdress of it
     uint32_t gsiBase;    // Base interrupt number
-    struct _hwintctl* next;
-    struct _hwintctl* prev;
+    NkLink_t link;
 } PltIntCtrl_t;
 
 static const char* pltIntCtrlTypes[] = {"IOAPIC", "8259A"};
@@ -303,12 +299,10 @@ typedef struct _nkplt
     PltHwClock_t* clock;        // System clock
     PltHwTimer_t* timer;        // System timer
     PltHwIntCtrl_t* intCtrl;    // Interrupt controller
-    PltCpu_t* cpus;             // List of CPUs
-    PltCpu_t* cpusEnd;          // End of CPUs
+    NkList_t cpus;              // List of CPUs
     PltCpu_t* bsp;              // BSP CPU
-    PltIntOverride_t* ints;     // List of interrupt sources
-    PltIntCtrl_t* intCtrls;     // List of interrupt controllers
-    PltIntCtrl_t* intCtrlsEnd;
+    NkList_t ints;              // List of interrupt sources
+    NkList_t intCtrls;          // List of interrupt controllers
     int numCpus;
     int numIntCtrls;
     // ACPI related things

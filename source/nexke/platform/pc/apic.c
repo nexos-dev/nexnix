@@ -467,9 +467,10 @@ static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     // Check if this line is in use or not
     assert (intObj->gsi < pltApic.mapEntries);
     PltHwIntChain_t* curChain = &pltApic.lineMap[intObj->gsi];
-    if (curChain->head)
+    if (NkListFront (&curChain->list))
     {
-        NkHwInterrupt_t* chainFront = curChain->head;
+        NkHwInterrupt_t* chainFront =
+            LINK_CONTAINER (NkListFront (&curChain->list), NkHwInterrupt_t, link);
         // Interrupt is in use, make sure this will work
         if (intObj->flags & PLT_HWINT_NON_CHAINABLE || !PltAreIntsCompatible (intObj, chainFront) ||
             intObj->mode == PLT_MODE_EDGE)
@@ -622,9 +623,10 @@ static bool pltLapicInit()
     pltLapicWrite (PLT_LAPIC_TPR, 0);
     // Find platform CPU with this APIC ID so we can determine the BSP
     int selfId = pltLapicRead (PLT_LAPIC_ID) >> 24;
-    PltCpu_t* curCpu = PltGetPlatform()->cpus;
-    while (curCpu)
+    NkLink_t* iter = NkListFront (&PltGetPlatform()->cpus);
+    while (iter)
     {
+        PltCpu_t* curCpu = LINK_CONTAINER (iter, PltCpu_t, link);
         if (curCpu->id == selfId)
         {
             // Set this as BSP
@@ -632,7 +634,7 @@ static bool pltLapicInit()
             PltGetPlatform()->bsp = curCpu;
             break;
         }
-        curCpu = curCpu->next;
+        iter = NkListIterate (iter);
     }
     assert (PltGetPlatform()->bsp);
     // Install spurious and error interrupts
@@ -661,15 +663,16 @@ PltHwIntCtrl_t* PltApicInit()
         return NULL;
     NkLogDebug ("nexke: using APIC as interrupt controller\n");
     // Initialize I/O APICs
-    PltIntCtrl_t* cur = PltGetPlatform()->intCtrls;
+    NkLink_t* iter = NkListFront (&PltGetPlatform()->intCtrls);
     int i = 0;
     size_t numLines = 0;
-    while (cur)
+    while (iter)
     {
+        PltIntCtrl_t* cur = LINK_CONTAINER (iter, PltIntCtrl_t, link);
         if (cur->type != PLT_INTCTRL_IOAPIC)
         {
             // Skip
-            cur = cur->next;
+            iter = NkListIterate (iter);
             continue;
         }
         // Get internal structure
@@ -692,7 +695,7 @@ PltHwIntCtrl_t* PltApicInit()
         ioapic->numRedir = numRedir;
         numLines += numRedir;
         ++i;
-        cur = cur->next;
+        iter = NkListIterate (iter);
     }
     // Set up line map
     size_t mapSz = sizeof (PltHwIntChain_t) * numLines;

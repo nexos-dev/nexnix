@@ -38,7 +38,7 @@ NkTimeEvent_t* NkTimeNewEvent()
 // Frees a timer event
 void NkTimeFreeEvent (NkTimeEvent_t* event)
 {
-    assert (!event->next && !event->prev && CpuGetCcb()->timeEvents != event);
+    assert (!event->link.next && !event->link.prev);
     MmCacheFree (nkEventCache, event);
 }
 
@@ -72,51 +72,35 @@ void NkTimeRegEvent (NkTimeEvent_t* event, uint64_t delta, NkTimeCallback callba
     // Ensure deadline is valid for this timer
     // Grab list
     NkCcb_t* ccb = CpuGetCcb();
-    NkTimeEvent_t* list = ccb->timeEvents;
+    NkList_t* list = &ccb->timeEvents;
+    NkLink_t* iter = NkListFront (list);
     // Find where in list to add
     // Basically the list is sorted by when event deadline is. Earliest deadline is first
-    if (!list)
+    if (!iter)
     {
         // List is empty, add to front
-        ccb->timeEvents = event;
-        event->next = event->prev = NULL;
+        NkListAddFront (list, &event->link);
     }
     else
     {
         // Loop through list to find spot
-        while (list)
+        while (iter)
         {
-            if (event->deadline < list->deadline)
+            NkTimeEvent_t* cur = LINK_CONTAINER (iter, NkTimeEvent_t, link);
+            // If it meets the deadline or if this is the last entry, add here
+            if (event->deadline < cur->deadline || !iter->next)
             {
                 // Found spot, add it here
-                if (list->prev)
-                    list->prev->next = event;
-                list->prev = event;
-                event->next = list;
-                if (ccb->timeEvents == list)
-                {
-                    // Set this to front pointer
-                    ccb->timeEvents = list;
-                }
+                NkListAdd (list, iter, &event->link);
                 break;    // Exit loop
             }
-            // Handle case of list ending after this entry
-            if (list->next == NULL)
-            {
-                // List ends after this, which means this is the latest event currently
-                // Add it to tail
-                list->next = event;
-                event->prev = list;
-                event->next = NULL;
-                break;
-            }
-            list = list->next;    // To next spot
+            iter = NkListIterate (iter);    // To next spot
         }
     }
     // If this event is in the front, then we need to arm the timer
     // NOTE: this is only true if we are not using a software timer.
     // In that case, we have no need to arm anything
-    if (event == ccb->timeEvents)
+    if (&event->link == NkListFront (&ccb->timeEvents))
     {
         // Arm timer if needed
         if (platform->timer->type != PLT_TIMER_SOFT)
@@ -135,17 +119,16 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
     // Raise IPL to protect event list
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     NkCcb_t* ccb = CpuGetCcb();
-    NkTimeEvent_t* list = ccb->timeEvents;
-    assert (event->prev || event->next || list == event);
+    NkList_t* list = &ccb->timeEvents;
+    // Figure out if this is the head
+    bool isHead = false;
+    if (&event->link == NkListFront (list))
+        isHead = true;
     // Remove this event from list
-    if (event->prev)
-        event->prev->next = event->next;
-    if (event->next)
-        event->next->prev = event->prev;
+    NkListRemove (list, &event->link);
     // Set head if needed
-    if (list == event)
+    if (isHead)
     {
-        ccb->timeEvents = event->next;
         // Now we need to re-arm the timer
         if (platform->timer->type != PLT_TIMER_SOFT)
         {
@@ -159,7 +142,7 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
             platform->timer->armTimer (delta);
         }
     }
-    event->next = event->prev = NULL;
+    event->link.next = event->link.prev = NULL;
     PltLowerIpl (ipl);
 }
 
@@ -167,19 +150,23 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
 static void NkTimeHandler()
 {
     NkCcb_t* ccb = CpuGetCcb();
-    NkTimeEvent_t* event = ccb->timeEvents;
+    NkList_t* list = &ccb->timeEvents;
+    NkLink_t* iter = NkListFront (list);
+    NkTimeEvent_t* event = LINK_CONTAINER (iter, NkTimeEvent_t, link);
     // If this is a software timer, we need to tick through the event until it expires
     // Otherwise, then an event has occured and we just need to execute each handler for this
     // deadline
     if (platform->timer->type == PLT_TIMER_SOFT)
     {
         // Check if timers have expired
-        while (event && platform->clock->getTime() == event->deadline)
+        while (iter && platform->clock->getTime() == event->deadline)
         {
             // Event has expired, remove from list and call handler
-            ccb->timeEvents = event->next;
+            NkLink_t* oldIter = iter;       // Save this iterator
+            iter = NkListIterate (iter);    // To next one
+            NkListRemove (list, oldIter);
             event->callback (event, event->arg);
-            event = event->next;    // To next event
+            event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
         }
     }
     else
@@ -188,17 +175,20 @@ static void NkTimeHandler()
             return;    // Return. no timer expired. Or assert maybe?
         // We know a timer (or multiple) has/have expired, execute each cb
         uint64_t tick = event->deadline;
-        while (event && tick == event->deadline)
+        while (iter && tick == event->deadline)
         {
             // Event has expired, remove from list and call handler
-            ccb->timeEvents = event->next;
+            NkLink_t* oldIter = iter;       // Save this iterator
+            iter = NkListIterate (iter);    // To next one
+            NkListRemove (list, oldIter);
             event->callback (event, event->arg);
-            event = event->next;    // To next event
+            event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
         }
         // Arm the next event
-        if (ccb->timeEvents)
+        NkLink_t* front = NkListFront (&ccb->timeEvents);
+        if (front)
         {
-            event = ccb->timeEvents;
+            event = LINK_CONTAINER (front, NkTimeEvent_t, link);
             int64_t delta = event->deadline - platform->clock->getTime();
             if (delta < 0)
             {
@@ -228,8 +218,7 @@ void NkInitTime()
         nkLimitPrecision = platform->clock->precision;
     else
         nkLimitPrecision = platform->timer->precision;
-    // Set up callback
-    CpuGetCcb()->timeEvents = NULL;    // Initialize list
+    NkListInit (&CpuGetCcb()->timeEvents);    // Initialize list
     nkEventCache = MmCacheCreate (sizeof (NkTimeEvent_t), NULL, NULL);
     // Set callback
     platform->timer->setCallback (NkTimeHandler);

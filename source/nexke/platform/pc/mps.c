@@ -145,12 +145,13 @@ static inline paddr_t pltMpsLook (uint8_t* addr, size_t sz)
 // Gets interrupt controller from platform based on ID
 static inline PltIntCtrl_t* pltGetIntCtrl (int id)
 {
-    PltIntCtrl_t* iter = PltGetPlatform()->intCtrls;
+    NkLink_t* iter = NkListFront (&PltGetPlatform()->intCtrls);
     while (iter)
     {
-        if (iter->id == id)
-            return iter;
-        iter = iter->next;
+        PltIntCtrl_t* cur = LINK_CONTAINER (iter, PltIntCtrl_t, link);
+        if (cur->id == id)
+            return cur;
+        iter = NkListIterate (iter);
     }
     return NULL;
 }

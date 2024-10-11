@@ -26,22 +26,19 @@
 // Log entry structure
 typedef struct _logentry
 {
-    char msg[128];             // Message buffer
-    int logLevel;              // Loglevel of message
-    struct _logentry* next;    // Next log entry in list
+    char msg[128];    // Message buffer
+    int logLevel;     // Loglevel of message
+    NkLink_t link;    // Link to next entry
 } NkLogEntry_t;
 
 // Minimum printable loglevel
 static int loglevel;
 
-// Cache it
+// Cache
 static SlabCache_t* logCache = NULL;
 
-// Start of entry list
-static NkLogEntry_t* entryList = NULL;
-
-// Tail of list
-static NkLogEntry_t* entryListTail = NULL;
+// List of entries
+static NkList_t entryList = {0};
 
 // Assert implementation
 void __attribute__ ((noreturn)) __assert_failed (const char* expr,
@@ -65,13 +62,8 @@ void NkLogMessage (const char* fmt, int level, va_list ap)
             NkPanicOom();
         newEntry->logLevel = level;
         vsprintf (newEntry->msg, fmt, ap);
-        // Start list if needed
-        if (!entryList)
-            entryList = newEntry;
-        // Add to tail
-        if (entryListTail)
-            entryListTail->next = newEntry;
-        entryListTail = newEntry;
+        // Add to list
+        NkListAddBack (&entryList, &newEntry->link);
         msg = newEntry->msg;
     }
     else

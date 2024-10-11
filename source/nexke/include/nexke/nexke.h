@@ -19,6 +19,7 @@
 #define _NEXKE_H
 
 #include <nexke/cpu.h>
+#include <nexke/list.h>
 #include <nexke/types.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -116,8 +117,7 @@ typedef struct _timeevt
     NkTimeCallback callback;    // Callback function
     void* arg;                  // Argument to pass to callback
     bool inUse;                 // Event current registered
-    struct _timeevt* prev;
-    struct _timeevt* next;    // Links
+    NkLink_t link;
 } NkTimeEvent_t;
 
 // Initializes timing subsystem

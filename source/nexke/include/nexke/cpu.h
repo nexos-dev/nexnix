@@ -20,6 +20,7 @@
 
 // Include arch header. This makes use of computed includes
 #include NEXKE_ARCH_HEADER
+#include <nexke/list.h>
 #include <nexke/types.h>
 
 // CCB structure (aka CPU control block)
@@ -39,7 +40,7 @@ typedef struct _nkccb
     bool intActive;        // Wheter an interrupt is active on this CPU
                            // This flags is only set during hardware interrupt processing
     // Timer related data
-    NkTimeEvent_t* timeEvents;    // Linked list of time events waiting to occur
+    NkList_t timeEvents;    // Linked list of time events waiting to occur
 } NkCcb_t;
 
 // Defined CPU architectures

@@ -173,10 +173,14 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
     // Get existing chain
     assert (hwInt->gsi < 16);
     PltHwIntChain_t* chain = &plt8259A.lineMap[hwInt->gsi];
-    if (chain->head && chain->head->mode != hwInt->mode)
-        return -1;    // Can't mix modes
+    if (NkListFront (&chain->list))
+    {
+        NkHwInterrupt_t* int2 = LINK_CONTAINER (NkListFront (&chain->list), NkHwInterrupt_t, link);
+        if (int2->mode != hwInt->mode)
+            return -1;    // Can't mix modes
+    }
     // Set as edge or level if needed
-    if (!chain->head)
+    if (!NkListFront (&chain->list))
     {
         uint16_t elcr = CpuInb (PLT_PIC_ELCR) | (CpuInb (PLT_PIC_ELCR + 1) << 8);
         if (hwInt->mode == PLT_MODE_LEVEL)

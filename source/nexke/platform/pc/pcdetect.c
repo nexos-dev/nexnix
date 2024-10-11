@@ -56,6 +56,9 @@ void PltInitDrvs()
             nkPlatform.primaryCons = &uartCons;
         nkPlatform.secondaryCons = &uartCons;
     }
+    NkListInit (&nkPlatform.cpus);
+    NkListInit (&nkPlatform.intCtrls);
+    NkListInit (&nkPlatform.ints);
     // See if ACPI is allowed
     if (!NkReadArg ("-noacpi"))
         PltAcpiInit();
@@ -64,13 +67,7 @@ void PltInitDrvs()
 // Adds CPU to platform
 void PltAddCpu (PltCpu_t* cpu)
 {
-    cpu->prev = nkPlatform.cpus;
-    if (nkPlatform.cpusEnd)
-        nkPlatform.cpusEnd->next = cpu;
-    cpu->next = NULL;
-    nkPlatform.cpusEnd = cpu;
-    if (!nkPlatform.cpus)
-        nkPlatform.cpus = cpu;
+    NkListAddBack (&nkPlatform.cpus, &cpu->link);
     ++nkPlatform.numCpus;
     NkLogDebug ("nexke: found CPU, interrupt controller %s, ID %d\n",
                 pltCpuTypes[cpu->type],
@@ -80,11 +77,7 @@ void PltAddCpu (PltCpu_t* cpu)
 // Adds interrupt to platform
 void PltAddInterrupt (PltIntOverride_t* intSrc)
 {
-    intSrc->next = nkPlatform.ints;
-    if (nkPlatform.ints)
-        nkPlatform.ints->prev = intSrc;
-    intSrc->prev = NULL;
-    nkPlatform.ints = intSrc;
+    NkListAddFront (&nkPlatform.ints, &intSrc->link);
     NkLogDebug ("nexke: found interrupt override, line %d, bus %s, mode %s, polarity %s, GSI %u\n",
                 intSrc->line,
                 pltBusTypes[intSrc->bus],
@@ -96,13 +89,7 @@ void PltAddInterrupt (PltIntOverride_t* intSrc)
 // Adds interrupt controller to platform
 void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
 {
-    intCtrl->prev = nkPlatform.intCtrlsEnd;
-    if (nkPlatform.intCtrlsEnd)
-        nkPlatform.intCtrlsEnd->next = intCtrl;
-    intCtrl->next = NULL;
-    nkPlatform.intCtrlsEnd = intCtrl;
-    if (!nkPlatform.intCtrls)
-        nkPlatform.intCtrls = intCtrl;
+    NkListAddBack (&nkPlatform.intCtrls, &intCtrl->link);
     ++nkPlatform.numIntCtrls;
     NkLogDebug ("nexke: found interrupt controller, type %s, base GSI %u, address %llx\n",
                 pltIntCtrlTypes[intCtrl->type],
@@ -114,13 +101,14 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
 uint32_t PltGetGsi (int bus, int line)
 {
     // Search through interrupt overrides
-    PltIntOverride_t* intSrc = nkPlatform.ints;
-    while (intSrc)
+    NkLink_t* iter = NkListFront (&nkPlatform.ints);
+    while (iter)
     {
+        PltIntOverride_t* intSrc = LINK_CONTAINER (iter, PltIntOverride_t, link);
         // Check if this is it
         if (intSrc->bus == bus && intSrc->line == line)
             return intSrc->gsi;
-        intSrc = intSrc->next;
+        iter = NkListIterate (iter);
     }
     return line;
 }
@@ -129,13 +117,14 @@ uint32_t PltGetGsi (int bus, int line)
 PltIntOverride_t* PltGetOverride (uint32_t gsi)
 {
     // Search through interrupt overrides
-    PltIntOverride_t* intSrc = nkPlatform.ints;
-    while (intSrc)
+    NkLink_t* iter = NkListFront (&nkPlatform.ints);
+    while (iter)
     {
+        PltIntOverride_t* intSrc = LINK_CONTAINER (iter, PltIntOverride_t, link);
         // Check if this is it
         if (intSrc->gsi == gsi)
             return intSrc;
-        intSrc = intSrc->next;
+        iter = NkListIterate (iter);
     }
     return NULL;
 }

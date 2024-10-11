@@ -52,7 +52,7 @@ static inline size_t pltGetLineMapSize()
 
 static inline void pltInitChain (PltHwIntChain_t* chain)
 {
-    chain->head = NULL;
+    NkListInit (&chain->list);
     chain->maskCount = 0;
     chain->chainLen = 0;
     chain->noRemap = false;
@@ -85,31 +85,18 @@ static inline void pltChainInterrupt (NkInterrupt_t* obj, NkHwInterrupt_t* hwInt
     PltHwIntChain_t* chain = pltGetChain (hwInt->gsi);
     if (!chain->chainLen)
         pltInitChain (chain);
-    if (hwInt->flags & PLT_HWINT_NON_CHAINABLE)
+    // Link it
+    NkListAddFront (&chain->list, &hwInt->link);
+    ++chain->chainLen;
+    // Check if we need to mark it as chained
+    if (chain->chainLen > 1)
     {
-        hwInt->next = NULL, hwInt->prev = NULL;
-        chain->head = hwInt;
-        chain->chainLen = 1;
-    }
-    else
-    {
-        // Link it
-        hwInt->next = chain->head;
-        if (chain->head)
-            chain->head->prev = hwInt;
-        hwInt->prev = NULL;
-        // Set heads
-        chain->head = hwInt;
-        ++chain->chainLen;
-        // Check if we need to mark it as chained
-        if (chain->chainLen > 1)
+        hwInt->flags |= PLT_HWINT_CHAINED;
+        if (chain->chainLen == 2)
         {
-            hwInt->flags |= PLT_HWINT_CHAINED;
-            if (chain->chainLen == 2)
-            {
-                // The chain just started so we need to set the bit in current chained item
-                hwInt->next->flags |= PLT_HWINT_CHAINED;
-            }
+            // The chain just started so we need to set the bit in current chained item
+            NkHwInterrupt_t* hwInt2 = LINK_CONTAINER (hwInt->link.next, NkHwInterrupt_t, link);
+            hwInt2->flags |= PLT_HWINT_CHAINED;
         }
     }
 }
@@ -119,25 +106,16 @@ static inline void pltUnchainInterrupt (NkInterrupt_t* obj, NkHwInterrupt_t* hwI
 {
     assert (obj->type == PLT_INT_HWINT);
     PltHwIntChain_t* chain = pltGetChain (hwInt->gsi);
-    if (hwInt->flags & PLT_HWINT_NON_CHAINABLE)
-        chain->head = NULL;
-    else
+    assert (hwInt->gsi == PLT_GSI_INTERNAL || hwInt->gsi < pltGetLineMapSize());
+    // Unlink it
+    NkListRemove (&chain->list, &hwInt->link);
+    --chain->chainLen;
+    if (chain->chainLen == 1)
     {
-        assert (hwInt->gsi == PLT_GSI_INTERNAL || hwInt->gsi < pltGetLineMapSize());
-        // Unlink it
-        if (hwInt->prev)
-            hwInt->prev->next = hwInt->next;
-        if (hwInt->next)
-            hwInt->next->prev = hwInt;
-        // Set head if needed
-        if (hwInt == chain->head)
-            chain->head = chain->head->next;
-        --chain->chainLen;
-        if (chain->chainLen == 1)
-        {
-            // Unmark it as chained
-            chain->head->flags &= ~(PLT_HWINT_CHAINED);
-        }
+        // Unmark it as chained
+        NkHwInterrupt_t* headInt =
+            LINK_CONTAINER (NkListFront (&chain->list), NkHwInterrupt_t, link);
+        headInt->flags &= ~(PLT_HWINT_CHAINED);
     }
 }
 
@@ -230,12 +208,13 @@ NkInterrupt_t* PltRemapInterrupt (NkInterrupt_t* oldInt, int newVector, ipl_t ne
     // Move the chain
     newInt->intChain = oldInt->intChain;
     // Change vector and IPL on all the interrupts
-    NkHwInterrupt_t* curInt = newInt->intChain->head;
-    while (curInt)
+    NkLink_t* iter = NkListFront (&oldInt->intChain->list);
+    while (iter)
     {
+        NkHwInterrupt_t* curInt = LINK_CONTAINER (iter, NkHwInterrupt_t, link);
         curInt->vector = newVector;
         curInt->ipl = newIpl;
-        curInt = curInt->next;
+        iter = NkListIterate (iter);
     }
     // Uninstall the old interrupt
     PltUninstallInterrupt (oldInt);
@@ -440,14 +419,16 @@ void PltTrapDispatch (CpuIntContext_t* context)
             // Handle
             ++intObj->callCount;
             // Loop over the entire chain, trying to find a interrupt that can handle it
-            NkHwInterrupt_t* curInt = intObj->intChain->head;
+            NkLink_t* iter = NkListFront (&intObj->intChain->list);
+            NkHwInterrupt_t* curInt = LINK_CONTAINER (iter, NkHwInterrupt_t, link);
             ipl_t oldIpl = ccb->curIpl;
             ccb->curIpl = curInt->ipl;    // Set IPL
-            while (curInt)
+            while (iter)
             {
                 if (!(curInt->flags & PLT_HWINT_MASKED) && curInt->handler (intObj, context))
                     break;    // Found one
-                curInt = curInt->next;
+                iter = NkListIterate (iter);
+                curInt = LINK_CONTAINER (iter, NkHwInterrupt_t, link);
             }
             ccb->curIpl = oldIpl;    // Restore IPL
             CpuDisable();
