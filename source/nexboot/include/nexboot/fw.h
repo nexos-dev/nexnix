@@ -158,6 +158,9 @@ uintptr_t NbFwAllocPersistentPage();
 // Allocates a page that will persist after bootloader
 uintptr_t NbFwAllocPersistentPages (int count);
 
+// Allocates a persistent page without mapping it
+uintptr_t NbFwAllocPersistPageNoMap();
+
 // Flags for AS
 #define NB_CPU_AS_RW     (1 << 1)
 #define NB_CPU_AS_GLOBAL (1 << 2)

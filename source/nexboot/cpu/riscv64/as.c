@@ -63,7 +63,7 @@ static pte_t* pgBase = NULL;
 // Initializes address space manager
 void NbCpuAsInit()
 {
-    pgBase = (pte_t*) NbFwAllocPage();    // Allocate top level structure
+    pgBase = (pte_t*) NbFwAllocPersistPageNoMap();    // Allocate top level structure
     memset (pgBase, 0, NEXBOOT_CPU_PAGE_SIZE);
     // First we need to figure out the highest supported paging mode
     // Since we are in M-mode, we can do this easily. We simply write
@@ -112,7 +112,7 @@ static inline pte_t* cpuAsGetEntry (pte_t* curTab, uintptr_t addr, int level)
 // Allocates paging structure and puts it in specified level
 static inline pte_t* cpuAsAllocSt (pte_t* curSt, uintptr_t addr, int level)
 {
-    pte_t* newSt = (pte_t*) NbFwAllocPage();
+    pte_t* newSt = (pte_t*) NbFwAllocPersistPageNoMap();
     if (!newSt)
         return NULL;
     memset (newSt, 0, NEXBOOT_CPU_PAGE_SIZE);

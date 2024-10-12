@@ -348,6 +348,8 @@ NbStartDetect:
     mov [edi], ebx                      ; Put in directory
     mov ebx, 0x200083                   ; Map another 2M
     mov [edi+8], ebx
+    mov ebx, 0x400083                   ; Map another 2M
+    mov [edi+16], ebx
     ; Enable PAE
     mov eax, cr4
     or eax, 1 << 5                      ; Set PAE bit
@@ -552,6 +554,8 @@ NbloadStartPmode:
     mov [esi], eax                  ; Map it
     or eax, 0x200000                ; Set physical address of entry to 2 MiB
     mov [esi+8], eax                ; Map that
+    mov eax, 0x400083               ; Map to 6 MiB
+    mov [esi+16], eax
     ; Enable paging now
     mov eax, cr4                    ; Get CR4 to enable PAE
     or eax, 1 << 5                  ; Set PAE bit
@@ -575,6 +579,14 @@ NbloadStartPmode:
     rep stosb
     or ebx, 3                       ; Set present and writable bits
     mov [esi], ebx                  ; Put in page directory
+    ; Create second PDE
+    mov ebx, NBLOAD_PTAB2_BASE      ; Zero the table
+    mov edi, ebx
+    mov al, 0
+    mov ecx, 0x1000
+    rep stosb
+    or ebx, 3
+    mov [esi+4], ebx                ; Stick in table
     ; Fill page table
     mov edi, NBLOAD_PTAB_BASE       ; Get page table address
     mov ecx, 1024                   ; 1024 PTEs in a page table
@@ -586,6 +598,17 @@ NbloadStartPmode:
     add edx, 0x1000                 ; Move to next page
     add edi, 4                      ; Move to next PTE
     loop .ptLoop
+    ; Fill page table 2
+    mov edi, NBLOAD_PTAB2_BASE       ; Get page table address
+    mov ecx, 1024                   ; 1024 PTEs in a page table
+    mov edx, 0x400000               ; Start at address 4 MiB
+    .ptLoop2:
+        mov ebx, edx                    ; Get address in EBX
+        or ebx, 3                       ; Set present and writable bits
+        mov [edi], ebx                  ; Store in page table
+        add edx, 0x1000                 ; Move to next page
+        add edi, 4                      ; Move to next PTE
+    loop .ptLoop2  
     mov cr3, esi                    ; Load page directory
     mov eax, cr0                    ; Get CR0
     or eax, 1 << 31                 ; Set PG bit

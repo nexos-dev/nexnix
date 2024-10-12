@@ -73,7 +73,7 @@ void NbCpuAsInit()
 
 static pte_t* cpuAsAllocTab (pde_t* pdir, uintptr_t virt, uint64_t flags)
 {
-    pte_t* tab = (pte_t*) NbFwAllocPage();
+    pte_t* tab = (pte_t*) NbFwAllocPersistPageNoMap();
     if (!tab)
         return NULL;
     memset (tab, 0, NEXBOOT_CPU_PAGE_SIZE);
@@ -90,7 +90,7 @@ static pte_t* cpuAsAllocTab (pde_t* pdir, uintptr_t virt, uint64_t flags)
 
 static pde_t* cpuAsAllocDir (uintptr_t virt)
 {
-    pde_t* dir = (pde_t*) NbFwAllocPage();
+    pde_t* dir = (pde_t*) NbFwAllocPersistPageNoMap();
     if (!dir)
         return NULL;
     memset (dir, 0, NEXBOOT_CPU_PAGE_SIZE);
@@ -186,7 +186,7 @@ void NbCpuEnablePaging()
     uint32_t cr4 = NbReadCr4();
     cr4 |= NB_CR4_PAE;
     NbWriteCr4 (cr4);
-    asm volatile("cli");
+    asm volatile ("cli");
     uint32_t cr0 = NbReadCr0();
     cr0 |= NB_CR0_PG;
     NbWriteCr0 (cr0);

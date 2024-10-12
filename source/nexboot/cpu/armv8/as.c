@@ -124,9 +124,9 @@ void NbCpuAsInit()
         NbCrash();
     }
     // Set up paging structure
-    pgBase = (pte_t*) NbFwAllocPage();
+    pgBase = (pte_t*) NbFwAllocPersistPageNoMap();
     assert (pgBase);
-    pgBase2 = (pte_t*) NbFwAllocPage();
+    pgBase2 = (pte_t*) NbFwAllocPersistPageNoMap();
     assert (pgBase2);
 }
 
@@ -140,7 +140,7 @@ static inline pte_t* cpuAsGetEntry (pte_t* curTab, uintptr_t addr, int level)
 // Allocates paging structure and puts it in specified level
 static pte_t* cpuAsAllocSt (pte_t* curSt, uintptr_t addr, int level)
 {
-    pte_t* newSt = (pte_t*) NbFwAllocPage();
+    pte_t* newSt = (pte_t*) NbFwAllocPersistPageNoMap();
     if (!newSt)
         return NULL;
     memset (newSt, 0, NEXBOOT_CPU_PAGE_SIZE);
@@ -192,7 +192,7 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     // Map it
     *lastEnt = phys | ptFlags;
     // Invalidate TLB
-    asm volatile("dsb ishst; tlbi vae1, %0" : : "r"(ovirt >> 12));
+    asm volatile ("dsb ishst; tlbi vae1, %0" : : "r"(ovirt >> 12));
     return true;
 }
 
@@ -214,7 +214,7 @@ void NbCpuAsUnmap (uintptr_t virt)
     // Grab last PML entry
     pte_t* lastEnt = cpuAsGetEntry (curSt, virt, 1);
     *lastEnt = 0;    // Unmap
-    asm volatile("dsb ishst; tlbi vae1, %0" : : "r"(ovirt >> 12));
+    asm volatile ("dsb ishst; tlbi vae1, %0" : : "r"(ovirt >> 12));
 }
 
 // Enables paging

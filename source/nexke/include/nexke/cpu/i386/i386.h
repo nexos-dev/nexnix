@@ -48,7 +48,7 @@ typedef uint32_t paddr_t;
 #endif
 
 // Addresses
-#define NEXKE_USER_ADDR_END     0xBFFFFFFF
+#define NEXKE_USER_ADDR_END     0xBFFDFFFF
 #define NEXKE_KERNEL_ADDR_START 0xD0040000
 #define NEXKE_KERNEL_ADDR_END   0xDFFFF000
 

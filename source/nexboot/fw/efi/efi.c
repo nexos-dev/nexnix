@@ -68,6 +68,11 @@ uintptr_t NbFwAllocPersistentPage()
     return addr;
 }
 
+uintptr_t NbFwAllocPersistPageNoMap()
+{
+    return NbFwAllocPersistentPage();    // Same as with map on EFI
+}
+
 // Allocates pages that will persist after bootloader
 uintptr_t NbFwAllocPersistentPages (int count)
 {

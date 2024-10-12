@@ -93,6 +93,13 @@ uintptr_t NbFwAllocPersistentPage()
     return ret;
 }
 
+uintptr_t NbFwAllocPersistPageNoMap()
+{
+    uintptr_t ret = curOffset + NbBiosGetIdealEnd();
+    curOffset += NEXBOOT_CPU_PAGE_SIZE;
+    return ret;
+}
+
 uintptr_t NbFwAllocPersistentPages (int count)
 {
     uintptr_t ret = curOffset + NbBiosGetIdealEnd();
