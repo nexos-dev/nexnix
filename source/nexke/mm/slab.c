@@ -53,9 +53,6 @@ static NkList_t extBufHash[SLAB_EXT_HASH_SZ] = {0};
 // TODO: this should be based on object size
 #define SLAB_EMPTY_MAX 3
 
-// Slab magic number
-#define SLAB_MAGIC 0xDEADBEEF
-
 // Slab buffer
 typedef struct _slabbuf
 {
@@ -69,10 +66,8 @@ typedef struct _slab
 {
     // Management info
     SlabCache_t* cache;
-    uint32_t magic;    // Magic number
     uintptr_t base;    // Base address
-    // Counts
-    size_t numAvail;    // Number of available objects
+    size_t numAvail;
     // Buffering info
     NkList_t freeList;    // Pointer to first free object
     NkLink_t link;
@@ -176,9 +171,14 @@ static Slab_t* slabAllocSlab (SlabCache_t* cache)
     }
     else
         slab = (Slab_t*) (ptr + (cache->slabSz << NEXKE_CPU_PAGE_SHIFT) - sizeof (Slab_t));
+    // Color the slab
+    ptr += cache->curColor;
+    // Adjust the color
+    cache->curColor += cache->colorAdj;
+    if (cache->curColor > cache->numColors)
+        cache->curColor = 0;
     // Set up slab
     NkListInit (&slab->freeList);
-    slab->magic = SLAB_MAGIC;
     slab->numAvail = cache->maxObj;
     slab->base = (uintptr_t) ptr;
     slab->cache = cache;
@@ -288,6 +288,15 @@ static FORCEINLINE void slabCacheCreate (SlabCache_t* cache,
         cache->maxObj = (cache->slabSz << NEXKE_CPU_PAGE_SHIFT) / cache->objSz;
     else
         cache->maxObj = ((cache->slabSz << NEXKE_CPU_PAGE_SHIFT) - sizeof (Slab_t)) / cache->objSz;
+    // Figure out coloring info
+    size_t slabSz = cache->slabSz << NEXKE_CPU_PAGE_SHIFT;
+    if (!(cache->flags & SLAB_CACHE_EXT_SLAB))
+        slabSz -= sizeof (Slab_t);
+    size_t waste = slabSz % cache->objSz;
+    // Set up coloring info
+    cache->curColor = 0;
+    cache->colorAdj = cache->align;
+    cache->numColors = slabAlignDown (waste, cache->align);
     // Add to list
     NkListAddBack (&cacheList, &cache->link);
 }
@@ -342,8 +351,6 @@ void MmCacheFree (SlabCache_t* cache, void* obj)
     CPU_ASSERT_NOT_INT();
     // Put object back in parent slab
     Slab_t* slab = slabGetObjSlab (cache, obj);
-    if (slab->magic != SLAB_MAGIC)
-        NkPanic ("nexke: panic: slab corruption detected\n");
     slabFreeToSlab (cache, slab, obj);
     // See if it's gone from full to empty
     if (slab->numAvail == 1)
@@ -435,16 +442,23 @@ void MmSlabDump()
     while (cacheIter)
     {
         SlabCache_t* cache = LINK_CONTAINER (cacheIter, SlabCache_t, link);
-        NkLogDebug ("cache name: %s, cache object size: %lu, cache aligment: %lu\n",
+        NkLogDebug ("cache name: %s, cache object size: %lu, cache aligment: %lu, max number of "
+                    "objects to a slab: %lu\n",
                     cache->name,
                     cache->objSz,
-                    cache->align);
+                    cache->align,
+                    cache->maxObj);
         NkLogDebug ("Number empty slabs: %d, number full slabs: %d, number partial slabs: "
-                    "%d, number of objects: %d\n\n",
+                    "%d, number of objects: %d, number of pages per slab: %lu\n",
                     cache->numEmpty,
                     cache->numFull,
                     cache->numPartial,
-                    cache->numObjs);
+                    cache->numObjs,
+                    cache->slabSz);
+        NkLogDebug ("Number of colors: %lu, current color: %lu, color adjust: %lu\n\n",
+                    cache->numColors,
+                    cache->curColor,
+                    cache->colorAdj);
         cacheIter = NkListIterate (cacheIter);
     }
 }

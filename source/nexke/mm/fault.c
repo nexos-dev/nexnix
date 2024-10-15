@@ -53,14 +53,14 @@ bool MmPageFaultIn (MmObject_t* obj, size_t offset, int* prot, MmPage_t** outPag
     // If it is a access violation, we will bring the page into memory
     MmPage_t* page = NULL;    // The page itself
     // Attempt to lookup the page in the object
-    page = MmLookupPage (&obj->pageList, offset);
+    page = MmLookupPage (obj, offset);
     if (!page)
     {
         // This page is not resident in memory, allocate a page and do a page in
         page = MmAllocPage();
         if (!page)
             NkPanicOom();
-        MmAddPage (&obj->pageList, page, offset);
+        MmAddPage (obj, offset, page);
         if (!MmBackendPageIn (obj, offset, page))
             NkPanic ("nexke: page in error\n");
     }

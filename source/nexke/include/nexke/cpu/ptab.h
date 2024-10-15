@@ -44,8 +44,8 @@ typedef struct _mmspace
     MmPtCacheEnt_t* ptListsEnd[MM_PTAB_MAX_LEVEL];    // List tails for each levels
     bool tlbUpdatePending;                            // Is a TLB update pending?
                               // Used to lazily update the TLB on CPUs where that is slow
-    int freeCount;              // Free number of cache entries
-    MmPageList_t tablePages;    // Page table pages
+    int freeCount;        // Free number of cache entries
+    NkList_t pageList;    // Page table pages
 #ifdef NEXNIX_ARCH_I386
     int keVersion;    // Kernel page table version
 #endif

@@ -71,13 +71,13 @@ typedef paddr_t pfn_t;
 // Page zone data structure
 typedef struct _zone
 {
-    pfn_t pfn;                 // Base frame of zone
-    int zoneIdx;               // Zone index
-    size_t numPages;           // Number of pages in zone
-    int freeCount;             // Number of free pages
-    int flags;                 // Flags specifying type of memory in this zone
-    struct _page* pfnMap;      // Table of PFNs in this zone
-    struct _page* freeList;    // Free list of pages in this zone
+    pfn_t pfn;               // Base frame of zone
+    int zoneIdx;             // Zone index
+    size_t numPages;         // Number of pages in zone
+    int freeCount;           // Number of free pages
+    int flags;               // Flags specifying type of memory in this zone
+    struct _page* pfnMap;    // Table of PFNs in this zone
+    NkList_t freeList;       // Free list of pages in this zone
 } MmZone_t;
 
 // Zone flags
@@ -94,28 +94,20 @@ typedef struct _mmpgmap MmPageMap_t;
 // Page data structure
 typedef struct _page
 {
-    pfn_t pfn;             // PFN of this page
-    MmZone_t* zone;        // Zone this page resides in
-    int flags;             // Flags of this page
-    size_t offset;         // Offset in object. Used for page lookup
-    MmPageMap_t* maps;     // Mappings of this page
-    struct _page* next;    // Links to track this page on a list of free / resident pages
-    struct _page* prev;
+    pfn_t pfn;            // PFN of this page
+    MmZone_t* zone;       // Zone this page resides in
+    int flags;            // Flags of this page
+    MmObject_t* obj;      // Object that owns this page
+    size_t offset;        // Offset in object. Used for page lookup
+    MmPageMap_t* maps;    // Mappings of this page
+    NkLink_t link;        // Link to track this page on free list/hash table
+    NkLink_t objLink;     // Link to track this page in object
 } MmPage_t;
 
 #define MM_PAGE_FREE      (1 << 0)    // Page is not in use
 #define MM_PAGE_IN_OBJECT (1 << 1)    // Page is currently in object
 #define MM_PAGE_UNUSABLE  (1 << 2)    // Page is not usable
 #define MM_PAGE_ALLOCED   (1 << 3)    // Page is allocated but not in object
-
-#define MM_MAX_BUCKETS 256
-
-// Page hash list type
-typedef struct _pageHash
-{
-    MmPage_t* hashList[MM_MAX_BUCKETS];    // Hash list
-    size_t maxBucket;                      // Highest used bucket
-} MmPageList_t;
 
 // Page interface
 
@@ -143,19 +135,19 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align);
 // Frees pages allocated with AllocPageAt
 void MmFreePages (MmPage_t* pages, size_t count);
 
-// Page list management interface
+// Page hash management interface
+
+// Number of buckets for the hash table
+#define MM_MAX_BUCKETS 1024
 
 // Adds a page to a page hash list
-void MmAddPage (MmPageList_t* list, MmPage_t* page, size_t off);
+void MmAddPage (MmObject_t* obj, size_t off, MmPage_t* page);
 
 // Looks up page in page list, returning NULL if none is found
-MmPage_t* MmLookupPage (MmPageList_t* list, size_t off);
+MmPage_t* MmLookupPage (MmObject_t* obj, size_t off);
 
-// Removes a page from the specified hash list
-void MmRemovePage (MmPageList_t* list, MmPage_t* page);
-
-// Clears page list
-void MmClearPageList (MmPageList_t* list);
+// Removes a page from the hash list
+void MmRemovePage (MmPage_t* page);
 
 // Misc. page functions
 
@@ -166,16 +158,17 @@ void MmDumpPageInfo();
 
 typedef struct _memobject
 {
-    size_t count;             // Count of pages in this object
-    size_t resident;          // Number of pages resident in object
-    int refCount;             // Reference count on object
-    int backend;              // Memory backend type represented by this object
-    int perm;                 // Memory permissions specified in MUL flags
-    int inheritFlags;         // How this page is inherited by child processes
-    bool pageable;            // Is object pageable
-    MmPageList_t pageList;    // List of pages allocated to this object
-    void** backendTab;        // Table of backend functions
-    void* backendData;        // Data used by backend in this object
+    size_t count;         // Count of pages in this object
+    size_t resident;      // Number of pages resident in object
+    int refCount;         // Reference count on object
+    int backend;          // Memory backend type represented by this object
+    int perm;             // Memory permissions specified in MUL flags
+    int inheritFlags;     // How this page is inherited by child processes
+    bool pageable;        // Is object pageable
+    NkList_t pageList;    // List of pages allocated to this object
+    size_t numPages;      // Number of pages in object
+    void** backendTab;    // Table of backend functions
+    void* backendData;    // Data used by backend in this object
 } MmObject_t;
 
 // Memory object backends

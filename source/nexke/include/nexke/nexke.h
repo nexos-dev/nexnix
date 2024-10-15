@@ -91,7 +91,11 @@ typedef struct _slabcache
     size_t maxObj;    // Max object in one slab
     // Slab sizing
     size_t slabSz;    // The size of one slab in pages
-    NkLink_t link;    // Link in cache list
+    // Coloring info
+    size_t numColors;    // The total number of colors
+    size_t colorAdj;     // Equals alignment
+    size_t curColor;     // Current color
+    NkLink_t link;       // Link in cache list
 } SlabCache_t;
 
 #define SLAB_CACHE_EXT_SLAB    (1 << 0)

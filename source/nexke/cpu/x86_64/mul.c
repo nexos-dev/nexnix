@@ -49,7 +49,8 @@ void MmMulInit()
     // Grab top PML directory
     pte_t* pmlTop = (pte_t*) CpuReadCr3();
     // Allocate cache
-    paddr_t cachePage = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    MmPage_t* cachePgCtrl = MmAllocPage();
+    paddr_t cachePage = cachePgCtrl->pfn * NEXKE_CPU_PAGESZ;
     // Map it
     MmMulMapEarly (MUL_PTCACHE_ENTRY_BASE, cachePage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Map dummy page at base so we have the structure created
@@ -75,9 +76,7 @@ void MmMulInit()
     // Setup MUL
     memset (&MmGetKernelSpace()->mulSpace, 0, sizeof (MmMulSpace_t));
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pmlTop;
-    MmAddPage (&MmGetKernelSpace()->mulSpace.tablePages,
-               MmFindPagePfn (cachePage / NEXKE_CPU_PAGESZ),
-               MUL_PTCACHE_TABLE_BASE - MmGetKernelSpace()->startAddr);
+    NkListAddFront (&MmGetKernelSpace()->mulSpace.pageList, &cachePgCtrl->link);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -97,7 +96,7 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     // Zero it
     MmMulZeroPage (pg);
     // Add to page list
-    MmAddPage (&space->mulSpace.tablePages, pg, addr - space->startAddr);
+    NkListAddFront (&space->mulSpace.pageList, &pg->link);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)

@@ -34,13 +34,14 @@ static SlabCache_t* mmFakePageCache = NULL;    // Fake page cache
 
 static MmZone_t* freeHint = NULL;    // Free zone hint
 
-static SlabCache_t* mmPageMapCache = NULL;
+static SlabCache_t* mmPageMapCache = NULL;    // Cache for page maps
+
+// Page hash table
+static NkList_t mmPageHash[MM_MAX_BUCKETS] = {0};
 
 // Informational variables
 static uintmax_t mmNumPages = 0;     // Number of pages in system
 static uintmax_t mmFreePages = 0;    // Number of free pages in system
-
-int y = 0;
 
 // Initializes an MmPage
 static void mmInitPage (MmPage_t* page, pfn_t pfn, MmZone_t* zone)
@@ -48,12 +49,9 @@ static void mmInitPage (MmPage_t* page, pfn_t pfn, MmZone_t* zone)
     page->zone = zone;
     page->pfn = pfn;
     page->flags = MM_PAGE_FREE;
-    page->prev = NULL;
-    if (zone->freeList)
-        zone->freeList->prev = page;
-    page->next = zone->freeList;
+    page->link.prev = NULL, page->link.next = NULL;
+    NkListAddFront (&zone->freeList, &page->link);
     page->maps = NULL;
-    zone->freeList = page;
 }
 
 // Checks for overlap between two zones
@@ -172,7 +170,7 @@ static void mmZoneCreate (pfn_t startPfn, size_t numPfns, int flags)
     zone->flags = flags;
     zone->numPages = numPfns;
     zone->pfn = startPfn;
-    zone->freeList = NULL;
+    NkListInit (&zone->freeList);
     if (zone->flags & MM_ZONE_ALLOCATABLE)
     {
         // Compute PFN map location
@@ -249,11 +247,7 @@ void MmFreePage (MmPage_t* page)
     {
         MmZone_t* zone = page->zone;
         // Add to free list
-        if (zone->freeList)
-            zone->freeList->prev = page;
-        page->next = zone->freeList;
-        page->prev = NULL;
-        zone->freeList = page;
+        NkListAddFront (&zone->freeList, &page->link);
         // Update stats
         ++zone->freeCount;
         ++mmFreePages;
@@ -273,10 +267,9 @@ MmPage_t* MmAllocPage()
         return NULL;    // Uh oh
     }
     // Grab a page from the free list
-    MmPage_t* page = zone->freeList;
-    assert (page);
-    zone->freeList = page->next;
-    zone->freeList->prev = NULL;
+    NkLink_t* link = NkListPopFront (&zone->freeList);
+    assert (link);
+    MmPage_t* page = LINK_CONTAINER (link, MmPage_t, link);
     // Update state fields
     --zone->freeCount;
     --mmFreePages;
@@ -336,12 +329,7 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
             for (int j = 0; j < count; ++j)
             {
                 MmPage_t* page = &firstPage[j];
-                if (page->next)
-                    page->next->prev = page->next;
-                if (page->prev)
-                    page->prev->next = page->prev;
-                if (page == zone->freeList)
-                    zone->freeList = page->next;
+                NkListRemove (&zone->freeList, &page->link);
                 page->flags = MM_PAGE_ALLOCED;
             }
             // Update stats
@@ -360,72 +348,53 @@ void MmFreePages (MmPage_t* pages, size_t count)
         MmFreePage (&pages[i]);
 }
 
-#define MM_GET_BUCKET(off) (((off) / NEXKE_CPU_PAGESZ) % MM_MAX_BUCKETS)
+#define MM_GET_BUCKET(obj, off) ((CpuPageAlignDown ((uintptr_t) obj) + off) % MM_MAX_BUCKETS)
 
 // Adds a page to a page hash list
-void MmAddPage (MmPageList_t* list, MmPage_t* page, size_t off)
+void MmAddPage (MmObject_t* obj, size_t off, MmPage_t* page)
 {
     // Find bucket
-    size_t bucket = MM_GET_BUCKET (off);
-    // Add to bucket
-    if (list->hashList[bucket])
-        list->hashList[bucket]->prev = page;
-    page->next = list->hashList[bucket];
-    list->hashList[bucket] = page;
-    // Update highest bucket
-    if (bucket >= list->maxBucket)
-        list->maxBucket = bucket;
-    // Set offset
+    size_t bucket = MM_GET_BUCKET (obj, off);
+    // Add to it
+    NkListAddFront (&mmPageHash[bucket], &page->link);
+    // Set object/offset
     page->offset = off;
+    page->obj = obj;
     page->flags |= MM_PAGE_IN_OBJECT;
+    // Add to object
+    NkListAddFront (&obj->pageList, &page->objLink);
 }
 
 // Looks up page in page list, returning NULL if none is found
-MmPage_t* MmLookupPage (MmPageList_t* list, size_t off)
+MmPage_t* MmLookupPage (MmObject_t* obj, size_t off)
 {
     // Find bucket
-    size_t bucket = MM_GET_BUCKET (off);
+    size_t bucket = MM_GET_BUCKET (obj, off);
     // Find in bucket
-    MmPage_t* curPage = list->hashList[bucket];
-    while (curPage)
+    NkLink_t* iter = NkListFront (&mmPageHash[bucket]);
+    while (iter)
     {
-        if (curPage->offset == off)
+        MmPage_t* curPage = LINK_CONTAINER (iter, MmPage_t, link);
+        if (curPage->offset == off && curPage->obj == obj)
             return curPage;
-        curPage = curPage->next;
+        iter = NkListIterate (iter);
     }
     return NULL;
 }
 
-// Clears page list
-void MmClearPageList (MmPageList_t* list)
-{
-    // Go through every bucket
-    for (int i = 0; i < MM_MAX_BUCKETS; ++i)
-    {
-        MmPage_t* page = list->hashList[i];
-        while (page)
-        {
-            MmPageClearMaps (page);
-            MmFreePage (page);
-            page = page->next;
-        }
-    }
-}
-
 // Removes a page from the specified hash list
-void MmRemovePage (MmPageList_t* list, MmPage_t* page)
+void MmRemovePage (MmPage_t* page)
 {
     // Find bucket
-    size_t bucket = MM_GET_BUCKET (page->offset);
+    size_t bucket = MM_GET_BUCKET (page->obj, page->offset);
     // Remove from bucket
-    if (list->hashList[bucket] == page)
-        list->hashList[bucket] = page->next;
-    if (page->next)
-        page->next->prev = page->prev;
-    if (page->prev)
-        page->prev->next = page->next;
-    page->offset = 0;                  // For error checking
+    NkListRemove (&mmPageHash[bucket], &page->link);
+    // Remove from object
+    NkListRemove (&page->obj->pageList, &page->objLink);
+    page->offset = 0;    // For error checking
+    page->obj = NULL;
     page->flags |= MM_PAGE_ALLOCED;    // Page is no longer in object but not free
+    page->flags &= ~(MM_PAGE_IN_OBJECT);
 }
 
 // Adds mapping to page

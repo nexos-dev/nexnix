@@ -39,7 +39,7 @@ MmObject_t* MmCreateObject (size_t pages, int backend, int perm)
     obj->backend = backend;
     obj->perm = perm;
     obj->count = pages;
-    memset (&obj->pageList, 0, sizeof (MmPageList_t));
+    NkListInit (&obj->pageList);
     obj->refCount = 1;
     if (backend > MM_BACKEND_MAX)
     {
@@ -64,7 +64,16 @@ void MmDeRefObject (MmObject_t* object)
     --object->refCount;
     if (!object->refCount)
     {
-        MmClearPageList (&object->pageList);
+        // Destroy all pages in object
+        NkLink_t* iter = NkListFront (&object->pageList);
+        while (iter)
+        {
+            MmPage_t* page = LINK_CONTAINER (iter, MmPage_t, objLink);
+            MmRemovePage (page);
+            // Free it
+            MmFreePage (page);
+            iter = NkListIterate (iter);
+        }
         MmBackendDestroy (object);
     }
 }

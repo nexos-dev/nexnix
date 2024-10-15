@@ -1,6 +1,6 @@
 /*
-    types.h - contains types used between headers in-kernel
-    Copyright 2023 - 2024 The NexNix Project
+    resource.c - contains resource allocator for nexke
+    Copyright 2024 The NexNix Project
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,21 +15,6 @@
     limitations under the License.
 */
 
-#ifndef _NKTYPES_H
-#define _NKTYPES_H
-
-typedef struct _nkcons NkConsole_t;
-typedef struct _int NkInterrupt_t;
-typedef struct _hwint NkHwInterrupt_t;
-typedef struct _timeevt NkTimeEvent_t;
-typedef struct _hwclock PltHwClock_t;
-typedef struct _mmspace MmMulSpace_t;
-typedef struct _page MmPage_t;
-typedef struct _memspace MmSpace_t;
-typedef struct _memobject MmObject_t;
-
-typedef int ipl_t;
-
-#define FORCEINLINE inline __attribute__ ((always_inline))
-
-#endif
+#include <assert.h>
+#include <nexke/nexke.h>
+#include <string.h>

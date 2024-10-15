@@ -40,7 +40,8 @@ void MmMulInit()
     // This is because the stack is mapped in that table already, so it has been created for us
     // But we do need to map the pages necessary for the cache to operate
     // So allocate cache entry page
-    paddr_t cachePage = MmAllocPage()->pfn * NEXKE_CPU_PAGESZ;
+    MmPage_t* cachePgCtrl = MmAllocPage();
+    paddr_t cachePage = cachePgCtrl->pfn * NEXKE_CPU_PAGESZ;
     // Map it
     MmMulMapEarly (MUL_PTCACHE_ENTRY_BASE, cachePage, MUL_PAGE_KE | MUL_PAGE_R | MUL_PAGE_RW);
     // Map the page table for the table cache
@@ -56,9 +57,7 @@ void MmMulInit()
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pdpt;
     // Add cache page
     memset (&MmGetKernelSpace()->mulSpace.tablePages, 0, sizeof (MmPageList_t));
-    MmAddPage (&MmGetKernelSpace()->mulSpace.tablePages,
-               MmFindPagePfn (cachePage / NEXKE_CPU_PAGESZ),
-               MUL_PTCACHE_TABLE_BASE - MmGetKernelSpace()->startAddr);
+    NkListAddFront (&MmGetKernelSpace()->mulSpace.pageList, &cachePgCtrl->link);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());
 }
@@ -86,7 +85,7 @@ paddr_t MmMulAllocTable (MmSpace_t* space, uintptr_t addr, pte_t* stBase, pte_t*
     // Zero it
     MmMulZeroPage (pg);
     // Add to page list
-    MmAddPage (&space->mulSpace.tablePages, pg, addr - space->startAddr);
+    NkListAddFront (&space->mulSpace.pageList, &pg->link);
     // Set PTE
     pte_t flags = PF_P | PF_RW;
     if (!isKernel)
@@ -108,7 +107,7 @@ static paddr_t mulAllocDir (MmSpace_t* space, pdpte_t* ent)
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlushTlb();
     // Add to page list
-    MmAddPage (&space->mulSpace.tablePages, pg, 0);
+    NkListAddFront (&space->mulSpace.pageList, &pg->link);
     return tab;
 }
 

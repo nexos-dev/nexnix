@@ -116,6 +116,7 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     NkInitTime();
     void* p = kmalloc (5002);
     kfree (p, 5002);
+    MmSlabDump();
     for (;;)
         ;
 }

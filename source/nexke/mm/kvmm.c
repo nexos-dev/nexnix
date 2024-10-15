@@ -420,15 +420,15 @@ static void mmKvGetMemory (void* p, size_t numPages)
     MmObject_t* kmemObj = kmemSpace.entryList->obj;
     for (int i = 0; i < numPages; ++i)
     {
-        MmPage_t* pg = MmAllocPage();
-        if (!pg)
+        MmPage_t* page = MmAllocPage();
+        if (!page)
             NkPanicOom();
-        MmAddPage (&kmemObj->pageList, pg, offset + (i * NEXKE_CPU_PAGESZ));
+        MmAddPage (kmemObj, offset + (i * NEXKE_CPU_PAGESZ), page);
         MmMulMapPage (&kmemSpace,
                       (uintptr_t) p + (i * NEXKE_CPU_PAGESZ),
-                      pg,
+                      page,
                       MUL_PAGE_KE | MUL_PAGE_RW | MUL_PAGE_R);
-        MmBackendPageIn (kmemObj, offset + (i * NEXKE_CPU_PAGESZ), pg);
+        MmBackendPageIn (kmemObj, offset + (i * NEXKE_CPU_PAGESZ), page);
     }
 }
 
@@ -440,12 +440,12 @@ static void mmKvFreeMemory (void* p, size_t numPages)
     MmObject_t* kmemObj = kmemSpace.entryList->obj;
     for (int i = 0; i < numPages; ++i)
     {
-        MmPage_t* page = MmLookupPage (&kmemObj->pageList, offset);
+        MmPage_t* page = MmLookupPage (kmemObj, offset);
         if (page)
         {
             // Free it
             MmPageClearMaps (page);
-            MmRemovePage (&kmemObj->pageList, page);
+            MmRemovePage (page);
             MmFreePage (page);
         }
         offset += NEXKE_CPU_PAGESZ;
@@ -539,7 +539,7 @@ void* MmAllocKvMmio (paddr_t phys, int numPages, int perm)
     {
         MmPage_t* page = MmFindPagePfn (curPfn);
         assert (page);
-        MmAddPage (&kmemSpace.entryList->obj->pageList, page, off + i * (NEXKE_CPU_PAGESZ));
+        MmAddPage (kmemSpace.entryList->obj, off + i * (NEXKE_CPU_PAGESZ), page);
         MmMulMapPage (&kmemSpace, (uintptr_t) virt + (i * NEXKE_CPU_PAGESZ), page, perm);
     }
     // Get address right
