@@ -58,6 +58,9 @@ typedef uint32_t paddr_t;
 #define NEXKE_FB_BASE      0xF0000000
 #define NEXKE_BACKBUF_BASE 0xE0000000
 
+// Max page levels
+#define MM_PTAB_MAX_LEVEL 3
+
 // IDT gate
 typedef struct _x86idtent
 {

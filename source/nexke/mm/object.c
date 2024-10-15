@@ -25,7 +25,7 @@ static SlabCache_t* mmObjCache = NULL;    // Contains object slab cache
 // Initializes object system
 void MmInitObject()
 {
-    mmObjCache = MmCacheCreate (sizeof (MmObject_t), NULL, NULL);
+    mmObjCache = MmCacheCreate (sizeof (MmObject_t), "MmObject_t", 0, 0);
     if (!mmObjCache)
         NkPanicOom();
 }

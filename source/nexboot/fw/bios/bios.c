@@ -86,7 +86,7 @@ static uintptr_t curOffset = 0;
 
 uintptr_t NbFwAllocPersistentPage()
 {
-    uintptr_t ret = curOffset + NbBiosGetIdealEnd();
+    uintptr_t ret = curOffset + NEXBOOT_BIOS_END;
     curOffset += NEXBOOT_CPU_PAGE_SIZE;
     // Map it
     NbCpuAsMap (ret, ret, NB_CPU_AS_RW);
@@ -95,14 +95,14 @@ uintptr_t NbFwAllocPersistentPage()
 
 uintptr_t NbFwAllocPersistPageNoMap()
 {
-    uintptr_t ret = curOffset + NbBiosGetIdealEnd();
+    uintptr_t ret = curOffset + NEXBOOT_BIOS_END;
     curOffset += NEXBOOT_CPU_PAGE_SIZE;
     return ret;
 }
 
 uintptr_t NbFwAllocPersistentPages (int count)
 {
-    uintptr_t ret = curOffset + NbBiosGetIdealEnd();
+    uintptr_t ret = curOffset + NEXBOOT_BIOS_END;
     curOffset += (count * NEXBOOT_CPU_PAGE_SIZE);
     for (int i = 0; i < count; ++i)
     {
@@ -146,13 +146,13 @@ void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz)
     NbLogMessage ("nexboot: Reserving memory region from %#lX to %#lX as boot reclaim\n",
                   NEXBOOT_LOGLEVEL_DEBUG,
                   0x100000,
-                  NbBiosGetBootEnd());
-    NbFwResvMem (0x100000, NbBiosGetBootEnd() - 0x100000, NEXBOOT_MEM_BOOT_RECLAIM);
+                  NEXBOOT_BIOS_END - 0x100000);
+    NbFwResvMem (0x100000, NEXBOOT_BIOS_END - 0x100000, NEXBOOT_MEM_BOOT_RECLAIM);
     NbLogMessage ("nexboot: Reserving memory region from %#lX to %#lX as kernel memory\n",
                   NEXBOOT_LOGLEVEL_DEBUG,
-                  NbBiosGetIdealEnd(),
+                  NEXBOOT_BIOS_END,
                   curOffset);
-    NbFwResvMem (NbBiosGetIdealEnd(), curOffset, NEXBOOT_MEM_RESVD);
+    NbFwResvMem (NEXBOOT_BIOS_END, curOffset, NEXBOOT_MEM_RESVD);
 }
 
 // Find which disk is the boot disk

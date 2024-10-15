@@ -76,7 +76,7 @@ bool PltAcpiInit()
     // Say we are ACPI
     PltGetPlatform()->subType = PLT_PC_SUBTYPE_ACPI;
     // Setup cache
-    acpiCache = MmCacheCreate (sizeof (AcpiCacheEnt_t), NULL, NULL);
+    acpiCache = MmCacheCreate (sizeof (AcpiCacheEnt_t), "AcpiCacheEnt_t", 0, 0);
     assert (acpiCache);
     return true;
 }
@@ -230,9 +230,9 @@ bool PltAcpiDetectCpus()
     if (PltGetPlatform()->subType != PLT_PC_SUBTYPE_ACPI)
         return false;
     // Create slab cache for CPUs
-    cpuCache = MmCacheCreate (sizeof (PltCpu_t), NULL, NULL);
-    intCache = MmCacheCreate (sizeof (PltIntOverride_t), NULL, NULL);
-    intCtrlCache = MmCacheCreate (sizeof (PltIntCtrl_t), NULL, NULL);
+    cpuCache = MmCacheCreate (sizeof (PltCpu_t), "PltCpu_t", 0, 0);
+    intCache = MmCacheCreate (sizeof (PltIntOverride_t), "PltIntOverride_t", 0, 0);
+    intCtrlCache = MmCacheCreate (sizeof (PltIntCtrl_t), "PltIntCtrl_t", 0, 0);
     // Get the MADT
     AcpiMadt_t* madt = (AcpiMadt_t*) PltAcpiFindTable ("APIC");
     if (!madt)
@@ -690,10 +690,10 @@ void PltAcpiPcEnable()
     // Get FADT
     fadt = (AcpiFadt_t*) PltAcpiFindTable ("FACP");
     // Check if SCI_EN is set
-    if (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
+    if (!(CpuInw (fadt->pm1aCntBlk) & ACPI_SCI_EN))
     {
         CpuOutb (fadt->smiCmd, fadt->acpiEnable);    // Enable ACPI
-        while (!((CpuInw (fadt->pm1aCntBlk) | CpuInw (fadt->pm1bCntBlk)) & ACPI_SCI_EN))
+        while (CpuInw (fadt->pm1aCntBlk) & ACPI_SCI_EN == 0)
             ;
         NkLogDebug ("nexke: enabled ACPI\n");
     }

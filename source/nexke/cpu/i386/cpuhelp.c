@@ -23,30 +23,26 @@
 
 void CpuIoWait()
 {
-    asm ("mov $0, %al; outb %al, $0x80");
+    CpuOutb (0x80, 0);
 }
 
 void CpuOutb (uint16_t port, uint8_t val)
 {
-    CpuIoWait();
     asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void CpuOutw (uint16_t port, uint16_t val)
 {
-    CpuIoWait();
     asm volatile ("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void CpuOutl (uint16_t port, uint32_t val)
 {
-    CpuIoWait();
     asm volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
 }
 
 uint8_t CpuInb (uint16_t port)
 {
-    CpuIoWait();
     uint8_t ret;
     asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
@@ -54,7 +50,6 @@ uint8_t CpuInb (uint16_t port)
 
 uint16_t CpuInw (uint16_t port)
 {
-    CpuIoWait();
     uint16_t ret;
     asm volatile ("inw %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
@@ -62,7 +57,6 @@ uint16_t CpuInw (uint16_t port)
 
 uint32_t CpuInl (uint16_t port)
 {
-    CpuIoWait();
     uint32_t ret;
     asm volatile ("inl %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;

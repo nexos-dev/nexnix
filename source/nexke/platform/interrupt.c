@@ -296,8 +296,8 @@ void PltInitInterrupts()
     // Store platform pointer
     platform = PltGetPlatform();
     // Create cache
-    nkIntCache = MmCacheCreate (sizeof (NkInterrupt_t), NULL, NULL);
-    nkHwIntCache = MmCacheCreate (sizeof (NkHwInterrupt_t), NULL, NULL);
+    nkIntCache = MmCacheCreate (sizeof (NkInterrupt_t), "NkInterrupt_t", 0, 0);
+    nkHwIntCache = MmCacheCreate (sizeof (NkHwInterrupt_t), "NkHwInterrupt_t", 0, 0);
     // Register CPU exception handlers
     CpuRegisterExecs();
 }

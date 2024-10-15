@@ -123,7 +123,8 @@ void CpuInvlpg (uintptr_t addr);
 void __attribute__ ((noreturn)) CpuCrash();
 
 // CPU page size
-#define NEXKE_CPU_PAGESZ 0x1000
+#define NEXKE_CPU_PAGESZ     0x1000
+#define NEXKE_CPU_PAGE_SHIFT 12
 
 // Data structures
 

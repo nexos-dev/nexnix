@@ -37,6 +37,7 @@ static CpuTss_t cpuDfaultTss = {0};
 
 // Free list of segments
 static CpuFreeSeg_t* cpuSegFreeList = NULL;
+static int cpuSegPlace = 6;
 static SlabCache_t* cpuSegCache = NULL;
 
 // Sets up a GDT gate
@@ -80,7 +81,7 @@ static void cpuSetIdtGate (CpuIdtEntry_t* gate,
 static void cpuInitGdt()
 {
     // Set up segment free list
-    cpuSegCache = MmCacheCreate (sizeof (CpuFreeSeg_t), NULL, NULL);
+    cpuSegCache = MmCacheCreate (sizeof (CpuFreeSeg_t), "CpuFreeSeg_t", 0, 0);
     assert (cpuSegCache);
     // Set up null segment
     cpuSetGdtGate (&cpuGdt[0], 0, 0, 0, 0, 0);
@@ -112,15 +113,6 @@ static void cpuInitGdt()
                    CPU_SEG_DB | CPU_SEG_GRAN | CPU_SEG_WRITABLE | CPU_SEG_NON_SYS,
                    CPU_DPL_USER,
                    0);
-    // Prepare free list
-    for (int i = 6; i < CPU_GDT_MAX; ++i)
-    {
-        // Prepare a free segment struct
-        CpuFreeSeg_t* freeSeg = MmCacheAlloc (cpuSegCache);
-        freeSeg->segNum = i;
-        freeSeg->next = cpuSegFreeList;
-        cpuSegFreeList = freeSeg;
-    }
     // Load new GDT into CPU
     CpuTabPtr_t gdtr = {.base = (uint32_t) cpuGdt, .limit = NEXKE_CPU_PAGESZ - 1};
     CpuFlushGdt (&gdtr);
@@ -153,19 +145,29 @@ static void cpuInitIdt()
 // Allocates a segment for a data structure. Returns segment number
 int CpuAllocSeg (uintptr_t base, uintptr_t limit, int dpl)
 {
-    // Grab segment from free list
+    // Grab segment from free list, if one isn't available try placement allocator
+    int segNum = 0;
     CpuFreeSeg_t* seg = cpuSegFreeList;
     if (!seg)
     {
-        // System is out of segments
-        return 0;
+        // Check placement allocator
+        if (cpuSegPlace < CPU_GDT_MAX)
+        {
+            segNum = cpuSegPlace;
+            ++cpuSegPlace;
+        }
+        else
+            return 0;    // Failure
     }
-    cpuSegFreeList = seg->next;
+    else
+    {
+        cpuSegFreeList = seg->next;
+        // Free segment data structure
+        segNum = seg->segNum;
+        MmCacheFree (cpuSegCache, seg);
+    }
     // Set up gate
-    cpuSetGdtGate (&cpuGdt[seg->segNum], base, limit, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, dpl, 0);
-    // Free segment data structure
-    int segNum = seg->segNum;
-    MmCacheFree (cpuSegCache, seg);
+    cpuSetGdtGate (&cpuGdt[segNum], base, limit, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, dpl, 0);
     return segNum;
 }
 

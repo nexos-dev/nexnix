@@ -243,7 +243,7 @@ PltHwIntCtrl_t* PltPicInit()
         NkLogDebug ("nexke: no ELCR found, only edge-triggered interrupts are supported\n");
     // Set up line map
     size_t mapSz = sizeof (PltHwIntChain_t) * 16;
-    plt8259A.lineMap = (PltHwIntChain_t*) malloc (mapSz);
+    plt8259A.lineMap = (PltHwIntChain_t*) kmalloc (mapSz);
     plt8259A.mapEntries = 16;
     assert (plt8259A.lineMap);
     memset (plt8259A.lineMap, 0, mapSz);

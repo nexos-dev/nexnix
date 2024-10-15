@@ -93,7 +93,7 @@ void CpuFreeSeg (int segNum)
 static void cpuInitGdt()
 {
     // Set up segment free list
-    cpuSegCache = MmCacheCreate (sizeof (CpuFreeSeg_t), NULL, NULL);
+    cpuSegCache = MmCacheCreate (sizeof (CpuFreeSeg_t), "CpuFreeSeg_t", 0, 0);
     assert (cpuSegCache);
     // Set up null segment
     cpuSetGdtGate (&cpuGdt[0], 0, 0, 0, 0, 0);

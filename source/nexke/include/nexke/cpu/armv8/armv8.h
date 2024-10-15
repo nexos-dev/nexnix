@@ -30,7 +30,8 @@ typedef struct _nkarchccb
 void __attribute__ ((noreturn)) CpuCrash();
 
 // CPU page size
-#define NEXKE_CPU_PAGESZ 0x1000
+#define NEXKE_CPU_PAGESZ     0x1000
+#define NEXKE_CPU_PAGE_SHIFT 12
 
 // PFN map base
 #define NEXKE_PFNMAP_BASE 0xFFFFFFFD00000000
@@ -49,13 +50,13 @@ void __attribute__ ((noreturn)) CpuCrash();
 #define NEXKE_SERIAL_MMIO_BASE 0xFFFFFFFF90000000
 
 // MSR functions
-#define CpuReadMsr(msr)                             \
-    ({                                              \
-        uint64_t __tmp = 0;                         \
-        asm volatile("mrs %0, " msr : "=r"(__tmp)); \
-        __tmp;                                      \
+#define CpuReadMsr(msr)                              \
+    ({                                               \
+        uint64_t __tmp = 0;                          \
+        asm volatile ("mrs %0, " msr : "=r"(__tmp)); \
+        __tmp;                                       \
     })
 
-#define CpuWriteMsr(msr, val) asm volatile("msr " msr ", %0" : : "r"(val));
+#define CpuWriteMsr(msr, val) asm volatile ("msr " msr ", %0" : : "r"(val));
 
 #endif

@@ -271,8 +271,8 @@ void MmInitPhase2()
     // Initialize object management
     MmInitObject();
     // Set up caches
-    mmSpaceCache = MmCacheCreate (sizeof (MmSpace_t), NULL, NULL);
-    mmEntryCache = MmCacheCreate (sizeof (MmSpaceEntry_t), NULL, NULL);
+    mmSpaceCache = MmCacheCreate (sizeof (MmSpace_t), "MmSpace_t", 0, 0);
+    mmEntryCache = MmCacheCreate (sizeof (MmSpaceEntry_t), "MmSpaceEntry_t", 0, 0);
     if (!mmSpaceCache || !mmEntryCache)
         NkPanicOom();
     mmCurSpace = MmGetKernelSpace();

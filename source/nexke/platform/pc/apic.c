@@ -740,10 +740,10 @@ PltHwTimer_t* PltApicInitTimer()
     // Set initial count
     pltLapicWrite (PLT_TIMER_INITIAL_COUNT, 0xFFFFFFFF);
     // Poll for 100ms
-    PltGetPlatform()->clock->poll (PLT_NS_IN_SEC / 10);
+    PltGetPlatform()->clock->poll (PLT_NS_IN_SEC / 100);
     uint32_t ticks = 0xFFFFFFFF - pltLapicRead (PLT_TIMER_CURRENT_COUNT);
     // Convert to precision
-    ticks *= 10;    // Ticks per second now
+    ticks *= 100;    // Ticks per second now
     pltApicTimer.precision = PLT_NS_IN_SEC / ticks;
     pltApicTimer.maxInterval = UINT32_MAX * pltApicTimer.precision;
     isApicTimer = true;

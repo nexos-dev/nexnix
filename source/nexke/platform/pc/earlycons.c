@@ -20,6 +20,7 @@
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
 #include <nexke/platform/pc.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -59,10 +60,14 @@ static int curCol = 0, curRow = 0;
 static inline void vgaMoveCursor (int col, int row)
 {
     uint16_t location = (row * VGA_WIDTH) + col;
-    CpuOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_HIGH);
-    CpuOutb (VGA_CRTC_DATA, location >> 8);
     CpuOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_LOW);
-    CpuOutb (VGA_CRTC_DATA, location & 0xFF);
+    CpuIoWait();
+    CpuOutb (VGA_CRTC_DATA, (uint8_t) (location & 0xFF));
+    CpuIoWait();
+    CpuOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_HIGH);
+    CpuIoWait();
+    CpuOutb (VGA_CRTC_DATA, (uint8_t) ((location >> 8) & 0xFF));
+    CpuIoWait();
 }
 
 // Puts a character on screen on location
@@ -159,7 +164,7 @@ void PltVgaInit()
         for (int col = 0; col < VGA_WIDTH; ++col)
             vgaPutChar (' ', col, row);
     }
-    vgaMoveCursor (0, 0);
+    vgaMoveCursor (1, 0);
     isVgaWorking = true;
 }
 

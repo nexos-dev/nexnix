@@ -91,7 +91,7 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
 {
     NkListAddBack (&nkPlatform.intCtrls, &intCtrl->link);
     ++nkPlatform.numIntCtrls;
-    NkLogDebug ("nexke: found interrupt controller, type %s, base GSI %u, address %llx\n",
+    NkLogDebug ("nexke: found interrupt controller, type %s, base GSI %u, address %#llX\n",
                 pltIntCtrlTypes[intCtrl->type],
                 intCtrl->gsiBase,
                 intCtrl->addr);
@@ -136,20 +136,20 @@ void PltFallbackDetectCpus()
     if (CpuGetFeatures() & CPU_FEATURE_APIC)
     {
         // Create a CPU
-        PltCpu_t* cpu = (PltCpu_t*) malloc (sizeof (PltCpu_t));
+        PltCpu_t* cpu = (PltCpu_t*) kmalloc (sizeof (PltCpu_t));
         assert (cpu);
         cpu->id = 0;
         cpu->type = PLT_CPU_APIC;
         PltAddCpu (cpu);
         // Create a interrupt controller
         PltIntCtrl_t* ctrl =
-            (PltIntCtrl_t*) malloc (sizeof (PltIntCtrl_t));    // We can't access the normal cache
+            (PltIntCtrl_t*) kmalloc (sizeof (PltIntCtrl_t));    // We can't access the normal cache
         ctrl->addr = PLT_IOAPIC_BASE;
         ctrl->gsiBase = 0;
         ctrl->type = PLT_INTCTRL_IOAPIC;
         PltAddIntCtrl (ctrl);    // Add it to the system
         // Create override from INT2 to INT0
-        PltIntOverride_t* intOv = (PltIntOverride_t*) malloc (sizeof (PltIntCtrl_t));
+        PltIntOverride_t* intOv = (PltIntOverride_t*) kmalloc (sizeof (PltIntCtrl_t));
         intOv->bus = PLT_BUS_ISA;
         intOv->gsi = 2;
         intOv->line = 0;
@@ -159,14 +159,14 @@ void PltFallbackDetectCpus()
     else
     {
         // Create a CPU
-        PltCpu_t* cpu = (PltCpu_t*) malloc (sizeof (PltCpu_t));
+        PltCpu_t* cpu = (PltCpu_t*) kmalloc (sizeof (PltCpu_t));
         assert (cpu);
         cpu->id = 0;
         cpu->type = PLT_CPU_UP;
         PltAddCpu (cpu);
         // Create a interrupt controller
         PltIntCtrl_t* ctrl =
-            (PltIntCtrl_t*) malloc (sizeof (PltIntCtrl_t));    // We can't access the normal cache
+            (PltIntCtrl_t*) kmalloc (sizeof (PltIntCtrl_t));    // We can't access the normal cache
         ctrl->addr = 0;
         ctrl->gsiBase = 0;
         ctrl->type = PLT_INTCTRL_8259A;

@@ -88,11 +88,11 @@ static void vgaMoveCursor (NbVgaConsole_t* console, int x, int y)
 {
     uint16_t location = (y * console->cols) + x;
     NbOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_HIGH);
-    NbIoWait();
+    // NbIoWait();
     NbOutb (VGA_CRTC_DATA, location >> 8);
-    NbIoWait();
+    // NbIoWait();
     NbOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_LOW);
-    NbIoWait();
+    // NbIoWait();
     NbOutb (VGA_CRTC_DATA, location & 0xFF);
 }
 
@@ -172,22 +172,16 @@ static bool VgaPutChar (void* objp, void* data)
 static bool VgaDisableCursor (void* objp, void* unused)
 {
     NbOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_START);
-    NbIoWait();
     NbOutb (VGA_CRTC_DATA, (1 << 5));
-    NbIoWait();
     return true;
 }
 
 static bool VgaEnableCursor (void* objp, void* unused)
 {
     NbOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_START);
-    NbIoWait();
     NbOutb (VGA_CRTC_DATA, 13);
-    NbIoWait();
     NbOutb (VGA_CRTC_INDEX, VGA_CRTC_INDEX_CURSOR_END);
-    NbIoWait();
     NbOutb (VGA_CRTC_DATA, 14);
-    NbIoWait();
     return true;
 }
 

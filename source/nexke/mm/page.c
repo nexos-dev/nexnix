@@ -542,7 +542,7 @@ void MmInitPage()
     }
     // We have now created the PFN map
     // Now we need to initialize the zones
-    mmZoneCache = MmCacheCreate (sizeof (MmZone_t), NULL, NULL);
+    mmZoneCache = MmCacheCreate (sizeof (MmZone_t), "MmZone_t", 0, 0);
     for (int i = 0; i < lastMapEnt; ++i)
     {
         if (!memMap[i].sz)
@@ -658,10 +658,10 @@ void MmInitPage()
     }
     freeHint = curBest;
     // Create fake page cache
-    mmFakePageCache = MmCacheCreate (sizeof (MmPage_t), NULL, NULL);
+    mmFakePageCache = MmCacheCreate (sizeof (MmPage_t), "MmPage_t", 0, 0);
     assert (mmFakePageCache);
     // Create page map cache
-    mmPageMapCache = MmCacheCreate (sizeof (MmPageMap_t), NULL, NULL);
+    mmPageMapCache = MmCacheCreate (sizeof (MmPageMap_t), "MmPageMap_t", 0, 0);
     assert (mmPageMapCache);
 }
 

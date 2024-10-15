@@ -60,8 +60,8 @@ const char* NkReadArg (const char* arg)
             int i = 0;
             while (*iter != ' ' && *iter)
                 tmp[i] = *iter, ++i, ++iter;
-            // Malloc it
-            char* buf = malloc (i);
+            // kmalloc it
+            char* buf = kmalloc (i);
             strcpy (buf, tmp);
             return (const char*) buf;
         }
@@ -80,11 +80,6 @@ bool NkVerifyChecksum (uint8_t* buf, size_t len)
     return !sum;
 }
 
-void t (NkTimeEvent_t* evt, void*)
-{
-    NkLogError ("got here\n");
-}
-
 void NkMain (NexNixBoot_t* bootinf)
 {
     // Set bootinfo
@@ -92,13 +87,13 @@ void NkMain (NexNixBoot_t* bootinf)
     // Initialize MM phase 1
     MmInitPhase1();
     // Copy bootinfo into cache
-    bootInfCache = MmCacheCreate (sizeof (NexNixBoot_t), NULL, NULL);
+    bootInfCache = MmCacheCreate (sizeof (NexNixBoot_t), "NexNixBoot_t", 0, 0);
     NexNixBoot_t* bootInf = MmCacheAlloc (bootInfCache);
     memcpy (bootInf, bootInfo, sizeof (NexNixBoot_t));
     bootInfo = bootInf;
     // Move boot arguments into better spot
     size_t argLen = strlen (bootInfo->args);
-    cmdLine = malloc (argLen + 1);
+    cmdLine = kmalloc (argLen + 1);
     strcpy (cmdLine, bootInfo->args);
     // Initialize boot drivers
     PltInitDrvs();
@@ -119,16 +114,8 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    NkTimeEvent_t* event = NkTimeNewEvent();
-    NkTimeRegEvent (event, PLT_NS_IN_SEC, t, NULL);
-    event = NkTimeNewEvent();
-    NkTimeRegEvent (event, PLT_NS_IN_SEC * 2, t, NULL);
-    event = NkTimeNewEvent();
-    NkTimeRegEvent (event, PLT_NS_IN_SEC * 2, t, NULL);
-    event = NkTimeNewEvent();
-    NkTimeRegEvent (event, PLT_NS_IN_SEC * (uint64_t) 3, t, NULL);
-    event = NkTimeNewEvent();
-    NkTimeRegEvent (event, PLT_NS_IN_SEC * (uint64_t) 4, t, NULL);
+    void* p = kmalloc (5002);
+    kfree (p, 5002);
     for (;;)
         ;
 }

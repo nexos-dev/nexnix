@@ -34,8 +34,6 @@ typedef struct _ptcache
     struct _ptcache* prev;
 } MmPtCacheEnt_t;
 
-#define MM_PTAB_MAX_LEVEL 8
-
 #define MM_PTAB_UNCACHED 0
 
 typedef struct _mmspace

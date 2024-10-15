@@ -22,7 +22,9 @@
 #include <nexke/nexke.h>
 #include <string.h>
 
-#define MM_KV_MAX_FREELIST 16
+#define MM_KV_MAX_FREELIST 12
+#define MM_KV_REFILL_VAL   8
+#define MM_KV_REFILL_MIN   4
 #define MM_KV_MAX_BUCKETS  5
 
 // Kernel virtual region structure
@@ -31,8 +33,7 @@ typedef struct _kvregion
     uintptr_t vaddr;    // Virtual address of page
     size_t numPages;    // Number of pages in region
     bool isFree;        // Is this region free?
-    struct _kvregion* next;
-    struct _kvregion* prev;
+    NkLink_t link;
 } MmKvRegion_t;
 
 // Kernel virtual region footer
@@ -45,8 +46,8 @@ typedef struct _kvfooter
 // Kernel memory bucket
 typedef struct _kvbucket
 {
-    MmKvRegion_t* regionList;    // List of regions in bucket
-    size_t bucketNum;            // The bucket number of this bucket
+    NkList_t regionList;    // List of regions in bucket
+    size_t bucketNum;       // The bucket number of this bucket
 } MmKvBucket_t;
 
 // Kernel free arena
@@ -57,8 +58,8 @@ typedef struct _kvarena
     size_t numFreePages;
     bool needsMap;    // Whether this arena is pre-mapped
 
-    MmKvRegion_t* freeList;    // Free list of pages
-    size_t freeListSz;         // Number of pages in free list currently
+    NkList_t freeList;    // Free list of pages
+    size_t freeListSz;    // Number of pages in free list currently
 
     uintptr_t resvdStart;    // Start of reserved area
     size_t resvdSz;          // Size of reserved area in pages
@@ -171,9 +172,9 @@ void MmInitKvm1()
     arena->needsMap = false;
     arena->resvdStart = bootPoolBase + sizeof (MmKvArena_t);
     arena->resvdSz =
-        CpuPageAlignUp ((((bootInfo->memPoolSize / NEXKE_CPU_PAGESZ) * sizeof (MmKvRegion_t)) +
-                         sizeof (MmKvArena_t))) /
-        NEXKE_CPU_PAGESZ;
+        CpuPageAlignUp ((((bootInfo->memPoolSize >> NEXKE_CPU_PAGE_SHIFT) * sizeof (MmKvRegion_t)) +
+                         sizeof (MmKvArena_t))) >>
+        NEXKE_CPU_PAGE_SHIFT;
     arena->start = bootPoolBase;
     arena->end = bootPoolEnd;
     arena->numPages = (bootInfo->memPoolSize / NEXKE_CPU_PAGESZ) - arena->resvdSz;
@@ -184,7 +185,7 @@ void MmInitKvm1()
     // Create a region for the entire arena
     MmKvRegion_t* firstRegion =
         mmKvGetRegion (arena, arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ));
-    firstRegion->next = firstRegion->prev = NULL;
+    memset (firstRegion, 0, sizeof (MmKvRegion_t));
     firstRegion->numPages = arena->numPages;
     firstRegion->vaddr = arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ);
     // Create footer
@@ -194,7 +195,7 @@ void MmInitKvm1()
     footer->magic = MM_KV_FOOTER_MAGIC;
     footer->regionSz = firstRegion->numPages;
     // Add to bucket
-    arena->buckets[MM_BUCKET_32PLUS].regionList = firstRegion;
+    NkListAddFront (&arena->buckets[MM_BUCKET_32PLUS].regionList, &firstRegion->link);
     // Add to arena list
     mmKvAddArena (arena);
 }
@@ -217,14 +218,14 @@ void MmInitKvm2()
     arena->needsMap = true;
     arena->resvdStart = kmemSpace.startAddr + sizeof (MmKvArena_t);
     arena->resvdSz =
-        CpuPageAlignUp (((((kmemSpace.endAddr - kmemSpace.startAddr) / NEXKE_CPU_PAGESZ) *
+        CpuPageAlignUp (((((kmemSpace.endAddr - kmemSpace.startAddr) >> NEXKE_CPU_PAGE_SHIFT) *
                           sizeof (MmKvRegion_t)) +
-                         sizeof (MmKvArena_t))) /
-        NEXKE_CPU_PAGESZ;
+                         sizeof (MmKvArena_t))) >>
+        NEXKE_CPU_PAGE_SHIFT;
     arena->start = kmemSpace.startAddr;
     arena->end = kmemSpace.endAddr;
     arena->numPages =
-        ((kmemSpace.endAddr - kmemSpace.startAddr) / NEXKE_CPU_PAGESZ) - arena->resvdSz;
+        ((kmemSpace.endAddr - kmemSpace.startAddr) >> NEXKE_CPU_PAGE_SHIFT) - arena->resvdSz;
     arena->numFreePages = arena->numPages;
     // Initialize buckets
     for (int i = 0; i < MM_KV_MAX_BUCKETS; ++i)
@@ -232,7 +233,7 @@ void MmInitKvm2()
     // Create a region for the entire arena
     MmKvRegion_t* firstRegion =
         mmKvGetRegion (arena, kmemSpace.startAddr + (arena->resvdSz * NEXKE_CPU_PAGESZ));
-    firstRegion->next = firstRegion->prev = NULL;
+    memset (firstRegion, 0, sizeof (MmKvRegion_t));
     firstRegion->numPages = arena->numPages;
     firstRegion->vaddr = arena->start + (arena->resvdSz * NEXKE_CPU_PAGESZ);
     // Create footer
@@ -243,79 +244,33 @@ void MmInitKvm2()
     footer->magic = MM_KV_FOOTER_MAGIC;
     footer->regionSz = firstRegion->numPages;
     // Add to bucket
-    arena->buckets[MM_BUCKET_32PLUS].regionList = firstRegion;
+    NkListAddFront (&arena->buckets[MM_BUCKET_32PLUS].regionList, &firstRegion->link);
     mmKvAddArena (arena);
 }
 
-// Adds memory to a bucket
-static void mmKvAddToBucket (MmKvBucket_t* bucket, MmKvRegion_t* region)
+// Prepares a found region for use
+static inline void mmKvPrepareRegion (MmKvArena_t* arena,
+                                      MmKvBucket_t* bucket,
+                                      MmKvRegion_t* region,
+                                      size_t numPages)
 {
-    region->next = bucket->regionList;
-    region->prev = NULL;
-    if (bucket->regionList)
-        bucket->regionList->prev = region;
-    bucket->regionList = region;
-}
-
-// Removes memory from bucket
-static void mmKvRemoveFromBucket (MmKvBucket_t* bucket, MmKvRegion_t* region)
-{
-    if (region->next)
-        region->next->prev = region->prev;
-    if (region->prev)
-        region->prev->next = region->next;
-    if (region == bucket->regionList)
-        bucket->regionList = region->next;
-}
-
-// Allocates memory in arena
-static void* mmAllocKvInArena (MmKvArena_t* arena, size_t numPages)
-{
-    // Figure out which bucket we should look in
-    int bucketIdx = mmKvGetBucket (numPages);
-    MmKvBucket_t* bucket = &arena->buckets[bucketIdx];
-    MmKvRegion_t* foundRegion = NULL;
-    MmKvRegion_t* curRegion = bucket->regionList;
-    while (!foundRegion)
-    {
-        while (curRegion)
-        {
-            if (curRegion->numPages >= numPages)
-            {
-                foundRegion = curRegion;
-                break;
-            }
-            curRegion = curRegion->next;
-        }
-        // Did we find a region
-        if (foundRegion)
-            break;
-        // Move to another bucket
-        // Check if we have any more buckets to check
-        if (bucketIdx == MM_BUCKET_32PLUS)
-            return NULL;
-        bucket = &arena->buckets[++bucketIdx];
-        curRegion = bucket->regionList;
-    }
-    assert (foundRegion);
-    // We have now found a memory region
     // Decrease free size
     arena->numFreePages -= numPages;
     // Check if this is a perfect fit
-    if (foundRegion->numPages == numPages)
+    if (region->numPages == numPages)
     {
         // Remove from bucket and return
-        mmKvRemoveFromBucket (&arena->buckets[bucketIdx], foundRegion);
-        foundRegion->isFree = false;
+        NkListRemove (&bucket->regionList, &region->link);
+        region->isFree = false;
     }
     else
     {
         // Get size of block we are splitting off
-        size_t splitSz = foundRegion->numPages - numPages;
-        foundRegion->numPages = numPages;
-        foundRegion->isFree = false;
+        size_t splitSz = region->numPages - numPages;
+        region->numPages = numPages;
+        region->isFree = false;
         // Now get the region structure
-        uintptr_t splitRegionBase = foundRegion->vaddr + (foundRegion->numPages * NEXKE_CPU_PAGESZ);
+        uintptr_t splitRegionBase = region->vaddr + (region->numPages * NEXKE_CPU_PAGESZ);
         MmKvRegion_t* splitRegion = mmKvGetRegion (arena, splitRegionBase);
         splitRegion->isFree = true;
         splitRegion->numPages = splitSz;
@@ -323,11 +278,11 @@ static void* mmAllocKvInArena (MmKvArena_t* arena, size_t numPages)
         // Figure out which bucket it goes in
         int bucketIdx = mmKvGetBucket (splitRegion->numPages);
         // Add it
-        mmKvAddToBucket (&arena->buckets[bucketIdx], splitRegion);
+        NkListAddFront (&bucket->regionList, &splitRegion->link);
         // Update footers if they are needed
         if (numPages > 1)
         {
-            MmKvFooter_t* footerLeft = mmKvGetRegionFooter (arena, foundRegion->vaddr, numPages);
+            MmKvFooter_t* footerLeft = mmKvGetRegionFooter (arena, region->vaddr, numPages);
             footerLeft->magic = MM_KV_FOOTER_MAGIC;
             footerLeft->regionSz = numPages;
         }
@@ -338,9 +293,123 @@ static void* mmAllocKvInArena (MmKvArena_t* arena, size_t numPages)
             footerRight->regionSz = splitSz;
         }
         // Remove found region from bucket
-        mmKvRemoveFromBucket (&arena->buckets[bucketIdx], foundRegion);
+        NkListRemove (&bucket->regionList, &region->link);
     }
-    return (void*) foundRegion->vaddr;
+}
+
+// Allocates memory in arena
+static MmKvRegion_t* mmAllocKvInArena (MmKvArena_t* arena, size_t numPages)
+{
+    // Figure out which bucket we should look in
+    int bucketIdx = mmKvGetBucket (numPages);
+    MmKvBucket_t* bucket = &arena->buckets[bucketIdx];
+    MmKvRegion_t* foundRegion = NULL;
+    NkLink_t* iter = NkListFront (&bucket->regionList);
+    // Find a region
+    while (!foundRegion)
+    {
+        while (iter)
+        {
+            MmKvRegion_t* curRegion = LINK_CONTAINER (iter, MmKvRegion_t, link);
+            if (curRegion->numPages >= numPages)
+            {
+                foundRegion = curRegion;
+                break;
+            }
+            iter = NkListIterate (iter);
+        }
+        // Did we find a region
+        if (foundRegion)
+            break;
+        // Move to another bucket
+        // Check if we have any more buckets to check
+        if (bucketIdx == MM_BUCKET_32PLUS)
+            return NULL;
+        bucket = &arena->buckets[++bucketIdx];
+        iter = NkListFront (&bucket->regionList);
+    }
+    assert (foundRegion);
+    // We have now found a memory region
+    // Prepare it
+    mmKvPrepareRegion (arena, bucket, foundRegion, numPages);
+    return foundRegion;
+}
+
+// Joins regions for a free
+static inline MmKvRegion_t* mmKvJoinRegions (MmKvArena_t* arena, MmKvRegion_t* region)
+{
+    // Check if we have a block to the left
+    MmKvFooter_t* leftFooter = (MmKvFooter_t*) (region - 1);
+    if (region != (void*) arena->resvdStart && leftFooter->magic == MM_KV_FOOTER_MAGIC)
+    {
+        // Get region
+        MmKvRegion_t* leftRegion =
+            mmKvGetRegion (arena, region->vaddr - (leftFooter->regionSz * NEXKE_CPU_PAGESZ));
+        if (leftRegion->isFree)
+        {
+            leftRegion->numPages += region->numPages;
+            // Update footer
+            MmKvFooter_t* newFooter =
+                mmKvGetRegionFooter (arena, leftRegion->vaddr, leftRegion->numPages);
+            newFooter->magic = MM_KV_FOOTER_MAGIC;
+            newFooter->regionSz = leftRegion->numPages;
+            // This region absorbed the other one so make it the one we work on from now on
+            region = leftRegion;
+        }
+    }
+    // Check if we have a free block to the right
+    MmKvRegion_t* nextRegion =
+        (MmKvRegion_t*) mmKvGetRegionFooter (arena, region->vaddr, region->numPages) + 1;
+    // Check if its free and valid
+    if (nextRegion->vaddr == region->vaddr + (region->numPages * NEXKE_CPU_PAGESZ) &&
+        nextRegion->isFree)
+    {
+        // Remove from bucket
+        MmKvBucket_t* bucket = &arena->buckets[mmKvGetBucket (region->numPages)];
+        NkListRemove (&bucket->regionList, &nextRegion->link);
+        region->numPages += nextRegion->numPages;
+        MmKvFooter_t* newFooter = mmKvGetRegionFooter (arena, region->vaddr, region->numPages);
+        newFooter->magic = MM_KV_FOOTER_MAGIC;
+        newFooter->regionSz = region->numPages;
+    }
+    return region;
+}
+
+// Allocates a single page region
+static void* mmKvAllocFreeList (MmKvArena_t* arena)
+{
+    void* p = NULL;
+    if (arena->freeListSz)
+    {
+        // Get link of first entry
+        NkLink_t* link = NkListPopFront (&arena->freeList);
+        MmKvRegion_t* region = LINK_CONTAINER (link, MmKvRegion_t, link);
+        region->isFree = false;
+        --arena->freeListSz;
+        p = (void*) region->vaddr;
+    }
+    // Refill list
+    if (arena->freeListSz <= MM_KV_REFILL_MIN)
+    {
+        // Refill free list
+        for (int i = arena->freeListSz; i < MM_KV_REFILL_VAL; ++i)
+        {
+            MmKvRegion_t* newRegion = mmAllocKvInArena (arena, 1);
+            if (!newRegion)
+                break;    // Break on OOM
+            NkListAddFront (&arena->freeList, &newRegion->link);
+            ++arena->freeListSz;
+        }
+    }
+    return p;
+}
+
+// Free a single page region
+static void mmKvFreeToList (MmKvArena_t* arena, MmKvRegion_t* region)
+{
+    NkListAddFront (&arena->freeList, &region->link);
+    ++arena->freeListSz;
+    region->isFree = true;
 }
 
 // Brings memory in for region
@@ -392,7 +461,12 @@ void* MmAllocKvRegion (size_t numPages, int flags)
     {
         if (arena->numFreePages >= numPages)
         {
-            void* p = mmAllocKvInArena (arena, numPages);
+            // If this is a single page allocation attempt to pull from free list
+            void* p = NULL;
+            if (numPages == 1)
+                p = mmKvAllocFreeList (arena);
+            if (!p)
+                p = (void*) mmAllocKvInArena (arena, numPages)->vaddr;
             if (p)
             {
                 if (flags & MM_KV_NO_DEMAND && arena->needsMap)
@@ -418,44 +492,16 @@ void MmFreeKvRegion (void* mem)
     size_t numPages = region->numPages;
     region->isFree = true;
     arena->numFreePages += region->numPages;
-    // Check if we need to join this block with any adjacent blocks
-    // Check if we have a block to the left
-    MmKvFooter_t* leftFooter = (MmKvFooter_t*) (region - 1);
-    if (region != (void*) arena->resvdStart && leftFooter->magic == MM_KV_FOOTER_MAGIC)
+    if (numPages == 1 && arena->freeListSz <= MM_KV_MAX_FREELIST)
+        mmKvFreeToList (arena, region);
+    else
     {
-        // Get region
-        MmKvRegion_t* leftRegion =
-            mmKvGetRegion (arena, (uintptr_t) mem - (leftFooter->regionSz * NEXKE_CPU_PAGESZ));
-        if (leftRegion->isFree)
-        {
-            mmKvRemoveFromBucket (&arena->buckets[mmKvGetBucket (leftRegion->numPages)],
-                                  leftRegion);
-            leftRegion->numPages += region->numPages;
-            // Update footer
-            MmKvFooter_t* newFooter =
-                mmKvGetRegionFooter (arena, leftRegion->vaddr, leftRegion->numPages);
-            newFooter->magic = MM_KV_FOOTER_MAGIC;
-            newFooter->regionSz = leftRegion->numPages;
-            // This region absorbed the other one so make it the one we work on from now on
-            region = leftRegion;
-        }
+        // Join joinable regions
+        region = mmKvJoinRegions (arena, region);
+        // Add region to appropriate bucket
+        MmKvBucket_t* bucket = &arena->buckets[mmKvGetBucket (region->numPages)];
+        NkListAddFront (&bucket->regionList, &region->link);
     }
-    // Check if we have a free block to the right
-    MmKvRegion_t* nextRegion =
-        (MmKvRegion_t*) mmKvGetRegionFooter (arena, region->vaddr, region->numPages) + 1;
-    // Check if its free and valid
-    if (nextRegion->vaddr == region->vaddr + (region->numPages * NEXKE_CPU_PAGESZ) &&
-        nextRegion->isFree)
-    {
-        // Remove from bucket
-        mmKvRemoveFromBucket (&arena->buckets[mmKvGetBucket (region->numPages)], nextRegion);
-        region->numPages += nextRegion->numPages;
-        MmKvFooter_t* newFooter = mmKvGetRegionFooter (arena, region->vaddr, region->numPages);
-        newFooter->magic = MM_KV_FOOTER_MAGIC;
-        newFooter->regionSz = region->numPages;
-    }
-    // Add region to appropriate bucket
-    mmKvAddToBucket (&arena->buckets[mmKvGetBucket (region->numPages)], region);
     // Unmap and free memory
     if (arena->needsMap)
         mmKvFreeMemory (mem, numPages);

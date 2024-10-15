@@ -30,4 +30,6 @@ typedef struct _pageHash MmPageList_t;
 
 typedef int ipl_t;
 
+#define FORCEINLINE inline __attribute__ ((always_inline))
+
 #endif

@@ -21,100 +21,184 @@
 #include <nexke/nexke.h>
 #include <string.h>
 
-// Is the PMM available yet?
-static bool isPmmInit = false;
-
-// Boot memory pool base
-static void* bootPoolBase = NULL;
-
-// Boot pool end
-static void* bootPoolEnd = 0;
-
-// Current marker for boot pool
-static void* bootPoolMark = NULL;
-
 // Cache of caches
 static SlabCache_t caches = {0};
+
+// Cache of external slabs
+static SlabCache_t extSlabCache = {0};
+
+// Cache of external buffers
+static SlabCache_t extBufCache = {0};
+
+// List of caches
+static NkList_t cacheList = {0};
+
+// Minimum object size
+static size_t minObjSz = 0;
+
+// Hash table of external buffers
+#define SLAB_EXT_HASH_SZ 64
+static NkList_t extBufHash[SLAB_EXT_HASH_SZ] = {0};
 
 // Alignment value
 #define SLAB_ALIGN 8
 
-// Slab states
-#define SLAB_STATE_EMPTY   0
-#define SLAB_STATE_PARTIAL 1
-#define SLAB_STATE_FULL    2
+// Min for ext slabs
+#define SLAB_EXT_MIN 1024
+
+// Min number of objects to fit in a slab
+#define SLAB_OBJ_MIN 6
 
 // Max number of empty slabs
 // TODO: this should be based on object size
 #define SLAB_EMPTY_MAX 3
 
+// Slab magic number
+#define SLAB_MAGIC 0xDEADBEEF
+
+// Slab buffer
+typedef struct _slabbuf
+{
+    void* obj;        // Address of object
+    Slab_t* slab;     // Slab object belongs to
+    NkLink_t link;    // Link to next buffer
+} SlabBuf_t;
+
 // Slab structure
 typedef struct _slab
 {
-    SlabCache_t* cache;    // Parent cache
-    void* slabEnd;         // End of slab
-    size_t sz;             // Size of one object
-    size_t numAvail;       // Number of available objects
-    size_t maxObj;         // Max objects in slab
-    void* freeList;        // Pointer to first free object
-    size_t numFreed;       // Number of freed objects
-    void* allocMark;       // If freeList is empty, this is a hint to where free memory could be
-    int state;             // State of slab
-    struct _slab* next;    // Next slab in list
-    struct _slab* prev;    // Last slab in list
+    // Management info
+    SlabCache_t* cache;
+    uint32_t magic;    // Magic number
+    uintptr_t base;    // Base address
+    // Counts
+    size_t numAvail;    // Number of available objects
+    // Buffering info
+    NkList_t freeList;    // Pointer to first free object
+    NkLink_t link;
+    NkLink_t hashLink;
 } Slab_t;
 
-// Rounds number up to next multiple of 8
-static inline size_t slabRoundTo8 (size_t sz)
+// Aligns a size
+static FORCEINLINE size_t slabAlignSz (size_t sz, size_t align)
 {
-    // Check if sz is aligned
-    if ((sz % SLAB_ALIGN) == 0)
-        return sz;
     // Align it
-    sz &= ~(SLAB_ALIGN - 1);
-    sz += SLAB_ALIGN;
+    sz += align - 1;
+    sz &= ~(align - 1);
     return sz;
+}
+
+// Aligns downwards
+static FORCEINLINE uintptr_t slabAlignDown (uintptr_t ptr, size_t align)
+{
+    return ptr & ~(align - 1);
+}
+
+// Gets a buffer from the hash table
+static FORCEINLINE SlabBuf_t* slabGetHashedBuf (void* base)
+{
+    // Get has table index
+    // All bases are 8-byte aligned (generally) removes those bits for uniqueness
+    size_t hashIdx = ((uintptr_t) base >> 3) % SLAB_EXT_HASH_SZ;
+    NkLink_t* iter = NkListFront (&extBufHash[hashIdx]);
+    while (iter)
+    {
+        SlabBuf_t* buf = LINK_CONTAINER (iter, SlabBuf_t, link);
+        if (buf->obj == base)
+            return buf;
+        iter = NkListIterate (iter);
+    }
+    return NULL;
+}
+
+// Adds a slab to the hash table
+static FORCEINLINE void slabHashBuf (SlabBuf_t* buf)
+{
+    size_t hashIdx = ((uintptr_t) buf->obj >> 3) % SLAB_EXT_HASH_SZ;
+    NkListAddFront (&extBufHash[hashIdx], &buf->link);
+}
+
+// Removes a slab from the hash table
+static FORCEINLINE void slabRemoveBuf (SlabBuf_t* buf)
+{
+    size_t hashIdx = ((uintptr_t) buf->obj >> 3) % SLAB_EXT_HASH_SZ;
+    NkListRemove (&extBufHash[hashIdx], &buf->link);
 }
 
 // Converts object to slab
 // This takes advantage of the fact that an object is always inside a slab,
 // and a slab is always page aligned, so if we page align down, then we
 // end up with the slab structure
-static inline Slab_t* slabGetObjSlab (void* obj)
+// For external slabs we reference the hash table
+static FORCEINLINE Slab_t* slabGetObjSlab (SlabCache_t* cache, void* obj)
 {
-    uintptr_t addr = (uintptr_t) obj;
-    addr &= ~(NEXKE_CPU_PAGESZ - 1);
-    return (Slab_t*) addr;
+    Slab_t* slab = NULL;
+    if (cache->flags & SLAB_CACHE_EXT_SLAB)
+    {
+        // Convert object into buffer
+        SlabBuf_t* buf = slabGetHashedBuf (obj);
+        assert (buf);
+        assert (buf->obj == obj);
+        slab = buf->slab;
+    }
+    else
+    {
+        // Round down to get slab base
+        uintptr_t addr = (uintptr_t) obj;
+        size_t slabSz = cache->slabSz << NEXKE_CPU_PAGE_SHIFT;
+        addr = slabAlignDown (addr, slabSz);
+        // Get slab structure
+        slab = (Slab_t*) (addr + slabSz - sizeof (Slab_t));
+    }
+    return slab;
 }
 
 // Allocates a slab of memory
 static Slab_t* slabAllocSlab (SlabCache_t* cache)
 {
-    // Initialize slab
-    size_t slabSz = slabRoundTo8 (sizeof (Slab_t));
-    Slab_t* slab = (Slab_t*) MmAllocKvPage();
-    slab->cache = cache;
-    slab->allocMark = (void*) slab + slabRoundTo8 (sizeof (Slab_t));
-    slab->slabEnd = (void*) slab + NEXKE_CPU_PAGESZ;
-    slab->freeList = NULL;
-    slab->sz = cache->objAlign;    // NOTE: we use the aligned size here
-    slab->state =
-        SLAB_STATE_PARTIAL;    // Even though slab is empty right now, it won't be for long
-
-    // Set up number of available objects
-    slab->numAvail = (NEXKE_CPU_PAGESZ - slabSz) / slab->sz;
-    slab->maxObj = slab->numAvail;
-    slab->numFreed = 0;
-
-    // Add to list
-    if (cache->partialSlabs)
+    // Get slab
+    void* ptr = MmAllocKvRegion (cache->slabSz,
+                                 (cache->flags & SLAB_CACHE_DEMAND_PAGE) ? 0 : MM_KV_NO_DEMAND);
+    if (!ptr)
+        return NULL;
+    // Find slab structure. For internal caches, this is at the end of the slab.
+    // Otherwise we have to allocate it
+    Slab_t* slab = NULL;
+    if (cache->flags & SLAB_CACHE_EXT_SLAB)
     {
-        Slab_t* curFront = cache->partialSlabs;
-        curFront->prev = slab;
+        // Get control structure from cache
+        slab = MmCacheAlloc (&extSlabCache);
+        if (!slab)
+        {
+            MmFreeKvRegion (ptr);
+            return NULL;
+        }
     }
-    slab->next = cache->partialSlabs;
-    slab->prev = NULL;
-    cache->partialSlabs = slab;
+    else
+        slab = (Slab_t*) (ptr + (cache->slabSz << NEXKE_CPU_PAGE_SHIFT) - sizeof (Slab_t));
+    // Set up slab
+    NkListInit (&slab->freeList);
+    slab->magic = SLAB_MAGIC;
+    slab->numAvail = cache->maxObj;
+    slab->base = (uintptr_t) ptr;
+    slab->cache = cache;
+    // Set up list of free objects
+    for (int i = 0; i < slab->numAvail; ++i)
+    {
+        SlabBuf_t* cur = NULL;
+        void* curObj = ptr + (cache->objSz * i);
+        if (cache->flags & SLAB_CACHE_EXT_SLAB)
+            cur = MmCacheAlloc (&extBufCache);
+        else
+            cur = curObj;    // Buffers are stored with objects
+        cur->obj = curObj;
+        cur->slab = slab;
+        cur->link.next = NULL, cur->link.prev = NULL;
+        NkListAddBack (&slab->freeList, &cur->link);
+    }
+    // Add to list
+    NkListAddFront (&cache->partialSlabs, &slab->link);
+    ++cache->numPartial;
     return slab;
 }
 
@@ -122,108 +206,90 @@ static Slab_t* slabAllocSlab (SlabCache_t* cache)
 static void slabFreeSlab (SlabCache_t* cache, Slab_t* slab)
 {
     // Remove from cache
-    assert (slab->numAvail == slab->maxObj);
-    cache->emptySlabs = slab->next;
-    if (cache->emptySlabs)
-        cache->emptySlabs->prev = NULL;
+    assert (slab->numAvail == cache->maxObj);
+    NkListRemove (&cache->emptySlabs, &slab->link);
     --cache->numEmpty;
-    // Free frame to allocator
-    MmFreeKvPage (slab);
+    // Free frame
+    MmFreeKvRegion ((void*) slab->base);
 }
 
 // Allocates object in specified slab
-static inline void* slabAllocInSlab (Slab_t* slab)
+static FORCEINLINE void* slabAllocInSlab (SlabCache_t* cache, Slab_t* slab)
 {
     assert (slab->numAvail);
-    // Check in free list first, as the CPU's cache is more likely to
-    // recently freed objects still stored
-    void* ret = NULL;
-    if (slab->freeList)
-    {
-        assert (slab->numFreed);
-        ret = slab->freeList;
-        --slab->numFreed;
-        // Update free list
-        if (!slab->numFreed)
-            slab->freeList = NULL;    // List is now empty
-        else
-        {
-            // Grab next free object
-            void** nextFree = ret;
-            slab->freeList = *nextFree;
-        }
-    }
-    else
-    {
-        // Allocate from marker
-        ret = slab->allocMark;
-        slab->allocMark += slab->sz;
-        assert (slab->allocMark <= slab->slabEnd);
-    }
+    // Grab first buffer
+    NkLink_t* link = NkListPopFront (&slab->freeList);
+    SlabBuf_t* buf = LINK_CONTAINER (link, SlabBuf_t, link);
+    void* obj = buf->obj;
     --slab->numAvail;
-    return ret;
+    // Determine if we need to hash it
+    if (cache->flags & SLAB_CACHE_EXT_SLAB)
+        slabHashBuf (buf);
+    return obj;
 }
 
 // Frees object to slab
-static inline void slabFreeToSlab (Slab_t* slab, void* obj)
+static FORCEINLINE void slabFreeToSlab (SlabCache_t* cache, Slab_t* slab, void* obj)
 {
-    ++slab->numFreed;
+    // Create new buffer
+    SlabBuf_t* buf = NULL;
+    if (cache->flags & SLAB_CACHE_EXT_SLAB)
+    {
+        buf = slabGetHashedBuf (obj);
+        slabRemoveBuf (buf);
+    }
+    else
+        buf = (SlabBuf_t*) obj;
+    buf->obj = obj;
+    buf->slab = slab;
+    NkListAddFront (&slab->freeList, &buf->link);
     ++slab->numAvail;
-    // Create pointer
-    void** nextPtr = obj;
-    *nextPtr = slab->freeList;
-    // Put in list
-    slab->freeList = nextPtr;
-}
-
-// Moves slab to specified list
-static inline void slabMoveSlab (SlabCache_t* cache, Slab_t* slab, int newState)
-{
-    Slab_t** sourceList = NULL;
-    Slab_t** destList = NULL;
-    // Figure out source
-    if (slab->state == SLAB_STATE_EMPTY)
-        sourceList = &cache->emptySlabs;
-    else if (slab->state == SLAB_STATE_PARTIAL)
-        sourceList = &cache->partialSlabs;
-    else if (slab->state == SLAB_STATE_FULL)
-        sourceList = &cache->fullSlabs;
-    // Decide dest
-    if (newState == SLAB_STATE_EMPTY)
-        destList = &cache->emptySlabs;
-    else if (newState == SLAB_STATE_PARTIAL)
-        destList = &cache->partialSlabs;
-    else if (newState == SLAB_STATE_FULL)
-        destList = &cache->fullSlabs;
-    // Remove from list
-    if (slab->prev)
-        slab->prev->next = slab->next;
-    if (slab->next)
-        slab->next->prev = slab->prev;
-    if (slab == *sourceList)
-        *sourceList = slab->next;    // Set head if needed
-    // Add to head of destList
-    if (*destList)
-        (*destList)->prev = slab;
-    slab->next = *destList;
-    slab->prev = NULL;
-    *destList = slab;
-    slab->state = newState;
 }
 
 // Initializes a slab cache
-static inline void slabCacheCreate (SlabCache_t* cache,
-                                    size_t objSz,
-                                    SlabObjConstruct constuctor,
-                                    SlabObjDestruct destructor)
+static FORCEINLINE void slabCacheCreate (SlabCache_t* cache,
+                                         size_t objSz,
+                                         const char* name,
+                                         size_t align,
+                                         int flags)
 {
-    cache->constructor = constuctor;
-    cache->destructor = destructor;
-    cache->objSz = objSz;
-    cache->objAlign = slabRoundTo8 (objSz);
-    cache->emptySlabs = NULL, cache->partialSlabs = NULL, cache->fullSlabs = NULL;
-    cache->numEmpty = 0;
+    cache->name = name;
+    cache->align = (align) ? align : SLAB_ALIGN;
+    size_t sz = (objSz < minObjSz) ? minObjSz : objSz;
+    cache->objSz = slabAlignSz (sz, cache->align);
+    // Unset private flags
+    flags &= ~(SLAB_CACHE_EXT_SLAB);
+    cache->flags = flags;
+    // Determine size of one slab in pages
+    cache->slabSz = CpuPageAlignUp (objSz * SLAB_OBJ_MIN) >> NEXKE_CPU_PAGE_SHIFT;
+    // Figure out whether we should be internal or external
+    // We are always internal on objects less than 1K in size,
+    // for larger objects we are internal if the amount of wasted space
+    // in the slab is will fit it
+    if (cache->objSz >= 1024)
+    {
+        // Determine wheter we should be internal or external
+        // If the amount of wasted space is greater than the size of slab
+        // control structure, we are internal
+        size_t slabSz = cache->slabSz << NEXKE_CPU_PAGE_SHIFT;
+        size_t waste = slabSz % cache->objSz;
+        if (waste < sizeof (Slab_t))
+            cache->flags |= SLAB_CACHE_EXT_SLAB;    // Slab is external
+    }
+    // Set up lists
+    NkListInit (&cache->partialSlabs);
+    NkListInit (&cache->fullSlabs);
+    NkListInit (&cache->emptySlabs);
+    // Initialize stats
+    cache->numEmpty = 0, cache->numFull = 0, cache->numPartial = 0;
     cache->numObjs = 0;
+    // Determine max number of objects
+    if (cache->flags & SLAB_CACHE_EXT_SLAB)
+        cache->maxObj = (cache->slabSz << NEXKE_CPU_PAGE_SHIFT) / cache->objSz;
+    else
+        cache->maxObj = ((cache->slabSz << NEXKE_CPU_PAGE_SHIFT) - sizeof (Slab_t)) / cache->objSz;
+    // Add to list
+    NkListAddBack (&cacheList, &cache->link);
 }
 
 // Allocates an object from a cache
@@ -232,22 +298,29 @@ void* MmCacheAlloc (SlabCache_t* cache)
     CPU_ASSERT_NOT_INT();
     // Attempt to grab object from empty list
     void* ret = NULL;
-    if (cache->emptySlabs)
+    if (NkListFront (&cache->emptySlabs))
     {
-        Slab_t* emptySlab = cache->emptySlabs;
-        ret = slabAllocInSlab (emptySlab);
+        Slab_t* emptySlab = LINK_CONTAINER (NkListFront (&cache->emptySlabs), Slab_t, link);
+        ret = slabAllocInSlab (cache, emptySlab);
         // Slab is no longer empty, move to partial list
+        NkListRemove (&cache->emptySlabs, &emptySlab->link);
         --cache->numEmpty;
-        slabMoveSlab (cache, emptySlab, SLAB_STATE_PARTIAL);
+        NkListAddFront (&cache->partialSlabs, &emptySlab->link);
+        ++cache->numPartial;
     }
     // Now try partial slab
-    else if (cache->partialSlabs)
+    else if (NkListFront (&cache->partialSlabs))
     {
-        Slab_t* slab = cache->partialSlabs;
-        ret = slabAllocInSlab (slab);
+        Slab_t* slab = LINK_CONTAINER (NkListFront (&cache->partialSlabs), Slab_t, link);
+        ret = slabAllocInSlab (cache, slab);
         // If slab is full, move to full list
         if (slab->numAvail == 0)
-            slabMoveSlab (cache, slab, SLAB_STATE_FULL);
+        {
+            NkListRemove (&cache->partialSlabs, &slab->link);
+            --cache->numPartial;
+            NkListAddFront (&cache->fullSlabs, &slab->link);
+            ++cache->numFull;
+        }
     }
     else
     {
@@ -256,11 +329,8 @@ void* MmCacheAlloc (SlabCache_t* cache)
         if (!newSlab)
             return NULL;    // OOM
         // Slab is already in partial state and ready to go, allocate an obejct
-        ret = slabAllocInSlab (newSlab);
+        ret = slabAllocInSlab (cache, newSlab);
     }
-    // Now construct object
-    if (cache->constructor)
-        cache->constructor (ret);
     // Update stats
     ++cache->numObjs;
     return ret;    // We are done!
@@ -270,37 +340,43 @@ void* MmCacheAlloc (SlabCache_t* cache)
 void MmCacheFree (SlabCache_t* cache, void* obj)
 {
     CPU_ASSERT_NOT_INT();
-    // Destroy object
-    if (cache->destructor)
-        cache->destructor (obj);
     // Put object back in parent slab
-    Slab_t* slab = slabGetObjSlab (obj);
-    slabFreeToSlab (slab, obj);
-    // Check if slab is now empty
-    if (slab->numAvail == slab->maxObj)
+    Slab_t* slab = slabGetObjSlab (cache, obj);
+    if (slab->magic != SLAB_MAGIC)
+        NkPanic ("nexke: panic: slab corruption detected\n");
+    slabFreeToSlab (cache, slab, obj);
+    // See if it's gone from full to empty
+    if (slab->numAvail == 1)
     {
+        NkListRemove (&cache->fullSlabs, &slab->link);
+        --cache->numFull;
+        // Add to back since it will probably be added back to full list again
+        // Which could ultimatly cause thrashing if we continually allocate and free
+        // the same object
+        NkListAddBack (&cache->partialSlabs, &slab->link);
+    }
+    // Check if slab is now empty
+    else if (slab->numAvail == cache->maxObj)
+    {
+        NkListRemove (&cache->partialSlabs, &slab->link);
+        --cache->numPartial;
+        NkListAddFront (&cache->emptySlabs, &slab->link);
+        ++cache->numEmpty;
         if (cache->numEmpty >= SLAB_EMPTY_MAX)
             slabFreeSlab (cache, slab);    // Free this slab
-        else
-        {
-            slabMoveSlab (cache, slab, SLAB_STATE_EMPTY);    // Move this slab
-            ++cache->numEmpty;
-        }
     }
     --cache->numObjs;
 }
 
 // Creates a slab cache
-SlabCache_t* MmCacheCreate (size_t objSz, SlabObjConstruct constuctor, SlabObjDestruct destructor)
+SlabCache_t* MmCacheCreate (size_t objSz, const char* name, size_t align, int flags)
 {
     CPU_ASSERT_NOT_INT();
-    if (objSz >= NEXKE_CPU_PAGESZ)
-        return NULL;    // Can't allocate anything larger than that
     // Allocate cache from cache of caches
     SlabCache_t* newCache = MmCacheAlloc (&caches);
     if (!newCache)
         return NULL;
-    slabCacheCreate (newCache, objSz, constuctor, destructor);
+    slabCacheCreate (newCache, objSz, name, align, flags);
     return newCache;
 }
 
@@ -310,46 +386,65 @@ void MmCacheDestroy (SlabCache_t* cache)
     CPU_ASSERT_NOT_INT();
     // Ensure cache is empty
     if (cache->numObjs)
-    {
-        // TODO: panic
-        assert (0);
-    }
+        NkPanic ("nexke: panic: attempt to destroy non-empty cache\n");
     // Release all slabs
-    Slab_t* curSlab = cache->fullSlabs;
-    while (curSlab)
+    NkLink_t* iter = NkListFront (&cache->fullSlabs);
+    while (iter)
     {
-        Slab_t* slab = curSlab;
+        Slab_t* slab = LINK_CONTAINER (iter, Slab_t, link);
         slabFreeSlab (cache, slab);
-        curSlab = curSlab->next;
+        iter = NkListIterate (iter);
     }
-    curSlab = cache->partialSlabs;
-    while (curSlab)
+    iter = NkListFront (&cache->partialSlabs);
+    while (iter)
     {
-        Slab_t* slab = curSlab;
+        Slab_t* slab = LINK_CONTAINER (iter, Slab_t, link);
         slabFreeSlab (cache, slab);
-        curSlab = curSlab->next;
+        iter = NkListIterate (iter);
     }
-    curSlab = cache->emptySlabs;
-    while (curSlab)
+    iter = NkListFront (&cache->emptySlabs);
+    while (iter)
     {
-        Slab_t* slab = curSlab;
+        Slab_t* slab = LINK_CONTAINER (iter, Slab_t, link);
         slabFreeSlab (cache, slab);
-        curSlab = curSlab->next;
+        iter = NkListIterate (iter);
     }
+    // Remove from list
+    NkListRemove (&cacheList, &cache->link);
     // Free it from cache of caches
     MmCacheFree (&caches, cache);
-}
-
-// Returns cache of given pointer
-SlabCache_t* MmGetCacheFromPtr (void* ptr)
-{
-    Slab_t* slab = slabGetObjSlab (ptr);
-    return slab->cache;
 }
 
 // Bootstraps the slab allocator
 void MmSlabBootstrap()
 {
+    // Set globals
+    minObjSz = sizeof (SlabBuf_t);
     // Initialize cache of caches
-    slabCacheCreate (&caches, sizeof (SlabCache_t), NULL, NULL);
+    slabCacheCreate (&caches, sizeof (SlabCache_t), "SlabCache_t", 0, 0);
+    // Initialize cache of slabs
+    slabCacheCreate (&extSlabCache, sizeof (Slab_t), "Slab_t", 0, 0);
+    // Initialize caches of buffers
+    slabCacheCreate (&extBufCache, sizeof (SlabBuf_t), "SlabBuf_t", 0, 0);
+}
+
+// Dumps the state of the slab allocator
+void MmSlabDump()
+{
+    NkLink_t* cacheIter = NkListFront (&cacheList);
+    while (cacheIter)
+    {
+        SlabCache_t* cache = LINK_CONTAINER (cacheIter, SlabCache_t, link);
+        NkLogDebug ("cache name: %s, cache object size: %lu, cache aligment: %lu\n",
+                    cache->name,
+                    cache->objSz,
+                    cache->align);
+        NkLogDebug ("Number empty slabs: %d, number full slabs: %d, number partial slabs: "
+                    "%d, number of objects: %d\n\n",
+                    cache->numEmpty,
+                    cache->numFull,
+                    cache->numPartial,
+                    cache->numObjs);
+        cacheIter = NkListIterate (cacheIter);
+    }
 }

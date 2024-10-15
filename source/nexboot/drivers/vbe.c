@@ -309,7 +309,7 @@ static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, u
     // Map the framebuffer
     vbeMapBuffer (display, display->frontBuffer);
     // Map back buffer. We put it at the end of nexboot
-    display->backBuffer = (void*) NEXBOOT_BIOS_END;
+    display->backBuffer = (void*) NEXBOOT_BIOS_BACKBUF;
     display->backBufferLoc = display->backBuffer;
     vbeMapBuffer (display, display->backBuffer);
     // Set size
@@ -591,26 +591,6 @@ static bool VbeObjUnmapFb (void* objp, void* params)
     }
     display->frontBuffer = (void*) NEXBOOT_FB_BASE;
     return true;
-}
-
-extern uintptr_t curMemLocation;
-
-// Helper to get end of backbuffer area
-uintptr_t NbBiosGetBootEnd()
-{
-    if (!vbeEnabled)
-        return curMemLocation;
-    // FIXME: a couple of MiB of memory may be wasted here
-    else
-        return NEXBOOT_BIOS_END + NbPageAlignUp (backSize);
-}
-
-uintptr_t NbBiosGetIdealEnd()
-{
-    if (!vbeEnabled)
-        return NEXBOOT_BIOS_END;
-    else
-        return NEXBOOT_BIOS_END + NbPageAlignUp (backSize);
 }
 
 // Object interface

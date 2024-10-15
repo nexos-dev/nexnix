@@ -219,7 +219,7 @@ void NkInitTime()
     else
         nkLimitPrecision = platform->timer->precision;
     NkListInit (&CpuGetCcb()->timeEvents);    // Initialize list
-    nkEventCache = MmCacheCreate (sizeof (NkTimeEvent_t), NULL, NULL);
+    nkEventCache = MmCacheCreate (sizeof (NkTimeEvent_t), "NkTimeEvent_t", 0, 0);
     // Set callback
     platform->timer->setCallback (NkTimeHandler);
 }

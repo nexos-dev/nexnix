@@ -20,11 +20,11 @@
 #include <stdlib.h>
 
 // This is basically a power-of-two allocator
-// It has a slab cache for powers of two from 16 - 2048
+// It has a slab cache for powers of two from 16 - 8192
 // Even though power-of-two allocators aren't that great, they are simple
 // and this allocator isn't going to be used very much
 
-#define NUM_POWERS 8
+#define NUM_POWERS 10
 
 #define CACHE_SZ16   0
 #define CACHE_SZ32   1
@@ -34,6 +34,8 @@
 #define CACHE_SZ512  5
 #define CACHE_SZ1024 6
 #define CACHE_SZ2048 7
+#define CACHE_SZ4096 8
+#define CACHE_SZ8192 9
 
 // Array of slab caches
 static SlabCache_t* caches[NUM_POWERS] = {NULL};
@@ -44,14 +46,13 @@ void MmMallocInit()
     int curNum = 16;
     for (int i = 0; i < NUM_POWERS; ++i)
     {
-        caches[i] = MmCacheCreate (curNum, NULL, NULL);
+        caches[i] = MmCacheCreate (curNum, "malloc bucket", 0, 0);
         curNum *= 2;
     }
 }
 
-void* malloc (size_t sz)
+static inline SlabCache_t* mallocGetCache (size_t sz)
 {
-    // Figure out power of two we should use
     SlabCache_t* cache = NULL;
     if (sz <= 16)
         cache = caches[CACHE_SZ16];
@@ -69,14 +70,25 @@ void* malloc (size_t sz)
         cache = caches[CACHE_SZ1024];
     else if (sz <= 2048)
         cache = caches[CACHE_SZ2048];
+    else if (sz <= 4096)
+        cache = caches[CACHE_SZ4096];
+    else if (sz <= 8192)
+        cache = caches[CACHE_SZ8192];
     else
         NkPanic ("nexke: invalid size of %u to malloc", sz);
+    return cache;
+}
+
+void* kmalloc (size_t sz)
+{
+    // Figure out power of two we should use
+    SlabCache_t* cache = mallocGetCache (sz);
     return MmCacheAlloc (cache);
 }
 
-void free (void* ptr)
+void kfree (void* ptr, size_t sz)
 {
-    // Figure out which cache this pointer is in
-    SlabCache_t* cache = MmGetCacheFromPtr (ptr);
-    MmCacheFree (cache, ptr);
+    // Figure out power of two we should use
+    SlabCache_t* cache = mallocGetCache (sz);
+    return MmCacheFree (cache, ptr);
 }

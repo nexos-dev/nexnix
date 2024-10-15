@@ -49,6 +49,9 @@ uint64_t CpuReadCr2();
 #define NEXKE_PFNMAP_BASE 0xFFFFFFF000000000
 #define NEXKE_PFNMAP_MAX  (0xF00000000 - 0x10)
 
+// Max page levels
+#define MM_PTAB_MAX_LEVEL 5
+
 typedef uint64_t paddr_t;
 
 typedef struct _idtent

@@ -68,32 +68,37 @@ void NkLogMessage (const char* fmt, int level, va_list ap);
 
 // Slab related structures / functions
 
-// Constructor / destructor type
-typedef void (*SlabObjConstruct) (void* obj);    // Initialize obj
-typedef void (*SlabObjDestruct) (void* obj);     // Destroy obj
-
 typedef struct _slab Slab_t;
 
 // Slab cache
 typedef struct _slabcache
 {
+    // General info
+    const char* name;    // Name of this cache
+    int flags;           // Cache flags
     // Slab pointers
-    Slab_t* emptySlabs;      // Pointer to empty slabs
-    Slab_t* partialSlabs;    // Pointer to partial slabs
-    Slab_t* fullSlabs;       // Pointer to full slabs
+    NkList_t emptySlabs;      // Pointer to empty slabs
+    NkList_t partialSlabs;    // Pointer to partial slabs
+    NkList_t fullSlabs;       // Pointer to full slabs
     // Stats
-    int numEmpty;    // Number of empty slabs. Used to know when to free a slab to the PMM
-    int numObjs;     // Number of currently allocated objects in this cache
+    int numFull;       // Number of full slabs
+    int numPartial;    // Number of partial slabs
+    int numEmpty;      // Number of empty slabs. Used to know when to free a slab to the PMM
+    int numObjs;       // Number of currently allocated objects in this cache
     // Typing info
-    size_t objSz;       // Size of an object
-    size_t objAlign;    // Minimum alignment of object. This is the size rounded to nearest multiple
-                        // of 8
-    SlabObjConstruct constructor;    // Object constructor
-    SlabObjDestruct destructor;      // Object destructor
+    size_t objSz;     // Size of an object, aligned to an 8 byte boundary
+    size_t align;     // Alignment of each object. Defaults to 8
+    size_t maxObj;    // Max object in one slab
+    // Slab sizing
+    size_t slabSz;    // The size of one slab in pages
+    NkLink_t link;    // Link in cache list
 } SlabCache_t;
 
+#define SLAB_CACHE_EXT_SLAB    (1 << 0)
+#define SLAB_CACHE_DEMAND_PAGE (1 << 1)
+
 // Creates a new slab cache
-SlabCache_t* MmCacheCreate (size_t objSz, SlabObjConstruct constuctor, SlabObjDestruct destructor);
+SlabCache_t* MmCacheCreate (size_t objSz, const char* name, size_t align, int flags);
 
 // Destroys a slab cache
 void MmCacheDestroy (SlabCache_t* cache);
@@ -103,6 +108,14 @@ void* MmCacheAlloc (SlabCache_t* cache);
 
 // Frees an object back to slab cache
 void MmCacheFree (SlabCache_t* cache, void* obj);
+
+// Dumps the state of the slab allocator
+void MmSlabDump();
+
+// Malloc/free
+void* kmalloc (size_t sz);
+
+void kfree (void* ptr, size_t sz);
 
 // Timer interface
 

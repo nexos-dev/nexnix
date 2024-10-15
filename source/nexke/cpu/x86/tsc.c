@@ -22,7 +22,7 @@
 
 extern PltHwClock_t tscClock;
 
-static int tscDivisor = 0;    // Value to divide/multply by for beyond nanosec precision
+int tscDivisor = 0;    // Value to divide/multply by for beyond nanosec precision
 
 // Reads TSC
 static inline uint64_t cpuTscRead()
@@ -78,9 +78,9 @@ PltHwClock_t* CpuInitTscClock()
     PltHwClock_t* refClock = PltHpetInitClock();
     // Sample TSC once
     uint64_t start = cpuTscRead();
-    refClock->poll (PLT_NS_IN_SEC / 10);    // 100 ms
+    refClock->poll (PLT_NS_IN_SEC / 100);    // 10 ms
     uint64_t end = cpuTscRead();
-    uint64_t timeHz = (end - start) * 10;
+    uint64_t timeHz = (end - start) * 100;
     int precision = PLT_NS_IN_SEC / timeHz;
     if (!precision)
         ++precision;

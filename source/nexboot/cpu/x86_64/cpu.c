@@ -26,7 +26,7 @@ static void nbTraceStack()
 {
     // Get RBP
     uint64_t curFrame = 0;
-    asm volatile("mov %%rbp, %0" : "=r"(curFrame));
+    asm volatile ("mov %%rbp, %0" : "=r"(curFrame));
     if (printEarlyDisabled)
         NbLogMessage ("\nStack trace:\n", NEXBOOT_LOGLEVEL_DEBUG);
     else
@@ -50,37 +50,37 @@ void NbCrash()
 {
     nbTraceStack();
     //  Halt system
-    asm("cli; hlt");
+    asm ("cli; hlt");
 }
 
 void NbIoWait()
 {
-    asm("mov $0, %al; outb %al, $0x80");
+    asm ("mov $0, %al; outb %al, $0x80");
 }
 
 void NbOutb (uint16_t port, uint8_t val)
 {
-    NbIoWait();
-    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+    // NbIoWait();
+    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void NbOutw (uint16_t port, uint16_t val)
 {
     NbIoWait();
-    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
 void NbOutl (uint16_t port, uint32_t val)
 {
     NbIoWait();
-    asm volatile("outl %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
 }
 
 uint8_t NbInb (uint16_t port)
 {
     NbIoWait();
     uint8_t ret;
-    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -88,7 +88,7 @@ uint16_t NbInw (uint16_t port)
 {
     NbIoWait();
     uint16_t ret;
-    asm volatile("inw %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inw %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
@@ -96,61 +96,61 @@ uint32_t NbInl (uint16_t port)
 {
     NbIoWait();
     uint32_t ret;
-    asm volatile("inl %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile ("inl %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
 uint64_t NbReadCr0()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr0, %0" : "=a"(ret));
+    asm volatile ("mov %%cr0, %0" : "=a"(ret));
     return ret;
 }
 
 void NbWriteCr0 (uint64_t val)
 {
-    asm volatile("mov %0, %%cr0" : : "a"(val));
+    asm volatile ("mov %0, %%cr0" : : "a"(val));
 }
 
 uint64_t NbReadCr3()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr3, %0" : "=a"(ret));
+    asm volatile ("mov %%cr3, %0" : "=a"(ret));
     return ret;
 }
 
 void NbWriteCr3 (uint64_t val)
 {
-    asm volatile("mov %0, %%cr3" : : "a"(val));
+    asm volatile ("mov %0, %%cr3" : : "a"(val));
 }
 
 uint64_t NbReadCr4()
 {
     uint64_t ret = 0;
-    asm volatile("mov %%cr4, %0" : "=a"(ret));
+    asm volatile ("mov %%cr4, %0" : "=a"(ret));
     return ret;
 }
 
 void NbWriteCr4 (uint64_t val)
 {
-    asm volatile("mov %0, %%cr4" : : "a"(val));
+    asm volatile ("mov %0, %%cr4" : : "a"(val));
 }
 
 void NbWrmsr (uint32_t msr, uint64_t val)
 {
-    asm volatile("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
+    asm volatile ("wrmsr" : : "c"(msr), "a"((uint32_t) val), "d"((uint32_t) (val >> 32ULL)));
 }
 
 uint64_t NbRdmsr (uint32_t msr)
 {
     uint32_t ax, dx;
-    asm volatile("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
+    asm volatile ("rdmsr" : "=a"(ax), "=d"(dx) : "c"(msr));
     return ax | ((uint64_t) dx << 32);
 }
 
 void NbInvlpg (uintptr_t addr)
 {
-    asm volatile("invlpg (%0)" : : "r"(addr) : "memory");
+    asm volatile ("invlpg (%0)" : : "r"(addr) : "memory");
 }
 
 void nbCpuAsmLaunch (uintptr_t stack, uintptr_t entry, uintptr_t bootInf);

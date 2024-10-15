@@ -111,7 +111,8 @@ static inline NkLink_t* NkListPopFront (NkList_t* list)
     assert (list->head);
     NkLink_t* ret = list->head;
     list->head = ret->next;
-    list->head->prev = NULL;
+    if (list->head)
+        list->head->prev = NULL;
     return ret;
 }
 

@@ -98,7 +98,7 @@ void NkLogInit()
     }
     loglevel = atoi (logLevelStr);
     // Create a log entry cache
-    logCache = MmCacheCreate (sizeof (NkLogEntry_t), NULL, NULL);
+    logCache = MmCacheCreate (sizeof (NkLogEntry_t), "NkLogEntry_t", 0, 0);
     // Validate loglevel
     if (loglevel == 0)
     {

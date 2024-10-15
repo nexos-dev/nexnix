@@ -175,9 +175,9 @@ bool PltMpsDetectCpus()
     if (!NkVerifyChecksum ((uint8_t*) mpTable, sizeof (PltMpTable_t)))
         return false;
     // Create caches
-    cpuCache = MmCacheCreate (sizeof (PltCpu_t), NULL, NULL);
-    intCache = MmCacheCreate (sizeof (PltIntOverride_t), NULL, NULL);
-    intCtlCache = MmCacheCreate (sizeof (PltIntCtrl_t), NULL, NULL);
+    cpuCache = MmCacheCreate (sizeof (PltCpu_t), "PltCpu_t", 0, 0);
+    intCache = MmCacheCreate (sizeof (PltIntOverride_t), "PltIntOverride_t", 0, 0);
+    intCtlCache = MmCacheCreate (sizeof (PltIntCtrl_t), "PltIntCtrl_t", 0, 0);
     // Check IMCR
     if (mpTable->features & PLT_MP_FEAT_IMCRP)
     {
