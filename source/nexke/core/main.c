@@ -104,6 +104,8 @@ void NkMain (NexNixBoot_t* bootinf)
 NexNix version %s\n\
 Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
+    // Initialize resource manager
+    NkInitResource();
     // Initialize CCB
     CpuInitCcb();
     // Initialize phase 2 of platform
@@ -114,8 +116,6 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    void* p = kmalloc (5002);
-    kfree (p, 5002);
     MmSlabDump();
     for (;;)
         ;

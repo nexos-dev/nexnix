@@ -33,9 +33,8 @@ static CpuSegDesc_t cpuGdt[CPU_GDT_MAX] = {0};
 // The IDT
 static CpuIdtEntry_t cpuIdt[CPU_IDT_MAX] = {0};
 
-// Free list of segments
-static CpuFreeSeg_t* cpuSegFreeList = NULL;
-static SlabCache_t* cpuSegCache = NULL;
+// Segment resource
+static NkResArena_t* cpuSegs = NULL;
 
 // Sets up a GDT gate
 static void cpuSetGdtGate (CpuSegDesc_t* desc,
@@ -62,19 +61,10 @@ static void cpuSetGdtGate (CpuSegDesc_t* desc,
 // Allocates a segment for a TSS. Returns segment number
 int CpuAllocSeg (uintptr_t base, uintptr_t limit, int dpl)
 {
-    // Grab segment from free list
-    CpuFreeSeg_t* seg = cpuSegFreeList;
-    if (!seg)
-    {
-        // System is out of segments
-        return 0;
-    }
-    cpuSegFreeList = seg->next;
+    // Allocate a segment ID
+    int segNum = NkAllocResource (cpuSegs);
     // Set up gate
-    cpuSetGdtGate (&cpuGdt[seg->segNum], base, limit, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, dpl, 0);
-    // Free segment data structure
-    int segNum = seg->segNum;
-    MmCacheFree (cpuSegCache, seg);
+    cpuSetGdtGate (&cpuGdt[segNum], base, limit, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, dpl, 0);
     return segNum;
 }
 
@@ -82,19 +72,16 @@ int CpuAllocSeg (uintptr_t base, uintptr_t limit, int dpl)
 void CpuFreeSeg (int segNum)
 {
     memset (&cpuGdt[segNum], 0, sizeof (CpuSegDesc_t));
-    // Put on free list
-    CpuFreeSeg_t* freeSeg = MmCacheAlloc (cpuSegCache);
-    freeSeg->segNum = segNum;
-    freeSeg->next = cpuSegFreeList;
-    cpuSegFreeList = freeSeg;
+    // Free it
+    NkFreeResource (cpuSegs, segNum);
 }
 
 // Sets up GDT
 static void cpuInitGdt()
 {
-    // Set up segment free list
-    cpuSegCache = MmCacheCreate (sizeof (CpuFreeSeg_t), "CpuFreeSeg_t", 0, 0);
-    assert (cpuSegCache);
+    // Set up segment resource
+    cpuSegs = NkCreateResource ("CpuSeg", 5, 8192 - 1);
+    assert (cpuSegs);
     // Set up null segment
     cpuSetGdtGate (&cpuGdt[0], 0, 0, 0, 0, 0);
     // Set up kernel code
@@ -118,15 +105,6 @@ static void cpuInitGdt()
     // Load new GDT into CPU
     CpuTabPtr_t gdtr = {.base = (uintptr_t) cpuGdt, .limit = (CPU_GDT_MAX * 8) - 1};
     CpuFlushGdt (&gdtr);
-    // Prepare free list
-    for (int i = 6; i < CPU_GDT_MAX; ++i)
-    {
-        // Prepare a free segment struct
-        CpuFreeSeg_t* freeSeg = MmCacheAlloc (cpuSegCache);
-        freeSeg->segNum = i;
-        freeSeg->next = cpuSegFreeList;
-        cpuSegFreeList = freeSeg;
-    }
 }
 
 // Sets up IDT gate

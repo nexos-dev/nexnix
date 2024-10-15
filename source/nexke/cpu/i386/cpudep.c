@@ -35,10 +35,8 @@ static CpuIdtEntry_t cpuIdt[CPU_IDT_MAX];
 // Double fault TSS
 static CpuTss_t cpuDfaultTss = {0};
 
-// Free list of segments
-static CpuFreeSeg_t* cpuSegFreeList = NULL;
-static int cpuSegPlace = 6;
-static SlabCache_t* cpuSegCache = NULL;
+// Segment resource
+static NkResArena_t* cpuSegs = NULL;
 
 // Sets up a GDT gate
 static void cpuSetGdtGate (CpuSegDesc_t* desc,
@@ -80,9 +78,9 @@ static void cpuSetIdtGate (CpuIdtEntry_t* gate,
 // Sets up GDT
 static void cpuInitGdt()
 {
-    // Set up segment free list
-    cpuSegCache = MmCacheCreate (sizeof (CpuFreeSeg_t), "CpuFreeSeg_t", 0, 0);
-    assert (cpuSegCache);
+    // Set up segment resource
+    cpuSegs = NkCreateResource ("CpuSeg", 5, 8192 - 1);
+    assert (cpuSegs);
     // Set up null segment
     cpuSetGdtGate (&cpuGdt[0], 0, 0, 0, 0, 0);
     // Set up kernel code
@@ -145,27 +143,8 @@ static void cpuInitIdt()
 // Allocates a segment for a data structure. Returns segment number
 int CpuAllocSeg (uintptr_t base, uintptr_t limit, int dpl)
 {
-    // Grab segment from free list, if one isn't available try placement allocator
-    int segNum = 0;
-    CpuFreeSeg_t* seg = cpuSegFreeList;
-    if (!seg)
-    {
-        // Check placement allocator
-        if (cpuSegPlace < CPU_GDT_MAX)
-        {
-            segNum = cpuSegPlace;
-            ++cpuSegPlace;
-        }
-        else
-            return 0;    // Failure
-    }
-    else
-    {
-        cpuSegFreeList = seg->next;
-        // Free segment data structure
-        segNum = seg->segNum;
-        MmCacheFree (cpuSegCache, seg);
-    }
+    // Allocate a segment ID
+    int segNum = NkAllocResource (cpuSegs);
     // Set up gate
     cpuSetGdtGate (&cpuGdt[segNum], base, limit, CPU_SEG_WRITABLE | CPU_SEG_NON_SYS, dpl, 0);
     return segNum;
@@ -175,11 +154,8 @@ int CpuAllocSeg (uintptr_t base, uintptr_t limit, int dpl)
 void CpuFreeSeg (int segNum)
 {
     memset (&cpuGdt[segNum], 0, sizeof (CpuSegDesc_t));
-    // Put on free list
-    CpuFreeSeg_t* freeSeg = MmCacheAlloc (cpuSegCache);
-    freeSeg->segNum = segNum;
-    freeSeg->next = cpuSegFreeList;
-    cpuSegFreeList = freeSeg;
+    // Free it
+    NkFreeResource (cpuSegs, segNum);
 }
 
 // Prepares CCB data structure

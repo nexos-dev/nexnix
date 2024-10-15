@@ -152,4 +152,35 @@ NkTimeEvent_t* NkTimeNewEvent();
 // Frees a timer event
 void NkTimeFreeEvent (NkTimeEvent_t* event);
 
+// Resource interface
+
+// Hash table of chunks size
+#define NK_NUM_CHUNK_HASH 256
+
+typedef struct _resarena
+{
+    const char* name;                         // Name of arena
+    NkList_t chunks;                          // List of chunks in this arena
+    size_t numChunks;                         // Number of chunks
+    id_t minId;                               // Minimum ID
+    id_t maxId;                               // The max resource ID that can come out of here
+    NkList_t chunkHash[NK_NUM_CHUNK_HASH];    // hash table of chunks
+    NkLink_t link;                            // Link in arena list
+} NkResArena_t;
+
+// Creates a resource arena
+NkResArena_t* NkCreateResource (const char* name, id_t minId, id_t maxId);
+
+// Destroys a resource arena
+void NkDestroyResource (NkResArena_t* arena);
+
+// Allocates a resource
+id_t NkAllocResource (NkResArena_t* arena);
+
+// Frees a resource
+void NkFreeResource (NkResArena_t* arena, id_t res);
+
+// Initializes resource system
+void NkInitResource();
+
 #endif

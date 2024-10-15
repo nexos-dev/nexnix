@@ -263,19 +263,9 @@ static FORCEINLINE void slabCacheCreate (SlabCache_t* cache,
     // Determine size of one slab in pages
     cache->slabSz = CpuPageAlignUp (objSz * SLAB_OBJ_MIN) >> NEXKE_CPU_PAGE_SHIFT;
     // Figure out whether we should be internal or external
-    // We are always internal on objects less than 1K in size,
-    // for larger objects we are internal if the amount of wasted space
-    // in the slab is will fit it
-    if (cache->objSz >= 1024)
-    {
-        // Determine wheter we should be internal or external
-        // If the amount of wasted space is greater than the size of slab
-        // control structure, we are internal
-        size_t slabSz = cache->slabSz << NEXKE_CPU_PAGE_SHIFT;
-        size_t waste = slabSz % cache->objSz;
-        if (waste < sizeof (Slab_t))
-            cache->flags |= SLAB_CACHE_EXT_SLAB;    // Slab is external
-    }
+    // For one page slabs, internal, anything more, external
+    if (cache->slabSz > 1)
+        cache->flags |= SLAB_CACHE_EXT_SLAB;
     // Set up lists
     NkListInit (&cache->partialSlabs);
     NkListInit (&cache->fullSlabs);

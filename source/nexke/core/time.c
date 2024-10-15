@@ -26,9 +26,6 @@ static NkPlatform_t* platform = NULL;
 // Event cache
 static SlabCache_t* nkEventCache = NULL;
 
-// Precision limiting factor
-static uint64_t nkLimitPrecision = 0;
-
 // Allocates a timer event
 NkTimeEvent_t* NkTimeNewEvent()
 {
@@ -213,11 +210,6 @@ void NkInitTime()
 {
     NkLogDebug ("nexke: intializing timer\n");
     platform = PltGetPlatform();
-    // Set limiting precision
-    if (platform->clock->precision > platform->timer->precision)
-        nkLimitPrecision = platform->clock->precision;
-    else
-        nkLimitPrecision = platform->timer->precision;
     NkListInit (&CpuGetCcb()->timeEvents);    // Initialize list
     nkEventCache = MmCacheCreate (sizeof (NkTimeEvent_t), "NkTimeEvent_t", 0, 0);
     // Set callback
