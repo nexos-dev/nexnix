@@ -43,11 +43,18 @@ static void TskIdleThread (void*)
 // otherwise, its added to the tail
 static FORCEINLINE void tskReadyThread (NkCcb_t* ccb, NkThread_t* thread)
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
+    // Reset quantum of thread
+    thread->quantaLeft = thread->quantum;
     thread->state = TSK_THREAD_READY;
     if (thread->preempted)
     {
         thread->preempted = false;    // Reset flag as preemption doesn't matter anymore
-        NkListAddFront (&ccb->readyQueue, &thread->link);
+        // Only add to front if this wasn't due to quantum expirt
+        if (thread->quantaLeft == 0)
+            NkListAddBack (&ccb->readyQueue, &thread->link);
+        else
+            NkListAddFront (&ccb->readyQueue, &thread->link);
     }
     else
     {
@@ -58,6 +65,7 @@ static FORCEINLINE void tskReadyThread (NkCcb_t* ccb, NkThread_t* thread)
 // Hook to prepare thread to stop running and let another thread run
 static FORCEINLINE void tskStopThread (NkCcb_t* ccb, NkThread_t* thread)
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
     // Figure out state
     if (thread->state == TSK_THREAD_RUNNING)
         tskReadyThread (ccb, thread);    // Admit it to run queue
@@ -69,6 +77,7 @@ static FORCEINLINE void tskStopThread (NkCcb_t* ccb, NkThread_t* thread)
 // NOTE: call with interrupts disabled
 static FORCEINLINE void tskSetCurrentThread (NkCcb_t* ccb, NkThread_t* thread)
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
     // Get current thread
     NkThread_t* oldThread = ccb->curThread;
     assert (oldThread);
@@ -93,6 +102,7 @@ static FORCEINLINE void tskSetCurrentThread (NkCcb_t* ccb, NkThread_t* thread)
 // NOTE: interrupt unsafe, call with IPL raised
 static FORCEINLINE void tskSchedule (NkCcb_t* ccb)
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
     // Assertion to make sure that preemption occurs in TskPreempt
     assert (ccb->preemptDisable ? ccb->curThread->state != TSK_THREAD_RUNNING : 1);
     // Grab next thread and current thread
@@ -119,6 +129,8 @@ void __attribute__ ((noreturn)) TskSetInitialThread (NkThread_t* thread)
     thread->state = TSK_THREAD_RUNNING;
     // Set last schedule time
     thread->lastSchedule = clock->getTime();
+    // Set quanta left
+    thread->quantaLeft = thread->quantum;
     // Set as current
     ccb->curThread = thread;
     CpuContext_t* fakeCtx = NULL;    // Fake context pointer
@@ -130,6 +142,7 @@ void __attribute__ ((noreturn)) TskSetInitialThread (NkThread_t* thread)
 // Preempts current thread
 void TskPreempt()
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
     NkCcb_t* ccb = CpuGetCcb();
     NkThread_t* curThread = ccb->curThread;
     curThread->preempted = true;
@@ -164,6 +177,7 @@ void TskEnablePreempt()
 // Blocks current thread
 void TskBlockThread()
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
     // Get CCB
     NkCcb_t* ccb = CpuGetCcb();
     NkThread_t* curThread = ccb->curThread;
@@ -174,6 +188,7 @@ void TskBlockThread()
 // Unblocks a thread
 void TskUnblockThread (NkThread_t* thread)
 {
+    assert (PltGetIpl() == PLT_IPL_HIGH);
     // Get CCB
     NkCcb_t* ccb = CpuGetCcb();
     // If ready queue is empty, we preempt
@@ -209,6 +224,23 @@ void TskSchedule()
     tskSchedule (CpuGetCcb());
 }
 
+// Time slice handler
+static void TskTimeSlice (NkTimeEvent_t* evt, void* arg)
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    // Get current thread
+    NkCcb_t* ccb = CpuGetCcb();
+    NkThread_t* curThread = ccb->curThread;
+    // Check for quantum expiry
+    if (curThread->quantaLeft == 0)
+        TskPreempt();    // Mark it for preemption
+    else
+        --curThread->quantaLeft;
+    // Re-register it
+    NkTimeRegEvent (evt, TSK_TIMESLICE_DELTA, TskTimeSlice, NULL);
+    PltLowerIpl (ipl);
+}
+
 // Initializes scheduler
 void TskInitSched()
 {
@@ -218,4 +250,8 @@ void TskInitSched()
     assert (ccb->idleThread);
     // Get clock
     clock = PltGetPlatform()->clock;
+    // Set initial time slicing event
+    NkTimeEvent_t* timeEvt = NkTimeNewEvent();
+    assert (timeEvt);
+    NkTimeRegEvent (timeEvt, TSK_TIMESLICE_DELTA, TskTimeSlice, NULL);
 }

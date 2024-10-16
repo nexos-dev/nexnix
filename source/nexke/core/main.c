@@ -102,15 +102,17 @@ void NkMain (NexNixBoot_t* bootinf)
     PltInitDrvs();
     // Initialize log
     NkLogInit();
+    // Initialize resource manager
+    NkInitResource();
+    // Initialize CCB
+    CpuInitCcb();
     // Print banner
     NkLogInfo ("\
 NexNix version %s\n\
 Copyright (C) 2023 - 2024 The Nexware Project\n",
                NEXNIX_VERSION);
-    // Initialize resource manager
-    NkInitResource();
-    // Initialize CCB
-    CpuInitCcb();
+    // Log CPU specs
+    CpuPrintFeatures();
     // Initialize phase 2 of platform
     PltInitPhase2();
     // Initialize MM phase 2
@@ -132,22 +134,17 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
 
 void t1 (void*)
 {
-    NkLogDebug ("got here 2\n");
-    TskBlockThread();
-    NkLogDebug ("got here 2");
     for (;;)
-        ;
+        NkLogDebug ("got here 2\n");
 }
 
 // Kernel initial thread
 static void NkInitialThread (void*)
 {
     NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     TskReadyThread (th1);
-    NkLogDebug ("got here 1\n");
-    TskSchedule();
-    NkLogDebug ("got here 1\n");
-    TskUnblockThread (th1);
+    PltLowerIpl (ipl);
     for (;;)
-        ;
+        NkLogDebug ("got here 1\n");
 }

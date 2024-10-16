@@ -146,6 +146,12 @@ ipl_t PltRaiseIpl (ipl_t newIpl);
 // Lowers IPL back to level
 void PltLowerIpl (ipl_t oldIpl);
 
+// Gets current IPL
+static inline ipl_t PltGetIpl()
+{
+    return CpuGetCcb()->curIpl;
+}
+
 // Initializes interrupt system
 void PltInitInterrupts();
 

@@ -307,7 +307,7 @@ ipl_t PltRaiseIpl (ipl_t newIpl)
 {
     CpuDisable();    // For safety
     NkCcb_t* ccb = CpuGetCcb();
-    if (ccb->curIpl >= newIpl)
+    if (ccb->curIpl > newIpl)
         NkPanic ("nexke: invalid IPL to raise to");
     ipl_t oldIpl = ccb->curIpl;
     ccb->curIpl = newIpl;    // Set IPL
@@ -325,7 +325,7 @@ void PltLowerIpl (ipl_t oldIpl)
 {
     CpuDisable();    // For safety
     NkCcb_t* ccb = CpuGetCcb();
-    if (ccb->curIpl <= oldIpl)
+    if (ccb->curIpl < oldIpl)
         NkPanic ("nexke: Invalid IPL to lower to");
     if (ccb->curIpl == PLT_IPL_HIGH)
         CpuEnable();         // Make sure the int disable counter is correct
@@ -405,7 +405,13 @@ void PltTrapDispatch (CpuIntContext_t* context)
     }
     else if (intObj->type == PLT_INT_HWINT)
     {
+        // Disable preemption if needed
+        bool preemptSet = ccb->preemptDisable;
+        if (!preemptSet)
+            TskDisablePreempt();
         ccb->intActive = true;
+        // Re-enable interrupts
+        CpuEnable();
         //  Check if this interrupt is spurious
         if (!platform->intCtrl->beginInterrupt (ccb, CPU_CTX_INTNUM (context)))
         {
@@ -414,8 +420,6 @@ void PltTrapDispatch (CpuIntContext_t* context)
         }
         else
         {
-            // Re-enable interrupts
-            CpuEnable();
             // Handle
             ++intObj->callCount;
             // Loop over the entire chain, trying to find a interrupt that can handle it
@@ -431,11 +435,13 @@ void PltTrapDispatch (CpuIntContext_t* context)
                 curInt = LINK_CONTAINER (iter, NkHwInterrupt_t, link);
             }
             ccb->curIpl = oldIpl;    // Restore IPL
-            CpuDisable();
             // End the interrupt
             platform->intCtrl->endInterrupt (ccb, CPU_CTX_INTNUM (context));
         }
         ccb->intActive = false;
+        // Make sure ints are enabled
+        if (!preemptSet)
+            TskEnablePreempt();    // Re-enable preemption
     }
     else
         assert (!"Invalid interrupt type");

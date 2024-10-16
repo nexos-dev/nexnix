@@ -57,8 +57,6 @@ static ktime_t NkTimeDeltaToDeadline (ktime_t* delta)
 // Registers a time event
 void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callback, void* arg)
 {
-    if (event->inUse)
-        return;    // Don't register a in use event
     // Setup event
     event->arg = arg;
     event->callback = callback;
@@ -97,7 +95,7 @@ void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callbac
     // If this event is in the front, then we need to arm the timer
     // NOTE: this is only true if we are not using a software timer.
     // In that case, we have no need to arm anything
-    if (&event->link == NkListFront (&ccb->timeEvents))
+    if (&event->link == NkListFront (&ccb->timeEvents) && !event->inUse)
     {
         // Arm timer if needed
         if (platform->timer->type != PLT_TIMER_SOFT)
@@ -163,6 +161,7 @@ static void NkTimeHandler()
             iter = NkListIterate (iter);    // To next one
             NkListRemove (list, oldIter);
             event->callback (event, event->arg);
+            event->inUse = false;
             event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
         }
     }
@@ -179,6 +178,7 @@ static void NkTimeHandler()
             iter = NkListIterate (iter);    // To next one
             NkListRemove (list, oldIter);
             event->callback (event, event->arg);
+            event->inUse = false;
             event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
         }
         // Arm the next event

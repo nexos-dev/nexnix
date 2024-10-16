@@ -27,6 +27,17 @@ static NkThread_t* nkThreadTable[NEXKE_MAX_THREAD] = {0};
 static SlabCache_t* nkThreadCache = NULL;
 static NkResArena_t* nkThreadRes = NULL;
 
+// Standard thread entry point
+static void TskThreadEntry()
+{
+    // Get the thread structure
+    NkThread_t* thread = CpuGetCcb()->curThread;
+    // Make IPL is at low level
+    PltLowerIpl (PLT_IPL_LOW);
+    // Executte entry
+    thread->entry (thread->arg);
+}
+
 // Creates a new thread object
 NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name)
 {
@@ -47,7 +58,7 @@ NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name)
     thread->entry = entry;
     thread->tid = tid;
     // Initialize CPU specific context
-    thread->context = CpuAllocContext ((uintptr_t) entry);
+    thread->context = CpuAllocContext ((uintptr_t) TskThreadEntry);
     if (!thread->context)
     {
         // Failure
@@ -55,6 +66,9 @@ NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name)
         MmCacheFree (nkThreadCache, thread);
         return NULL;
     }
+    // Setup scheduling info
+    thread->state = TSK_THREAD_CREATED;
+    thread->quantum = TSK_TIMESLICE_LEN;
     // Add to table
     nkThreadTable[tid] = thread;
     return thread;

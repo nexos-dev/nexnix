@@ -168,7 +168,6 @@ void CpuFreeSeg (int segNum)
 // Prepares CCB data structure
 void CpuInitCcb()
 {
-    NkLogDebug ("nexke: setting up BSP CCB\n");
     memset (&ccb, 0, sizeof (NkCcb_t));
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
@@ -264,8 +263,6 @@ void CpuInitCcb()
             CpuWrmsr (CPU_EFER_MSR, efer);
         }
     }
-    // Log CPU specs
-    CpuPrintFeatures();
 }
 
 // Gets feature bits

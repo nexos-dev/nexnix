@@ -35,8 +35,8 @@ typedef struct _thread
     int priority;        // Priority of this thread
     int state;           // State of this thread
     // Quantum info
-    int quntaLeft;    // Quantum ticks left
-    int quantum;      // Quantum assigned to thread
+    int quantaLeft;    // Quantum ticks left
+    int quantum;       // Quantum assigned to thread
     // CPU specific thread info
     CpuContext_t* context;    // Context of this thread
     CpuThread_t cpuThread;    // More CPU info
@@ -54,6 +54,7 @@ typedef struct _thread
 #define TSK_THREAD_READY   0
 #define TSK_THREAD_RUNNING 1
 #define TSK_THREAD_WAITING 2
+#define TSK_THREAD_CREATED 3
 
 // Maybe this should be bigger
 #define NEXKE_MAX_THREAD 8192
@@ -105,5 +106,13 @@ void TskEnablePreempt();
 
 // Gets current thread
 NkThread_t* TskGetCurrentThread();
+
+// Quantum stuff
+
+// Time slicer operating delta (in ns)
+#define TSK_TIMESLICE_DELTA 10000000
+
+// Default time slice length (in time slicer ticks)
+#define TSK_TIMESLICE_LEN 6    // equals 60 ms
 
 #endif
