@@ -52,6 +52,7 @@ CpuTrapTable:
 %endrep
 
 %define CPU_KDATA 0x10
+%define CPU_CCB 0x28
 
 extern PltTrapDispatch
 ; Common trap handler
@@ -62,6 +63,8 @@ CpuTrapCommon:
     mov ax, CPU_KDATA    ; Set kernel data segment
     mov ds, ax
     mov es, ax
+    mov ax, CPU_CCB
+    mov gs, ax          ; Set CCB segment
     xor ebp, ebp            ; Set up zeroed frame
     push esp                ; Push context structure
     call PltTrapDispatch    ; Call trap dispatcher

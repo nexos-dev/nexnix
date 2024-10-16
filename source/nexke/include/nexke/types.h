@@ -30,6 +30,7 @@ typedef struct _memobject MmObject_t;
 
 typedef int ipl_t;
 typedef int id_t;
+typedef unsigned long long ktime_t;
 
 #define FORCEINLINE inline __attribute__ ((always_inline))
 

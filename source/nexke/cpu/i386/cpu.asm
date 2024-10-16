@@ -29,8 +29,10 @@ CpuFlushGdt:
     mov ds, ax
     mov es, ax
     mov fs, ax
-    mov gs, ax
     mov ss, ax
+    ; Set GS
+    mov ax, 0x28
+    mov gs, ax
     jmp 0x08:.flushCs
 .flushCs:
     pop ebp

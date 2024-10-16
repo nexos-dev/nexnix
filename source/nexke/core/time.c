@@ -40,11 +40,11 @@ void NkTimeFreeEvent (NkTimeEvent_t* event)
 }
 
 // Converts a delta to a deadline
-static uint64_t NkTimeDeltaToDeadline (uint64_t* delta)
+static ktime_t NkTimeDeltaToDeadline (ktime_t* delta)
 {
     // Get ref tick
-    uint64_t refTick = platform->clock->getTime();
-    uint64_t deadline = refTick + *delta;
+    ktime_t refTick = platform->clock->getTime();
+    ktime_t deadline = refTick + *delta;
     // If deadline equals ref tick (i.e., delta is 0) increase it by one tick
     if (refTick == deadline)
     {
@@ -55,7 +55,7 @@ static uint64_t NkTimeDeltaToDeadline (uint64_t* delta)
 }
 
 // Registers a time event
-void NkTimeRegEvent (NkTimeEvent_t* event, uint64_t delta, NkTimeCallback callback, void* arg)
+void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callback, void* arg)
 {
     if (event->inUse)
         return;    // Don't register a in use event
@@ -129,7 +129,7 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
         // Now we need to re-arm the timer
         if (platform->timer->type != PLT_TIMER_SOFT)
         {
-            uint64_t deadline = event->deadline;
+            ktime_t deadline = event->deadline;
             int64_t delta = deadline - platform->clock->getTime();
             if (delta < 0)
             {
@@ -171,7 +171,7 @@ static void NkTimeHandler()
         if (!iter)
             return;    // Return. no timer expired. Or assert maybe?
         // We know a timer (or multiple) has/have expired, execute each cb
-        uint64_t tick = event->deadline;
+        ktime_t tick = event->deadline;
         while (iter && tick == event->deadline)
         {
             // Event has expired, remove from list and call handler
@@ -198,7 +198,7 @@ static void NkTimeHandler()
 }
 
 // Polls
-void NkPoll (uint64_t time)
+void NkPoll (ktime_t time)
 {
     ipl_t ipl = PltRaiseIpl (PLT_IPL_TIMER);
     platform->clock->poll (time);

@@ -64,7 +64,7 @@ static void PltPitSetCallback (void (*cb)())
 }
 
 // Arms timer to delta
-static void PltPitArmTimer (uint64_t delta)
+static void PltPitArmTimer (ktime_t delta)
 {
     if (pitPvt.armCount)
         pitPvt.armCount = 0, pitPvt.finalArm = 0;
@@ -121,15 +121,15 @@ static bool PltPitDispatch (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 }
 
 // Gets current PIT time
-static uint64_t PltPitGetTime()
+static ktime_t PltPitGetTime()
 {
     return pitClock.internalCount;
 }
 
 // Polls for a amount of time
-static void PltPitPoll (uint64_t time)
+static void PltPitPoll (ktime_t time)
 {
-    uint32_t target = time + pitClock.internalCount;
+    ktime_t target = time + pitClock.internalCount;
     while (pitClock.internalCount < target)
         ;
 }

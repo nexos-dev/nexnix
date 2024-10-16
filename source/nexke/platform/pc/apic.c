@@ -576,7 +576,7 @@ static void pltApicSetCallback (void (*cb)())
     pltApicTimer.callback = cb;
 }
 
-static void pltApicArmTimer (uint64_t delta)
+static void pltApicArmTimer (ktime_t delta)
 {
     if (armCount)
         armCount = 0, finalArm = 0;
@@ -585,7 +585,7 @@ static void pltApicArmTimer (uint64_t delta)
     if (!delta)
         ++delta;
     // Make sure we are in the max interval
-    uint64_t maxInterval = pltApicTimer.maxInterval / pltApicTimer.precision;
+    ktime_t maxInterval = pltApicTimer.maxInterval / pltApicTimer.precision;
     if (delta > maxInterval)
     {
         // Figure out the number of arms we will need to do

@@ -20,6 +20,7 @@
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/task.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -80,14 +81,7 @@ bool NkVerifyChecksum (uint8_t* buf, size_t len)
     return !sum;
 }
 
-CpuContext_t* oldCtx = NULL;
-CpuContext_t* ctx = NULL;
-
-void t()
-{
-    NkLogDebug ("got here\n");
-    CpuSwitchContext (oldCtx, &ctx);
-}
+static void NkInitialThread (void*);
 
 void NkMain (NexNixBoot_t* bootinf)
 {
@@ -125,9 +119,56 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    ctx = CpuAllocContext (t);
-    CpuSwitchContext (ctx, &oldCtx);
-    CpuDestroyContext (ctx);
+    // Initialize multitasking
+    TskInitSys();
+    // Create initial thread
+    NkThread_t* initThread = TskCreateThread (NkInitialThread, NULL, "NkInitialThread");
+    assert (initThread);
+    // Set it as the current thread and then we are done
+    TskSetInitialThread (initThread);
+    // UNREACHABLE
+    assert (0);
+}
+
+void t1 (void*)
+{
     for (;;)
-        ;
+    {
+        NkLogDebug ("got here 2\n");
+        TskSchedule();
+    }
+}
+
+void t2 (void*)
+{
+    for (;;)
+    {
+        NkLogDebug ("got here 3\n");
+        TskSchedule();
+    }
+}
+
+void t3 (void*)
+{
+    for (;;)
+    {
+        NkLogDebug ("got here 4\n");
+        TskSchedule();
+    }
+}
+
+// Kernel initial thread
+static void NkInitialThread (void*)
+{
+    NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
+    NkThread_t* th2 = TskCreateThread (t2, NULL, "t2");
+    NkThread_t* th3 = TskCreateThread (t3, NULL, "t3");
+    TskReadyThread (th1);
+    TskReadyThread (th2);
+    TskReadyThread (th3);
+    for (;;)
+    {
+        NkLogDebug ("got here 1\n");
+        TskSchedule();
+    }
 }

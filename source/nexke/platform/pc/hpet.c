@@ -76,11 +76,11 @@ typedef struct _hpet
 {
     uintptr_t addr;       // Address of HPET
     bool isTimer64;       // Is timer 64 bit?
-    uint64_t lastRead;    // Last clock read
+    ktime_t lastRead;     // Last clock read
     int overflowCount;    // Number of overflows to occur
     uint32_t div;         // If precision is beyond nanosec, divide by this
     int armCount;         // Times to arm timer before expiration
-    uint64_t finalArm;    // Final arm value
+    ktime_t finalArm;     // Final arm value
     uint32_t minDelta;    // Minimum delta
 } pltHpet_t;
 
@@ -133,7 +133,7 @@ static uint64_t pltHpetTimerRead (int timer, uint16_t reg)
 }
 
 // Converts to HPET precision
-static inline uint64_t pltFromHpetTime (uint64_t val)
+static inline ktime_t pltFromHpetTime (ktime_t val)
 {
     if (pltHpetClock.precision == 1)
         return val / hpet.div;
@@ -141,7 +141,7 @@ static inline uint64_t pltFromHpetTime (uint64_t val)
 }
 
 // Converts to ns precision
-static inline uint64_t pltToHpetTime (uint64_t val)
+static inline ktime_t pltToHpetTime (ktime_t val)
 {
     if (pltHpetClock.precision == 1)
         return val * hpet.div;
@@ -170,9 +170,9 @@ static bool PltHpetDispatch (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
 }
 
 // Gets time of clock
-static uint64_t PltHpetGetTime()
+static ktime_t PltHpetGetTime()
 {
-    uint64_t ret = 0;
+    ktime_t ret = 0;
     if (!hpet.isTimer64)
     {
         // Grab value. Note that we have to deal with rollover
@@ -183,7 +183,7 @@ static uint64_t PltHpetGetTime()
             ++hpet.overflowCount;
         }
         hpet.lastRead = val;
-        ret = ((uint64_t) hpet.overflowCount << 32ULL) + val;
+        ret = ((ktime_t) hpet.overflowCount << 32ULL) + val;
     }
     else
     {
@@ -206,7 +206,7 @@ static uint64_t PltHpetGetTime()
                 else
                     break;    // We are done
             }
-            ret = ((uint64_t) highVal << 32ULL) | lowVal;    // Set it
+            ret = ((ktime_t) highVal << 32ULL) | lowVal;    // Set it
         }
     }
     return pltFromHpetTime (ret);
@@ -219,15 +219,15 @@ static void PltHpetSetCb (void (*cb)())
 }
 
 // Arms timer
-static void PltHpetArmTimer (uint64_t delta)
+static void PltHpetArmTimer (ktime_t delta)
 {
     // Disarm if needed
     if (hpet.armCount)
         hpet.armCount = 0, hpet.finalArm = 0;
     // Get comparator value
-    uint64_t refTick = PltGetPlatform()->clock->getTime();
-    uint64_t time = refTick + delta;
-    uint64_t compVal = pltToHpetTime (time);
+    ktime_t refTick = PltGetPlatform()->clock->getTime();
+    ktime_t time = refTick + delta;
+    ktime_t compVal = pltToHpetTime (time);
     // Check for overflow on 32 bit timers
     if (!hpet.isTimer64 && compVal > UINT32_MAX)
     {
@@ -241,7 +241,7 @@ static void PltHpetArmTimer (uint64_t delta)
         hpet.finalArm = compVal % (UINT32_MAX + 1);
         compVal = firstArm;
     }
-    uint64_t minComp = pltToHpetTime (refTick) + hpet.minDelta;
+    ktime_t minComp = pltToHpetTime (refTick) + hpet.minDelta;
     if (compVal < minComp)
         compVal = minComp;    // To avoid interrupt loss
     // Write it
@@ -249,9 +249,9 @@ static void PltHpetArmTimer (uint64_t delta)
 }
 
 // Polls clock for specified ns
-static void PltHpetPoll (uint64_t ns)
+static void PltHpetPoll (ktime_t ns)
 {
-    uint64_t target = ns + PltHpetGetTime();
+    ktime_t target = ns + PltHpetGetTime();
     while (1)
     {
         if (PltHpetGetTime() >= target)

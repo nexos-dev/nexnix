@@ -108,11 +108,15 @@ static inline void NkListRemove (NkList_t* list, NkLink_t* item)
 // Takes item from front of list
 static inline NkLink_t* NkListPopFront (NkList_t* list)
 {
-    assert (list->head);
     NkLink_t* ret = list->head;
-    list->head = ret->next;
-    if (list->head)
-        list->head->prev = NULL;
+    if (ret)
+    {
+        list->head = ret->next;
+        if (list->head)
+            list->head->prev = NULL;
+        else if (ret == list->tail)
+            list->tail = list->head;
+    }
     return ret;
 }
 

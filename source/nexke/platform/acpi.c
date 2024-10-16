@@ -622,7 +622,7 @@ bool PltAcpiSciHandler (NkInterrupt_t* intObj, CpuIntContext_t* ctx)
     return true;
 }
 
-static uint64_t PltAcpiGetTime()
+static ktime_t PltAcpiGetTime()
 {
     uint32_t val = pltAcpiReadReg (ACPI_REG_PM_TMR, 0);
     // Check for overflow
@@ -634,15 +634,15 @@ static uint64_t PltAcpiGetTime()
             overFlowSoon = false;
         }
     }
-    uint64_t mul = 0x1000000;
+    ktime_t mul = 0x1000000;
     if (is32Bit)
         mul = 0x100000000;
     return ((overFlowCount * mul) + val) * acpiPmClock.precision;
 }
 
-static void PltAcpiPoll (uint64_t time)
+static void PltAcpiPoll (ktime_t time)
 {
-    uint64_t target = time + PltAcpiGetTime();
+    ktime_t target = time + PltAcpiGetTime();
     target /= acpiPmClock.precision;
     while (1)
     {

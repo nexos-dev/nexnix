@@ -189,17 +189,17 @@ NkInterrupt_t* PltGetInterrupt (int vector);
 
 // Clock system
 
-typedef uint64_t (*PltHwGetTime)();
-typedef void (*PltHwPoll) (uint64_t time);
+typedef ktime_t (*PltHwGetTime)();
+typedef void (*PltHwPoll) (ktime_t time);
 
 // Hardware clock
 typedef struct _hwclock
 {
-    int type;                  // Underlying device
-    int precision;             // Precision in nanoseconds
-    PltHwGetTime getTime;      // Gets current time on clock
-    PltHwPoll poll;            // Polls for a amount of time;
-    uint64_t internalCount;    // Used for software clocking on some systems
+    int type;                 // Underlying device
+    int precision;            // Precision in nanoseconds
+    PltHwGetTime getTime;     // Gets current time on clock
+    PltHwPoll poll;           // Polls for a amount of time;
+    ktime_t internalCount;    // Used for software clocking on some systems
     uintptr_t private;
 } PltHwClock_t;
 
@@ -214,14 +214,14 @@ PltHwClock_t* PltInitClock();
 // Timer system
 
 typedef void (*PltHwSetTimerCallback) (void (*)());
-typedef void (*PltHwArmTimer) (uint64_t);
+typedef void (*PltHwArmTimer) (ktime_t);
 
 // Hardware timer data structure
 typedef struct _hwtimer
 {
-    int type;                // Timer type
-    int precision;           // Precision of timer in nanoseconds
-    uint64_t maxInterval;    // Max interval we can be armed for
+    int type;               // Timer type
+    int precision;          // Precision of timer in nanoseconds
+    ktime_t maxInterval;    // Max interval we can be armed for
     // Private data
     void (*callback)();    // Interrupt callback
     uintptr_t private;

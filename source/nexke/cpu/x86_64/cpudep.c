@@ -105,6 +105,8 @@ static void cpuInitGdt()
     // Load new GDT into CPU
     CpuTabPtr_t gdtr = {.base = (uintptr_t) cpuGdt, .limit = (CPU_GDT_MAX * 8) - 1};
     CpuFlushGdt (&gdtr);
+    // Set GS.base to CCB
+    CpuSetGs ((uintptr_t) &ccb);
 }
 
 // Sets up IDT gate
@@ -158,6 +160,7 @@ void CpuInitCcb()
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
     // Set up basic fields
+    ccb.self = &ccb;
     ccb.cpuArch = NEXKE_CPU_X86_64;
     ccb.cpuFamily = NEXKE_CPU_FAMILY_X86;
 #ifdef NEXNIX_BOARD_PC
@@ -210,6 +213,7 @@ void CpuInitCcb()
     }
     // Log CPU specs
     CpuPrintFeatures();
+    // Create segment for CCB
 }
 
 // Gets feature bits
@@ -218,8 +222,8 @@ uint64_t CpuGetFeatures()
     return ccb.archCcb.features;
 }
 
-// Returns CCB to caller
-NkCcb_t* CpuGetCcb()
+// Gets real CCB, i.e., not CCB in special register
+NkCcb_t* CpuRealCcb()
 {
     return &ccb;
 }

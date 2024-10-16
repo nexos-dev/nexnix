@@ -28,6 +28,9 @@ uint64_t CpuReadCr4();
 void CpuWriteCr4 (uint64_t val);
 uint64_t CpuReadCr2();
 
+// Sets GS.base
+void CpuSetGs (uintptr_t addr);
+
 // User address end
 #ifndef NEXNIX_X86_64_LA57
 #define NEXKE_USER_ADDR_END 0x7FFFFFFFFFFF

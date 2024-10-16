@@ -25,15 +25,15 @@ extern PltHwClock_t tscClock;
 int tscDivisor = 0;    // Value to divide/multply by for beyond nanosec precision
 
 // Reads TSC
-static inline uint64_t cpuTscRead()
+static inline ktime_t cpuTscRead()
 {
     uint32_t low, high;
     asm volatile ("rdtsc" : "=a"(low), "=d"(high));
-    return ((uint64_t) high << 32) | low;
+    return ((ktime_t) high << 32) | low;
 }
 
 // Converts from timestamp to ns
-static inline uint64_t cpuFromTsc (uint64_t time)
+static inline ktime_t cpuFromTsc (ktime_t time)
 {
     if (tscClock.precision == 1)
         return time / tscDivisor;
@@ -41,7 +41,7 @@ static inline uint64_t cpuFromTsc (uint64_t time)
 }
 
 // Converts ns to timestamp
-static inline uint64_t cpuToTsc (uint64_t time)
+static inline ktime_t cpuToTsc (ktime_t time)
 {
     if (tscClock.precision == 1)
         return time * tscDivisor;
@@ -49,15 +49,15 @@ static inline uint64_t cpuToTsc (uint64_t time)
 }
 
 // Gets time on clock
-static uint64_t CpuTscGetTime()
+static ktime_t CpuTscGetTime()
 {
     return cpuFromTsc (cpuTscRead());
 }
 
 // Poll for number of ns
-static void CpuTscPoll (uint64_t time)
+static void CpuTscPoll (ktime_t time)
 {
-    uint64_t target = time + cpuFromTsc (cpuTscRead());
+    ktime_t target = time + cpuFromTsc (cpuTscRead());
     while (target > cpuFromTsc (cpuTscRead()))
         ;
 }
@@ -77,10 +77,10 @@ PltHwClock_t* CpuInitTscClock()
     // We'll use HPET, any system with an invariant TSC will basically always have an HPET
     PltHwClock_t* refClock = PltHpetInitClock();
     // Sample TSC once
-    uint64_t start = cpuTscRead();
+    ktime_t start = cpuTscRead();
     refClock->poll (PLT_NS_IN_SEC / 100);    // 10 ms
-    uint64_t end = cpuTscRead();
-    uint64_t timeHz = (end - start) * 100;
+    ktime_t end = cpuTscRead();
+    ktime_t timeHz = (end - start) * 100;
     int precision = PLT_NS_IN_SEC / timeHz;
     if (!precision)
         ++precision;

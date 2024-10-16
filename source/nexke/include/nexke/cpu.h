@@ -21,12 +21,14 @@
 // Include arch header. This makes use of computed includes
 #include NEXKE_ARCH_HEADER
 #include <nexke/list.h>
+#include <nexke/task.h>
 #include <nexke/types.h>
 
 // CCB structure (aka CPU control block)
 // This is the core data structure for the CPU, and hence, the kernel
 typedef struct _nkccb
 {
+    struct _nkccb* self;    // Self pointer
     // General CPU info
     int cpuArch;      // CPU architecture
     int cpuFamily;    // Architecture family
@@ -41,6 +43,12 @@ typedef struct _nkccb
                            // This flags is only set during hardware interrupt processing
     // Timer related data
     NkList_t timeEvents;    // Linked list of time events waiting to occur
+    // Scheudler info
+    NkList_t readyQueue;       // Scheduler's ready queue
+    NkThread_t* curThread;     // Currently executing thread
+    NkThread_t* idleThread;    // Thread to execute when readyQueue is empty
+    bool preemptEnable;        // If preemption is presently allowed
+    bool preemptReq;           // If preemption has been requested
 } NkCcb_t;
 
 // Defined CPU architectures
@@ -80,8 +88,14 @@ void CpuDisable();
 // Enables interrupts
 void CpuEnable();
 
+// Halts CPU until interrupt comes
+void CpuHalt();
+
 // Performs a context switch
 void CpuSwitchContext (CpuContext_t* newCtx, CpuContext_t** oldCtx);
+
+// Gets real CCB, i.e., not CCB in special register
+NkCcb_t* CpuRealCcb();
 
 // Allocates a CPU context and intializes it
 CpuContext_t* CpuAllocContext (uintptr_t entry);
@@ -90,11 +104,15 @@ CpuContext_t* CpuAllocContext (uintptr_t entry);
 void CpuDestroyContext (CpuContext_t* context);
 
 // Asserts that we are not in an interrupt
-#define CPU_ASSERT_NOT_INT()    \
-    if (CpuGetCcb()->intActive) \
+#ifndef NDEBUG
+#define CPU_ASSERT_NOT_INT()     \
+    if (CpuRealCcb()->intActive) \
         NkPanic ("nexke: interrupt check failed\n");
+#else
+#define CPU_ASSERT_NO_INT()
+#endif
 
-#define CPU_IS_INT() (CpuGetCcb()->intActive)
+#define CPU_IS_INT() (CpuRealCcb()->intActive)
 
 // CPU exception info
 typedef struct _execinf

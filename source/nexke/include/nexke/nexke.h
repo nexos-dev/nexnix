@@ -129,7 +129,7 @@ typedef void (*NkTimeCallback) (NkTimeEvent_t*, void*);
 // Timer event structure
 typedef struct _timeevt
 {
-    uint64_t deadline;          // Deadline for this event
+    ktime_t deadline;           // Deadline for this event
                                 // NOTE: this is internal, as this is in internal clock ticks
     NkTimeCallback callback;    // Callback function
     void* arg;                  // Argument to pass to callback
@@ -141,7 +141,7 @@ typedef struct _timeevt
 void NkInitTime();
 
 // Registers a time event
-void NkTimeRegEvent (NkTimeEvent_t*, uint64_t delta, NkTimeCallback callback, void* arg);
+void NkTimeRegEvent (NkTimeEvent_t*, ktime_t delta, NkTimeCallback callback, void* arg);
 
 // Deregisters a time event
 void NkTimeDeRegEvent (NkTimeEvent_t* event);

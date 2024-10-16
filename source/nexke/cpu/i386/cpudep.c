@@ -79,7 +79,7 @@ static void cpuSetIdtGate (CpuIdtEntry_t* gate,
 static void cpuInitGdt()
 {
     // Set up segment resource
-    cpuSegs = NkCreateResource ("CpuSeg", 5, 8192 - 1);
+    cpuSegs = NkCreateResource ("CpuSeg", 7, 8192 - 1);
     assert (cpuSegs);
     // Set up null segment
     cpuSetGdtGate (&cpuGdt[0], 0, 0, 0, 0, 0);
@@ -110,6 +110,13 @@ static void cpuInitGdt()
                    0xFFFFFFFF,
                    CPU_SEG_DB | CPU_SEG_GRAN | CPU_SEG_WRITABLE | CPU_SEG_NON_SYS,
                    CPU_DPL_USER,
+                   0);
+    // Set kernel GS
+    cpuSetGdtGate (&cpuGdt[CPU_CCB_SEG / 8],
+                   (uint32_t) CpuRealCcb(),
+                   sizeof (NkCcb_t),
+                   CPU_SEG_DB | CPU_SEG_WRITABLE | CPU_SEG_NON_SYS,
+                   CPU_DPL_KERNEL,
                    0);
     // Load new GDT into CPU
     CpuTabPtr_t gdtr = {.base = (uint32_t) cpuGdt, .limit = NEXKE_CPU_PAGESZ - 1};
@@ -166,6 +173,7 @@ void CpuInitCcb()
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
     // Set up basic fields
+    ccb.self = &ccb;
     ccb.cpuArch = NEXKE_CPU_I386;
     ccb.cpuFamily = NEXKE_CPU_FAMILY_X86;
 #ifdef NEXNIX_BOARD_PC
@@ -267,7 +275,7 @@ uint64_t CpuGetFeatures()
 }
 
 // Returns CCB to caller
-NkCcb_t* CpuGetCcb()
+NkCcb_t* CpuRealCcb()
 {
     return &ccb;
 }

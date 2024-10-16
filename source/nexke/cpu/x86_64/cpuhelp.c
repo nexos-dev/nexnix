@@ -127,6 +127,16 @@ void CpuInvlpg (uintptr_t addr)
     asm volatile ("invlpg (%0)" : : "r"(addr) : "memory");
 }
 
+void CpuHalt()
+{
+    asm volatile ("hlt");
+}
+
+void CpuSetGs (uintptr_t addr)
+{
+    CpuWrmsr (0xC0000101, addr);
+}
+
 void __attribute__ ((noreturn)) CpuCrash()
 {
     asm ("cli;hlt");

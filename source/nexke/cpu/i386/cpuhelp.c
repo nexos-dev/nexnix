@@ -129,6 +129,11 @@ void CpuDisable()
     asm ("cli");
 }
 
+void CpuHalt()
+{
+    asm volatile ("hlt");
+}
+
 void CpuEnable()
 {
     if (!CpuGetCcb()->archCcb.intsHeld)

@@ -93,7 +93,9 @@ list(APPEND NEXKE_SOURCES
     mm/kvmm.c
     mm/fault.c
     platform/interrupt.c
-    platform/acpi.c)
+    platform/acpi.c
+    task/thread.c
+    task/sched.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})
@@ -105,15 +107,12 @@ add_compile_definitions(NEXKE_ARCH_HEADER=\"${NEXKE_ARCH_HEADER}\")
 target_compile_options(nexke PRIVATE)
 target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT})
 
-# Find libk and libnex
+# Find libk
 find_library(NEXKE_LK_LOCATION k REQUIRED)
-find_library(NEXKE_LNEX_LOCATION nex REQUIRED)
 get_filename_component(NEXKE_LK_LOCATION ${NEXKE_LK_LOCATION} REALPATH)
-get_filename_component(NEXKE_LNEX_LOCATION ${NEXKE_LNEX_LOCATION} REALPATH)
 add_custom_target(libk DEPENDS ${NEXKE_LK_LOCATION})
-add_custom_target(libnex DEPENDS ${NEXKE_LNEX_LOCATION})
 
-target_link_libraries(nexke PUBLIC ${NEXKE_LNEX_LOCATION} ${NEXKE_LK_LOCATION})
-add_dependencies(nexke libk libnex)
+target_link_libraries(nexke PUBLIC ${NEXKE_LK_LOCATION})
+add_dependencies(nexke libk)
 
 install(TARGETS nexke DESTINATION .)

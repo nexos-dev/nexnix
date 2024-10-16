@@ -141,13 +141,6 @@ typedef struct _x86seg
     uint8_t baseHigh;
 } __attribute__ ((packed)) CpuSegDesc_t;
 
-// Segment free list entry
-typedef struct _freeseg
-{
-    int segNum;               // Segment number that is free
-    struct _freeseg* next;    // Next in list
-} CpuFreeSeg_t;
-
 // Segment flags
 #define CPU_SEG_NON_SYS (1 << 4)
 #define CPU_SEG_PRESENT (1 << 7)
@@ -190,6 +183,8 @@ typedef struct _freeseg
 // Standard segments
 #define CPU_SEG_KCODE 0x8
 #define CPU_SEG_KDATA 0x10
+#define CPU_SEG_UCODE 0x18
+#define CPU_SEG_UDATA 0x20
 
 // GDT constants
 #define CPU_GDT_MAX 8192
@@ -249,6 +244,23 @@ extern uint8_t CpuTrapTable[];
 
 // Base hardware interrupt number
 #define CPU_BASE_HWINT 48
+
+// CPU-specific thread structure
+typedef struct _cputhread
+{
+    // Nothing for now
+} CpuThread_t;
+
+// Segment reg helpers
+#define CpuReadGs(val) asm volatile ("movl %%gs:0,%0" : "=r"((val)) :);
+
+// Gets the current CCB
+static inline NkCcb_t* CpuGetCcb()
+{
+    uintptr_t ccb = 0;
+    CpuReadGs (ccb);
+    return (NkCcb_t*) ccb;
+}
 
 // Control register bits
 #define CPU_CR0_PE (1 << 0)

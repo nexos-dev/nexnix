@@ -71,8 +71,10 @@ typedef struct _x86idtent
     uint16_t baseHigh;    // High 16 of base
 } __attribute__ ((packed)) CpuIdtEntry_t;
 
+// CCB segment
+#define CPU_CCB_SEG 0x28
 // Double fault TSS segment
-#define CPU_DFAULT_TSS 0x28
+#define CPU_DFAULT_TSS 0x30
 
 // TSS structure
 typedef struct _i386tss
