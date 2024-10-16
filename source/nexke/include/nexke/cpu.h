@@ -47,7 +47,7 @@ typedef struct _nkccb
     NkList_t readyQueue;       // Scheduler's ready queue
     NkThread_t* curThread;     // Currently executing thread
     NkThread_t* idleThread;    // Thread to execute when readyQueue is empty
-    bool preemptEnable;        // If preemption is presently allowed
+    bool preemptDisable;       // If preemption is presently allowed
     bool preemptReq;           // If preemption has been requested
 } NkCcb_t;
 

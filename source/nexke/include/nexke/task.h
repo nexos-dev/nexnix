@@ -70,7 +70,8 @@ NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name);
 // Sets the initial thread to execute in the system
 void __attribute__ ((noreturn)) TskSetInitialThread (NkThread_t* thread);
 
-// Interrupt unsafe functions
+// IPL unsafe functions
+// This is the main scheduler interface
 
 // Destroys a thread object
 // NOTE: always call terminate over this function
@@ -84,5 +85,25 @@ void TskReadyThread (NkThread_t* thread);
 
 // Runs the main scheduler
 void TskSchedule();
+
+// Blocks current thread
+void TskBlockThread();
+
+// Unblocks a thread
+void TskUnblockThread (NkThread_t* thread);
+
+// Preempts current thread
+void TskPreempt();
+
+// IPL safe functions
+
+// Disables preemption
+void TskDisablePreempt();
+
+// Enables preemption
+void TskEnablePreempt();
+
+// Gets current thread
+NkThread_t* TskGetCurrentThread();
 
 #endif

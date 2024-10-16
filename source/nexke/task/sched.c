@@ -24,7 +24,7 @@
 // Globals (try to avoid these)
 static PltHwClock_t* clock = NULL;
 
-// NOTE: all routines in here are interrupt-unsafe, but do not actually disable interrupts
+// NOTE: most routines in here are interrupt-unsafe, but do not actually disable interrupts
 // It's the caller's responsibilty to disable interrupts
 
 // NOTE2: we use the list inlines differently here. So that we don't have to LINK_CONTAINER
@@ -93,6 +93,8 @@ static FORCEINLINE void tskSetCurrentThread (NkCcb_t* ccb, NkThread_t* thread)
 // NOTE: interrupt unsafe, call with IPL raised
 static FORCEINLINE void tskSchedule (NkCcb_t* ccb)
 {
+    // Assertion to make sure that preemption occurs in TskPreempt
+    assert (ccb->preemptDisable ? ccb->curThread->state != TSK_THREAD_RUNNING : 1);
     // Grab next thread and current thread
     NkThread_t* nextThread = (NkThread_t*) NkListFront (&ccb->readyQueue);
     NkListRemove (&ccb->readyQueue, (NkLink_t*) nextThread);
@@ -123,6 +125,72 @@ void __attribute__ ((noreturn)) TskSetInitialThread (NkThread_t* thread)
     CpuSwitchContext (thread->context, &fakeCtx);
     // UNREACHABLE
     assert (0);
+}
+
+// Preempts current thread
+void TskPreempt()
+{
+    NkCcb_t* ccb = CpuGetCcb();
+    NkThread_t* curThread = ccb->curThread;
+    curThread->preempted = true;
+    if (ccb->preemptDisable)
+        ccb->preemptReq = true;    // Preemption has been requested
+    else
+        tskSchedule (ccb);    // Schedule the next thread
+}
+
+// Disables preemption
+// This function is IPL safe
+void TskDisablePreempt()
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    CpuGetCcb()->preemptDisable = true;
+    CpuGetCcb()->preemptReq = false;
+    PltLowerIpl (ipl);
+}
+
+// Enables preemption
+// IPL safe
+void TskEnablePreempt()
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkCcb_t* ccb = CpuGetCcb();
+    ccb->preemptDisable = false;
+    if (ccb->preemptReq)
+        TskPreempt();    // Preempt the current thread
+    PltLowerIpl (ipl);
+}
+
+// Blocks current thread
+void TskBlockThread()
+{
+    // Get CCB
+    NkCcb_t* ccb = CpuGetCcb();
+    NkThread_t* curThread = ccb->curThread;
+    curThread->state = TSK_THREAD_WAITING;    // Thread is now blocked
+    tskSchedule (ccb);                        // Schedule the next thread
+}
+
+// Unblocks a thread
+void TskUnblockThread (NkThread_t* thread)
+{
+    // Get CCB
+    NkCcb_t* ccb = CpuGetCcb();
+    // If ready queue is empty, we preempt
+    // Otherwise, we simply admit
+    if (NkListFront (&ccb->readyQueue))
+        tskReadyThread (ccb, thread);    // Ready it
+    else
+    {
+        tskReadyThread (ccb, thread);
+        TskPreempt();    // Preempt it
+    }
+}
+
+// Gets current thread
+NkThread_t* TskGetCurrentThread()
+{
+    return CpuGetCcb()->curThread;
 }
 
 // Inline function wrappers

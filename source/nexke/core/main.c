@@ -132,43 +132,22 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
 
 void t1 (void*)
 {
+    NkLogDebug ("got here 2\n");
+    TskBlockThread();
+    NkLogDebug ("got here 2");
     for (;;)
-    {
-        NkLogDebug ("got here 2\n");
-        TskSchedule();
-    }
-}
-
-void t2 (void*)
-{
-    for (;;)
-    {
-        NkLogDebug ("got here 3\n");
-        TskSchedule();
-    }
-}
-
-void t3 (void*)
-{
-    for (;;)
-    {
-        NkLogDebug ("got here 4\n");
-        TskSchedule();
-    }
+        ;
 }
 
 // Kernel initial thread
 static void NkInitialThread (void*)
 {
     NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
-    NkThread_t* th2 = TskCreateThread (t2, NULL, "t2");
-    NkThread_t* th3 = TskCreateThread (t3, NULL, "t3");
     TskReadyThread (th1);
-    TskReadyThread (th2);
-    TskReadyThread (th3);
+    NkLogDebug ("got here 1\n");
+    TskSchedule();
+    NkLogDebug ("got here 1\n");
+    TskUnblockThread (th1);
     for (;;)
-    {
-        NkLogDebug ("got here 1\n");
-        TskSchedule();
-    }
+        ;
 }
