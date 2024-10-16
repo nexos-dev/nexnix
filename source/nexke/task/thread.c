@@ -32,6 +32,9 @@ static void TskThreadEntry()
 {
     // Get the thread structure
     NkThread_t* thread = CpuGetCcb()->curThread;
+    // Unlock ready queue, as we start with it locked
+    if (CpuGetCcb()->preemptDisable)
+        NkSpinUnlock (&CpuGetCcb()->rqLock);
     // Make IPL is at low level
     PltLowerIpl (PLT_IPL_LOW);
     // Executte entry
@@ -81,6 +84,15 @@ void TskDestroyThread (NkThread_t* thread)
     CpuDestroyContext (thread->context);
     NkFreeResource (nkThreadRes, thread->tid);
     MmCacheFree (nkThreadCache, thread);
+}
+
+// Yields from current thread
+// Safe wrapper over TskSchedule
+void TskYield()
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    TskSchedule();
+    PltLowerIpl (ipl);
 }
 
 // Initializes task system

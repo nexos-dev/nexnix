@@ -99,6 +99,27 @@ static void mmRemoveEntry (MmSpace_t* space, MmSpaceEntry_t* entry)
     --space->numEntries;
 }
 
+static MmSpaceEntry_t* mmFindEntryUnlocked (MmSpace_t* space, uintptr_t addr)
+{
+    MmSpaceEntry_t* cur = space->entryList;
+    while (cur->vaddr != space->endAddr)
+    {
+        // CHeck if we are inside this entry
+        uintptr_t curEnd = mmEntryEnd (cur);
+        if (cur->vaddr <= addr && curEnd >= addr)
+            return cur;    // We have a match
+        // Now check if this address is free and this entry precedes said free area
+        uintptr_t upperBound = cur->next->vaddr;
+        if (addr > curEnd && addr < upperBound)
+            return cur;    // Found preceding entry
+        // Check if we are done
+        if (upperBound > addr)
+            break;    // Nothing left to do
+        cur = cur->next;
+    }
+    return NULL;
+}
+
 // Finds free address based on hint. Returns preceding entry
 static MmSpaceEntry_t* mmFindFree (MmSpace_t* space, uintptr_t* addr, size_t numPages)
 {
@@ -110,7 +131,7 @@ static MmSpaceEntry_t* mmFindFree (MmSpace_t* space, uintptr_t* addr, size_t num
     if (hint == 0)
         cur = space->entryList;
     else
-        cur = MmFindSpaceEntry (space, hint);
+        cur = mmFindEntryUnlocked (space, hint);
     while (cur->vaddr != space->endAddr)
     {
         // See if there is enough free space after this entry
@@ -136,6 +157,7 @@ MmSpaceEntry_t* MmAllocSpace (MmSpace_t* space,
     assert (space != MmGetKernelSpace());    // Can't operate on kernel space
     // Get free space
     uintptr_t addr = hintAddr;
+    NkSpinLock (&space->lock);
     MmSpaceEntry_t* prevEntry = mmFindFree (space, &addr, numPages);
     if (!prevEntry)
     {
@@ -143,7 +165,10 @@ MmSpaceEntry_t* MmAllocSpace (MmSpace_t* space,
         addr = 0;
         prevEntry = mmFindFree (space, &addr, numPages);
         if (!prevEntry)
+        {
+            NkSpinUnlock (&space->lock);
             return NULL;    // Not enough space
+        }
     }
     // Create a new entry
     MmSpaceEntry_t* newEntry = MmCacheAlloc (mmEntryCache);
@@ -153,48 +178,42 @@ MmSpaceEntry_t* MmAllocSpace (MmSpace_t* space,
     newEntry->vaddr = addr;
     newEntry->obj = obj;
     mmAddEntry (space, prevEntry, newEntry);
+    NkSpinUnlock (&space->lock);
     return newEntry;
 }
 
 // Frees an address space entry
 void MmFreeSpace (MmSpace_t* space, MmSpaceEntry_t* entry)
 {
+    NkSpinLock (&space->lock);
     assert (space != MmGetKernelSpace());    // Can't operate on kernel space
     mmRemoveEntry (space, entry);
     MmDeRefObject (entry->obj);
     MmCacheFree (mmEntryCache, entry);
+    NkSpinUnlock (&space->lock);
 }
 
 // Finds address space entry for given address
 MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* space, uintptr_t addr)
 {
-    MmSpaceEntry_t* cur = space->entryList;
-    while (cur->vaddr != space->endAddr)
-    {
-        // CHeck if we are inside this entry
-        uintptr_t curEnd = mmEntryEnd (cur);
-        if (cur->vaddr <= addr && curEnd >= addr)
-            return cur;    // We have a match
-        // Now check if this address is free and this entry precedes said free area
-        uintptr_t upperBound = cur->next->vaddr;
-        if (addr > curEnd && addr < upperBound)
-            return cur;    // Found preceding entry
-        // Check if we are done
-        if (upperBound > addr)
-            break;    // Nothing left to do
-        cur = cur->next;
-    }
-    return NULL;
+    NkSpinLock (&space->lock);
+    MmSpaceEntry_t* entry = mmFindEntryUnlocked (space, addr);
+    NkSpinUnlock (&space->lock);
+    return entry;
 }
 
 // Finds faulting entry
 MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr)
 {
+    NkSpinLock (&space->lock);
     // Check hint
     if (space->faultHint)
     {
         if (space->faultHint->vaddr <= addr && mmEntryEnd (space->faultHint) >= addr)
+        {
+            NkSpinUnlock (&space->lock);
             return space->faultHint;
+        }
     }
     // Find it
     MmSpaceEntry_t* cur = space->entryList;
@@ -204,10 +223,12 @@ MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr)
         if (cur->vaddr <= addr && mmEntryEnd (cur) >= addr)
         {
             space->faultHint = cur;
+            NkSpinUnlock (&space->lock);
             return cur;    // We have a match
         }
         cur = cur->next;
     }
+    NkSpinUnlock (&space->lock);
     return NULL;
 }
 
@@ -239,6 +260,7 @@ MmSpace_t* MmGetCurrentSpace()
 // Dumps address space
 void MmDumpSpace (MmSpace_t* as)
 {
+    NkSpinLock (&as->lock);
     MmSpaceEntry_t* entry = as->entryList;
     while (entry)
     {
@@ -247,6 +269,7 @@ void MmDumpSpace (MmSpace_t* as)
                     entry->count);
         entry = entry->next;
     }
+    NkSpinUnlock (&as->lock);
 }
 
 // Initialization routines

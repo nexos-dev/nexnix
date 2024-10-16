@@ -394,6 +394,7 @@ SlabCache_t* MmCacheCreate (size_t objSz, const char* name, size_t align, int fl
 void MmCacheDestroy (SlabCache_t* cache)
 {
     CPU_ASSERT_NOT_INT();
+    NkSpinLock (&cache->lock);
     // Ensure cache is empty
     if (cache->numObjs)
         NkPanic ("nexke: panic: attempt to destroy non-empty cache\n");
@@ -421,6 +422,7 @@ void MmCacheDestroy (SlabCache_t* cache)
     }
     // Remove from list
     NkListRemove (&cacheList, &cache->link);
+    NkSpinUnlock (&cache->lock);
     // Free it from cache of caches
     MmCacheFree (&caches, cache);
 }

@@ -85,12 +85,17 @@ bool PltAcpiInit()
 static AcpiCacheEnt_t* pltAcpiFindCache (const char* sig)
 {
     AcpiCacheEnt_t* curEnt = PltGetPlatform()->tableCache;
+    NkSpinLock (&PltGetPlatform()->acpiCacheLock);
     while (curEnt)
     {
-        if (!strcmp (curEnt->table->sig, sig))    // Check signature
+        if (!memcmp (curEnt->table->sig, sig, 4))    // Check signature
+        {
+            NkSpinUnlock (&PltGetPlatform()->acpiCacheLock);
             return curEnt;
+        }
         curEnt = curEnt->next;
     }
+    NkSpinUnlock (&PltGetPlatform()->acpiCacheLock);
     return NULL;    // Table not cached
 }
 
@@ -102,8 +107,10 @@ static void pltAcpiCacheTable (AcpiSdt_t* sdt)
     if (!cacheEnt)
         NkPanicOom();
     cacheEnt->table = sdt;
+    NkSpinLock (&PltGetPlatform()->acpiCacheLock);
     cacheEnt->next = PltGetPlatform()->tableCache;
     PltGetPlatform()->tableCache = cacheEnt;
+    NkSpinUnlock (&PltGetPlatform()->acpiCacheLock);
 }
 
 // Gets table from firmware

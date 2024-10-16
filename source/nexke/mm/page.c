@@ -37,7 +37,13 @@ static MmZone_t* freeHint = NULL;    // Free zone hint
 static SlabCache_t* mmPageMapCache = NULL;    // Cache for page maps
 
 // Page hash table
-static NkList_t mmPageHash[MM_MAX_BUCKETS] = {0};
+typedef struct _pagebucket
+{
+    NkList_t list;
+    spinlock_t lock;
+} MmPageBucket_t;
+
+static MmPageBucket_t mmPageHash[MM_MAX_BUCKETS] = {0};
 
 // Informational variables
 static uintmax_t mmNumPages = 0;     // Number of pages in system
@@ -211,17 +217,22 @@ static bool mmZoneWillWork (MmZone_t* zone, pfn_t maxAddr, size_t needed, int ba
 }
 
 // Finds best zone for allocation, given a set of requirements
+// Returns locked zone
 static MmZone_t* mmZoneFindBest (pfn_t maxAddr, size_t count, int bannedFlags)
 {
     if (!maxAddr)
         maxAddr = -1;
+    NkSpinLock (&freeHint->lock);
     if (mmZoneWillWork (freeHint, maxAddr, count, bannedFlags))
         return freeHint;
+    NkSpinUnlock (&freeHint->lock);
     // Before iterating through zones, try checking zone hint
     for (int i = 0; i < mmNumZones; ++i)
     {
+        NkSpinLock (&mmZones[i]->lock);
         if (mmZoneWillWork (mmZones[i], maxAddr, count, bannedFlags))
             return mmZones[i];
+        NkSpinUnlock (&mmZones[i]->lock);
     }
     return NULL;    // No zone found
 }
@@ -246,12 +257,14 @@ void MmFreePage (MmPage_t* page)
     else
     {
         MmZone_t* zone = page->zone;
+        NkSpinLock (&zone->lock);
         // Add to free list
         NkListAddFront (&zone->freeList, &page->link);
         // Update stats
         ++zone->freeCount;
         ++mmFreePages;
         page->flags = MM_PAGE_FREE;
+        NkSpinUnlock (&zone->lock);
     }
 }
 
@@ -274,6 +287,7 @@ MmPage_t* MmAllocPage()
     --zone->freeCount;
     --mmFreePages;
     page->flags = MM_PAGE_ALLOCED;
+    NkSpinUnlock (&zone->lock);
     return page;    // Return this page
 }
 
@@ -335,6 +349,7 @@ MmPage_t* MmAllocPagesAt (size_t count, paddr_t maxAddr, paddr_t align)
             // Update stats
             zone->freeCount -= count;
             mmFreePages -= count;
+            NkSpinUnlock (&zone->lock);
             return firstPage;
         }
     }
@@ -367,9 +382,12 @@ MmPage_t* MmAllocGuardPage()
 void MmAddPage (MmObject_t* obj, size_t off, MmPage_t* page)
 {
     // Find bucket
-    size_t bucket = MM_GET_BUCKET (obj, off);
+    size_t bucketIdx = MM_GET_BUCKET (obj, off);
+    MmPageBucket_t* bucket = &mmPageHash[bucketIdx];
+    NkSpinLock (&bucket->lock);
     // Add to it
-    NkListAddFront (&mmPageHash[bucket], &page->link);
+    NkListAddFront (&bucket->list, &page->link);
+    NkSpinUnlock (&bucket->lock);
     // Set object/offset
     page->offset = off;
     page->obj = obj;
@@ -382,16 +400,22 @@ void MmAddPage (MmObject_t* obj, size_t off, MmPage_t* page)
 MmPage_t* MmLookupPage (MmObject_t* obj, size_t off)
 {
     // Find bucket
-    size_t bucket = MM_GET_BUCKET (obj, off);
+    size_t bucketIdx = MM_GET_BUCKET (obj, off);
+    MmPageBucket_t* bucket = &mmPageHash[bucketIdx];
+    NkSpinLock (&bucket->lock);
     // Find in bucket
-    NkLink_t* iter = NkListFront (&mmPageHash[bucket]);
+    NkLink_t* iter = NkListFront (&bucket->list);
     while (iter)
     {
         MmPage_t* curPage = LINK_CONTAINER (iter, MmPage_t, link);
         if (curPage->offset == off && curPage->obj == obj)
+        {
+            NkSpinUnlock (&bucket->lock);
             return curPage;
+        }
         iter = NkListIterate (iter);
     }
+    NkSpinUnlock (&bucket->lock);
     return NULL;
 }
 
@@ -399,9 +423,12 @@ MmPage_t* MmLookupPage (MmObject_t* obj, size_t off)
 void MmRemovePage (MmPage_t* page)
 {
     // Find bucket
-    size_t bucket = MM_GET_BUCKET (page->obj, page->offset);
+    size_t bucketIdx = MM_GET_BUCKET (page->obj, page->offset);
+    MmPageBucket_t* bucket = &mmPageHash[bucketIdx];
+    NkSpinLock (&bucket->lock);
     // Remove from bucket
-    NkListRemove (&mmPageHash[bucket], &page->link);
+    NkListRemove (&bucket->list, &page->link);
+    NkSpinUnlock (&bucket->lock);
     // Remove from object
     NkListRemove (&page->obj->pageList, &page->objLink);
     page->offset = 0;    // For error checking

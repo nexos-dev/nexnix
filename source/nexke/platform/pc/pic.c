@@ -173,11 +173,15 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
     // Get existing chain
     assert (hwInt->gsi < 16);
     PltHwIntChain_t* chain = &plt8259A.lineMap[hwInt->gsi];
+    NkSpinLock (&chain->lock);
     if (NkListFront (&chain->list))
     {
         NkHwInterrupt_t* int2 = LINK_CONTAINER (NkListFront (&chain->list), NkHwInterrupt_t, link);
         if (int2->mode != hwInt->mode)
+        {
+            NkSpinUnlock (&chain->lock);
             return -1;    // Can't mix modes
+        }
     }
     // Set as edge or level if needed
     if (!NkListFront (&chain->list))
@@ -190,6 +194,7 @@ static int PltPicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* hwInt)
         CpuOutb (PLT_PIC_ELCR, elcr & 0xFF);
         CpuOutb (PLT_PIC_ELCR + 1, elcr >> 8);
     }
+    NkSpinUnlock (&chain->lock);
     // Set the IPL. FORCE_IPL is ignored beacuse we have no control over IPL with 8259A
     hwInt->ipl = pltPicPrioMap[hwInt->gsi];
     return hwInt->gsi + CPU_BASE_HWINT;

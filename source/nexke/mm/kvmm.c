@@ -33,6 +33,7 @@ typedef struct _kvregion
     uintptr_t vaddr;    // Virtual address of page
     size_t numPages;    // Number of pages in region
     bool isFree;        // Is this region free?
+    spinlock_t lock;
     NkLink_t link;
 } MmKvRegion_t;
 
@@ -48,6 +49,7 @@ typedef struct _kvbucket
 {
     NkList_t regionList;    // List of regions in bucket
     size_t bucketNum;       // The bucket number of this bucket
+    spinlock_t lock;        // Lock on this bucket
 } MmKvBucket_t;
 
 // Kernel free arena
@@ -58,14 +60,16 @@ typedef struct _kvarena
     size_t numFreePages;
     bool needsMap;    // Whether this arena is pre-mapped
 
-    NkList_t freeList;    // Free list of pages
-    size_t freeListSz;    // Number of pages in free list currently
+    NkList_t freeList;      // Free list of pages
+    size_t freeListSz;      // Number of pages in free list currently
+    spinlock_t listLock;    // Lock on free list
 
     uintptr_t resvdStart;    // Start of reserved area
     size_t resvdSz;          // Size of reserved area in pages
 
     uintptr_t start;    // Bounds of arena
     uintptr_t end;
+    spinlock_t lock;          // Lock on variables in here
     struct _kvarena* next;    // Next arena
 } MmKvArena_t;
 
@@ -255,13 +259,17 @@ static inline void mmKvPrepareRegion (MmKvArena_t* arena,
                                       size_t numPages)
 {
     // Decrease free size
+    NkSpinLock (&arena->lock);
     arena->numFreePages -= numPages;
+    NkSpinUnlock (&arena->lock);
     // Check if this is a perfect fit
     if (region->numPages == numPages)
     {
         // Remove from bucket and return
         NkListRemove (&bucket->regionList, &region->link);
         region->isFree = false;
+        NkSpinUnlock (&region->lock);
+        NkSpinUnlock (&bucket->lock);
     }
     else
     {
@@ -269,31 +277,39 @@ static inline void mmKvPrepareRegion (MmKvArena_t* arena,
         size_t splitSz = region->numPages - numPages;
         region->numPages = numPages;
         region->isFree = false;
-        // Now get the region structure
-        uintptr_t splitRegionBase = region->vaddr + (region->numPages * NEXKE_CPU_PAGESZ);
-        MmKvRegion_t* splitRegion = mmKvGetRegion (arena, splitRegionBase);
-        splitRegion->isFree = true;
-        splitRegion->numPages = splitSz;
-        splitRegion->vaddr = splitRegionBase;
-        // Figure out which bucket it goes in
-        int bucketIdx = mmKvGetBucket (splitRegion->numPages);
-        // Add it
-        NkListAddFront (&bucket->regionList, &splitRegion->link);
-        // Update footers if they are needed
+        // Update footer
         if (numPages > 1)
         {
             MmKvFooter_t* footerLeft = mmKvGetRegionFooter (arena, region->vaddr, numPages);
             footerLeft->magic = MM_KV_FOOTER_MAGIC;
             footerLeft->regionSz = numPages;
         }
+        NkSpinUnlock (&region->lock);
+        // Now get the region structure
+        uintptr_t splitRegionBase = region->vaddr + (region->numPages * NEXKE_CPU_PAGESZ);
+        MmKvRegion_t* splitRegion = mmKvGetRegion (arena, splitRegionBase);
+        NkSpinLock (&splitRegion->lock);
+        splitRegion->isFree = true;
+        splitRegion->numPages = splitSz;
+        splitRegion->vaddr = splitRegionBase;
+        // Figure out which bucket it goes in
+        int bucketIdx = mmKvGetBucket (splitRegion->numPages);
+        MmKvBucket_t* destBucket = &arena->buckets[bucketIdx];
+        // Update footers if they are needed
         if (splitSz > 1)
         {
             MmKvFooter_t* footerRight = mmKvGetRegionFooter (arena, splitRegionBase, splitSz);
             footerRight->magic = MM_KV_FOOTER_MAGIC;
             footerRight->regionSz = splitSz;
         }
+        NkSpinUnlock (&splitRegion->lock);
         // Remove found region from bucket
         NkListRemove (&bucket->regionList, &region->link);
+        NkSpinUnlock (&bucket->lock);
+        // Add other region
+        NkSpinLock (&destBucket->lock);
+        NkListAddFront (&destBucket->regionList, &splitRegion->link);
+        NkSpinUnlock (&destBucket->lock);
     }
 }
 
@@ -308,19 +324,23 @@ static MmKvRegion_t* mmAllocKvInArena (MmKvArena_t* arena, size_t numPages)
     // Find a region
     while (!foundRegion)
     {
+        NkSpinLock (&bucket->lock);
         while (iter)
         {
             MmKvRegion_t* curRegion = LINK_CONTAINER (iter, MmKvRegion_t, link);
+            NkSpinLock (&curRegion->lock);
             if (curRegion->numPages >= numPages)
             {
                 foundRegion = curRegion;
                 break;
             }
+            NkSpinUnlock (&curRegion->lock);
             iter = NkListIterate (iter);
         }
         // Did we find a region
         if (foundRegion)
             break;
+        NkSpinUnlock (&bucket->lock);
         // Move to another bucket
         // Check if we have any more buckets to check
         if (bucketIdx == MM_BUCKET_32PLUS)
@@ -345,6 +365,7 @@ static inline MmKvRegion_t* mmKvJoinRegions (MmKvArena_t* arena, MmKvRegion_t* r
         // Get region
         MmKvRegion_t* leftRegion =
             mmKvGetRegion (arena, region->vaddr - (leftFooter->regionSz * NEXKE_CPU_PAGESZ));
+        NkSpinLock (&leftRegion->lock);
         if (leftRegion->isFree)
         {
             leftRegion->numPages += region->numPages;
@@ -355,18 +376,23 @@ static inline MmKvRegion_t* mmKvJoinRegions (MmKvArena_t* arena, MmKvRegion_t* r
             newFooter->regionSz = leftRegion->numPages;
             // This region absorbed the other one so make it the one we work on from now on
             region = leftRegion;
+            NkSpinUnlock (&region->lock);
         }
     }
     // Check if we have a free block to the right
     MmKvRegion_t* nextRegion =
         (MmKvRegion_t*) mmKvGetRegionFooter (arena, region->vaddr, region->numPages) + 1;
+    NkSpinLock (&nextRegion->lock);
     // Check if its free and valid
     if (nextRegion->vaddr == region->vaddr + (region->numPages * NEXKE_CPU_PAGESZ) &&
         nextRegion->isFree)
     {
         // Remove from bucket
         MmKvBucket_t* bucket = &arena->buckets[mmKvGetBucket (region->numPages)];
+        NkSpinUnlock (&nextRegion->lock);
+        NkSpinLock (&bucket->lock);
         NkListRemove (&bucket->regionList, &nextRegion->link);
+        NkSpinUnlock (&bucket->lock);
         region->numPages += nextRegion->numPages;
         MmKvFooter_t* newFooter = mmKvGetRegionFooter (arena, region->vaddr, region->numPages);
         newFooter->magic = MM_KV_FOOTER_MAGIC;
@@ -423,12 +449,14 @@ static void mmKvGetMemory (void* p, size_t numPages)
         MmPage_t* page = MmAllocPage();
         if (!page)
             NkPanicOom();
+        NkSpinLock (&page->lock);
         MmAddPage (kmemObj, offset + (i * NEXKE_CPU_PAGESZ), page);
         MmMulMapPage (&kmemSpace,
                       (uintptr_t) p + (i * NEXKE_CPU_PAGESZ),
                       page,
                       MUL_PAGE_KE | MUL_PAGE_RW | MUL_PAGE_R);
         MmBackendPageIn (kmemObj, offset + (i * NEXKE_CPU_PAGESZ), page);
+        NkSpinUnlock (&page->lock);
     }
 }
 
@@ -443,10 +471,12 @@ static void mmKvFreeMemory (void* p, size_t numPages)
         MmPage_t* page = MmLookupPage (kmemObj, offset);
         if (page)
         {
+            NkSpinLock (&page->lock);
             // Free it
             MmPageClearMaps (page);
             MmRemovePage (page);
             MmFreePage (page);
+            NkSpinUnlock (&page->lock);
         }
         offset += NEXKE_CPU_PAGESZ;
     }
@@ -503,7 +533,9 @@ void MmFreeKvRegion (void* mem)
         region = mmKvJoinRegions (arena, region);
         // Add region to appropriate bucket
         MmKvBucket_t* bucket = &arena->buckets[mmKvGetBucket (region->numPages)];
+        NkSpinLock (&bucket->lock);
         NkListAddFront (&bucket->regionList, &region->link);
+        NkSpinUnlock (&bucket->lock);
     }
     // Unmap and free memory
     if (arena->needsMap)
@@ -548,8 +580,10 @@ void* MmAllocKvMmio (paddr_t phys, int numPages, int perm)
     {
         MmPage_t* page = MmFindPagePfn (curPfn);
         assert (page);
+        NkSpinLock (&page->lock);
         MmAddPage (kmemSpace.entryList->obj, off + i * (NEXKE_CPU_PAGESZ), page);
         MmMulMapPage (&kmemSpace, (uintptr_t) virt + (i * NEXKE_CPU_PAGESZ), page, perm);
+        NkSpinUnlock (&page->lock);
     }
     // Get address right
     virt += (uintptr_t) phys % NEXKE_CPU_PAGESZ;

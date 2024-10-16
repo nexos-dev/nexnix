@@ -482,6 +482,7 @@ static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     // Check if this line is in use or not
     assert (intObj->gsi < pltApic.mapEntries);
     PltHwIntChain_t* curChain = &pltApic.lineMap[intObj->gsi];
+    NkSpinLock (&curChain->lock);
     if (NkListFront (&curChain->list))
     {
         NkHwInterrupt_t* chainFront =
@@ -500,15 +501,24 @@ static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
         {
             // Remap if we can
             if (curChain->noRemap)
+            {
+                NkSpinUnlock (&curChain->lock);
                 return -1;    // Can't do it
+            }
             // Map the interrupt object first
             if (!pltApicMapInterrupt (intObj))
-                return -1;
+            {
+                NkSpinUnlock (&curChain->lock);
+                return -1;    // Can't do it
+            }
             // Remap everything to the vector we specified
             NkInterrupt_t* obj = PltGetInterrupt (chainFront->vector);
             assert (obj);
             if (!PltRemapInterrupt (obj, intObj->vector, intObj->ipl))
-                return -1;
+            {
+                NkSpinUnlock (&curChain->lock);
+                return -1;    // Can't do it
+            }
         }
         else
         {
@@ -525,6 +535,7 @@ static int PltApicConnectInterrupt (NkCcb_t* ccb, NkHwInterrupt_t* intObj)
     // Set remappable flag
     if (intObj->flags & PLT_HWINT_FORCE_IPL)
         curChain->noRemap = true;
+    NkSpinUnlock (&curChain->lock);
     return intObj->vector;
 }
 

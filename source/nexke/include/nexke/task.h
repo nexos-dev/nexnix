@@ -48,8 +48,7 @@ typedef struct _thread
     NkThreadEntry entry;
     void* arg;
     // Thread flags
-    bool preempted;     // Wheter this thread has been preempted
-    spinlock_t lock;    // Thread lock
+    bool preempted;    // Wheter this thread has been preempted
 } NkThread_t;
 
 // Thread states
@@ -91,12 +90,6 @@ void TskSchedule();
 
 // Blocks current thread
 void TskBlockThread();
-
-// Unblocks a thread
-void TskUnblockThread (NkThread_t* thread);
-
-// Preempts current thread
-void TskPreempt();
 
 // IPL safe functions
 

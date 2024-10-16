@@ -30,16 +30,29 @@ bool MmPageFault (uintptr_t vaddr, int prot)
     if (prot & MUL_PAGE_KE)
         space = MmGetKernelSpace();
     // Find the address space entry for this address
+    NkSpinLock (&space->lock);
     MmSpaceEntry_t* entry = MmFindFaultEntry (space, vaddr);
     if (!entry)
+    {
+        NkSpinUnlock (&space->lock);
         return false;    // Page just doesn't exist
+    }
     assert (entry->obj);
     MmPage_t* outPage = NULL;
+    MmObject_t* obj = entry->obj;
+    NkSpinUnlock (&space->lock);
+    NkSpinLock (&obj->lock);    // Lock the object
     bool res = MmPageFaultIn (entry->obj, vaddr - entry->vaddr, &prot, &outPage);
     if (!res)
+    {
+        NkSpinUnlock (&outPage->lock);
+        NkSpinUnlock (&obj->lock);
         return false;    // Page could not be faulted in
+    }
     // Add this page to MUL
     MmMulMapPage (space, vaddr, outPage, prot);
+    NkSpinUnlock (&outPage->lock);
+    NkSpinUnlock (&obj->lock);
     return true;
 }
 
@@ -60,12 +73,14 @@ bool MmPageFaultIn (MmObject_t* obj, size_t offset, int* prot, MmPage_t** outPag
         page = MmAllocPage();
         if (!page)
             NkPanicOom();
+        NkSpinLock (&page->lock);
         MmAddPage (obj, offset, page);
         if (!MmBackendPageIn (obj, offset, page))
             NkPanic ("nexke: page in error\n");
     }
     else
     {
+        NkSpinLock (&page->lock);
         // There is a page at the object,offset, but we need to make sure
         // we can actually do this
         // If this is a guard page, fail, guard pages indicate that a address

@@ -55,12 +55,15 @@ MmObject_t* MmCreateObject (size_t pages, int backend, int perm)
 // References a memory object
 void MmRefObject (MmObject_t* object)
 {
+    NkSpinLock (&object->lock);
     ++object->refCount;
+    NkSpinUnlock (&object->lock);
 }
 
 // Dereferences a memory object
 void MmDeRefObject (MmObject_t* object)
 {
+    NkSpinLock (&object->lock);
     --object->refCount;
     if (!object->refCount)
     {
@@ -69,13 +72,16 @@ void MmDeRefObject (MmObject_t* object)
         while (iter)
         {
             MmPage_t* page = LINK_CONTAINER (iter, MmPage_t, objLink);
+            NkSpinLock (&page->lock);
             MmRemovePage (page);
             // Free it
             MmFreePage (page);
             iter = NkListIterate (iter);
+            NkSpinUnlock (&page->lock);
         }
         MmBackendDestroy (object);
     }
+    NkSpinUnlock (&object->lock);
 }
 
 // Applies new permissions to object

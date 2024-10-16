@@ -77,6 +77,14 @@ static inline NkInterrupt_t* pltAllocInterrupt (int vector, int type)
     return obj;
 }
 
+// Increases call count
+static inline void pltIncCallCount (NkInterrupt_t* obj)
+{
+    NkSpinLock (&obj->lock);
+    ++obj->callCount;
+    NkSpinUnlock (&obj->lock);
+}
+
 // Adds interrupt to chain
 static inline void pltChainInterrupt (NkInterrupt_t* obj, NkHwInterrupt_t* hwInt)
 {
@@ -107,6 +115,7 @@ static inline void pltUnchainInterrupt (NkInterrupt_t* obj, NkHwInterrupt_t* hwI
     assert (obj->type == PLT_INT_HWINT);
     PltHwIntChain_t* chain = pltGetChain (hwInt->gsi);
     assert (hwInt->gsi == PLT_GSI_INTERNAL || hwInt->gsi < pltGetLineMapSize());
+    NkSpinLock (&chain->lock);
     // Unlink it
     NkListRemove (&chain->list, &hwInt->link);
     --chain->chainLen;
@@ -117,6 +126,7 @@ static inline void pltUnchainInterrupt (NkInterrupt_t* obj, NkHwInterrupt_t* hwI
             LINK_CONTAINER (NkListFront (&chain->list), NkHwInterrupt_t, link);
         headInt->flags &= ~(PLT_HWINT_CHAINED);
     }
+    NkSpinUnlock (&chain->lock);
 }
 
 // Checks if two hardware interrupts are compatible
@@ -175,6 +185,7 @@ NkInterrupt_t* PltInstallInterrupt (int vector, NkHwInterrupt_t* hwInt)
         // Make sure this is allowed
         if (hwInt->flags & PLT_HWINT_NON_CHAINABLE)
             return NULL;
+        NkSpinLock (&obj->intChain->lock);
         pltChainInterrupt (obj, hwInt);
     }
     else
@@ -184,19 +195,21 @@ NkInterrupt_t* PltInstallInterrupt (int vector, NkHwInterrupt_t* hwInt)
         // Get chain
         PltHwIntChain_t* chain = pltGetChain (hwInt->gsi);
         obj->intChain = chain;
+        NkSpinLock (&obj->intChain->lock);
         // Start chain
         pltChainInterrupt (obj, hwInt);
         // Enable it if not an internally managed interrupt
         if (!(hwInt->flags & PLT_HWINT_INTERNAL))
             platform->intCtrl->enableInterrupt (CpuGetCcb(), hwInt);
     }
+    NkSpinUnlock (&obj->intChain->lock);
     CpuEnable();
     return obj;
 }
 
 // Remaps hardware interrupts on specified object to a new vector and IPL
 // Requires input to be a hardware interrupt object, and returns the new interrupt
-// Called with interrupts disabled
+// Called with interrupts disabled and chain locked
 NkInterrupt_t* PltRemapInterrupt (NkInterrupt_t* oldInt, int newVector, ipl_t newIpl)
 {
     assert (newVector < NK_MAX_INTS);
@@ -248,9 +261,11 @@ void PltDisconnectInterrupt (NkHwInterrupt_t* hwInt)
 {
     // Unchain and then disconnect it
     CpuDisable();
+    NkSpinLock (&PltGetInterrupt (hwInt->vector)->intChain->lock);
     pltUnchainInterrupt (PltGetInterrupt (hwInt->vector), hwInt);
     // NOTE: if interrupt is not chained, disconnect will disable it for us
     platform->intCtrl->disconnectInterrupt (CpuGetCcb(), hwInt);
+    NkSpinUnlock (&PltGetInterrupt (hwInt->vector)->intChain->lock);
     CpuEnable();
 }
 
@@ -259,11 +274,13 @@ void PltEnableInterrupt (NkHwInterrupt_t* hwInt)
 {
     CpuDisable();
     PltHwIntChain_t* chain = pltGetChain (hwInt->gsi);
+    NkSpinLock (&chain->lock);
     hwInt->flags &= ~(PLT_HWINT_MASKED);
     if (chain->maskCount)
         --chain->maskCount;
     else
         platform->intCtrl->enableInterrupt (CpuGetCcb(), hwInt);
+    NkSpinUnlock (&chain->lock);
     CpuEnable();
 }
 
@@ -272,10 +289,12 @@ void PltDisableInterrupt (NkHwInterrupt_t* hwInt)
 {
     CpuDisable();
     PltHwIntChain_t* chain = pltGetChain (hwInt->gsi);
+    NkSpinLock (&chain->lock);
     hwInt->flags |= PLT_HWINT_MASKED;
     if (!chain->maskCount)
         platform->intCtrl->disableInterrupt (CpuGetCcb(), hwInt);
     ++chain->maskCount;
+    NkSpinUnlock (&chain->lock);
     CpuEnable();
 }
 
@@ -387,7 +406,7 @@ void PltTrapDispatch (CpuIntContext_t* context)
     // handler function before finally telling the interrupt hardware to end the interrupt
     if (intObj->type == PLT_INT_EXEC)
     {
-        ++intObj->callCount;
+        pltIncCallCount (intObj);
         // First call the handler (if one exists) and see if it resolves it
         bool resolved = false;
         if (intObj->handler)
@@ -400,7 +419,7 @@ void PltTrapDispatch (CpuIntContext_t* context)
     }
     else if (intObj->type == PLT_INT_SVC)
     {
-        ++intObj->callCount;
+        pltIncCallCount (intObj);
         intObj->handler (intObj, context);    // This will never fail
     }
     else if (intObj->type == PLT_INT_HWINT)
@@ -410,8 +429,6 @@ void PltTrapDispatch (CpuIntContext_t* context)
         if (!preemptSet)
             TskDisablePreempt();
         ccb->intActive = true;
-        // Re-enable interrupts
-        CpuEnable();
         //  Check if this interrupt is spurious
         if (!platform->intCtrl->beginInterrupt (ccb, CPU_CTX_INTNUM (context)))
         {
@@ -421,16 +438,23 @@ void PltTrapDispatch (CpuIntContext_t* context)
         else
         {
             // Handle
-            ++intObj->callCount;
+            pltIncCallCount (intObj);
             // Loop over the entire chain, trying to find a interrupt that can handle it
+            NkSpinLock (&intObj->intChain->lock);
             NkLink_t* iter = NkListFront (&intObj->intChain->list);
             NkHwInterrupt_t* curInt = LINK_CONTAINER (iter, NkHwInterrupt_t, link);
             ipl_t oldIpl = ccb->curIpl;
             ccb->curIpl = curInt->ipl;    // Set IPL
             while (iter)
             {
+                NkSpinUnlock (&intObj->intChain->lock);
+                // Re-enable interrupts
+                CpuEnable();
                 if (!(curInt->flags & PLT_HWINT_MASKED) && curInt->handler (intObj, context))
                     break;    // Found one
+                // Disable them again
+                CpuDisable();
+                NkSpinLock (&intObj->intChain->lock);
                 iter = NkListIterate (iter);
                 curInt = LINK_CONTAINER (iter, NkHwInterrupt_t, link);
             }

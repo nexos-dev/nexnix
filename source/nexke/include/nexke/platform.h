@@ -69,6 +69,7 @@ typedef struct _intchain
     size_t chainLen;
     size_t maskCount;    // Number of masked interrupts in chain
     bool noRemap;        // If the chain is remappable
+    spinlock_t lock;
 } PltHwIntChain_t;
 
 // Hardware interrupt controller data structure
@@ -131,6 +132,7 @@ typedef struct _int
         PltIntHandler handler;        // Interrupt handler function
         PltHwIntChain_t* intChain;    // Interrupt chain
     };
+    spinlock_t lock;
 } NkInterrupt_t;
 
 #define PLT_INT_EXEC  0
@@ -315,6 +317,7 @@ typedef struct _nkplt
     int acpiVer;                   // ACPI version
     AcpiRsdp_t rsdp;               // Copy of RSDP
     AcpiCacheEnt_t* tableCache;    // ACPI table cache
+    spinlock_t acpiCacheLock;
 } NkPlatform_t;
 
 #define PLT_TYPE_PC   1
