@@ -27,10 +27,12 @@ typedef struct _mmspace MmMulSpace_t;
 typedef struct _page MmPage_t;
 typedef struct _memspace MmSpace_t;
 typedef struct _memobject MmObject_t;
+typedef struct _thread NkThread_t;
 
 typedef int ipl_t;
 typedef int id_t;
 typedef unsigned long long ktime_t;
+typedef volatile int spinlock_t;
 
 #define FORCEINLINE inline __attribute__ ((always_inline))
 

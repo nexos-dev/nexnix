@@ -198,7 +198,6 @@ void PltInitPhase3()
     PltAcpiPcEnable();
     PltInitClock();
     CpuEnable();
-    CpuUnholdInts();
     PltInitTimer();
 }
 

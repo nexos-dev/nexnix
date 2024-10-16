@@ -18,6 +18,7 @@
 #ifndef _TASK_H
 #define _TASK_H
 
+#include <nexke/cpu.h>
 #include <nexke/list.h>
 #include <nexke/types.h>
 
@@ -47,7 +48,8 @@ typedef struct _thread
     NkThreadEntry entry;
     void* arg;
     // Thread flags
-    bool preempted;    // Wheter this thread has been preempted
+    bool preempted;     // Wheter this thread has been preempted
+    spinlock_t lock;    // Thread lock
 } NkThread_t;
 
 // Thread states
@@ -98,11 +100,22 @@ void TskPreempt();
 
 // IPL safe functions
 
-// Disables preemption
-void TskDisablePreempt();
+// Enables preemption (only used by TskEnablePreempt)
+void TskEnablePreemptUnsafe();
 
-// Enables preemption
-void TskEnablePreempt();
+// Disables preemption
+static inline void TskDisablePreempt()
+{
+    ++CpuGetCcb()->preemptDisable;
+}
+
+static inline void TskEnablePreempt()
+{
+    NkCcb_t* ccb = CpuGetCcb();
+    --ccb->preemptDisable;
+    if (ccb->preemptDisable == 0)
+        TskEnablePreemptUnsafe();
+}
 
 // Gets current thread
 NkThread_t* TskGetCurrentThread();

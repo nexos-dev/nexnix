@@ -20,6 +20,7 @@
 
 #include <nexke/cpu.h>
 #include <nexke/list.h>
+#include <nexke/lock.h>
 #include <nexke/types.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -76,6 +77,7 @@ typedef struct _slabcache
     // General info
     const char* name;    // Name of this cache
     int flags;           // Cache flags
+    spinlock_t lock;     // Cache lock
     // Slab pointers
     NkList_t emptySlabs;      // Pointer to empty slabs
     NkList_t partialSlabs;    // Pointer to partial slabs
@@ -161,10 +163,12 @@ typedef struct _resarena
 {
     const char* name;                         // Name of arena
     NkList_t chunks;                          // List of chunks in this arena
+    spinlock_t listLock;                      // Lock for chunk list
     size_t numChunks;                         // Number of chunks
     id_t minId;                               // Minimum ID
     id_t maxId;                               // The max resource ID that can come out of here
     NkList_t chunkHash[NK_NUM_CHUNK_HASH];    // hash table of chunks
+    spinlock_t hashLock;                      // Hash table lock
     NkLink_t link;                            // Link in arena list
 } NkResArena_t;
 

@@ -135,16 +135,21 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
 void t1 (void*)
 {
     for (;;)
-        NkLogDebug ("got here 2\n");
+        PltGetSecondaryCons()->write ("test\n");
+    ;
+    // NkLogDebug ("got here 2\n");
 }
 
 // Kernel initial thread
 static void NkInitialThread (void*)
 {
+    CpuUnholdInts();
     NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     TskReadyThread (th1);
     PltLowerIpl (ipl);
     for (;;)
-        NkLogDebug ("got here 1\n");
+        PltGetSecondaryCons()->write ("test 1\n");
+    ;
+    // NkLogDebug ("got here 1\n");
 }

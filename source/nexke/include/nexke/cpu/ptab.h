@@ -46,10 +46,15 @@ typedef struct _mmspace
                               // Used to lazily update the TLB on CPUs where that is slow
     int freeCount;        // Free number of cache entries
     NkList_t pageList;    // Page table pages
+    spinlock_t lock;      // Lock on address space
+                          // Should be more granular but whatever
 #ifdef NEXNIX_ARCH_I386
     int keVersion;    // Kernel page table version
 #endif
 } MmMulSpace_t;
+
+#define MM_MUL_LOCK(space)   (NkSpinLock (&space->mulSpace.lock))
+#define MM_MUL_UNLOCK(space) (NkSpinUnlock (&space->mulSpace.lock))
 
 // Initializes page table manager
 void MmPtabInit (int numLevels);

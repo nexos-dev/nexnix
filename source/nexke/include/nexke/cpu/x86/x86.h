@@ -252,15 +252,26 @@ typedef struct _cputhread
 } CpuThread_t;
 
 // Segment reg helpers
-#define CpuReadGs(val) asm volatile ("movl %%gs:0,%0" : "=r"((val)) :);
+#define CpuReadGs(val) asm volatile ("mov %%gs:0,%0" : "=r"((val)) :);
+
+extern bool ccbInit;
+
+NkCcb_t* CpuRealCcb();
 
 // Gets the current CCB
 static inline NkCcb_t* CpuGetCcb()
 {
-    uintptr_t ccb = 0;
-    CpuReadGs (ccb);
-    return (NkCcb_t*) ccb;
+    if (ccbInit)
+    {
+        uintptr_t ccb = 0;
+        CpuReadGs (ccb);
+        return (NkCcb_t*) ccb;
+    }
+    else
+        return CpuRealCcb();
 }
+
+#define CpuSpin() asm ("pause")
 
 // Control register bits
 #define CPU_CR0_PE (1 << 0)

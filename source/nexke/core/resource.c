@@ -44,6 +44,7 @@ typedef struct _reschunk
     // Free cache info
     id_t freeCache[NK_CHUNK_MAX_FREE_CACHE];    // Cache of free IDs, in relative ID
     size_t curCacheId;                          // Current cache index
+    spinlock_t chunkLock;                       // Chunk lock
     NkLink_t link;                              // Link to next chunk
     NkLink_t hashLink;                          // Hash table link
 } NkResChunk_t;
@@ -63,6 +64,7 @@ static SlabCache_t* chunkCache = NULL;
 
 // List of arenas
 static NkList_t arenas = {0};
+static spinlock_t arenasLock = 0;
 
 // Aligns an ID
 static FORCEINLINE id_t nkAlignId (id_t id, size_t align)
@@ -85,25 +87,42 @@ static FORCEINLINE id_t nkAlignIdDown (id_t id, size_t align)
 static FORCEINLINE void nkHashChunk (NkResArena_t* arena, NkResChunk_t* chunk, id_t baseId)
 {
     size_t idx = baseId % NK_NUM_CHUNK_HASH;
+    NkSpinLock (&arena->hashLock);
     NkListAddFront (&arena->chunkHash[idx], &chunk->link);
+    NkSpinUnlock (&arena->hashLock);
 }
 
 // Gets a hashed chunk
+// Returns chunk locked
 static FORCEINLINE NkResChunk_t* nkGetChunk (NkResArena_t* arena, id_t baseId)
 {
     size_t idx = baseId % NK_NUM_CHUNK_HASH;
     NkLink_t* iter = NkListFront (&arena->chunkHash[idx]);
+    NkResChunk_t* chunk = NULL;
+    NkSpinLock (&arena->hashLock);
     while (iter)
     {
-        NkResChunk_t* chunk = LINK_CONTAINER (iter, NkResChunk_t, link);
+        chunk = LINK_CONTAINER (iter, NkResChunk_t, link);
         if (chunk->baseId == baseId)
-            return chunk;
+        {
+            NkSpinLock (&chunk->chunkLock);
+            break;
+        }
         iter = NkListIterate (iter);
     }
-    return NULL;
+    NkSpinUnlock (&arena->hashLock);
+    return chunk;
 }
 
+#define CHUNK_MAYBE_LOCK(chunk) \
+    if (iter)                   \
+        NkSpinLock (&(chunk)->chunkLock);
+#define CHUNK_MAYBE_UNLOCK(chunk) \
+    if (iter)                     \
+        NkSpinUnlock (&(chunk)->chunkLock);
+
 // Sorts a chunk to it's appropriate spot
+// Called with chunk and list locked
 static FORCEINLINE void nkSortChunk (NkResArena_t* arena, NkResChunk_t* chunk)
 {
     // Find where this chunk should go
@@ -114,20 +133,26 @@ static FORCEINLINE void nkSortChunk (NkResArena_t* arena, NkResChunk_t* chunk)
     {
         // Get the chunk
         NkResChunk_t* leftChunk = LINK_CONTAINER (iter, NkResChunk_t, link);
+        CHUNK_MAYBE_LOCK (leftChunk);
         // If we've reached the end or the left has more free than us place us here
         if (!iter || leftChunk->numFree >= chunk->numFree)
         {
             // Found spot, check if we need to move it
             if (chunk->link.prev == iter)
+            {
+                CHUNK_MAYBE_UNLOCK (leftChunk);
                 break;    // Nothing to move
+            }
             // Move it to this spot
             NkListRemove (&arena->chunks, &chunk->link);
             if (!iter)
                 NkListAddFront (&arena->chunks, &chunk->link);
             else
                 NkListAddBefore (&arena->chunks, iter, &chunk->link);
+            CHUNK_MAYBE_UNLOCK (leftChunk);
             break;
         }
+        CHUNK_MAYBE_UNLOCK (leftChunk);
         iter = iter->prev;
     }
     // Now move to right
@@ -136,20 +161,26 @@ static FORCEINLINE void nkSortChunk (NkResArena_t* arena, NkResChunk_t* chunk)
     {
         // Get the chunk
         NkResChunk_t* rightChunk = LINK_CONTAINER (iter, NkResChunk_t, link);
+        CHUNK_MAYBE_LOCK (rightChunk);
         // If we've reached the end or the left has more free than us place us here
         if (!iter || rightChunk->numFree <= chunk->numFree)
         {
             // Found spot, check if we need to move it
             if (chunk->link.next == iter)
+            {
+                CHUNK_MAYBE_UNLOCK (rightChunk);
                 break;    // Nothing to move
+            }
             // Move it to this spot
             NkListRemove (&arena->chunks, &chunk->link);
             if (!iter)
                 NkListAddBack (&arena->chunks, &chunk->link);
             else
                 NkListAdd (&arena->chunks, iter, &chunk->link);
+            CHUNK_MAYBE_UNLOCK (rightChunk);
             break;
         }
+        CHUNK_MAYBE_UNLOCK (rightChunk);
         iter = NkListIterate (iter);
     }
 }
@@ -176,6 +207,7 @@ id_t NkAllocResource (NkResArena_t* arena)
     if (!link)
         return -1;    // No free IDs
     NkResChunk_t* chunk = LINK_CONTAINER (link, NkResChunk_t, link);
+    NkSpinLock (&chunk->chunkLock);
     if (chunk->numFree == 0)
         return -1;
     // Check if this is ranged or mapped
@@ -188,7 +220,11 @@ id_t NkAllocResource (NkResArena_t* arena)
         id = chunk->baseId;
         ++chunk->baseId;
         if (chunk->baseId >= chunk->lastId)
+        {
+            NkSpinLock (&arena->listLock);
             NkListRemove (&arena->chunks, &chunk->link);    // Remove chunk from list, list is empty
+            NkSpinUnlock (&arena->listLock);
+        }
     }
     else
     {
@@ -216,7 +252,10 @@ id_t NkAllocResource (NkResArena_t* arena)
     }
     --chunk->numFree;
     // Sort this chunk
+    NkSpinLock (&arena->listLock);
     nkSortChunk (arena, chunk);
+    NkSpinUnlock (&arena->listLock);
+    NkSpinUnlock (&chunk->chunkLock);
     return id;
 }
 
@@ -244,8 +283,10 @@ void NkFreeResource (NkResArena_t* arena, id_t res)
         chunk->freeCache[0] = -1;
         chunk->curCacheId = NK_CHUNK_MAX_FREE_CACHE;
         // Add to lists
+        NkSpinLock (&arena->listLock);
         NkListAddFront (&arena->chunks, &chunk->link);
         nkSortChunk (arena, chunk);
+        NkSpinUnlock (&arena->listLock);
         nkHashChunk (arena, chunk, baseId);
     }
     else
@@ -256,6 +297,7 @@ void NkFreeResource (NkResArena_t* arena, id_t res)
         ++chunk->numFree;
         // TODO: add ID to free list if beneficial
     }
+    NkSpinUnlock (&chunk->chunkLock);
 }
 
 // Creates a resource arena
@@ -285,7 +327,9 @@ NkResArena_t* NkCreateResource (const char* name, id_t minId, id_t maxId)
     // Add chunk
     NkListAddFront (&arena->chunks, &chunk->link);
     // Add arena
+    NkSpinLock (&arenasLock);
     NkListAddFront (&arenas, &arena->link);
+    NkSpinUnlock (&arenasLock);
     return arena;
 }
 
@@ -301,7 +345,9 @@ void NkDestroyResource (NkResArena_t* arena)
         iter = NkListIterate (iter);
     }
     // Remove from list
+    NkSpinLock (&arenasLock);
     NkListRemove (&arenas, &arena->link);
+    NkSpinUnlock (&arenasLock);
     MmCacheFree (arenaCache, arena);
 }
 

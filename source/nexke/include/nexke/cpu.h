@@ -21,7 +21,6 @@
 // Include arch header. This makes use of computed includes
 #include NEXKE_ARCH_HEADER
 #include <nexke/list.h>
-#include <nexke/task.h>
 #include <nexke/types.h>
 
 // CCB structure (aka CPU control block)
@@ -43,12 +42,14 @@ typedef struct _nkccb
                            // This flags is only set during hardware interrupt processing
     // Timer related data
     NkList_t timeEvents;    // Linked list of time events waiting to occur
+    spinlock_t timeLock;    // Time events lock
     // Scheudler info
     NkList_t readyQueue;       // Scheduler's ready queue
     NkThread_t* curThread;     // Currently executing thread
     NkThread_t* idleThread;    // Thread to execute when readyQueue is empty
-    bool preemptDisable;       // If preemption is presently allowed
+    int preemptDisable;        // If preemption is presently allowed
     bool preemptReq;           // If preemption has been requested
+    spinlock_t rqLock;         // Lock for ready queue
 } NkCcb_t;
 
 // Defined CPU architectures

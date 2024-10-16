@@ -149,26 +149,19 @@ void TskPreempt()
     if (ccb->preemptDisable)
         ccb->preemptReq = true;    // Preemption has been requested
     else
+    {
+        ccb->preemptReq = false;
         tskSchedule (ccb);    // Schedule the next thread
-}
-
-// Disables preemption
-// This function is IPL safe
-void TskDisablePreempt()
-{
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    CpuGetCcb()->preemptDisable = true;
-    CpuGetCcb()->preemptReq = false;
-    PltLowerIpl (ipl);
+    }
 }
 
 // Enables preemption
 // IPL safe
-void TskEnablePreempt()
+void TskEnablePreemptUnsafe()
 {
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     NkCcb_t* ccb = CpuGetCcb();
-    ccb->preemptDisable = false;
+    assert (!ccb->preemptDisable);
     if (ccb->preemptReq)
         TskPreempt();    // Preempt the current thread
     PltLowerIpl (ipl);
@@ -246,6 +239,7 @@ void TskInitSched()
 {
     // Create the idle thread
     NkCcb_t* ccb = CpuGetCcb();
+    ccb->preemptDisable = 0;
     ccb->idleThread = TskCreateThread (TskIdleThread, NULL, "TskIdleThread");
     assert (ccb->idleThread);
     // Get clock

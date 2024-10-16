@@ -61,12 +61,13 @@ void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callbac
     event->arg = arg;
     event->callback = callback;
     // Raise IPL to protect event list
+    NkCcb_t* ccb = CpuGetCcb();
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkSpinLock (&ccb->timeLock);
     // Get deadline and convert delta to timer format
     event->deadline = NkTimeDeltaToDeadline (&delta);
     // Ensure deadline is valid for this timer
     // Grab list
-    NkCcb_t* ccb = CpuGetCcb();
     NkList_t* list = &ccb->timeEvents;
     NkLink_t* iter = NkListFront (list);
     // Find where in list to add
@@ -105,6 +106,7 @@ void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callbac
         }
     }
     event->inUse = true;
+    NkSpinUnlock (&ccb->timeLock);
     PltLowerIpl (ipl);
 }
 
@@ -112,8 +114,9 @@ void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callbac
 void NkTimeDeRegEvent (NkTimeEvent_t* event)
 {
     // Raise IPL to protect event list
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     NkCcb_t* ccb = CpuGetCcb();
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkSpinLock (&ccb->timeLock);
     NkList_t* list = &ccb->timeEvents;
     // Figure out if this is the head
     bool isHead = false;
@@ -138,6 +141,7 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
         }
     }
     event->link.next = event->link.prev = NULL;
+    NkSpinUnlock (&ccb->timeLock);
     PltLowerIpl (ipl);
 }
 
@@ -145,6 +149,7 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
 static void NkTimeHandler()
 {
     NkCcb_t* ccb = CpuGetCcb();
+    NkSpinLock (&ccb->timeLock);
     NkList_t* list = &ccb->timeEvents;
     NkLink_t* iter = NkListFront (list);
     NkTimeEvent_t* event = LINK_CONTAINER (iter, NkTimeEvent_t, link);
@@ -160,7 +165,9 @@ static void NkTimeHandler()
             NkLink_t* oldIter = iter;       // Save this iterator
             iter = NkListIterate (iter);    // To next one
             NkListRemove (list, oldIter);
+            NkSpinUnlock (&ccb->timeLock);
             event->callback (event, event->arg);
+            NkSpinLock (&ccb->timeLock);
             event->inUse = false;
             event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
         }
@@ -177,7 +184,9 @@ static void NkTimeHandler()
             NkLink_t* oldIter = iter;       // Save this iterator
             iter = NkListIterate (iter);    // To next one
             NkListRemove (list, oldIter);
+            NkSpinUnlock (&ccb->timeLock);
             event->callback (event, event->arg);
+            NkSpinLock (&ccb->timeLock);
             event->inUse = false;
             event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
         }
@@ -195,6 +204,7 @@ static void NkTimeHandler()
             platform->timer->armTimer (delta);
         }
     }
+    NkSpinUnlock (&ccb->timeLock);
 }
 
 // Polls

@@ -26,7 +26,9 @@
 
 // The system's CCB. A very important data structure that contains the kernel's
 // deepest bowels
-static NkCcb_t ccb = {0};    // The CCB
+static NkCcb_t ccb = {0, .preemptDisable = 1};    // The CCB
+
+bool ccbInit = false;
 
 // The GDT
 static CpuSegDesc_t cpuGdt[CPU_GDT_MAX] = {0};
@@ -156,7 +158,6 @@ static void cpuInitIdt()
 // Prepares CCB data structure. This is the first thing called during boot
 void CpuInitCcb()
 {
-    memset (&ccb, 0, sizeof (NkCcb_t));
     // Grab boot info
     NexNixBoot_t* bootInfo = NkGetBootArgs();
     // Set up basic fields
@@ -211,9 +212,7 @@ void CpuInitCcb()
             CpuWrmsr (CPU_EFER_MSR, efer);
         }
     }
-    // Log CPU specs
-    CpuPrintFeatures();
-    // Create segment for CCB
+    ccbInit = true;
 }
 
 // Gets feature bits

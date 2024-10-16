@@ -39,6 +39,7 @@ static size_t minObjSz = 0;
 // Hash table of external buffers
 #define SLAB_EXT_HASH_SZ 64
 static NkList_t extBufHash[SLAB_EXT_HASH_SZ] = {0};
+static spinlock_t bufHashLock = 0;
 
 // Alignment value
 #define SLAB_ALIGN 8
@@ -95,14 +96,17 @@ static FORCEINLINE SlabBuf_t* slabGetHashedBuf (void* base)
     // Get has table index
     // All bases are 8-byte aligned (generally) removes those bits for uniqueness
     size_t hashIdx = ((uintptr_t) base >> 3) % SLAB_EXT_HASH_SZ;
+    NkSpinLock (&bufHashLock);
     NkLink_t* iter = NkListFront (&extBufHash[hashIdx]);
+    SlabBuf_t* buf = NULL;
     while (iter)
     {
-        SlabBuf_t* buf = LINK_CONTAINER (iter, SlabBuf_t, link);
+        buf = LINK_CONTAINER (iter, SlabBuf_t, link);
         if (buf->obj == base)
-            return buf;
+            break;
         iter = NkListIterate (iter);
     }
+    NkSpinUnlock (&bufHashLock);
     return NULL;
 }
 
@@ -110,14 +114,18 @@ static FORCEINLINE SlabBuf_t* slabGetHashedBuf (void* base)
 static FORCEINLINE void slabHashBuf (SlabBuf_t* buf)
 {
     size_t hashIdx = ((uintptr_t) buf->obj >> 3) % SLAB_EXT_HASH_SZ;
+    NkSpinLock (&bufHashLock);
     NkListAddFront (&extBufHash[hashIdx], &buf->link);
+    NkSpinUnlock (&bufHashLock);
 }
 
 // Removes a slab from the hash table
 static FORCEINLINE void slabRemoveBuf (SlabBuf_t* buf)
 {
     size_t hashIdx = ((uintptr_t) buf->obj >> 3) % SLAB_EXT_HASH_SZ;
+    NkSpinLock (&bufHashLock);
     NkListRemove (&extBufHash[hashIdx], &buf->link);
+    NkSpinUnlock (&bufHashLock);
 }
 
 // Converts object to slab
@@ -295,6 +303,7 @@ static FORCEINLINE void slabCacheCreate (SlabCache_t* cache,
 void* MmCacheAlloc (SlabCache_t* cache)
 {
     CPU_ASSERT_NOT_INT();
+    NkSpinLock (&cache->lock);
     // Attempt to grab object from empty list
     void* ret = NULL;
     if (NkListFront (&cache->emptySlabs))
@@ -332,6 +341,7 @@ void* MmCacheAlloc (SlabCache_t* cache)
     }
     // Update stats
     ++cache->numObjs;
+    NkSpinUnlock (&cache->lock);
     return ret;    // We are done!
 }
 
@@ -339,6 +349,7 @@ void* MmCacheAlloc (SlabCache_t* cache)
 void MmCacheFree (SlabCache_t* cache, void* obj)
 {
     CPU_ASSERT_NOT_INT();
+    NkSpinLock (&cache->lock);
     // Put object back in parent slab
     Slab_t* slab = slabGetObjSlab (cache, obj);
     slabFreeToSlab (cache, slab, obj);
@@ -363,6 +374,7 @@ void MmCacheFree (SlabCache_t* cache, void* obj)
             slabFreeSlab (cache, slab);    // Free this slab
     }
     --cache->numObjs;
+    NkSpinUnlock (&cache->lock);
 }
 
 // Creates a slab cache
@@ -373,6 +385,7 @@ SlabCache_t* MmCacheCreate (size_t objSz, const char* name, size_t align, int fl
     SlabCache_t* newCache = MmCacheAlloc (&caches);
     if (!newCache)
         return NULL;
+    memset (newCache, 0, sizeof (SlabCache_t));
     slabCacheCreate (newCache, objSz, name, align, flags);
     return newCache;
 }
@@ -432,6 +445,7 @@ void MmSlabDump()
     while (cacheIter)
     {
         SlabCache_t* cache = LINK_CONTAINER (cacheIter, SlabCache_t, link);
+        NkSpinLock (&cache->lock);
         NkLogDebug ("cache name: %s, cache object size: %lu, cache aligment: %lu, max number of "
                     "objects to a slab: %lu\n",
                     cache->name,
@@ -449,6 +463,7 @@ void MmSlabDump()
                     cache->numColors,
                     cache->curColor,
                     cache->colorAdj);
+        NkSpinUnlock (&cache->lock);
         cacheIter = NkListIterate (cacheIter);
     }
 }

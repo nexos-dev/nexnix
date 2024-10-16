@@ -78,6 +78,7 @@ typedef struct _zone
     int flags;               // Flags specifying type of memory in this zone
     struct _page* pfnMap;    // Table of PFNs in this zone
     NkList_t freeList;       // Free list of pages in this zone
+    spinlock_t lock;         // Lock on zone
 } MmZone_t;
 
 // Zone flags
@@ -102,6 +103,7 @@ typedef struct _page
     MmPageMap_t* maps;    // Mappings of this page
     NkLink_t link;        // Link to track this page on free list/hash table
     NkLink_t objLink;     // Link to track this page in object
+    spinlock_t lock;      // Lock on page structure
 } MmPage_t;
 
 #define MM_PAGE_FREE      (1 << 0)    // Page is not in use
@@ -173,6 +175,7 @@ typedef struct _memobject
     size_t numPages;      // Number of pages in object
     void** backendTab;    // Table of backend functions
     void* backendData;    // Data used by backend in this object
+    spinlock_t lock;      // Lock on object
 } MmObject_t;
 
 // Memory object backends
@@ -240,6 +243,7 @@ typedef struct _memspace
     MmSpaceEntry_t* entryList;    // List of address space entries
     MmSpaceEntry_t* faultHint;    // Last faulting area
     MmMulSpace_t mulSpace;        // MUL address space
+    spinlock_t lock;              // Lock on address space
 } MmSpace_t;
 
 // Creates a new empty address space

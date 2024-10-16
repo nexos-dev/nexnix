@@ -127,6 +127,7 @@ void MmMulDestroySpace (MmSpace_t* space)
 // Maps page into address space
 void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 {
+    MM_MUL_LOCK (space);
     // Translate flags
     pte_t pgFlags = PF_P | PF_US;
     // Check for NX
@@ -147,6 +148,7 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlush (virt);
+    MM_MUL_UNLOCK (space);
     // Add mapping to this page
     MmPageAddMap (page, space, virt);
 }
@@ -154,17 +156,21 @@ void MmMulMapPage (MmSpace_t* space, uintptr_t virt, MmPage_t* page, int perm)
 // Unmaps page out of address space
 void MmMulUnmapPage (MmSpace_t* space, uintptr_t virt)
 {
+    MM_MUL_LOCK (space);
     MmPtabWalkAndUnmap (space, space->mulSpace.base, mulDecanonical (virt));
     // Flush TLB if needed
     if (space == MmGetCurrentSpace() || space == MmGetKernelSpace())
         MmMulFlush (virt);
+    MM_MUL_UNLOCK (space);
 }
 
 // Gets mapping for specified virtual address
 MmPage_t* MmMulGetMapping (MmSpace_t* space, uintptr_t virt)
 {
+    MM_MUL_LOCK (space);
     // Grab address
     paddr_t addr = MmPtabGetPte (space, space->mulSpace.base, mulDecanonical (virt)) & PT_FRAME;
+    MM_MUL_UNLOCK (space);
     return MmFindPagePfn (addr / NEXKE_CPU_PAGESZ);
 }
 
