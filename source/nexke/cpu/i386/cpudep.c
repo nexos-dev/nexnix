@@ -271,3 +271,54 @@ NkCcb_t* CpuGetCcb()
 {
     return &ccb;
 }
+
+// Allocates a kernel stack
+static void* cpuAllocKstack()
+{
+    // Allocate it
+    void* stack = MmAllocKvRegion ((CPU_KSTACK_SZ >> NEXKE_CPU_PAGE_SHIFT) + 2, 0);
+    // Create two guard pages
+    MmPage_t* guard1 = MmAllocGuardPage();
+    MmPage_t* guard2 = MmAllocGuardPage();
+    if (!guard1 || !guard2 || !stack)
+        return NULL;
+    // Add them
+    MmObject_t* kobj = MmGetKernelObject();
+    MmAddPage (kobj, (size_t) stack - MmGetKernelSpace()->startAddr, guard1);
+    uintptr_t stackEnd = (CPU_KSTACK_SZ + NEXKE_CPU_PAGESZ) + (uintptr_t) stack;
+    MmAddPage (kobj, stackEnd - MmGetKernelSpace()->startAddr, guard2);
+    return stack + NEXKE_CPU_PAGESZ;    // Return non-guard page
+}
+
+// Destroys kernel stack
+static void cpuDestroyKstack (void* stack)
+{
+    // Free region taking into account guard page
+    MmFreeKvRegion (stack - NEXKE_CPU_PAGESZ);
+}
+
+// Allocates a CPU context and intializes it
+// On i386, a CPU's context is it's kernel stack
+CpuContext_t* CpuAllocContext (uintptr_t entry)
+{
+    // Allocate a stack
+    void* stack = cpuAllocKstack();
+    if (!stack)
+        return NULL;
+    CpuContext_t* context = (CpuContext_t*) (stack + CPU_KSTACK_SZ - sizeof (CpuContext_t));
+    // Initialize it
+    context->ebx = 0;
+    context->edi = 0;
+    context->esi = 0;
+    context->ebp = 0;
+    context->eip = entry;
+    return context;
+}
+
+// Destroys a context
+void CpuDestroyContext (CpuContext_t* context)
+{
+    // Get stack
+    void* stack = (void*) (CpuPageAlignUp ((uintptr_t) context)) - CPU_KSTACK_SZ;
+    cpuDestroyKstack (stack);
+}

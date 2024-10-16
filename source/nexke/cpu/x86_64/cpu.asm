@@ -44,3 +44,28 @@ global MmMulFlush
 MmMulFlush:
     invlpg [rdi]
     ret
+
+; Performs a context switch
+; Very critical code path
+global CpuSwitchContext
+CpuSwitchContext:
+    ; New context is in RDI, old in RSI
+    ; Save callee saved registers
+    push rbp
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    ; Save old stack
+    mov [rsi], rsp
+    ; Load new stack
+    mov rsp, rdi
+    ; Restore registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+    ret         ; Start at RIP of new context

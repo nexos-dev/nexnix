@@ -80,6 +80,15 @@ bool NkVerifyChecksum (uint8_t* buf, size_t len)
     return !sum;
 }
 
+CpuContext_t* oldCtx = NULL;
+CpuContext_t* ctx = NULL;
+
+void t()
+{
+    NkLogDebug ("got here\n");
+    CpuSwitchContext (oldCtx, &ctx);
+}
+
 void NkMain (NexNixBoot_t* bootinf)
 {
     // Set bootinfo
@@ -116,7 +125,9 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
-    MmSlabDump();
+    ctx = CpuAllocContext (t);
+    CpuSwitchContext (ctx, &oldCtx);
+    CpuDestroyContext (ctx);
     for (;;)
         ;
 }

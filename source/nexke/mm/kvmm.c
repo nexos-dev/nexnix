@@ -461,6 +461,9 @@ void* MmAllocKvRegion (size_t numPages, int flags)
     {
         if (arena->numFreePages >= numPages)
         {
+            // Also check if compatible
+            if (!(flags & MM_KV_NO_DEMAND) && !arena->needsMap)
+                continue;
             // If this is a single page allocation attempt to pull from free list
             void* p = NULL;
             if (numPages == 1)
@@ -523,6 +526,12 @@ void MmFreeKvPage (void* page)
 MmSpace_t* MmGetKernelSpace()
 {
     return &kmemSpace;
+}
+
+// Returns kernel object
+MmObject_t* MmGetKernelObject()
+{
+    return kmemSpace.entryList->obj;
 }
 
 // Maps in MMIO / FW memory

@@ -126,6 +126,9 @@ void __attribute__ ((noreturn)) CpuCrash();
 #define NEXKE_CPU_PAGESZ     0x1000
 #define NEXKE_CPU_PAGE_SHIFT 12
 
+// Kernel stack size
+#define CPU_KSTACK_SZ 8192
+
 // Data structures
 
 // Segment descriptor

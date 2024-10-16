@@ -80,6 +80,15 @@ void CpuDisable();
 // Enables interrupts
 void CpuEnable();
 
+// Performs a context switch
+void CpuSwitchContext (CpuContext_t* newCtx, CpuContext_t** oldCtx);
+
+// Allocates a CPU context and intializes it
+CpuContext_t* CpuAllocContext (uintptr_t entry);
+
+// Destroys a context
+void CpuDestroyContext (CpuContext_t* context);
+
 // Asserts that we are not in an interrupt
 #define CPU_ASSERT_NOT_INT()    \
     if (CpuGetCcb()->intActive) \

@@ -348,6 +348,19 @@ void MmFreePages (MmPage_t* pages, size_t count)
         MmFreePage (&pages[i]);
 }
 
+// Allocate a guard page
+// Guard pages have no PFN, they are fake pages that indicate to
+// never map a page to a specified object,offset
+MmPage_t* MmAllocGuardPage()
+{
+    MmPage_t* page = MmCacheAlloc (mmFakePageCache);
+    if (!page)
+        return NULL;
+    memset (page, 0, sizeof (MmPage_t));
+    page->flags = MM_PAGE_UNUSABLE | MM_PAGE_GUARD;
+    return page;
+}
+
 #define MM_GET_BUCKET(obj, off) ((CpuPageAlignDown ((uintptr_t) obj) + off) % MM_MAX_BUCKETS)
 
 // Adds a page to a page hash list

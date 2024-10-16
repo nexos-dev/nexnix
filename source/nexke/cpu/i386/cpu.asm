@@ -123,3 +123,25 @@ CpuCheckFpu:
     pop ebp
     ret
 
+; Performs a context switch
+; Very critical code path
+global CpuSwitchContext
+CpuSwitchContext:
+    ; Get new and old context pointers
+    mov eax, [esp+8]
+    mov edx, [esp+4]
+    ; Save registers
+    push ebp
+    push ebx
+    push esi
+    push edi
+    ; Save old stack
+    mov [eax], esp
+    ; Set new stack
+    mov esp, edx
+    ; Restore old context
+    pop edi
+    pop esi
+    pop ebx
+    pop ebp
+    ret

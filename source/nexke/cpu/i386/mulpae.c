@@ -56,7 +56,6 @@ void MmMulInit()
     // Set base of directory
     MmGetKernelSpace()->mulSpace.base = (paddr_t) pdpt;
     // Add cache page
-    memset (&MmGetKernelSpace()->mulSpace.tablePages, 0, sizeof (MmPageList_t));
     NkListAddFront (&MmGetKernelSpace()->mulSpace.pageList, &cachePgCtrl->link);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());

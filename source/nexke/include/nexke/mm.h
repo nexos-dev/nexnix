@@ -108,6 +108,7 @@ typedef struct _page
 #define MM_PAGE_IN_OBJECT (1 << 1)    // Page is currently in object
 #define MM_PAGE_UNUSABLE  (1 << 2)    // Page is not usable
 #define MM_PAGE_ALLOCED   (1 << 3)    // Page is allocated but not in object
+#define MM_PAGE_GUARD     (1 << 4)    // Page is a guard page
 
 // Page interface
 
@@ -124,7 +125,10 @@ MmPage_t* MmFindPagePfn (pfn_t pfn);
 // Frees a page
 void MmFreePage (MmPage_t* page);
 
-// Dereferences a page
+// Allocate a guard page
+// Guard pages have no PFN, they are fake pages that indicate to
+// never map a page to a specified object,offset
+MmPage_t* MmAllocGuardPage();
 
 // Allocates a contigious range of PFNs with specified at limit, beneath specified base adress
 // NOTE: use with care, this function is poorly efficient
@@ -276,6 +280,9 @@ MmSpace_t* MmGetKernelSpace();
 
 // Gets active address space
 MmSpace_t* MmGetCurrentSpace();
+
+// Returns kernel object
+MmObject_t* MmGetKernelObject();
 
 // Fault entry point
 bool MmPageFault (uintptr_t vaddr, int prot);

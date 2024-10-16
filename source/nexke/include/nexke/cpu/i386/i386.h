@@ -122,6 +122,19 @@ typedef struct _icontext
 
 #define CPU_CTX_INTNUM(ctx) ((ctx)->intNo)
 
+// Multitasking context
+// In nexke, multitasking context is stored on the stack
+// So the context pointer is actually the stack pointer
+// Also we only need to save the callee-saved registers in the regular context switching routine
+typedef struct _context
+{
+    uint32_t edi;
+    uint32_t esi;
+    uint32_t ebx;
+    uint32_t ebp;
+    uint32_t eip;
+} CpuContext_t;
+
 // Checks if CPUID exists
 bool CpuCheckCpuid();
 

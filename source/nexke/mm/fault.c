@@ -64,6 +64,18 @@ bool MmPageFaultIn (MmObject_t* obj, size_t offset, int* prot, MmPage_t** outPag
         if (!MmBackendPageIn (obj, offset, page))
             NkPanic ("nexke: page in error\n");
     }
+    else
+    {
+        // There is a page at the object,offset, but we need to make sure
+        // we can actually do this
+        // If this is a guard page, fail, guard pages indicate that a address
+        // should always be invalid no matter what
+        if (page->flags & MM_PAGE_GUARD)
+        {
+            NkLogDebug ("nexke: guard page access caught\n");
+            return false;
+        }
+    }
     // We have a page, now we need to figure out what we need to do (if anything)
     // First figure out if this is a access or protection violation
     int err = *prot;
