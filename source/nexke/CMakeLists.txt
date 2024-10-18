@@ -95,7 +95,8 @@ list(APPEND NEXKE_SOURCES
     platform/interrupt.c
     platform/acpi.c
     task/thread.c
-    task/sched.c)
+    task/sched.c
+    task/wait.c)
 
 # Create kernel
 add_executable(nexke ${NEXKE_SOURCES})

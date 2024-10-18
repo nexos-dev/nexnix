@@ -100,6 +100,9 @@ void PltAddIntCtrl (PltIntCtrl_t* intCtrl)
 // Resolves an interrupt line from bus-specific to a GSI
 uint32_t PltGetGsi (int bus, int line)
 {
+    // If we are using 8259A, don't worry about doing this
+    if (nkPlatform.intCtrl->type == PLT_INTCTRL_8259A)
+        return line;
     // Search through interrupt overrides
     NkLink_t* iter = NkListFront (&nkPlatform.ints);
     while (iter)

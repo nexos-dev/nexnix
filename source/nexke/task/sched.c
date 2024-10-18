@@ -47,6 +47,9 @@ static void TskIdleThread (void*)
 static FORCEINLINE void tskReadyThread (NkCcb_t* ccb, NkThread_t* thread)
 {
     assert (PltGetIpl() == PLT_IPL_HIGH);
+    // First make sure a wait isn't asserted
+    TSK_CHECK_THREAD_ASSERT (thread);
+    // Check if we were preempted
     if (thread->preempted)
     {
         thread->preempted = false;    // Reset flag as preemption doesn't matter anymore
@@ -178,7 +181,11 @@ void TskBlockThread()
     // Get CCB
     NkCcb_t* ccb = CpuGetCcb();
     NkThread_t* curThread = ccb->curThread;
-    curThread->state = TSK_THREAD_WAITING;    // Thread is now blocked
+    // Check if this wait was asserted
+    if (!curThread->waitAsserted)
+        curThread->state = TSK_THREAD_WAITING;    // Thread is now blocked
+    else
+        TSK_SET_THREAD_ASSERT (curThread, 0);
     NkSpinLock (&ccb->rqLock);
     tskSchedule (ccb);    // Schedule the next thread
     NkSpinUnlock (&ccb->rqLock);

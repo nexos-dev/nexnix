@@ -75,8 +75,9 @@ static inline void NkListAdd (NkList_t* list, NkLink_t* item, NkLink_t* newItem)
 {
     if (item->next)
         item->next->prev = newItem;
-    item->next = newItem;
     newItem->prev = item;
+    newItem->next = item->next;
+    item->next = newItem;
     if (item == list->tail)
         list->tail = newItem;
 }
@@ -86,8 +87,9 @@ static inline void NkListAddBefore (NkList_t* list, NkLink_t* item, NkLink_t* ne
 {
     if (item->prev)
         item->prev->next = newItem;
-    item->prev = newItem;
     newItem->next = item;
+    newItem->prev = item->prev;
+    item->prev = newItem;
     if (item == list->head)
         list->head = newItem;
 }

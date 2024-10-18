@@ -132,32 +132,51 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     assert (0);
 }
 
+TskWaitQueue_t queue = {0};
+
 void t1 (void*)
 {
+    // TskBroadcastWaitQueue (&queue);
     for (;;)
-        PltGetSecondaryCons()->write ("test\n");
-    ;
+    {
+        // PltGetSecondaryCons()->write ("test 2");
+        TskYield();
+    };
     // NkLogDebug ("got here 2\n");
 }
 
 void t2 (void*)
 {
     for (;;)
-        PltGetSecondaryCons()->write ("test 3\n");
+        // PltGetSecondaryCons()->write ("test 3\n");
+        ;
+}
+
+void t3 (void*)
+{
+    for (;;)
+    {
+        PltGetSecondaryCons()->write ("test 4\n");
+        // TskYield();
+    }
 }
 
 // Kernel initial thread
 static void NkInitialThread (void*)
 {
+    // Start interrupts now
     CpuUnholdInts();
     NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
     NkThread_t* th2 = TskCreateThread (t2, NULL, "t2");
+    NkThread_t* th3 = TskCreateThread (t3, NULL, "t3");
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     TskReadyThread (th1);
-    TskReadyThread (th2);
+    /*TskReadyThread (th2);
+    TskReadyThread (th3);*/
     PltLowerIpl (ipl);
+    TskInitWaitQueue (&queue, 0);
+    TskWaitQueueTimeout (&queue, (uint64_t) PLT_NS_IN_SEC);
+    NkLogInfo ("got here 1\n");
     for (;;)
-        PltGetSecondaryCons()->write ("test 1\n");
-    ;
-    // NkLogDebug ("got here 1\n");
+        ;
 }

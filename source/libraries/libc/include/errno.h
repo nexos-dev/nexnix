@@ -1,21 +1,22 @@
 /*
     errno.h - contains libc error numbers
-    Taken from musl, see license at 
+    Taken from musl, see license at
     https://github.com/bminor/musl/blob/f314e133929b6379eccc632bef32eaebb66a7335/COPYRIGHT
 */
 
 #ifndef _ERRNO_H
 #define _ERRNO_H
 
-#define EPERM            1
-#define ENOENT           2
-#define ESRCH            3
-#define EINTR            4
-#define EIO              5
-#define ENXIO            6
-#define E2BIG            7
-#define ENOEXEC          8
-#define EBADF            9
+#define EOK             0
+#define EPERM           1
+#define ENOENT          2
+#define ESRCH           3
+#define EINTR           4
+#define EIO             5
+#define ENXIO           6
+#define E2BIG           7
+#define ENOEXEC         8
+#define EBADF           9
 #define ECHILD          10
 #define EAGAIN          11
 #define ENOMEM          12

@@ -203,17 +203,14 @@ MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* space, uintptr_t addr)
 }
 
 // Finds faulting entry
+// Called with address space locked
 MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr)
 {
-    NkSpinLock (&space->lock);
     // Check hint
     if (space->faultHint)
     {
         if (space->faultHint->vaddr <= addr && mmEntryEnd (space->faultHint) >= addr)
-        {
-            NkSpinUnlock (&space->lock);
             return space->faultHint;
-        }
     }
     // Find it
     MmSpaceEntry_t* cur = space->entryList;
@@ -223,12 +220,10 @@ MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr)
         if (cur->vaddr <= addr && mmEntryEnd (cur) >= addr)
         {
             space->faultHint = cur;
-            NkSpinUnlock (&space->lock);
             return cur;    // We have a match
         }
         cur = cur->next;
     }
-    NkSpinUnlock (&space->lock);
     return NULL;
 }
 

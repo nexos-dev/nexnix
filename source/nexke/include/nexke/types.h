@@ -18,6 +18,9 @@
 #ifndef _NKTYPES_H
 #define _NKTYPES_H
 
+#include <errno.h>
+#include <stdint.h>
+
 typedef struct _nkcons NkConsole_t;
 typedef struct _int NkInterrupt_t;
 typedef struct _hwint NkHwInterrupt_t;
@@ -31,8 +34,9 @@ typedef struct _thread NkThread_t;
 
 typedef int ipl_t;
 typedef int id_t;
-typedef unsigned long long ktime_t;
+typedef uint64_t ktime_t;
 typedef volatile int spinlock_t;
+typedef int errno_t;
 
 #define FORCEINLINE inline __attribute__ ((always_inline))
 

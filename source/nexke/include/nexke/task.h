@@ -21,9 +21,28 @@
 #include <nexke/cpu.h>
 #include <nexke/list.h>
 #include <nexke/types.h>
+#include <stdbool.h>
 
 // Thread entry type
 typedef void (*NkThreadEntry) (void*);
+
+// Wait obejct
+// Defines an object this thread is waiting on, and is used to create priority chains
+typedef struct _waitobj
+{
+    NkLink_t link;
+    NkThread_t* owner;     // Owner of this object
+    NkThread_t* waiter;    // Waiter
+    int type;              // Type of object being waited on
+    ktime_t timeout;       // Timeout of this object
+    void* obj;             // Pointer to object being waited on
+} TskWaitObj_t;
+
+#define TSK_THREAD_MAX_WAIT 4
+
+#define TSK_WAITOBJ_QUEUE 0
+#define TSK_WAITOBJ_TIMER 1
+#define TSK_WAITOBJ_MSG   2
 
 // Thread structure
 typedef struct _thread
@@ -47,9 +66,25 @@ typedef struct _thread
     // Entry point
     NkThreadEntry entry;
     void* arg;
+    // Wait info
+    TskWaitObj_t wait;            // Object we are waiting on
+    TskWaitObj_t timer;           // Timer we are waiting on
+    volatile int waitAsserted;    // Wheter a wait is currently asserted
     // Thread flags
-    bool preempted;    // Wheter this thread has been preempted
+    bool preempted;            // Wheter this thread has been preempted
+    NkTimeEvent_t* timeout;    // Wait queue timeout
+    bool timeoutPending;       // Wheter a timeout is pending
 } NkThread_t;
+
+// Helpers for wait assertion
+#define TSK_SET_THREAD_ASSERT(thread, val) \
+    (__atomic_store_n (&(thread)->waitAsserted, (val), __ATOMIC_RELEASE))
+#define TSK_CHECK_THREAD_ASSERT(thread)                                    \
+    int __val = 0;                                                         \
+    do                                                                     \
+    {                                                                      \
+        __atomic_load (&(thread)->waitAsserted, &__val, __ATOMIC_ACQUIRE); \
+    } while (__val);
 
 // Thread states
 #define TSK_THREAD_READY   0
@@ -91,6 +126,17 @@ void TskSchedule();
 // Blocks current thread
 void TskBlockThread();
 
+// Asserts and sets up a wait
+// IPL must be raised and object must be locked
+TskWaitObj_t* TskAssertWait (NkThread_t* objOwner, ktime_t timeout, void* obj, int type);
+
+// Cleans up a wait object
+bool TskFinishWait (TskWaitObj_t* waitObj);
+
+// Clears a wait on a wait object
+// If timeout already expired, returns false
+bool TskClearWait (TskWaitObj_t* waitObj);
+
 // IPL safe functions
 
 // Enables preemption (only used by TskEnablePreempt)
@@ -113,6 +159,10 @@ static inline void TskEnablePreempt()
 // Gets current thread
 NkThread_t* TskGetCurrentThread();
 
+// Yields from current thread
+// Safe wrapper over TskSchedule
+void TskYield();
+
 // Quantum stuff
 
 // Time slicer operating delta (in ns)
@@ -120,5 +170,55 @@ NkThread_t* TskGetCurrentThread();
 
 // Default time slice length (in time slicer ticks)
 #define TSK_TIMESLICE_LEN 6    // equals 60 ms
+
+// Wait queue
+typedef struct _wq
+{
+    NkList_t waiters;    // Waiters waiting on this queue
+    spinlock_t lock;     // Queue lock
+    int pendingWaits;    // Number of waits to be done until we actually wait
+                         // Or number of wakes till we actually wake if negative
+    bool done;           // If this queue is done
+} TskWaitQueue_t;
+
+// Initializes a wait queue
+void TskInitWaitQueue (TskWaitQueue_t* queue, int count);
+
+// Closes a wait queue and broadcasts the closing
+void TskCloseWaitQueue (TskWaitQueue_t* queue);
+
+// Broadcasts wakeup to all threads on the queue
+void TskBroadcastWaitQueue (TskWaitQueue_t* queue);
+
+// Signals wait queue
+// Doesn't affect pendingWaits if there are no threads
+void TskSignalWaitQueue (TskWaitQueue_t* queue);
+
+// Wakes one thread on the queue
+void TskWakeWaitQueue (TskWaitQueue_t* queue);
+
+// Waits on the specified wait queue
+errno_t TskWaitQueue (TskWaitQueue_t* queue);
+
+// Waits with timeout
+errno_t TskWaitQueueTimeout (TskWaitQueue_t* queue, ktime_t timeout);
+
+// Waits with flags
+errno_t TskWaitQueueFlags (TskWaitQueue_t* queue, int flags, ktime_t timeout);
+
+// Asserts that we are going to wait
+// Returns old IPL pre-assert
+ipl_t TskWaitQueueAssert (TskWaitQueue_t* queue);
+
+// Deasserts a wait
+void TskWaitQueueDeassert (TskWaitQueue_t* queue, ipl_t ipl);
+
+#define TSK_TIMEOUT_NONE 0
+
+// Wait flags
+#define TSK_WAIT_NO_BLOCK (1 << 0)
+#define TSK_WAIT_ASSERTED \
+    (1 << 1)    // Specifies that wait is already asserted
+                // Use with care
 
 #endif

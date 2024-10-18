@@ -131,19 +131,34 @@ typedef void (*NkTimeCallback) (NkTimeEvent_t*, void*);
 // Timer event structure
 typedef struct _timeevt
 {
-    ktime_t deadline;           // Deadline for this event
-                                // NOTE: this is internal, as this is in internal clock ticks
-    NkTimeCallback callback;    // Callback function
-    void* arg;                  // Argument to pass to callback
-    bool inUse;                 // Event current registered
+    ktime_t deadline;    // Deadline for this event
+                         // NOTE: this is internal, as this is in internal clock ticks
+    int type;            // Type of event
+    union
+    {
+        struct
+        {
+            NkTimeCallback callback;    // Callback function
+            void* arg;                  // Argument to pass to callback
+        };
+        NkThread_t* thread;    // Thread to wake
+    };
+    bool inUse;      // Event current registered
+    bool expired;    // Has the event expired?
     NkLink_t link;
 } NkTimeEvent_t;
+
+#define NEXKE_EVENT_CB   0
+#define NEXKE_EVENT_WAKE 1
 
 // Initializes timing subsystem
 void NkInitTime();
 
 // Registers a time event
 void NkTimeRegEvent (NkTimeEvent_t*, ktime_t delta, NkTimeCallback callback, void* arg);
+
+// Registers a threaded time event
+void NkTimeRegWakeup (NkTimeEvent_t* event, ktime_t delta, NkThread_t* thread);
 
 // Deregisters a time event
 void NkTimeDeRegEvent (NkTimeEvent_t* event);

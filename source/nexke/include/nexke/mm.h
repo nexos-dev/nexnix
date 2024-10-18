@@ -265,6 +265,7 @@ void MmFreeSpace (MmSpace_t* space, MmSpaceEntry_t* entry);
 MmSpaceEntry_t* MmFindSpaceEntry (MmSpace_t* space, uintptr_t addr);
 
 // Finds faulting entry
+// Called with address space locked
 MmSpaceEntry_t* MmFindFaultEntry (MmSpace_t* space, uintptr_t addr);
 
 // Dumps address space
