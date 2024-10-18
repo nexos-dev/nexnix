@@ -40,9 +40,11 @@ typedef struct _waitobj
 
 #define TSK_THREAD_MAX_WAIT 4
 
-#define TSK_WAITOBJ_QUEUE 0
-#define TSK_WAITOBJ_TIMER 1
-#define TSK_WAITOBJ_MSG   2
+#define TSK_WAITOBJ_TIMER     0
+#define TSK_WAITOBJ_MSG       1
+#define TSK_WAITOBJ_SEMAPHORE 2
+#define TSK_WAITOBJ_CONDITION 3
+#define TSK_WAITOBJ_MUTEX     4
 
 // Thread structure
 typedef struct _thread
@@ -176,26 +178,21 @@ typedef struct _wq
 {
     NkList_t waiters;    // Waiters waiting on this queue
     spinlock_t lock;     // Queue lock
-    int pendingWaits;    // Number of waits to be done until we actually wait
-                         // Or number of wakes till we actually wake if negative
+    int queueObject;     // Type of object queue is working under
     bool done;           // If this queue is done
 } TskWaitQueue_t;
 
 // Initializes a wait queue
-void TskInitWaitQueue (TskWaitQueue_t* queue, int count);
+void TskInitWaitQueue (TskWaitQueue_t* queue, int object);
 
 // Closes a wait queue and broadcasts the closing
-void TskCloseWaitQueue (TskWaitQueue_t* queue);
+errno_t TskCloseWaitQueue (TskWaitQueue_t* queue, int flags);
 
 // Broadcasts wakeup to all threads on the queue
-void TskBroadcastWaitQueue (TskWaitQueue_t* queue);
-
-// Signals wait queue
-// Doesn't affect pendingWaits if there are no threads
-void TskSignalWaitQueue (TskWaitQueue_t* queue);
+errno_t TskBroadcastWaitQueue (TskWaitQueue_t* queue, int flags);
 
 // Wakes one thread on the queue
-void TskWakeWaitQueue (TskWaitQueue_t* queue);
+errno_t TskWakeWaitQueue (TskWaitQueue_t* queue, int flags);
 
 // Waits on the specified wait queue
 errno_t TskWaitQueue (TskWaitQueue_t* queue);
@@ -208,17 +205,16 @@ errno_t TskWaitQueueFlags (TskWaitQueue_t* queue, int flags, ktime_t timeout);
 
 // Asserts that we are going to wait
 // Returns old IPL pre-assert
-ipl_t TskWaitQueueAssert (TskWaitQueue_t* queue);
+ipl_t TskAssertWaitQueue (TskWaitQueue_t* queue);
 
 // Deasserts a wait
-void TskWaitQueueDeassert (TskWaitQueue_t* queue, ipl_t ipl);
+void TskDeAssertWaitQueue (TskWaitQueue_t* queue, ipl_t ipl);
 
 #define TSK_TIMEOUT_NONE 0
 
 // Wait flags
-#define TSK_WAIT_NO_BLOCK (1 << 0)
 #define TSK_WAIT_ASSERTED \
-    (1 << 1)    // Specifies that wait is already asserted
+    (1 << 0)    // Specifies that wait is already asserted
                 // Use with care
 
 #endif

@@ -22,15 +22,15 @@
 #include <string.h>
 
 // Initializes a wait queue
-void TskInitWaitQueue (TskWaitQueue_t* queue, int count)
+void TskInitWaitQueue (TskWaitQueue_t* queue, int object)
 {
     memset (queue, 0, sizeof (TskWaitQueue_t));
-    queue->pendingWaits = count;
+    queue->queueObject = object;
 }
 
 // Asserts that we are going to wait
 // Returns old IPL pre-assert
-ipl_t TskWaitQueueAssert (TskWaitQueue_t* queue)
+ipl_t TskAssertWaitQueue (TskWaitQueue_t* queue)
 {
     // Protect the queue now
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);    // Disable interrupts
@@ -39,7 +39,7 @@ ipl_t TskWaitQueueAssert (TskWaitQueue_t* queue)
 }
 
 // Deasserts a wait
-void TskWaitQueueDeassert (TskWaitQueue_t* queue, ipl_t ipl)
+void TskDeAssertWaitQueue (TskWaitQueue_t* queue, ipl_t ipl)
 {
     NkSpinUnlock (&queue->lock);
     PltLowerIpl (ipl);
@@ -52,7 +52,7 @@ errno_t TskWaitQueueFlags (TskWaitQueue_t* queue, int flags, ktime_t timeout)
     ipl_t ipl = 0;
     // Check if we need to assert
     if (!(flags & TSK_WAIT_ASSERTED))
-        ipl = TskWaitQueueAssert (queue);    // Assert that we are about to wait
+        ipl = TskAssertWaitQueue (queue);    // Assert that we are about to wait
     errno_t err = EOK;
     // Check if we are open
     if (queue->done)
@@ -60,22 +60,9 @@ errno_t TskWaitQueueFlags (TskWaitQueue_t* queue, int flags, ktime_t timeout)
         err = EAGAIN;
         goto cleanup;
     }
-    // Check if we need to block
-    if (queue->pendingWaits > 0)
-    {
-        --queue->pendingWaits;    // Decrement counter
-        goto cleanup;
-    }
-    // Check if we're able to block
-    // At this point if we can't block fail
-    if (flags & TSK_WAIT_NO_BLOCK)
-    {
-        err = EWOULDBLOCK;
-        goto cleanup;
-    }
     // Now we can prepare to wait
     TskWaitObj_t* waitObj =
-        TskAssertWait (TskGetCurrentThread(), timeout, queue, TSK_WAITOBJ_QUEUE);
+        TskAssertWait (TskGetCurrentThread(), timeout, queue, queue->queueObject);
     assert (waitObj);
     // Add to sleepers
     NkListAddBack (&queue->waiters, &waitObj->link);
@@ -93,10 +80,16 @@ errno_t TskWaitQueueFlags (TskWaitQueue_t* queue, int flags, ktime_t timeout)
         err = ETIMEDOUT;
         goto cleanup;
     }
+    // Check if we were awoken as the result of closure
+    if (queue->done)
+    {
+        err = EAGAIN;
+        goto cleanup;
+    }
 cleanup:
     // Deassert if we need to
     if (!(flags & TSK_WAIT_ASSERTED))
-        TskWaitQueueDeassert (queue, ipl);
+        TskDeAssertWaitQueue (queue, ipl);
     return err;
 }
 
@@ -136,66 +129,71 @@ static FORCEINLINE void tskWakeQueue (TskWaitQueue_t* queue)
     }
 }
 
-// Signals wait queue
-// Doesn't affect pendingWaits if there are no threads
-void TskSignalWaitQueue (TskWaitQueue_t* queue)
-{
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&queue->lock);
-    if (!queue->done)
-    {
-        // Get first waiter
-        TskWaitObj_t* waiter = (TskWaitObj_t*) NkListFront (&queue->waiters);
-        if (waiter)
-            tskWakeThread (queue, waiter);    // Wake the thread
-    }
-    NkSpinUnlock (&queue->lock);
-    PltLowerIpl (ipl);
-}
-
 // Wakes a thread off the wait queue
-void TskWakeWaitQueue (TskWaitQueue_t* queue)
+errno_t TskWakeWaitQueue (TskWaitQueue_t* queue, int flags)
 {
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&queue->lock);
-    if (!queue->done)
+    ipl_t ipl = 0;
+    errno_t err = EOK;
+    // Check if we need to assert
+    if (!(flags & TSK_WAIT_ASSERTED))
+        ipl = TskAssertWaitQueue (queue);    // Assert that we are about to wait
+    if (queue->done)
     {
-        // Get first sleeping thread
-        TskWaitObj_t* waiter = (TskWaitObj_t*) NkListFront (&queue->waiters);
-        if (waiter)
-            tskWakeThread (queue, waiter);    // Wake the thread
-        else
-            ++queue->pendingWaits;    // Increase number of waits
+        err = EAGAIN;
+        goto cleanup;
     }
-    // Cleanup
-    NkSpinUnlock (&queue->lock);
-    PltLowerIpl (ipl);
+    // Get first sleeping thread
+    TskWaitObj_t* waiter = (TskWaitObj_t*) NkListFront (&queue->waiters);
+    if (waiter)
+        tskWakeThread (queue, waiter);    // Wake the thread
+cleanup:
+    // Deassert if we need to
+    if (!(flags & TSK_WAIT_ASSERTED))
+        TskDeAssertWaitQueue (queue, ipl);
+    return err;
 }
 
 // Wakes up an entire wait queue
-void TskBroadcastWaitQueue (TskWaitQueue_t* queue)
+errno_t TskBroadcastWaitQueue (TskWaitQueue_t* queue, int flags)
 {
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&queue->lock);
-    if (!queue->done)
+    ipl_t ipl = 0;
+    errno_t err = EOK;
+    // Check if we need to assert
+    if (!(flags & TSK_WAIT_ASSERTED))
+        ipl = TskAssertWaitQueue (queue);    // Assert that we are about to wait
+    if (queue->done)
     {
-        // Wake the entire queue
-        tskWakeQueue (queue);
+        err = EAGAIN;
+        goto cleanup;
     }
-    // Cleanup
-    NkSpinUnlock (&queue->lock);
-    PltLowerIpl (ipl);
+    // Wake the entire queue
+    tskWakeQueue (queue);
+cleanup:
+    // Deassert if we need to
+    if (!(flags & TSK_WAIT_ASSERTED))
+        TskDeAssertWaitQueue (queue, ipl);
+    return err;
 }
 
 // Closes a wait queue and broadcasts the closing
-void TskCloseWaitQueue (TskWaitQueue_t* queue)
+errno_t TskCloseWaitQueue (TskWaitQueue_t* queue, int flags)
 {
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&queue->lock);
+    ipl_t ipl = 0;
+    errno_t err = EOK;
+    // Check if we need to assert
+    if (!(flags & TSK_WAIT_ASSERTED))
+        ipl = TskAssertWaitQueue (queue);    // Assert that we are about to wait
+    if (queue->done)
+    {
+        err = EAGAIN;
+        goto cleanup;
+    }
     // Wake the entire queue and close it
-    tskWakeQueue (queue);
     queue->done = true;
-    // Cleanup
-    NkSpinUnlock (&queue->lock);
-    PltLowerIpl (ipl);
+    tskWakeQueue (queue);
+cleanup:
+    // Deassert if we need to
+    if (!(flags & TSK_WAIT_ASSERTED))
+        TskDeAssertWaitQueue (queue, ipl);
+    return err;
 }

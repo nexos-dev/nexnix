@@ -20,6 +20,7 @@
 #include <nexke/nexboot.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <nexke/synch.h>
 #include <nexke/task.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,17 +133,15 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     assert (0);
 }
 
-TskWaitQueue_t queue = {0};
+TskMutex_t mtx = {0};
 
 void t1 (void*)
 {
-    // TskBroadcastWaitQueue (&queue);
+    TskAcquireMutex (&mtx);
+    NkLogInfo ("got here 2\n");
+    TskReleaseMutex (&mtx);
     for (;;)
-    {
-        // PltGetSecondaryCons()->write ("test 2");
-        TskYield();
-    };
-    // NkLogDebug ("got here 2\n");
+        ;
 }
 
 void t2 (void*)
@@ -166,6 +165,7 @@ static void NkInitialThread (void*)
 {
     // Start interrupts now
     CpuUnholdInts();
+    TskInitMutex (&mtx);
     NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
     NkThread_t* th2 = TskCreateThread (t2, NULL, "t2");
     NkThread_t* th3 = TskCreateThread (t3, NULL, "t3");
@@ -174,9 +174,9 @@ static void NkInitialThread (void*)
     /*TskReadyThread (th2);
     TskReadyThread (th3);*/
     PltLowerIpl (ipl);
-    TskInitWaitQueue (&queue, 0);
-    TskWaitQueueTimeout (&queue, (uint64_t) PLT_NS_IN_SEC);
+    TskAcquireMutex (&mtx);
     NkLogInfo ("got here 1\n");
+    TskReleaseMutex (&mtx);
     for (;;)
         ;
 }

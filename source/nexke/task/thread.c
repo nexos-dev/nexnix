@@ -129,8 +129,8 @@ bool TskFinishWait (TskWaitObj_t* waitObj)
     // Check if timeout expired
     NkThread_t* thread = waitObj->waiter;
     if (waitObj->timeout && thread->timeout->expired)
-        return false;    // Timeout expired
-    return true;
+        return true;    // Timeout expired
+    return false;
 }
 
 // Clears a wait on a wait object
