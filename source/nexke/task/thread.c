@@ -27,6 +27,11 @@ static NkThread_t* nkThreadTable[NEXKE_MAX_THREAD] = {0};
 static SlabCache_t* nkThreadCache = NULL;
 static NkResArena_t* nkThreadRes = NULL;
 
+// Thread terminator work queue (pun intended)
+static NkWorkQueue_t* nkTerminator = NULL;
+
+#define NK_TERMINATOR_THRESHOLD 1
+
 // Standard thread entry point
 static void TskThreadEntry()
 {
@@ -41,8 +46,16 @@ static void TskThreadEntry()
     thread->entry (thread->arg);
 }
 
+// Thread terminator
+static void TskTerminator (NkWorkItem_t* item)
+{
+    NkThread_t* thread = (NkThread_t*) item->data;
+    assert (thread->state == TSK_THREAD_TERMINATING);
+    TskDestroyThread (thread);
+}
+
 // Creates a new thread object
-NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name)
+NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name, int flags)
 {
     // Allocate a thread
     NkThread_t* thread = MmCacheAlloc (nkThreadCache);
@@ -60,6 +73,9 @@ NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name)
     thread->name = name;
     thread->entry = entry;
     thread->tid = tid;
+    thread->refCount = 1;
+    thread->flags = flags;
+    TskInitWaitQueue (&thread->joinQueue, TSK_WAITOBJ_QUEUE);
     // Initialize CPU specific context
     thread->context = CpuAllocContext ((uintptr_t) TskThreadEntry);
     if (!thread->context)
@@ -86,18 +102,43 @@ NkThread_t* TskCreateThread (NkThreadEntry entry, void* arg, const char* name)
     return thread;
 }
 
+// Terminates ourself
+void TskTerminateSelf (int code)
+{
+    // Lock the scheduler
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkThread_t* thread = TskGetCurrentThread();
+    assert (thread->state == TSK_THREAD_RUNNING);
+    // Set our state and exit code
+    thread->state = TSK_THREAD_TERMINATING;
+    thread->exitCode = code;
+    // Awake all joined threads
+    TskBroadcastWaitQueue (&thread->joinQueue, 0);
+    // Close it in case someone else trys to join before being destroyed
+    TskCloseWaitQueue (&thread->joinQueue, 0);
+    // Add to terminator list
+    NkWorkQueueSubmit (nkTerminator, (void*) thread);
+    // Now schedule another thread
+    TskSchedule();
+    // UNREACHABLE
+}
+
 // Destroys a thread object
 void TskDestroyThread (NkThread_t* thread)
 {
-    // Destory memory structures
-    NkTimeFreeEvent (thread->timeout);
-    CpuDestroyContext (thread->context);
-    NkFreeResource (nkThreadRes, thread->tid);
-    MmCacheFree (nkThreadCache, thread);
+    // Destory memory structures if ref count is 0
+    if (--thread->refCount == 0)
+    {
+        NkTimeFreeEvent (thread->timeout);
+        CpuDestroyContext (thread->context);
+        NkFreeResource (nkThreadRes, thread->tid);
+        MmCacheFree (nkThreadCache, thread);
+    }
 }
 
 // Asserts and sets up a wait
 // IPL must be raised and object must be locked
+// Locks the current thread while asserting the wait
 TskWaitObj_t* TskAssertWait (NkThread_t* objOwner, ktime_t timeout, void* obj, int type)
 {
     // Get current thread
@@ -105,9 +146,8 @@ TskWaitObj_t* TskAssertWait (NkThread_t* objOwner, ktime_t timeout, void* obj, i
     NkThread_t* thread = ccb->curThread;
     // Ensure we aren't already waiting on something else
     assert (thread->state != TSK_THREAD_WAITING && !thread->waitAsserted);
-    // Assert the wait
+    thread->state = TSK_THREAD_WAITING;    // Assert the wait
     TSK_SET_THREAD_ASSERT (thread, 1);
-    thread->state = TSK_THREAD_WAITING;
     // Prepare the wait object
     TskWaitObj_t* waitObj = &thread->wait;
     waitObj->obj = obj;
@@ -118,7 +158,8 @@ TskWaitObj_t* TskAssertWait (NkThread_t* objOwner, ktime_t timeout, void* obj, i
     if (timeout)
     {
         thread->timeoutPending = true;
-        NkTimeRegWakeup (thread->timeout, timeout, thread);
+        NkTimeSetWakeEvent (thread->timeout, thread);
+        NkTimeRegEvent (thread->timeout, timeout, 0);
     }
     return waitObj;
 }
@@ -147,9 +188,9 @@ bool TskClearWait (TskWaitObj_t* waitObj)
         // been scheduled yet. In that case we still see the timeout as pending
         // but we can't ready the thread as that would be bad
         if (thread->timeout->expired)
-            return false;
+            return true;
     }
-    return true;
+    return false;
 }
 
 // Yields from current thread
@@ -161,6 +202,51 @@ void TskYield()
     PltLowerIpl (ipl);
 }
 
+// Starts a thread up
+void TskStartThread (NkThread_t* thread)
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    TskReadyThread (thread);
+    PltLowerIpl (ipl);
+}
+
+// Makes thread sleep for specified amount of time
+void TskSleepThread (ktime_t time)
+{
+    // Create a wait queue with a timeout for this
+    TskWaitQueue_t queue = {0};
+    TskInitWaitQueue (&queue, TSK_WAITOBJ_QUEUE);
+    TskWaitQueueTimeout (&queue, time);
+}
+
+// Gets a thread's argument
+void* TskGetThreadArg (NkThread_t* thread)
+{
+    return thread->arg;
+}
+
+// Waits for thread termination
+errno_t TskJoinThread (NkThread_t* thread)
+{
+    TskRefThread (thread);
+    errno_t err = TskWaitQueue (&thread->joinQueue);
+    // Destroy the thread if we should
+    if (err == EOK)
+        TskDestroyThread (thread);
+    return err;
+}
+
+// Waits for thread termination with time out
+errno_t TskJoinThreadTimeout (NkThread_t* thread, ktime_t timeout)
+{
+    TskRefThread (thread);
+    errno_t err =
+        TskWaitQueueTimeout (&thread->joinQueue, timeout);    // Destroy the thread if we should
+    if (err == EOK)
+        TskDestroyThread (thread);
+    return err;
+}
+
 // Initializes task system
 void TskInitSys()
 {
@@ -170,4 +256,5 @@ void TskInitSys()
     nkThreadRes = NkCreateResource ("NkThread", 0, NEXKE_MAX_THREAD - 1);
     assert (nkThreadCache && nkThreadRes);
     TskInitSched();
+    nkTerminator = NkWorkQueueCreate (TskTerminator, NK_WORK_DEMAND, 0, 0, NK_TERMINATOR_THRESHOLD);
 }

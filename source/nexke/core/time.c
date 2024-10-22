@@ -35,7 +35,7 @@ NkTimeEvent_t* NkTimeNewEvent()
 // Frees a timer event
 void NkTimeFreeEvent (NkTimeEvent_t* event)
 {
-    assert (!event->link.next && !event->link.prev);
+    assert (!event->inUse);
     MmCacheFree (nkEventCache, event);
 }
 
@@ -92,7 +92,7 @@ static FORCEINLINE void nkTimeEvtAdmit (NkCcb_t* ccb, NkTimeEvent_t* event, ktim
     // If this event is in the front, then we need to arm the timer
     // NOTE: this is only true if we are not using a software timer.
     // In that case, we have no need to arm anything
-    if (&event->link == NkListFront (&ccb->timeEvents) && !event->inUse)
+    if (&event->link == NkListFront (&ccb->timeEvents))
     {
         // Arm timer if needed
         if (platform->timer->type != PLT_TIMER_SOFT)
@@ -103,61 +103,9 @@ static FORCEINLINE void nkTimeEvtAdmit (NkCcb_t* ccb, NkTimeEvent_t* event, ktim
     }
 }
 
-// Registers a time event
-void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, NkTimeCallback callback, void* arg)
+// Removes event from queue
+static FORCEINLINE void nkTimeEvtRemove (NkCcb_t* ccb, NkTimeEvent_t* event)
 {
-    // Setup event
-    event->arg = arg;
-    event->callback = callback;
-    event->type = NEXKE_EVENT_CB;
-    event->expired = false;
-    // Raise IPL to protect event list
-    NkCcb_t* ccb = CpuGetCcb();
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&ccb->timeLock);
-    // Get deadline and convert delta to timer format
-    event->deadline = NkTimeDeltaToDeadline (&delta);
-    // Admit into queue
-    nkTimeEvtAdmit (ccb, event, delta);
-    // Return
-    event->inUse = true;
-    NkSpinUnlock (&ccb->timeLock);
-    PltLowerIpl (ipl);
-}
-
-// Registers a threaded time event
-void NkTimeRegWakeup (NkTimeEvent_t* event, ktime_t delta, NkThread_t* thread)
-{
-    event->type = NEXKE_EVENT_WAKE;
-    event->thread = thread;
-    event->expired = false;
-    // Raise IPL to protect event list
-    NkCcb_t* ccb = CpuGetCcb();
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&ccb->timeLock);
-    // Get deadline and convert delta to timer format
-    event->deadline = NkTimeDeltaToDeadline (&delta);
-    // Admit into queue
-    nkTimeEvtAdmit (ccb, event, delta);
-    // Return
-    event->inUse = true;
-    NkSpinUnlock (&ccb->timeLock);
-    PltLowerIpl (ipl);
-}
-
-// Deregisters a time event
-void NkTimeDeRegEvent (NkTimeEvent_t* event)
-{
-    // Raise IPL to protect event list
-    NkCcb_t* ccb = CpuGetCcb();
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    NkSpinLock (&ccb->timeLock);
-    if (event->expired)
-    {
-        NkSpinUnlock (&ccb->timeLock);
-        PltLowerIpl (ipl);
-        return;    // Event expired, do nothing
-    }
     NkList_t* list = &ccb->timeEvents;
     // Figure out if this is the head
     bool isHead = false;
@@ -165,6 +113,7 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
         isHead = true;
     // Remove this event from list
     NkListRemove (list, &event->link);
+    event->inUse = false;
     // Set head if needed
     if (isHead)
     {
@@ -182,6 +131,87 @@ void NkTimeDeRegEvent (NkTimeEvent_t* event)
         }
     }
     event->link.next = event->link.prev = NULL;
+}
+
+// Sets up a callback event
+void NkTimeSetCbEvent (NkTimeEvent_t* event, NkTimeCallback cb, void* arg)
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkSpinLock (&event->lock);
+    event->callback = cb;
+    event->arg = arg;
+    event->type = NEXKE_EVENT_CB;
+    NkSpinUnlock (&event->lock);
+    PltLowerIpl (ipl);
+}
+
+// Sets up a wakeup event
+void NkTimeSetWakeEvent (NkTimeEvent_t* event, NkThread_t* thread)
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkSpinLock (&event->lock);
+    event->thread = thread;
+    event->type = NEXKE_EVENT_WAKE;
+    NkSpinUnlock (&event->lock);
+    PltLowerIpl (ipl);
+}
+
+// Registers a time event
+void NkTimeRegEvent (NkTimeEvent_t* event, ktime_t delta, int flags)
+{
+    // Raise IPL to protect event list
+    NkCcb_t* ccb = CpuGetCcb();
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkSpinLock (&ccb->timeLock);
+    NkSpinLock (&event->lock);
+    if (event->inUse)
+    {
+        // Check if we are allowed to de register
+        if (flags & NK_TIME_REG_DEREG)
+            nkTimeEvtRemove (ccb, event);
+        else
+        {
+            NkSpinUnlock (&event->lock);
+            NkSpinUnlock (&ccb->timeLock);
+            PltLowerIpl (ipl);
+            return;    // Event expired, do nothing
+        }
+    }
+    // Get deadline and convert delta to timer format
+    event->deadline = NkTimeDeltaToDeadline (&delta);
+    event->delta = delta;
+    event->expired = false;
+    // Check if this is a periodic register
+    if (flags & NK_TIME_REG_PERIODIC)
+        event->periodic = true;
+    // Admit into queue
+    nkTimeEvtAdmit (ccb, event, delta);
+    // Return
+    event->inUse = true;
+    NkSpinUnlock (&event->lock);
+    NkSpinUnlock (&ccb->timeLock);
+    PltLowerIpl (ipl);
+}
+
+// Deregisters a time event
+void NkTimeDeRegEvent (NkTimeEvent_t* event)
+{
+    // Raise IPL to protect event list
+    NkCcb_t* ccb = CpuGetCcb();
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    NkSpinLock (&ccb->timeLock);
+    NkSpinLock (&event->lock);
+    if (event->expired || !event->inUse)
+    {
+        NkSpinUnlock (&event->lock);
+        NkSpinUnlock (&ccb->timeLock);
+        PltLowerIpl (ipl);
+        return;    // Event expired, do nothing
+    }
+    // Remove it
+    nkTimeEvtRemove (ccb, event);
+    // Unlock and return
+    NkSpinUnlock (&event->lock);
     NkSpinUnlock (&ccb->timeLock);
     PltLowerIpl (ipl);
 }
@@ -194,20 +224,29 @@ static FORCEINLINE void nkDrainTimeQueue (NkCcb_t* ccb, NkList_t* list, NkLink_t
     ktime_t tick = event->deadline;
     while (iter && tick == event->deadline)
     {
+        NkSpinLock (&event->lock);
         // Event has expired, remove from list and call handler
+        event->inUse = false;
         NkLink_t* oldIter = iter;       // Save this iterator
         iter = NkListIterate (iter);    // To next one
         NkListRemove (list, oldIter);
-        NkSpinUnlock (&ccb->timeLock);
         event->expired = true;    // Set expiry flag
         // Call the event handler
         if (event->type == NEXKE_EVENT_CB)
             event->callback (event, event->arg);
         else if (event->type == NEXKE_EVENT_WAKE)
             TskReadyThread (event->thread);
+        // Check if this is a periodic event
+        if (event->periodic)
+        {
+            // Make new deadline
+            event->deadline = NkTimeDeltaToDeadline (&event->delta);
+            event->expired = false;
+            // Admit the new event
+            nkTimeEvtAdmit (ccb, event, event->delta);
+        }
         // Unlock and go to next event
-        NkSpinLock (&ccb->timeLock);
-        event->inUse = false;
+        NkSpinUnlock (&event->lock);
         event = LINK_CONTAINER (iter, NkTimeEvent_t, link);    // To next one
     }
 }
@@ -240,6 +279,7 @@ static void NkTimeHandler()
         if (front)
         {
             NkTimeEvent_t* event = LINK_CONTAINER (front, NkTimeEvent_t, link);
+            NkSpinLock (&event->lock);
             int64_t delta = event->deadline - platform->clock->getTime();
             if (delta < 0)
             {
@@ -247,6 +287,7 @@ static void NkTimeHandler()
                 delta = 0;
             }
             platform->timer->armTimer (delta);
+            NkSpinUnlock (&event->lock);
         }
     }
     NkSpinUnlock (&ccb->timeLock);

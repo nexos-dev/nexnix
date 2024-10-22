@@ -33,6 +33,8 @@ static PltHwClock_t* clock = NULL;
 
 // NOTE3: the public interfaces all lock the run queue so the caller doesn't have to
 
+// TODO: should thread's have locks?
+
 // Idle thread routine
 static void TskIdleThread (void*)
 {
@@ -47,7 +49,7 @@ static void TskIdleThread (void*)
 static FORCEINLINE void tskReadyThread (NkCcb_t* ccb, NkThread_t* thread)
 {
     assert (PltGetIpl() == PLT_IPL_HIGH);
-    // First make sure a wait isn't asserted
+    // Make sure a wait isn't asserted
     TSK_CHECK_THREAD_ASSERT (thread);
     // Check if we were preempted
     if (thread->preempted)
@@ -74,7 +76,13 @@ static FORCEINLINE void tskStopThread (NkCcb_t* ccb, NkThread_t* thread)
     assert (PltGetIpl() == PLT_IPL_HIGH);
     // Figure out state
     if (thread->state == TSK_THREAD_RUNNING)
-        tskReadyThread (ccb, thread);    // Admit it to run queue
+    {
+        // If this is not the idle thread, add it to run queue
+        if (!(thread->flags & TSK_THREAD_IDLE))
+            tskReadyThread (ccb, thread);    // Admit it to run queue
+    }
+    else if (thread->state == TSK_THREAD_WAITING)
+        TSK_SET_THREAD_ASSERT (thread, 0);
     // Update runtime of thread
     thread->runTime += (clock->getTime() - thread->lastSchedule);
 }
@@ -84,16 +92,17 @@ static FORCEINLINE void tskStopThread (NkCcb_t* ccb, NkThread_t* thread)
 static FORCEINLINE void tskSetCurrentThread (NkCcb_t* ccb, NkThread_t* thread)
 {
     assert (PltGetIpl() == PLT_IPL_HIGH);
-    // Get current thread
-    NkThread_t* oldThread = ccb->curThread;
-    assert (oldThread);
     // Set new thread as current
     thread->state = TSK_THREAD_RUNNING;
-    ccb->curThread = thread;
     // Stop the thread
-    tskStopThread (ccb, oldThread);
     // Set last schedule time
     thread->lastSchedule = clock->getTime();
+    // Get current thread and stop it
+    NkThread_t* oldThread = ccb->curThread;
+    assert (oldThread);
+    tskStopThread (ccb, oldThread);
+    // Make it current
+    ccb->curThread = thread;
     // Do a context swap
     CpuSwitchContext (thread->context, &oldThread->context);
     // NOTE: from the CPU's perspective, we return from CpuSwitchContext in the new thread
@@ -175,17 +184,14 @@ void TskEnablePreemptUnsafe()
 }
 
 // Blocks current thread
+// Takes a locked thread
 void TskBlockThread()
 {
     assert (PltGetIpl() == PLT_IPL_HIGH);
     // Get CCB
     NkCcb_t* ccb = CpuGetCcb();
     NkThread_t* curThread = ccb->curThread;
-    // Check if this wait was asserted
-    if (!curThread->waitAsserted)
-        curThread->state = TSK_THREAD_WAITING;    // Thread is now blocked
-    else
-        TSK_SET_THREAD_ASSERT (curThread, 0);
+    // Unlock the thread
     NkSpinLock (&ccb->rqLock);
     tskSchedule (ccb);    // Schedule the next thread
     NkSpinUnlock (&ccb->rqLock);
@@ -234,8 +240,6 @@ static void TskTimeSlice (NkTimeEvent_t* evt, void* arg)
         tskPreempt();    // Mark it for preemption
     else
         --curThread->quantaLeft;
-    // Re-register it
-    NkTimeRegEvent (evt, TSK_TIMESLICE_DELTA, TskTimeSlice, NULL);
     PltLowerIpl (ipl);
 }
 
@@ -245,12 +249,13 @@ void TskInitSched()
     // Create the idle thread
     NkCcb_t* ccb = CpuGetCcb();
     ccb->preemptDisable = 0;
-    ccb->idleThread = TskCreateThread (TskIdleThread, NULL, "TskIdleThread");
+    ccb->idleThread = TskCreateThread (TskIdleThread, NULL, "TskIdleThread", TSK_THREAD_IDLE);
     assert (ccb->idleThread);
     // Get clock
     clock = PltGetPlatform()->clock;
     // Set initial time slicing event
-    NkTimeEvent_t* timeEvt = NkTimeNewEvent();
-    assert (timeEvt);
-    NkTimeRegEvent (timeEvt, TSK_TIMESLICE_DELTA, TskTimeSlice, NULL);
+    NkTimeEvent_t* evt = NkTimeNewEvent();
+    assert (evt);
+    NkTimeSetCbEvent (evt, TskTimeSlice, NULL);
+    NkTimeRegEvent (evt, TSK_TIMESLICE_DELTA, NK_TIME_REG_PERIODIC);
 }

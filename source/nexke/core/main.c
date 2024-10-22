@@ -122,10 +122,12 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     PltInitPhase3();
     // Initialize timing subsystem
     NkInitTime();
+    // Initialize work queue system
+    NkInitWorkQueue();
     // Initialize multitasking
     TskInitSys();
     // Create initial thread
-    NkThread_t* initThread = TskCreateThread (NkInitialThread, NULL, "NkInitialThread");
+    NkThread_t* initThread = TskCreateThread (NkInitialThread, NULL, "NkInitialThread", 0);
     assert (initThread);
     // Set it as the current thread and then we are done
     TskSetInitialThread (initThread);
@@ -133,31 +135,11 @@ Copyright (C) 2023 - 2024 The Nexware Project\n",
     assert (0);
 }
 
-TskMutex_t mtx = {0};
-
 void t1 (void*)
 {
-    TskAcquireMutex (&mtx);
-    NkLogInfo ("got here 2\n");
-    TskReleaseMutex (&mtx);
-    for (;;)
-        ;
-}
-
-void t2 (void*)
-{
-    for (;;)
-        // PltGetSecondaryCons()->write ("test 3\n");
-        ;
-}
-
-void t3 (void*)
-{
-    for (;;)
-    {
-        PltGetSecondaryCons()->write ("test 4\n");
-        // TskYield();
-    }
+    TskSleepThread (PLT_NS_IN_SEC);
+    NkLogDebug ("got here\n");
+    TskTerminateSelf (0);
 }
 
 // Kernel initial thread
@@ -165,18 +147,10 @@ static void NkInitialThread (void*)
 {
     // Start interrupts now
     CpuUnholdInts();
-    TskInitMutex (&mtx);
-    NkThread_t* th1 = TskCreateThread (t1, NULL, "t1");
-    NkThread_t* th2 = TskCreateThread (t2, NULL, "t2");
-    NkThread_t* th3 = TskCreateThread (t3, NULL, "t3");
-    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
-    TskReadyThread (th1);
-    /*TskReadyThread (th2);
-    TskReadyThread (th3);*/
-    PltLowerIpl (ipl);
-    TskAcquireMutex (&mtx);
-    NkLogInfo ("got here 1\n");
-    TskReleaseMutex (&mtx);
+    NkThread_t* thread = TskCreateThread (t1, NULL, "t1", 0);
+    TskStartThread (thread);
+    TskJoinThreadTimeout (thread, PLT_NS_IN_SEC / 2);
+    NkLogDebug ("got here 2\n");
     for (;;)
         ;
 }

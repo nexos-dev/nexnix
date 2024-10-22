@@ -85,6 +85,7 @@ list(APPEND NEXKE_SOURCES
     core/fbcons.c
     core/time.c
     core/resource.c
+    core/work.c
     mm/slab.c
     mm/space.c
     mm/malloc.c

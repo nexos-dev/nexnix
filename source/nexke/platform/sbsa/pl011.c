@@ -19,6 +19,7 @@
 #include <nexke/mm.h>
 #include <nexke/nexke.h>
 #include <nexke/platform.h>
+#include <stdlib.h>
 
 // Register offsets
 #define PL011_DR    0
@@ -162,9 +163,9 @@ bool PltPL011Init (AcpiGas_t* gas)
 static bool pl011Read (char* out)
 {
     pl011WaitForRx();
-    *s = pl011ReadReg (PL011_DR);
-    if (*s == '\r')
-        *s = '\n';    // Translate CR to LF
+    *out = pl011ReadReg (PL011_DR);
+    if (*out == '\r')
+        *out = '\n';    // Translate CR to LF
     return true;
 }
 

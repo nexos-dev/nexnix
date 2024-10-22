@@ -376,8 +376,8 @@ static inline MmKvRegion_t* mmKvJoinRegions (MmKvArena_t* arena, MmKvRegion_t* r
             newFooter->regionSz = leftRegion->numPages;
             // This region absorbed the other one so make it the one we work on from now on
             region = leftRegion;
-            NkSpinUnlock (&region->lock);
         }
+        NkSpinUnlock (&leftRegion->lock);
     }
     // Check if we have a free block to the right
     MmKvRegion_t* nextRegion =
@@ -398,6 +398,8 @@ static inline MmKvRegion_t* mmKvJoinRegions (MmKvArena_t* arena, MmKvRegion_t* r
         newFooter->magic = MM_KV_FOOTER_MAGIC;
         newFooter->regionSz = region->numPages;
     }
+    else
+        NkSpinUnlock (&nextRegion->lock);
     return region;
 }
 

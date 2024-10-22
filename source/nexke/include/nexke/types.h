@@ -31,6 +31,7 @@ typedef struct _page MmPage_t;
 typedef struct _memspace MmSpace_t;
 typedef struct _memobject MmObject_t;
 typedef struct _thread NkThread_t;
+typedef struct _work NkWorkItem_t;
 
 typedef int ipl_t;
 typedef int id_t;

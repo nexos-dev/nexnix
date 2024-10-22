@@ -83,7 +83,7 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         else
         {
             // Allocate a new table
-            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage()->vaddr);
+            pte_t* newSt = (pte_t*) MmMulGetPhysEarly ((uintptr_t) MmAllocKvPage());
             // Determine new flags
             uint32_t tabFlags = PF_V | PF_PG;
             // Map it
@@ -97,5 +97,5 @@ void MmMulMapEarly (uintptr_t virt, paddr_t phys, int flags)
         NkPanic ("nexke: cannot map already mapped page");
     *lastEnt = pgFlags | phys;
     // Invalidate TLB
-    asm volatile("dsb ishst; tlbi vae1, %0" : : "r"(virt >> 12));
+    asm volatile ("dsb ishst; tlbi vae1, %0" : : "r"(virt >> 12));
 }

@@ -149,8 +149,14 @@ void TskInitCondition (TskCondition_t* cond)
 errno_t TskWaitCondition (TskCondition_t* cond, TskMutex_t* mtx)
 {
     ipl_t ipl = TskAssertWaitQueue (&cond->queue);
-    TskReleaseMutex (mtx);    // Relelase the mutex now that we are locked to prevent lost wakeup
-    errno_t err = TskWaitQueueFlags (&cond->queue, TSK_WAIT_ASSERTED, 0);
+    if (mtx)
+    {
+        // Relelase the mutex now that we are locked to prevent lost wakeup
+        TskReleaseMutex (mtx);
+    }
+    errno_t err = EOK;
+    if (!cond->state)
+        err = TskWaitQueueFlags (&cond->queue, TSK_WAIT_ASSERTED, 0);
     TskDeAssertWaitQueue (&cond->queue, ipl);
     return err;
 }
@@ -165,12 +171,22 @@ errno_t TskSignalCondition (TskCondition_t* cond)
 errno_t TskBroadcastCondition (TskCondition_t* cond)
 {
     ipl_t ipl = TskAssertWaitQueue (&cond->queue);
+    cond->state = true;
     errno_t err = TskBroadcastWaitQueue (&cond->queue, TSK_WAIT_ASSERTED);
-    if (err == EOK)
-    {
-        // Close it if broadcast succeeded
-        err = TskCloseWaitQueue (&cond->queue, TSK_WAIT_ASSERTED);
-    }
     TskDeAssertWaitQueue (&cond->queue, ipl);
     return err;
+}
+
+// Unsets a condition
+void TskUnsetCondition (TskCondition_t* cond)
+{
+    ipl_t ipl = TskAssertWaitQueue (&cond->queue);
+    cond->state = false;
+    TskDeAssertWaitQueue (&cond->queue, ipl);
+}
+
+// Closes a condition
+errno_t TskCloseCondition (TskCondition_t* cond)
+{
+    return TskCloseWaitQueue (&cond->queue, 0);
 }

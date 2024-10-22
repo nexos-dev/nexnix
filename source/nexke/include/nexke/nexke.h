@@ -21,6 +21,7 @@
 #include <nexke/cpu.h>
 #include <nexke/list.h>
 #include <nexke/lock.h>
+#include <nexke/synch.h>
 #include <nexke/types.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -132,7 +133,7 @@ typedef void (*NkTimeCallback) (NkTimeEvent_t*, void*);
 typedef struct _timeevt
 {
     ktime_t deadline;    // Deadline for this event
-                         // NOTE: this is internal, as this is in internal clock ticks
+    ktime_t delta;       // Delta of event in ns
     int type;            // Type of event
     union
     {
@@ -143,22 +144,30 @@ typedef struct _timeevt
         };
         NkThread_t* thread;    // Thread to wake
     };
-    bool inUse;      // Event current registered
-    bool expired;    // Has the event expired?
+    bool inUse;       // Event current registered
+    bool expired;     // Has the event expired?
+    bool periodic;    // Is the event periodic?
+    spinlock_t lock;
     NkLink_t link;
 } NkTimeEvent_t;
 
 #define NEXKE_EVENT_CB   0
 #define NEXKE_EVENT_WAKE 1
 
+#define NK_TIME_REG_PERIODIC (1 << 0)
+#define NK_TIME_REG_DEREG    (1 << 1)
+
 // Initializes timing subsystem
 void NkInitTime();
 
-// Registers a time event
-void NkTimeRegEvent (NkTimeEvent_t*, ktime_t delta, NkTimeCallback callback, void* arg);
+// Sets up a wakeup event
+void NkTimeSetCbEvent (NkTimeEvent_t* event, NkTimeCallback cb, void* arg);
 
-// Registers a threaded time event
-void NkTimeRegWakeup (NkTimeEvent_t* event, ktime_t delta, NkThread_t* thread);
+// Sets up a wakeup event
+void NkTimeSetWakeEvent (NkTimeEvent_t* event, NkThread_t* thread);
+
+// Registers a time event
+void NkTimeRegEvent (NkTimeEvent_t*, ktime_t delta, int flags);
 
 // Deregisters a time event
 void NkTimeDeRegEvent (NkTimeEvent_t* event);
@@ -201,5 +210,59 @@ void NkFreeResource (NkResArena_t* arena, id_t res);
 
 // Initializes resource system
 void NkInitResource();
+
+// Work queue interface
+
+// Work callback type
+typedef void (*NkWorkCallback) (NkWorkItem_t*);
+
+// Work queue
+typedef struct _workq
+{
+    NkList_t items;              // Work to be done
+    TskCondition_t condition;    // Condition used to schedule work
+    NkThread_t* thread;          // Thread used to perform work
+    NkTimeEvent_t* timer;        // Timer used for work scheduling
+    NkWorkCallback cb;           // Callback when work needs to be done
+    size_t numItems;             // Number of pending work items
+    int type;                    // Type of work queue
+    int flags;                   // Flags of work queue
+    int threshold;               // Number of items that need to be in list before work occurs
+    ktime_t delta;               // The timeout for this work queue to be rescheduled
+    TskMutex_t lock;             // Lock to protect work queue
+} NkWorkQueue_t;
+
+// Types
+#define NK_WORK_DEMAND 0
+#define NK_WORK_TIMED  1
+
+// Flags
+#define NK_WORK_ONESHOT (1 << 0)
+
+// Work item
+typedef struct _work
+{
+    NkWorkQueue_t* queue;    // Queue item is on
+    void* data;              // Unspecified argument used for work
+    NkLink_t link;
+} NkWorkItem_t;
+
+// Creates a new work queue
+NkWorkQueue_t* NkWorkQueueCreate (NkWorkCallback cb, int type, int flags, int prio, int threshold);
+
+// Destroys a work queue
+void NkWorkQueueDestroy (NkWorkQueue_t* queue);
+
+// Arms timer on a timed work queue
+bool NkWorkQueueArmTimer (NkWorkQueue_t* queue, ktime_t delta);
+
+// Submits work to queue
+NkWorkItem_t* NkWorkQueueSubmit (NkWorkQueue_t* queue, void* data);
+
+// Removes work from queue
+bool NkWorkQueueCancel (NkWorkQueue_t* queue, NkWorkItem_t* item);
+
+// Initializes worker system
+void NkInitWorkQueue();
 
 #endif

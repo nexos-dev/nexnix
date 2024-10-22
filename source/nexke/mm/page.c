@@ -54,6 +54,7 @@ static void mmInitPage (MmPage_t* page, pfn_t pfn, MmZone_t* zone)
 {
     page->zone = zone;
     page->pfn = pfn;
+    page->lock = 0;
     page->flags = MM_PAGE_FREE;
     page->link.prev = NULL, page->link.next = NULL;
     NkListAddFront (&zone->freeList, &page->link);

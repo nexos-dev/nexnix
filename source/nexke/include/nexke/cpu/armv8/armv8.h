@@ -18,6 +18,7 @@
 #ifndef _ARMV8_H
 #define _ARMV8_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef uint64_t paddr_t;
@@ -33,12 +34,15 @@ void __attribute__ ((noreturn)) CpuCrash();
 #define NEXKE_CPU_PAGESZ     0x1000
 #define NEXKE_CPU_PAGE_SHIFT 12
 
-// PFN map base
-#define NEXKE_PFNMAP_BASE 0xFFFFFFFD00000000
-#define NEXKE_PFNMAP_MAX  0xF7FFFF000
-
 // User address end
+#ifndef NEXNIX_X86_64_LA57
 #define NEXKE_USER_ADDR_END 0x7FFFFFFFFFFF
+#else
+#define NEXKE_USER_ADDR_END 0xFFFFFFFFFFFFFF
+#endif
+
+#define NEXKE_KERNEL_BASE 0xFFFFFFFF80000000
+
 // Kernel general allocation start
 #define NEXKE_KERNEL_ADDR_START 0xFFFFFFFFC0000000
 #define NEXKE_KERNEL_ADDR_END   0xFFFFFFFFDFFFFFFF
@@ -46,6 +50,10 @@ void __attribute__ ((noreturn)) CpuCrash();
 // Framebuffer locations
 #define NEXKE_FB_BASE      0xFFFFFFFFF0000000
 #define NEXKE_BACKBUF_BASE 0xFFFFFFFFE0000000
+
+// PFN map base
+#define NEXKE_PFNMAP_BASE 0xFFFFFFF000000000
+#define NEXKE_PFNMAP_MAX  (0xF00000000 - 0x10)
 
 #define NEXKE_SERIAL_MMIO_BASE 0xFFFFFFFF90000000
 
@@ -58,5 +66,8 @@ void __attribute__ ((noreturn)) CpuCrash();
     })
 
 #define CpuWriteMsr(msr, val) asm volatile ("msr " msr ", %0" : : "r"(val));
+
+// Hint to CPU we are spinning
+void CpuSpin();
 
 #endif

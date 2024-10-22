@@ -43,13 +43,13 @@ typedef struct _nkccb
     // Timer related data
     NkList_t timeEvents;    // Linked list of time events waiting to occur
     spinlock_t timeLock;    // Time events lock
-    // Scheudler info
+    // Scheduler info
     NkList_t readyQueue;       // Scheduler's ready queue
+    spinlock_t rqLock;         // Lock for ready queue
     NkThread_t* curThread;     // Currently executing thread
     NkThread_t* idleThread;    // Thread to execute when readyQueue is empty
     int preemptDisable;        // If preemption is presently allowed
     bool preemptReq;           // If preemption has been requested
-    spinlock_t rqLock;         // Lock for ready queue
 } NkCcb_t;
 
 // Defined CPU architectures

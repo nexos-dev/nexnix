@@ -283,6 +283,7 @@ void NkFreeResource (NkResArena_t* arena, id_t res)
         chunk->freeCache[0] = -1;
         chunk->curCacheId = NK_CHUNK_MAX_FREE_CACHE;
         // Add to lists
+        NkSpinLock (&chunk->chunkLock);
         NkSpinLock (&arena->listLock);
         NkListAddFront (&arena->chunks, &chunk->link);
         nkSortChunk (arena, chunk);

@@ -69,6 +69,7 @@ errno_t TskCloseMutex (TskMutex_t* mtx);
 typedef struct _cond
 {
     TskWaitQueue_t queue;    // Queue of threads waiting on condtion
+    bool state;              // State of condition
 } TskCondition_t;
 
 // Initializes a condition
@@ -83,5 +84,11 @@ errno_t TskSignalCondition (TskCondition_t* cond);
 
 // Broadcasts a condition
 errno_t TskBroadcastCondition (TskCondition_t* cond);
+
+// Unsets a condition
+void TskUnsetCondition (TskCondition_t* cond);
+
+// Closes a condition
+errno_t TskCloseCondition (TskCondition_t* cond);
 
 #endif
