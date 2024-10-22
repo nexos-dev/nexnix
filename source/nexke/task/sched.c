@@ -74,6 +74,8 @@ static FORCEINLINE void tskReadyThread (NkCcb_t* ccb, NkThread_t* thread)
 static FORCEINLINE void tskStopThread (NkCcb_t* ccb, NkThread_t* thread)
 {
     assert (PltGetIpl() == PLT_IPL_HIGH);
+    // Update runtime of thread
+    thread->runTime += (clock->getTime() - thread->lastSchedule);
     // Figure out state
     if (thread->state == TSK_THREAD_RUNNING)
     {
@@ -83,8 +85,6 @@ static FORCEINLINE void tskStopThread (NkCcb_t* ccb, NkThread_t* thread)
     }
     else if (thread->state == TSK_THREAD_WAITING)
         TSK_SET_THREAD_ASSERT (thread, 0);
-    // Update runtime of thread
-    thread->runTime += (clock->getTime() - thread->lastSchedule);
 }
 
 // Sets the current thread
@@ -183,20 +183,6 @@ void TskEnablePreemptUnsafe()
     PltLowerIpl (ipl);
 }
 
-// Blocks current thread
-// Takes a locked thread
-void TskBlockThread()
-{
-    assert (PltGetIpl() == PLT_IPL_HIGH);
-    // Get CCB
-    NkCcb_t* ccb = CpuGetCcb();
-    NkThread_t* curThread = ccb->curThread;
-    // Unlock the thread
-    NkSpinLock (&ccb->rqLock);
-    tskSchedule (ccb);    // Schedule the next thread
-    NkSpinUnlock (&ccb->rqLock);
-}
-
 // Gets current thread
 NkThread_t* TskGetCurrentThread()
 {
@@ -226,6 +212,17 @@ void TskSchedule()
     NkSpinLock (&ccb->rqLock);
     tskSchedule (ccb);
     NkSpinUnlock (&ccb->rqLock);
+}
+
+// In this module for performance reasons
+void TskWakeObj (TskWaitObj_t* obj)
+{
+    NkCcb_t* ccb = CpuGetCcb();
+    NkSpinLock (&ccb->rqLock);
+    tskReadyThread (ccb, obj->waiter);
+    NkSpinUnlock (&ccb->rqLock);
+    // Unlock wait object. This is to be called after TskFinishWait
+    NkSpinUnlock (&obj->lock);
 }
 
 // Time slice handler

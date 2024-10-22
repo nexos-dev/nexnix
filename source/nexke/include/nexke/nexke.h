@@ -142,7 +142,7 @@ typedef struct _timeevt
             NkTimeCallback callback;    // Callback function
             void* arg;                  // Argument to pass to callback
         };
-        NkThread_t* thread;    // Thread to wake
+        TskWaitObj_t* waitObj;    // Wait obejct
     };
     bool inUse;       // Event current registered
     bool expired;     // Has the event expired?
@@ -164,7 +164,7 @@ void NkInitTime();
 void NkTimeSetCbEvent (NkTimeEvent_t* event, NkTimeCallback cb, void* arg);
 
 // Sets up a wakeup event
-void NkTimeSetWakeEvent (NkTimeEvent_t* event, NkThread_t* thread);
+void NkTimeSetWakeEvent (NkTimeEvent_t* event, TskWaitObj_t* waiter);
 
 // Registers a time event
 void NkTimeRegEvent (NkTimeEvent_t*, ktime_t delta, int flags);

@@ -68,18 +68,18 @@ errno_t TskWaitQueueFlags (TskWaitQueue_t* queue, int flags, ktime_t timeout)
     NkListAddBack (&queue->waiters, &waitObj->link);
     // Block now, but first unlock the queue
     NkSpinUnlock (&queue->lock);
-    TskBlockThread();
-    NkSpinLock (&queue->lock);    // Re-lock queue
-    // We get here after we were woken up
-    // Clear the wait, which will check if we timed out
-    if (!TskFinishWait (waitObj))
+    bool waitStatus = TskWaitOnObj (waitObj);
+    NkSpinLock (&queue->lock);
+    if (!waitStatus)
     {
-        // Cleanup
+        // Wait failed, cleanup
         NkListRemove (&queue->waiters, &waitObj->link);
+        NkSpinUnlock (&waitObj->lock);
         // Timeout occured, return error
         err = ETIMEDOUT;
         goto cleanup;
     }
+    NkSpinUnlock (&waitObj->lock);    // Unlock wait object (as WaitOnObj locked it)
     // Check if we were awoken as the result of closure
     if (queue->done)
     {
@@ -109,12 +109,14 @@ errno_t TskWaitQueue (TskWaitQueue_t* queue)
 static FORCEINLINE void tskWakeThread (TskWaitQueue_t* queue, TskWaitObj_t* waitObj)
 {
     // Clear the wait
-    bool timeExpired = TskClearWait (waitObj);
-    // Remove it from list
-    NkListRemove (&queue->waiters, &waitObj->link);
-    // Now ready the new thread of needed (which may request preemption)
-    if (!timeExpired)
-        TskReadyThread (waitObj->waiter);
+    bool wakeSuccess = TskClearWait (waitObj, TSK_WAITOBJ_SUCCESS);
+    if (wakeSuccess)
+    {
+        // Remove it from list
+        NkListRemove (&queue->waiters, &waitObj->link);
+        // Now ready the new thread of needed (which may request preemption)
+        TskWakeObj (waitObj);
+    }
 }
 
 // Unsafe function to wake all threads off the queue

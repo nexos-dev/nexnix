@@ -99,6 +99,7 @@ static FORCEINLINE void nkTimeEvtAdmit (NkCcb_t* ccb, NkTimeEvent_t* event, ktim
         {
             // Arm timer
             platform->timer->armTimer (delta);
+            ccb->nextDeadline = event->deadline;
         }
     }
 }
@@ -128,6 +129,7 @@ static FORCEINLINE void nkTimeEvtRemove (NkCcb_t* ccb, NkTimeEvent_t* event)
                 delta = 0;
             }
             platform->timer->armTimer (delta);
+            ccb->nextDeadline = event->deadline;
         }
     }
     event->link.next = event->link.prev = NULL;
@@ -146,11 +148,11 @@ void NkTimeSetCbEvent (NkTimeEvent_t* event, NkTimeCallback cb, void* arg)
 }
 
 // Sets up a wakeup event
-void NkTimeSetWakeEvent (NkTimeEvent_t* event, NkThread_t* thread)
+void NkTimeSetWakeEvent (NkTimeEvent_t* event, TskWaitObj_t* waiter)
 {
     ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
     NkSpinLock (&event->lock);
-    event->thread = thread;
+    event->waitObj = waiter;
     event->type = NEXKE_EVENT_WAKE;
     NkSpinUnlock (&event->lock);
     PltLowerIpl (ipl);
@@ -235,7 +237,12 @@ static FORCEINLINE void nkDrainTimeQueue (NkCcb_t* ccb, NkList_t* list, NkLink_t
         if (event->type == NEXKE_EVENT_CB)
             event->callback (event, event->arg);
         else if (event->type == NEXKE_EVENT_WAKE)
-            TskReadyThread (event->thread);
+        {
+            // Wakeup this object
+            bool wakeSuccess = TskClearWait (event->waitObj, TSK_WAITOBJ_TIMEOUT);
+            if (wakeSuccess)
+                TskWakeObj (event->waitObj);
+        }
         // Check if this is a periodic event
         if (event->periodic)
         {
@@ -287,6 +294,7 @@ static void NkTimeHandler()
                 delta = 0;
             }
             platform->timer->armTimer (delta);
+            ccb->nextDeadline = event->deadline;
             NkSpinUnlock (&event->lock);
         }
     }

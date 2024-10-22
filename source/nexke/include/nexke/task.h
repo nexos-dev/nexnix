@@ -29,7 +29,7 @@
 typedef void (*NkThreadEntry) (void*);
 
 // Wait obejct
-// Defines an object this thread is waiting on, and is used to create priority chains
+// Defines an object this thread is waiting on, and is used to create priority inheritance chains
 typedef struct _waitobj
 {
     NkLink_t link;
@@ -38,6 +38,8 @@ typedef struct _waitobj
     int type;              // Type of object being waited on
     ktime_t timeout;       // Timeout of this object
     void* obj;             // Pointer to object being waited on
+    int result;
+    spinlock_t lock;
 } TskWaitObj_t;
 
 #define TSK_THREAD_MAX_WAIT 4
@@ -48,6 +50,11 @@ typedef struct _waitobj
 #define TSK_WAITOBJ_CONDITION 3
 #define TSK_WAITOBJ_MUTEX     4
 #define TSK_WAITOBJ_QUEUE     5
+
+#define TSK_WAITOBJ_IN_PROG    0
+#define TSK_WAITOBJ_SUCCESS    1
+#define TSK_WAITOBJ_TIMEOUT    2
+#define TSK_WAITOBJ_OWNER_DIED 3
 
 // Thread structure
 typedef struct _thread
@@ -80,9 +87,9 @@ typedef struct _thread
     TskWaitQueue_t joinQueue;    // Threads joined to this thread
     // Thread flags
     bool preempted;               // Wheter this thread has been preempted
-    NkTimeEvent_t* timeout;       // Wait queue timeout
     bool timeoutPending;          // Wheter a timeout is pending
     volatile int waitAsserted;    // Wheter a wait is asserted on this thread
+    NkTimeEvent_t* timeout;       // Wait queue timeout
 } NkThread_t;
 
 // Thread flags
@@ -136,19 +143,20 @@ void TskReadyThread (NkThread_t* thread);
 // Runs the main scheduler
 void TskSchedule();
 
-// Blocks current thread
-void TskBlockThread();
-
 // Asserts and sets up a wait
 // IPL must be raised and object must be locked
 TskWaitObj_t* TskAssertWait (NkThread_t* objOwner, ktime_t timeout, void* obj, int type);
 
-// Cleans up a wait object
-bool TskFinishWait (TskWaitObj_t* waitObj);
+// Wait on a wait object
+// Returns true if wait was successful, false if it failed
+bool TskWaitOnObj (TskWaitObj_t* waitObj);
 
 // Clears a wait on a wait object
 // If timeout already expired, returns false
-bool TskClearWait (TskWaitObj_t* waitObj);
+bool TskClearWait (TskWaitObj_t* waitObj, int result);
+
+// Wakes up a wait object
+void TskWakeObj (TskWaitObj_t* obj);
 
 // IPL safe functions
 

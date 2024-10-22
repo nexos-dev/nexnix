@@ -61,5 +61,7 @@ void TskDeAssertWaitQueue (TskWaitQueue_t* queue, ipl_t ipl);
 #define TSK_WAIT_ASSERTED \
     (1 << 0)    // Specifies that wait is already asserted
                 // Use with care
+#define TSK_WAIT_NOT_OWNER \
+    (1 << 1)    // Specifies that when wait is over we will not own the object
 
 #endif

@@ -30,7 +30,7 @@ static NkResArena_t* nkThreadRes = NULL;
 // Thread terminator work queue (pun intended)
 static NkWorkQueue_t* nkTerminator = NULL;
 
-#define NK_TERMINATOR_THRESHOLD 1
+#define NK_TERMINATOR_THRESHOLD 5
 
 // Standard thread entry point
 static void TskThreadEntry()
@@ -150,47 +150,51 @@ TskWaitObj_t* TskAssertWait (NkThread_t* objOwner, ktime_t timeout, void* obj, i
     TSK_SET_THREAD_ASSERT (thread, 1);
     // Prepare the wait object
     TskWaitObj_t* waitObj = &thread->wait;
+    NkSpinLock (&waitObj->lock);
     waitObj->obj = obj;
     waitObj->type = type;
     waitObj->waiter = thread;
     waitObj->timeout = timeout;
+    waitObj->result = TSK_WAITOBJ_IN_PROG;
     // Setup a timeout
     if (timeout)
     {
         thread->timeoutPending = true;
-        NkTimeSetWakeEvent (thread->timeout, thread);
+        NkTimeSetWakeEvent (thread->timeout, waitObj);
         NkTimeRegEvent (thread->timeout, timeout, 0);
     }
+    NkSpinUnlock (&waitObj->lock);
     return waitObj;
 }
 
-// Finishes a wait on a wait object
-bool TskFinishWait (TskWaitObj_t* waitObj)
+// Wait on a wait object
+// Returns true if wait was successful, false if it failed
+bool TskWaitOnObj (TskWaitObj_t* waitObj)
 {
-    // Check if timeout expired
-    NkThread_t* thread = waitObj->waiter;
-    if (waitObj->timeout && thread->timeout->expired)
-        return true;    // Timeout expired
-    return false;
+    assert (waitObj->waiter == TskGetCurrentThread());
+    bool res = true;
+    // Wait
+    TskSchedule();
+    NkSpinLock (&waitObj->lock);
+    if (waitObj->result != TSK_WAITOBJ_SUCCESS)
+        return false;
+    return true;
 }
 
 // Clears a wait on a wait object
-// If timeout already expired, returns false
-bool TskClearWait (TskWaitObj_t* waitObj)
+// If wakeup already occured, returns false
+bool TskClearWait (TskWaitObj_t* waitObj, int result)
 {
-    // De-register it's timeout if it's pending
-    if (waitObj->timeout)
+    // Lock the wait object
+    NkSpinLock (&waitObj->lock);
+    // Check status of wait
+    if (waitObj->result != TSK_WAITOBJ_IN_PROG)
     {
-        NkThread_t* thread = waitObj->waiter;
-        NkTimeDeRegEvent (thread->timeout);
-        // Now check for expiry
-        // This prevents race conditions where the thread gets readied by the timeout but hasn't
-        // been scheduled yet. In that case we still see the timeout as pending
-        // but we can't ready the thread as that would be bad
-        if (thread->timeout->expired)
-            return true;
+        NkSpinUnlock (&waitObj->lock);
+        return false;    // Objects already awoken
     }
-    return false;
+    waitObj->result = result;
+    return true;    // We return a locked wait object
 }
 
 // Yields from current thread

@@ -41,8 +41,9 @@ typedef struct _nkccb
     bool intActive;        // Wheter an interrupt is active on this CPU
                            // This flags is only set during hardware interrupt processing
     // Timer related data
-    NkList_t timeEvents;    // Linked list of time events waiting to occur
-    spinlock_t timeLock;    // Time events lock
+    NkList_t timeEvents;     // Linked list of time events waiting to occur
+    ktime_t nextDeadline;    // Next armed deadline
+    spinlock_t timeLock;     // Time events lock
     // Scheduler info
     NkList_t readyQueue;       // Scheduler's ready queue
     spinlock_t rqLock;         // Lock for ready queue

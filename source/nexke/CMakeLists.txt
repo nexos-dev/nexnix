@@ -46,8 +46,14 @@ if(NOT NEXNIX_TARGETCONF)
 endif()
 
 if(NOT NEXNIX_BASEARCH)
-    if(NEXNIX_ARCH STREQUAL "i386")
+    if(NEXNIX_ARCH STREQUAL "i386" OR NEXNIX_ARCH STREQUAL "x86_64")
         set(NEXNIX_BASEARCH "x86")
+    elseif(NEXNIX_ARCH STREQUAL "armv8")
+        set(NEXNIX_BASEARCH "arm")
+    elseif(NEXNIX_ARCH STREQUAL "riscv64")
+        set(NEXNIX_BASEARCH "riscv")
+    else()
+        message(FATAL_ERROR "unsupported architecture ${NEXNIX_ARCH}")
     endif()
 endif()
 
@@ -62,10 +68,14 @@ nexnix_add_parameter(NEXNIX_LOGLEVEL
     2)
 
 if(NEXKE_UP STREQUAL "1")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i386")
+    if(NEXNIX_ARCH STREQUAL "i386")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i386")
+    endif()
     add_definitions(-DNEXKE_UP)
 else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i586")
+    if(NEXNIX_ARCH STREQUAL "i386")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i386")
+    endif()
 endif()
 
 # Include includes directory
