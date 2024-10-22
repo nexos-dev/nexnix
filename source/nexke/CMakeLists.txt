@@ -55,13 +55,17 @@ endif()
 include(SystemBuild/ArchToMacro)
 include(SystemBuild/Options)
 include(GNUInstallDirs)
+include(CheckSourceCompiles)
 
 nexnix_add_parameter(NEXNIX_LOGLEVEL
     "Value that defines what should and shouldn't be logged"
     2)
 
 if(NEXKE_UP STREQUAL "1")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i386")
     add_definitions(-DNEXKE_UP)
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i586")
 endif()
 
 # Include includes directory
@@ -107,7 +111,6 @@ add_executable(nexke ${NEXKE_SOURCES})
 add_compile_definitions(NEXKE_ARCH_HEADER=\"${NEXKE_ARCH_HEADER}\")
 
 # Add link options
-target_compile_options(nexke PRIVATE)
 target_link_options(nexke PRIVATE -Wl,-no-pie -T ${NEXKE_LINKER_SCRIPT})
 
 # Find libk

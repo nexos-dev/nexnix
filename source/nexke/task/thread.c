@@ -127,7 +127,7 @@ void TskTerminateSelf (int code)
 void TskDestroyThread (NkThread_t* thread)
 {
     // Destory memory structures if ref count is 0
-    if (--thread->refCount == 0)
+    if (NkAtomicSub (&thread->refCount, 1) == 0)
     {
         NkTimeFreeEvent (thread->timeout);
         CpuDestroyContext (thread->context);

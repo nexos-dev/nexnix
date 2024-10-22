@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.7)
 project(libc VERSION 0.0.1)
-enable_language(C)
+enable_language(C ASM ASM_NASM)
 set(CMAKE_C_STANDARD 99)
 
 # Various options
@@ -55,6 +55,12 @@ list(APPEND LIBC_SOURCE_ALWAYS
     stdio/snprintf.c
     stdio/vprintf_core.c)
 
+list(APPEND LIBC_SOURCE_HOSTED
+    entry/cmain.c
+    stdlib/exit.c)
+
+include(arch/${NEXNIX_ARCH}/arch.cmake)
+
 # Headers used on libc and libk
 list(APPEND LIBC_HEADERS_ALWAYS
     include/string.h
@@ -82,8 +88,12 @@ list(APPEND LIBC_HEADERS_BITS
 # Build and install everything
 if(NOT LIBC_LIBK_ONLY)
     set(LIBC_TARGET c)
-    add_library(c ${LIBC_SOURCE_ALWAYS})
+    add_library(c ${LIBC_SOURCE_ALWAYS} ${LIBC_SOURCE_HOSTED} ${LIBC_SOURCE_ARCH_HOSTED})
+    # Compile crt0. We make it an object library
+    add_library(crt0 OBJECT ${LIBC_SOURCE_CRT0})
     install(TARGETS c DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    # Install crt0
+    install(FILES $<TARGET_OBJECTS:crt0> TYPE LIB RENAME crt0.o)
 else()
     set(LIBC_TARGET k)
     add_library(k ${LIBC_SOURCE_ALWAYS})

@@ -19,7 +19,9 @@
 #define _LOCK_H
 
 #include <nexke/cpu.h>
-#include <nexke/task.h>
+
+static inline void TskDisablePreempt();
+static inline void TskEnablePreempt();
 
 // Locks a spinlock
 // On UP, disables preemption
@@ -42,6 +44,50 @@ static FORCEINLINE void NkSpinUnlock (spinlock_t* lock)
     __sync_lock_release (lock);    // Unlock it
 #endif
     TskEnablePreempt();    // Re-enable preemption
+}
+
+typedef long atomic_t;    // Speical atomic type
+
+// Loads a value atomically
+static FORCEINLINE atomic_t NkAtomicLoad (atomic_t* ptr)
+{
+#ifndef NEXKE_UP
+    return __atomic_load_n (ptr, __ATOMIC_SEQ_CST);
+#else
+    return *ptr;
+#endif
+}
+
+// Store a value atomically
+static FORCEINLINE void NkAtomicStore (atomic_t* ptr, atomic_t val)
+{
+#ifndef NEXKE_UP
+    __atomic_store_n (ptr, val, __ATOMIC_SEQ_CST);
+#else
+    *ptr = val;
+#endif
+}
+
+// Adds atomically
+static FORCEINLINE atomic_t NkAtomicAdd (atomic_t* ptr, atomic_t val)
+{
+#ifndef NEXKE_UP
+    return __atomic_add_fetch (ptr, val, __ATOMIC_SEQ_CST);
+#else
+    *ptr += val;
+    return *ptr;
+#endif
+}
+
+// Subtracts atomically
+static FORCEINLINE atomic_t NkAtomicSub (atomic_t* ptr, atomic_t val)
+{
+#ifndef NEXKE_UP
+    return __atomic_sub_fetch (ptr, val, __ATOMIC_SEQ_CST);
+#else
+    *ptr -= val;
+    return *ptr;
+#endif
 }
 
 #endif

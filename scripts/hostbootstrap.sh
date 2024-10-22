@@ -329,7 +329,7 @@ then
         binutilsver=2.41
         gccver=13.1.0
         # Download & build binutils
-        if [ ! -d $NNEXTSOURCEROOT/tools/binutils-${binutilsver} ] || [ "$rebuild" = "1" ]
+        if [ ! -d $NNEXTSOURCEROOT/tools/binutils-${binutilsver} ]
         then
             mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
             wget https://ftp.gnu.org/gnu/binutils/binutils-${binutilsver}.tar.xz
@@ -365,7 +365,7 @@ then
         fi
 
         # Download & build gcc
-        if [ ! -d $NNEXTSOURCEROOT/tools/gcc-${gccver} ] || [ "$rebuild" = "1" ]
+        if [ ! -d $NNEXTSOURCEROOT/tools/gcc-${gccver} ]
         then
             mkdir -p $NNEXTSOURCEROOT/tools/tarballs && cd $NNEXTSOURCEROOT/tools/tarballs
             wget https://ftp.gnu.org/gnu/gcc/gcc-${gccver}/gcc-${gccver}.tar.xz

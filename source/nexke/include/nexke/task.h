@@ -20,6 +20,7 @@
 
 #include <nexke/cpu.h>
 #include <nexke/list.h>
+#include <nexke/lock.h>
 #include <nexke/types.h>
 #include <nexke/wait.h>
 #include <stdbool.h>
@@ -54,12 +55,12 @@ typedef struct _thread
     NkLink_t link;    // Link in ready queue / wait lists
                       // At head so we don't have to use LINK_CONTAINER
     // Thread identity info
-    id_t tid;            // Thread ID
-    const char* name;    // Name of thread
-    int priority;        // Priority of this thread
-    int state;           // State of this thread
-    int flags;           // Flags for this thread
-    int refCount;        // Things referencing this thread
+    id_t tid;             // Thread ID
+    const char* name;     // Name of thread
+    int priority;         // Priority of this thread
+    int state;            // State of this thread
+    int flags;            // Flags for this thread
+    atomic_t refCount;    // Things referencing this thread
     // Quantum info
     int quantaLeft;    // Quantum ticks left
     int quantum;       // Quantum assigned to thread
@@ -171,7 +172,7 @@ static inline void TskEnablePreempt()
 // Refs a thread
 static inline void TskRefThread (NkThread_t* thread)
 {
-    ++thread->refCount;
+    NkAtomicAdd (&thread->refCount, 1);
 }
 
 // Gets current thread
