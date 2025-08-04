@@ -77,17 +77,17 @@ void NkFbConsInit()
     for (int i = 0; i < numBufPages; ++i)
     {
         MmMulMapEarly (NEXKE_BACKBUF_BASE + (i * NEXKE_CPU_PAGESZ),
-                       (paddr_t) display->backBuffer + (i * NEXKE_CPU_PAGESZ),
+                       (uint32_t) display->backBuffer + (i * NEXKE_CPU_PAGESZ),
                        MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_KE);
         MmMulMapEarly (NEXKE_FB_BASE + (i * NEXKE_CPU_PAGESZ),
-                       (paddr_t) display->frameBuffer + (i * NEXKE_CPU_PAGESZ),
+                       (uint32_t) display->frameBuffer + (i * NEXKE_CPU_PAGESZ),
                        MUL_PAGE_R | MUL_PAGE_RW | MUL_PAGE_KE | MUL_PAGE_WT);
     }
-    frameBuf = (paddr_t) display->frameBuffer;
-    display->backBuffer = (void*) NEXKE_BACKBUF_BASE;
-    display->frameBuffer = (void*) NEXKE_FB_BASE;
+    frameBuf = display->frameBuffer;
+    display->backBuffer = NEXKE_BACKBUF_BASE;
+    display->frameBuffer = NEXKE_FB_BASE;
     //  Clear the display
-    void* backBuf = display->backBuffer;
+    uintptr_t backBuf = display->backBuffer;
     for (int i = 0; i < display->height; ++i)
     {
         for (int j = 0; j < display->width; ++j)
@@ -100,7 +100,7 @@ void NkFbConsInit()
         backBuf += display->bytesPerLine;
     }
     display->backBufferLoc = display->backBuffer;
-    memcpy (display->frameBuffer, display->backBuffer, display->lfbSize);
+    memcpy ((void*) display->frameBuffer, (void*) display->backBuffer, display->lfbSize);
 }
 
 // Remaps framebuffer to WC
@@ -129,8 +129,8 @@ static void fbInvalidate (int x, int y, int width, int height)
     size_t regionWidth = bytesPerPx * width;
     size_t off = 0;
     // Compute back-buffer specific things
-    void* backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
-    void* backBuf = display->backBufferLoc + startLoc;
+    uintptr_t backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
+    uintptr_t backBuf = display->backBufferLoc + startLoc;
     if (backBuf >= backBufEnd)
     {
         // Wrap around
@@ -138,7 +138,7 @@ static void fbInvalidate (int x, int y, int width, int height)
         backBuf = display->backBuffer + diff;
     }
     // Go through each line in region
-    void* front = display->frameBuffer + startLoc;
+    uintptr_t front = display->frameBuffer + startLoc;
     for (int i = 0; i < height; ++i)
     {
         if (backBuf >= backBufEnd)
@@ -148,7 +148,7 @@ static void fbInvalidate (int x, int y, int width, int height)
             backBuf = display->backBuffer + diff;
         }
         // Copy width number of pixels
-        memcpy (front, backBuf, regionWidth);
+        memcpy ((void*) front, (void*) backBuf, regionWidth);
         // Move to next line
         front += display->bytesPerLine;
         backBuf += display->bytesPerLine;
@@ -158,7 +158,7 @@ static void fbInvalidate (int x, int y, int width, int height)
 static void fbIncRender()
 {
     // Update back buffer by a line
-    void* end = display->backBuffer + display->lfbSize;
+    uintptr_t end = display->backBuffer + display->lfbSize;
     display->backBufferLoc += display->bytesPerLine;
     if (display->backBufferLoc >= end)
     {
@@ -196,8 +196,8 @@ static void fbConsWriteChar (char c, int col, int row)
     // Compute base offset to character
     uint32_t offset = (row * 16 * display->bytesPerLine) + (col * 8 * display->bytesPerPx);
     // Get base of buffer
-    void* buf = display->backBufferLoc + offset;
-    void* bufEnd = display->backBuffer + display->lfbSize;
+    uintptr_t buf = display->backBufferLoc + offset;
+    uintptr_t bufEnd = display->backBuffer + display->lfbSize;
     // Wrap if needed
     if (buf >= bufEnd)
     {
@@ -208,7 +208,7 @@ static void fbConsWriteChar (char c, int col, int row)
     uint32_t mask = 1 << 8;
     for (int y = 0; y < 16; ++y)
     {
-        void* lineBuf = buf;
+        uintptr_t lineBuf = buf;
         uint32_t omask = mask;
         for (int x = 0; x < (8 + 1); ++x)
         {
@@ -254,8 +254,8 @@ static bool fbScroll()
     // Invalidate
     fbInvalidate (0, 0, display->width, (rows - 1) * 16);
     // Clear last line
-    void* lastLineBuf = display->backBufferLoc + (display->bytesPerLine * ((rows - 1) * 16));
-    void* bufEnd = display->backBuffer + display->lfbSize;
+    uintptr_t lastLineBuf = display->backBufferLoc + (display->bytesPerLine * ((rows - 1) * 16));
+    uintptr_t bufEnd = display->backBuffer + display->lfbSize;
     // Wrap if needed
     if (lastLineBuf >= bufEnd)
     {

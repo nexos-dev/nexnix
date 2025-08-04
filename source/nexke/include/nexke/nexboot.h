@@ -84,9 +84,9 @@ typedef struct _nndisplay
     NbPixelMask_t greenMask;
     NbPixelMask_t blueMask;
     NbPixelMask_t resvdMask;
-    void* frameBuffer;    // Base of framebuffer
-    void* backBuffer;     // Base of backbuffer
-    void* backBufferLoc;
+    uintptr_t frameBuffer;    // Base of framebuffer
+    uintptr_t backBuffer;     // Base of backbuffer
+    uintptr_t backBufferLoc;
 } NexNixDisplay_t;
 
 typedef struct _nnboot
@@ -107,8 +107,8 @@ typedef struct _nnboot
     void* mods[NEXBOOT_MOD_MAX];    // Loaded modules bases
     int numMods;                    // Number of loaded modules
     // Early memory pool
-    void* memPool;      // Early memory pool
-    int memPoolSize;    // Size of early memory pool
+    uintptr_t memPool;    // Early memory pool
+    int memPoolSize;      // Size of early memory pool
     // Arguments
     char args[256];    // Command line arguments
     // Display info

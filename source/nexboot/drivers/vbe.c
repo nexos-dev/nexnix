@@ -234,15 +234,14 @@ static void vbeGetPreferredRes (int* width, int* height)
 }
 
 // Maps frame buffer
-static void vbeMapBuffer (NbDisplayDev_t* display, void* buf)
+static void vbeMapBuffer (NbDisplayDev_t* display, uintptr_t buf)
 {
     size_t lfbSize = display->bytesPerLine * display->height;
     size_t lfbPages = (lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     for (int i = 0; i < lfbPages; ++i)
     {
-        NbCpuAsMap ((uintptr_t) buf + (i * NEXBOOT_CPU_PAGE_SIZE),
-                    (paddr_t) (buf + (i * NEXBOOT_CPU_PAGE_SIZE)),
-                    NB_CPU_AS_RW | NB_CPU_AS_WT);
+        uintptr_t pos = buf + (i * NEXBOOT_CPU_PAGE_SIZE);
+        NbCpuAsMap (pos, pos, NB_CPU_AS_RW | NB_CPU_AS_WT);
     }
 }
 
@@ -259,7 +258,7 @@ static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, u
         display->bytesPerLine = modeInfo->lfbScanLine;
     else
         display->bytesPerLine = modeInfo->bytesPerLine;
-    display->frontBuffer = (void*) modeInfo->frontBuffer;
+    display->frontBuffer = modeInfo->frontBuffer;
     // Set masks
     if (modeInfo->memModel == VBE_MODEL_DIRECTCOLOR)
     {
@@ -309,7 +308,7 @@ static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, u
     // Map the framebuffer
     vbeMapBuffer (display, display->frontBuffer);
     // Map back buffer. We put it at the end of nexboot
-    display->backBuffer = (void*) NEXBOOT_BIOS_BACKBUF;
+    display->backBuffer = NEXBOOT_BIOS_BACKBUF;
     display->backBufferLoc = display->backBuffer;
     vbeMapBuffer (display, display->backBuffer);
     // Set size
@@ -319,8 +318,8 @@ static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, u
     // Set VBE mode
     vbeSetMode (modeNum);
     // Clear buffers
-    memset (display->backBuffer, 0, lfbSize);
-    memset (display->frontBuffer, 0, lfbSize);
+    memset ((void*) display->backBuffer, 0, lfbSize);
+    memset ((void*) display->frontBuffer, 0, lfbSize);
 }
 
 // Querys availibilty of specified mode
@@ -504,8 +503,8 @@ static bool VbeObjInvalidate (void* objp, void* params)
     size_t regionWidth = bytesPerPx * region->width;
     size_t off = 0;
     // Compute back-buffer specific things
-    void* backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
-    void* backBuf = display->backBufferLoc + startLoc;
+    uintptr_t backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
+    uintptr_t backBuf = display->backBufferLoc + startLoc;
     if (backBuf >= backBufEnd)
     {
         // Wrap around
@@ -513,7 +512,7 @@ static bool VbeObjInvalidate (void* objp, void* params)
         backBuf = display->backBuffer + diff;
     }
     // Go through each line in region
-    void* front = display->frontBuffer + startLoc;
+    uintptr_t front = display->frontBuffer + startLoc;
     for (int i = 0; i < region->height; ++i)
     {
         if (backBuf >= backBufEnd)
@@ -523,7 +522,7 @@ static bool VbeObjInvalidate (void* objp, void* params)
             backBuf = display->backBuffer + diff;
         }
         // Copy width number of pixels
-        memcpy (front, backBuf, regionWidth);
+        memcpy ((void*) front, (void*) backBuf, regionWidth);
         // Move to next line
         front += display->bytesPerLine;
         backBuf += display->bytesPerLine;
@@ -561,7 +560,7 @@ static bool VbeObjSetRender (void* objp, void* params)
     NbObject_t* obj = objp;
     NbDisplayDev_t* display = NbObjGetData (obj);
     // Update back buffer by a line
-    void* end = display->backBuffer + display->lfbSize;
+    uintptr_t end = display->backBuffer + display->lfbSize;
     display->backBufferLoc += display->bytesPerLine;
     if (display->backBufferLoc >= end)
     {

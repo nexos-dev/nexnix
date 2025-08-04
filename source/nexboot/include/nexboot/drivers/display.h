@@ -49,9 +49,9 @@ typedef struct _nbDisplay
     NbPixelMask_t greenMask;
     NbPixelMask_t blueMask;
     NbPixelMask_t resvdMask;
-    void* frontBuffer;                 // Base of front buffer
-    void* backBuffer;                  // Base of back buffer
-    void* backBufferLoc;               // Current pointer to back buffer
+    uintptr_t frontBuffer;             // Base of front buffer
+    uintptr_t backBuffer;              // Base of back buffer
+    uintptr_t backBufferLoc;           // Current pointer to back buffer
     NbInvalidRegion_t* invalidList;    // Internal. List of regions to copy on buffer
                                        // invalidate
 } NbDisplayDev_t;

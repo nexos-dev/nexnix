@@ -163,9 +163,9 @@ static bool gopSetupDisplay (NbGopDisplay_t* display,
     // Set the mode
     display->prot->SetMode (display->prot, modeNum);
     // Set framebuffer
-    display->display.frontBuffer = (void*) display->prot->Mode->FrameBufferBase;
+    display->display.frontBuffer = display->prot->Mode->FrameBufferBase;
     // Allocate backbuffer
-    display->display.backBuffer = (void*) NbFwAllocPages (
+    display->display.backBuffer = NbFwAllocPages (
         (display->display.lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE);
     display->display.backBufferLoc = display->display.backBuffer;
     return true;
@@ -306,8 +306,8 @@ static bool EfiGopInvalidate (void* objp, void* params)
     size_t regionWidth = bytesPerPx * region->width;
     size_t off = 0;
     // Compute back-buffer specific things
-    void* backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
-    void* backBuf = display->backBufferLoc + startLoc;
+    uintptr_t backBufEnd = display->backBuffer + (display->height * display->bytesPerLine);
+    uintptr_t backBuf = display->backBufferLoc + startLoc;
     if (backBuf >= backBufEnd)
     {
         // Wrap around
@@ -315,7 +315,7 @@ static bool EfiGopInvalidate (void* objp, void* params)
         backBuf = display->backBuffer + diff;
     }
     // Go through each line in region
-    void* front = display->frontBuffer + startLoc;
+    uintptr_t front = display->frontBuffer + startLoc;
     for (int i = 0; i < region->height; ++i)
     {
         if (backBuf >= backBufEnd)
@@ -325,7 +325,7 @@ static bool EfiGopInvalidate (void* objp, void* params)
             backBuf = display->backBuffer + diff;
         }
         // Copy width number of pixels
-        memcpy (front, backBuf, regionWidth);
+        memcpy ((void*) front, (void*) backBuf, regionWidth);
         // Move to next line
         front += display->bytesPerLine;
         backBuf += display->bytesPerLine;
@@ -360,7 +360,7 @@ static bool EfiGopSetRender (void* objp, void* data)
     NbObject_t* obj = objp;
     NbDisplayDev_t* display = NbObjGetData (obj);
     // Update back buffer by a line
-    void* end = display->backBuffer + display->lfbSize;
+    uintptr_t end = display->backBuffer + display->lfbSize;
     display->backBufferLoc += display->bytesPerLine;
     if (display->backBufferLoc >= end)
     {
