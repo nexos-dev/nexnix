@@ -69,6 +69,9 @@ typedef struct _thread
     int state;           // State of this thread
     int flags;           // Flags for this thread
     int refCount;        // Things referencing this thread
+    // Priority adjust info
+    int adjust;            // Priority adjust to be applied
+    bool adjustPending;    // If an adjust is pending
     // Quantum info
     int quantaLeft;    // Quantum ticks left
     int quantum;       // Quantum assigned to thread
@@ -132,12 +135,24 @@ static FORCEINLINE void TskThreadCheckAssert (NkThread_t* thread)
 #define TSK_POLICY_NORMAL 0
 #define TSK_POLICY_FIFO   1
 #define TSK_POLICY_RR     2
+#define TSK_POLICY_SERVER 3
 
 // Scheduling priority bases
 #define TSK_PRIO_HIGH   0
-#define TSK_PRIO_KERNEL 8
+#define TSK_PRIO_SERVER 8
 #define TSK_PRIO_USER   30
 #define TSK_PRIO_WORKER 63
+
+// Scheduling priority maxes
+#define TSK_PRIO_USER_MAX 4
+
+// Policy to default priority table
+static int tskPrioTable[] = {TSK_PRIO_USER, TSK_PRIO_WORKER, TSK_PRIO_WORKER - 1, TSK_PRIO_SERVER};
+// Policy to max priority table
+static int tskMaxPrioTable[] = {TSK_PRIO_USER_MAX,
+                                TSK_PRIO_WORKER,
+                                TSK_PRIO_WORKER - 1,
+                                TSK_PRIO_HIGH};
 
 // Maybe this should be bigger
 #define NEXKE_MAX_THREAD 8192
@@ -246,6 +261,9 @@ errno_t TskJoinThreadTimeout (NkThread_t* thread, ktime_t timeout);
 
 // Sets the priority of a thread
 void TskSetThreadPrio (NkThread_t* thread, int newPrio);
+
+// Gets priority of a thread
+int TskGetThreadPrio (NkThread_t* thread);
 
 // Quantum stuff
 

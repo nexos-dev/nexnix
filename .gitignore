@@ -1,5 +1,4 @@
 /output
-.VSCodeCounter
 *.img
 Doxygen
 /patch-*
@@ -7,6 +6,4 @@ source/external/*
 fakeinc
 *.code-workspace
 *.po~
-.vscode/settings.json
-.gdbinit
 hwcopy/fw

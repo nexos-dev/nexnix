@@ -46,6 +46,14 @@ static void TskIdleThread (void*)
 // Forward declaration as this is called by tskReadyThread
 static inline void tskPreempt();
 
+// Calcuates a threads actual priority based on a requested priority
+static FORCEINLINE int tskCalcPriority (NkThread_t* thread, int prio)
+{
+    if (prio < tskMaxPrioTable[thread->policy])
+        return tskMaxPrioTable[thread->policy];
+    return prio;
+}
+
 // Admits thread to ready queue
 // If this thread was preempted, it's added to the front;
 // otherwise, its added to the tail
@@ -53,6 +61,13 @@ static inline void tskPreempt();
 static FORCEINLINE void tskReadyThread (NkCcb_t* ccb, NkThread_t* thread)
 {
     assert (PltGetIpl() == PLT_IPL_HIGH);
+    // Perform any pending priority adjustments
+    if (thread->adjustPending)
+    {
+        int prioReq = thread->priority + thread->adjust;
+        thread->priority = tskCalcPriority (thread, prioReq);
+        thread->adjustPending = false;
+    }
     // Check if we were preempted
     if (thread->preempted)
     {
@@ -188,6 +203,15 @@ static inline void tskPreempt()
     }
 }
 
+// Gets priority of a thread
+int TskGetThreadPrio (NkThread_t* thread)
+{
+    TskLockThread (thread);
+    int prio = thread->priority;
+    TskUnlockThread (thread);
+    return prio;
+}
+
 // Sets the priority of a thread
 void TskSetThreadPrio (NkThread_t* thread, int newPrio)
 {
@@ -211,7 +235,8 @@ void TskSetThreadPrio (NkThread_t* thread, int newPrio)
                     TskUnlockThread (thread);
                     continue;
                 }
-                // Set the new priority and save the onld one
+                // Set the new priority and save the old one
+                newPrio = tskCalcPriority (thread, newPrio);
                 int curPrio = thread->priority;
                 thread->priority = newPrio;
                 ccb->curPriority = newPrio;
@@ -238,6 +263,7 @@ void TskSetThreadPrio (NkThread_t* thread, int newPrio)
                     continue;
                 }
                 // Remove from old queue
+                newPrio = tskCalcPriority (thread, newPrio);
                 int curPrio = thread->priority;
                 NkList_t* curQueue = &ccb->readyQueues[curPrio];
                 NkListRemove (curQueue, &thread->link);
@@ -263,12 +289,32 @@ void TskSetThreadPrio (NkThread_t* thread, int newPrio)
                     TskUnlockThread (thread);
                     continue;
                 }
+                newPrio = tskCalcPriority (thread, newPrio);
                 thread->priority = newPrio;
                 TskUnlockThread (thread);
             }
             break;
         }
     }
+    PltLowerIpl (ipl);
+}
+
+// Add a priority adjustment to a thread
+// All pending adjusts are made when a thread is made ready again
+// Avoid a good bit of work done by TskSetThreadPrio and also always relative to the current
+// priority so it is recommended to use this routine where possible
+void TskSetThreadAdjust (NkThread_t* thread, int adjustVal)
+{
+    ipl_t ipl = PltRaiseIpl (PLT_IPL_HIGH);
+    TskLockThread (thread);
+    if (thread->adjustPending)
+        thread->adjust += adjustVal;    // Add this to the current adjustment
+    else
+    {
+        thread->adjust = adjustVal;
+        thread->adjustPending = true;
+    }
+    TskUnlockThread (thread);
     PltLowerIpl (ipl);
 }
 

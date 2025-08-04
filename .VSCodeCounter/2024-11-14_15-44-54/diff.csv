@@ -1,0 +1,4 @@
+"filename", "language", "C", "comment", "blank", "total"
+"/home/nexos/sources/nexnix/source/nexke/cpu/i386/mulpae.c", "C", 2, 1, 0, 3
+"/home/nexos/sources/nexnix/source/nexke/cpu/x86_64/mul.c", "C", 240, 78, 8, 326
+"Total", "-", 242, 79, 8, 329

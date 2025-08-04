@@ -1,0 +1,15 @@
+"filename", "language", "C", "C++", "ARM", "comment", "blank", "total"
+"/home/nexos/sources/nexnix/source/nexboot/cpu/armv8/as.c", "C", 3, 0, 0, 0, 0, 3
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/cpu.S", "ARM", 0, 0, 11, 0, 2, 13
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/cpudep.c", "C", 25, 0, 0, 1, 1, 27
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/exec.c", "C", 57, 0, 0, 5, 2, 64
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/mul.c", "C", 406, 0, 0, 105, 10, 521
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/mul.h", "C++", 0, -20, 0, -25, -11, -56
+"/home/nexos/sources/nexnix/source/nexke/cpu/i386/mul.c", "C", 3, 0, 0, 0, 0, 3
+"/home/nexos/sources/nexnix/source/nexke/cpu/i386/mulpae.c", "C", 4, 0, 0, 0, 0, 4
+"/home/nexos/sources/nexnix/source/nexke/cpu/x86_64/mul.c", "C", 5, 0, 0, -1, 0, 4
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/armv8/armv8.h", "C++", 0, 9, 0, 2, 3, 14
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/armv8/mul.h", "C++", 0, 56, 0, 3, 6, 65
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/mm.h", "C++", 0, 7, 0, 5, 5, 17
+"/home/nexos/sources/nexnix/source/nexke/platform/interrupt.c", "C", 10, 0, 0, 0, 0, 10
+"Total", "-", 513, 52, 11, 95, 18, 689

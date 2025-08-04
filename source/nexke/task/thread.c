@@ -82,8 +82,11 @@ NkThread_t* TskCreateThread (NkThreadEntry entry,
     thread->tid = tid;
     thread->refCount = 1;
     thread->flags = flags;
-    thread->priority = prio;
     thread->policy = policy;
+    if (thread->priority)
+        thread->priority = prio;
+    else
+        thread->priority = tskPrioTable[policy];
     // Set flags of policy
     if (policy == TSK_POLICY_FIFO)
         thread->flags |= (TSK_THREAD_FIFO | TSK_THREAD_FIXED_PRIO);

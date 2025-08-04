@@ -160,7 +160,7 @@ static void NkInitialThread (void*)
     // Start interrupts now
     CpuUnholdInts();
     TskInitWaitQueue (&queue, TSK_WAITOBJ_QUEUE);
-    NkThread_t* thread = TskCreateThread (t1, NULL, "t1", TSK_POLICY_NORMAL, TSK_PRIO_KERNEL, 0);
+    NkThread_t* thread = TskCreateThread (t1, NULL, "t1", TSK_POLICY_NORMAL, TSK_PRIO_SERVER, 0);
     TskStartThread (thread);
     TskWaitQueueTimeout (&queue, 50000);
     NkLogDebug ("got here 2\n");

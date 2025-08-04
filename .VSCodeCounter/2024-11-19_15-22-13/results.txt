@@ -1,0 +1,561 @@
+Date : 2024-11-19 15:22:13
+Directory : /home/nexos/sources/nexnix
+Total : 383 files,  48673 codes, 12428 comments, 5837 blanks, all 66938 lines
+
+Languages
++--------------+------------+------------+------------+------------+------------+
+| language     | files      | code       | comment    | blank      | total      |
++--------------+------------+------------+------------+------------+------------+
+| C            |        165 |     31,821 |      8,216 |      2,818 |     42,855 |
+| C++          |        110 |      7,599 |      3,484 |      2,104 |     13,187 |
+| Shell Script |         15 |      3,335 |        487 |        164 |      3,986 |
+| ARM          |         21 |      3,001 |          0 |        192 |      3,193 |
+| CMake        |         47 |      2,250 |          0 |        500 |      2,750 |
+| Diff         |          2 |        505 |         23 |          4 |        532 |
+| Properties   |         15 |        127 |        218 |         42 |        387 |
+| Markdown     |          8 |         35 |          0 |         13 |         48 |
++--------------+------------+------------+------------+------------+------------+
+
+Directories
++-------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                      | files      | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                         |        383 |     48,673 |     12,428 |      5,837 |     66,938 |
+| . (Files)                                                                                 |          3 |      1,278 |        157 |         68 |      1,503 |
+| hwcopy                                                                                    |          1 |        119 |         32 |         16 |        167 |
+| packages                                                                                  |         25 |        819 |        369 |         69 |      1,257 |
+| packages (Files)                                                                          |          1 |         50 |         22 |         12 |         84 |
+| packages/NexNixSdk                                                                        |          1 |          6 |         14 |          2 |         22 |
+| packages/binutils                                                                         |          1 |        257 |          2 |          1 |        260 |
+| packages/binutils/patches                                                                 |          1 |        257 |          2 |          1 |        260 |
+| packages/gcc                                                                              |          1 |        248 |         21 |          3 |        272 |
+| packages/gcc/patches                                                                      |          1 |        248 |         21 |          3 |        272 |
+| packages/gnu-efi                                                                          |          1 |          5 |         14 |          2 |         21 |
+| packages/libc                                                                             |          3 |         16 |         42 |          6 |         64 |
+| packages/libk                                                                             |          3 |         16 |         42 |          6 |         64 |
+| packages/libnex                                                                           |          3 |         16 |         42 |          6 |         64 |
+| packages/nexboot                                                                          |          3 |         43 |         48 |          8 |         99 |
+| packages/nexboot-real                                                                     |          3 |         43 |         48 |          8 |         99 |
+| packages/nexke                                                                            |          3 |         38 |         42 |          7 |         87 |
+| packages/templates                                                                        |          2 |         81 |         32 |          8 |        121 |
+| scripts                                                                                   |          4 |      1,769 |        170 |         62 |      2,001 |
+| source                                                                                    |        350 |     44,688 |     11,700 |      5,622 |     62,010 |
+| source/NexnixSdk                                                                          |         15 |        540 |         21 |        143 |        704 |
+| source/NexnixSdk (Files)                                                                  |          2 |         41 |          0 |         10 |         51 |
+| source/NexnixSdk/cmake                                                                    |         12 |        478 |          0 |        125 |        603 |
+| source/NexnixSdk/cmake (Files)                                                            |          3 |        203 |          0 |         42 |        245 |
+| source/NexnixSdk/cmake/Platform                                                           |          1 |         27 |          0 |         10 |         37 |
+| source/NexnixSdk/cmake/SystemBuild                                                        |          8 |        248 |          0 |         73 |        321 |
+| source/NexnixSdk/cmake/SystemBuild (Files)                                                |          6 |        184 |          0 |         56 |        240 |
+| source/NexnixSdk/cmake/SystemBuild/kernel                                                 |          2 |         64 |          0 |         17 |         81 |
+| source/NexnixSdk/include                                                                  |          1 |         21 |         21 |          8 |         50 |
+| source/hosttools                                                                          |         17 |      2,936 |        597 |        248 |      3,781 |
+| source/hosttools (Files)                                                                  |          2 |         57 |          0 |         18 |         75 |
+| source/hosttools/cmake                                                                    |          3 |        103 |         21 |         22 |        146 |
+| source/hosttools/include                                                                  |          1 |         22 |         19 |          6 |         47 |
+| source/hosttools/nnbuild                                                                  |          5 |        755 |        190 |         80 |      1,025 |
+| source/hosttools/nnimage                                                                  |          6 |      1,999 |        367 |        122 |      2,488 |
+| source/libraries                                                                          |        125 |     10,202 |      3,472 |      1,699 |     15,373 |
+| source/libraries (Files)                                                                  |          1 |          2 |          0 |          1 |          3 |
+| source/libraries/libc                                                                     |         46 |      4,409 |        658 |        815 |      5,882 |
+| source/libraries/libc (Files)                                                             |          1 |         97 |          0 |         17 |        114 |
+| source/libraries/libc/arch                                                                |         14 |        472 |        128 |        120 |        720 |
+| source/libraries/libc/arch/armv8                                                          |          4 |        127 |         32 |         32 |        191 |
+| source/libraries/libc/arch/armv8 (Files)                                                  |          2 |         38 |          0 |          8 |         46 |
+| source/libraries/libc/arch/armv8/include                                                  |          2 |         89 |         32 |         24 |        145 |
+| source/libraries/libc/arch/armv8/include (Files)                                          |          1 |         73 |         16 |         20 |        109 |
+| source/libraries/libc/arch/armv8/include/bits                                             |          1 |         16 |         16 |          4 |         36 |
+| source/libraries/libc/arch/i386                                                           |          4 |        128 |         32 |         32 |        192 |
+| source/libraries/libc/arch/i386 (Files)                                                   |          2 |         40 |          0 |          8 |         48 |
+| source/libraries/libc/arch/i386/include                                                   |          2 |         88 |         32 |         24 |        144 |
+| source/libraries/libc/arch/i386/include (Files)                                           |          1 |         73 |         16 |         20 |        109 |
+| source/libraries/libc/arch/i386/include/bits                                              |          1 |         15 |         16 |          4 |         35 |
+| source/libraries/libc/arch/riscv64                                                        |          2 |         89 |         32 |         24 |        145 |
+| source/libraries/libc/arch/riscv64/include                                                |          2 |         89 |         32 |         24 |        145 |
+| source/libraries/libc/arch/riscv64/include (Files)                                        |          1 |         73 |         16 |         20 |        109 |
+| source/libraries/libc/arch/riscv64/include/bits                                           |          1 |         16 |         16 |          4 |         36 |
+| source/libraries/libc/arch/x86_64                                                         |          4 |        128 |         32 |         32 |        192 |
+| source/libraries/libc/arch/x86_64 (Files)                                                 |          2 |         40 |          0 |          8 |         48 |
+| source/libraries/libc/arch/x86_64/include                                                 |          2 |         88 |         32 |         24 |        144 |
+| source/libraries/libc/arch/x86_64/include (Files)                                         |          1 |         73 |         16 |         20 |        109 |
+| source/libraries/libc/arch/x86_64/include/bits                                            |          1 |         15 |         16 |          4 |         35 |
+| source/libraries/libc/entry                                                               |          1 |          4 |         16 |          2 |         22 |
+| source/libraries/libc/include                                                             |         15 |      3,086 |        225 |        612 |      3,923 |
+| source/libraries/libc/include (Files)                                                     |         13 |      3,035 |        192 |        599 |      3,826 |
+| source/libraries/libc/include/bits                                                        |          1 |         45 |         17 |          9 |         71 |
+| source/libraries/libc/include/sys                                                         |          1 |          6 |         16 |          4 |         26 |
+| source/libraries/libc/stdio                                                               |          6 |        617 |        144 |         38 |        799 |
+| source/libraries/libc/stdlib                                                              |          1 |          3 |         16 |          2 |         21 |
+| source/libraries/libc/string                                                              |          8 |        130 |        129 |         24 |        283 |
+| source/libraries/libconf                                                                  |         13 |      1,717 |        382 |        147 |      2,246 |
+| source/libraries/libconf (Files)                                                          |          2 |        118 |          0 |         26 |        144 |
+| source/libraries/libconf/cmake                                                            |          3 |        103 |         21 |         21 |        145 |
+| source/libraries/libconf/include                                                          |          1 |         39 |         39 |         14 |         92 |
+| source/libraries/libconf/src                                                              |          7 |      1,457 |        322 |         86 |      1,865 |
+| source/libraries/libconf/src (Files)                                                      |          5 |      1,260 |        286 |         77 |      1,623 |
+| source/libraries/libconf/src/tests                                                        |          2 |        197 |         36 |          9 |        242 |
+| source/libraries/libnex                                                                   |         65 |      4,074 |      2,432 |        736 |      7,242 |
+| source/libraries/libnex (Files)                                                           |          2 |        306 |          0 |         51 |        357 |
+| source/libraries/libnex/cmake                                                             |          4 |        226 |         21 |         34 |        281 |
+| source/libraries/libnex/include                                                           |         21 |        511 |      1,250 |        298 |      2,059 |
+| source/libraries/libnex/include (Files)                                                   |          1 |         21 |          1 |         11 |         33 |
+| source/libraries/libnex/include/libnex                                                    |         20 |        490 |      1,249 |        287 |      2,026 |
+| source/libraries/libnex/src                                                               |         26 |      2,417 |        884 |        260 |      3,561 |
+| source/libraries/libnex/src (Files)                                                       |         23 |      2,346 |        813 |        239 |      3,398 |
+| source/libraries/libnex/src/codepages                                                     |          1 |         34 |         20 |          3 |         57 |
+| source/libraries/libnex/src/unicode                                                       |          2 |         37 |         51 |         18 |        106 |
+| source/libraries/libnex/tests                                                             |         12 |        614 |        277 |         93 |        984 |
+| source/nexboot                                                                            |        110 |     17,457 |      3,633 |      1,767 |     22,857 |
+| source/nexboot (Files)                                                                    |          2 |        115 |          0 |         21 |        136 |
+| source/nexboot/cpu                                                                        |         19 |      1,618 |        336 |        204 |      2,158 |
+| source/nexboot/cpu/armv8                                                                  |          4 |        269 |         72 |         37 |        378 |
+| source/nexboot/cpu/i386                                                                   |          6 |        609 |        111 |         68 |        788 |
+| source/nexboot/cpu/riscv64                                                                |          4 |        200 |         73 |         36 |        309 |
+| source/nexboot/cpu/x86_64                                                                 |          5 |        540 |         80 |         63 |        683 |
+| source/nexboot/drivers                                                                    |         13 |      3,780 |        633 |        263 |      4,676 |
+| source/nexboot/fw                                                                         |         25 |      4,586 |        655 |        439 |      5,680 |
+| source/nexboot/fw/bios                                                                    |         19 |      3,983 |        505 |        367 |      4,855 |
+| source/nexboot/fw/bios (Files)                                                            |          6 |        780 |        178 |         69 |      1,027 |
+| source/nexboot/fw/bios/boot                                                               |          6 |      1,084 |          0 |         66 |      1,150 |
+| source/nexboot/fw/bios/decomp                                                             |          3 |      1,121 |        327 |        180 |      1,628 |
+| source/nexboot/fw/bios/include                                                            |          3 |        239 |          0 |         15 |        254 |
+| source/nexboot/fw/bios/include/boot                                                       |          3 |        239 |          0 |         15 |        254 |
+| source/nexboot/fw/bios/nbload                                                             |          1 |        759 |          0 |         37 |        796 |
+| source/nexboot/fw/efi                                                                     |          6 |        603 |        150 |         72 |        825 |
+| source/nexboot/include                                                                    |         26 |      1,205 |        646 |        405 |      2,256 |
+| source/nexboot/include/nexboot                                                            |         26 |      1,205 |        646 |        405 |      2,256 |
+| source/nexboot/include/nexboot (Files)                                                    |         11 |        571 |        322 |        202 |      1,095 |
+| source/nexboot/include/nexboot/bios                                                       |          1 |         85 |         25 |         15 |        125 |
+| source/nexboot/include/nexboot/cpu                                                        |          5 |        187 |        111 |         80 |        378 |
+| source/nexboot/include/nexboot/cpu/armv8                                                  |          1 |         31 |         20 |         13 |         64 |
+| source/nexboot/include/nexboot/cpu/i386                                                   |          1 |         50 |         25 |         21 |         96 |
+| source/nexboot/include/nexboot/cpu/riscv32                                                |          1 |         24 |         19 |         11 |         54 |
+| source/nexboot/include/nexboot/cpu/riscv64                                                |          1 |         32 |         22 |         14 |         68 |
+| source/nexboot/include/nexboot/cpu/x86_64                                                 |          1 |         50 |         25 |         21 |         96 |
+| source/nexboot/include/nexboot/drivers                                                    |          8 |        334 |        154 |         86 |        574 |
+| source/nexboot/include/nexboot/efi                                                        |          1 |         28 |         34 |         22 |         84 |
+| source/nexboot/src                                                                        |         25 |      6,153 |      1,363 |        435 |      7,951 |
+| source/nexboot/src (Files)                                                                |         11 |      2,573 |        608 |        204 |      3,385 |
+| source/nexboot/src/cmds                                                                   |          4 |        497 |        124 |         33 |        654 |
+| source/nexboot/src/conf                                                                   |          3 |      1,036 |        181 |         60 |      1,277 |
+| source/nexboot/src/filesys                                                                |          5 |      1,612 |        332 |        104 |      2,048 |
+| source/nexboot/src/filesys (Files)                                                        |          3 |      1,588 |        300 |         94 |      1,982 |
+| source/nexboot/src/filesys/include                                                        |          2 |         24 |         32 |         10 |         66 |
+| source/nexboot/src/ui                                                                     |          2 |        435 |        118 |         34 |        587 |
+| source/nexke                                                                              |         83 |     13,553 |      3,977 |      1,765 |     19,295 |
+| source/nexke (Files)                                                                      |          2 |        112 |          0 |         26 |        138 |
+| source/nexke/core                                                                         |          6 |      1,097 |        339 |        100 |      1,536 |
+| source/nexke/cpu                                                                          |         26 |      4,202 |      1,052 |        358 |      5,612 |
+| source/nexke/cpu/armv8                                                                    |          7 |      1,053 |        241 |         87 |      1,381 |
+| source/nexke/cpu/i386                                                                     |          7 |      1,707 |        433 |        127 |      2,267 |
+| source/nexke/cpu/riscv64                                                                  |          3 |         35 |         38 |         14 |         87 |
+| source/nexke/cpu/x86                                                                      |          3 |        389 |         98 |         36 |        523 |
+| source/nexke/cpu/x86_64                                                                   |          6 |      1,018 |        242 |         94 |      1,354 |
+| source/nexke/include                                                                      |         23 |      2,291 |        951 |        716 |      3,958 |
+| source/nexke/include/nexke                                                                |         23 |      2,291 |        951 |        716 |      3,958 |
+| source/nexke/include/nexke (Files)                                                        |         11 |      1,064 |        539 |        389 |      1,992 |
+| source/nexke/include/nexke/cpu                                                            |          9 |        962 |        324 |        264 |      1,550 |
+| source/nexke/include/nexke/cpu (Files)                                                    |          1 |         58 |         31 |         21 |        110 |
+| source/nexke/include/nexke/cpu/armv8                                                      |          2 |        359 |         80 |         88 |        527 |
+| source/nexke/include/nexke/cpu/i386                                                       |          2 |        196 |         73 |         54 |        323 |
+| source/nexke/include/nexke/cpu/riscv64                                                    |          1 |          7 |         18 |          5 |         30 |
+| source/nexke/include/nexke/cpu/x86                                                        |          1 |        210 |         62 |         55 |        327 |
+| source/nexke/include/nexke/cpu/x86_64                                                     |          2 |        132 |         60 |         41 |        233 |
+| source/nexke/include/nexke/platform                                                       |          3 |        265 |         88 |         63 |        416 |
+| source/nexke/mm                                                                           |          9 |      2,071 |        604 |        182 |      2,857 |
+| source/nexke/platform                                                                     |         13 |      3,145 |        767 |        306 |      4,218 |
+| source/nexke/platform (Files)                                                             |          2 |        993 |        195 |         62 |      1,250 |
+| source/nexke/platform/pc                                                                  |          8 |      1,885 |        484 |        209 |      2,578 |
+| source/nexke/platform/sbsa                                                                |          3 |        267 |         88 |         35 |        390 |
+| source/nexke/task                                                                         |          4 |        635 |        264 |         77 |        976 |
++-------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-------------------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| filename                                                                                  | language     | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+
+| /home/nexos/sources/nexnix/README.md                                                      | Markdown     |         18 |          0 |          5 |         23 |
+| /home/nexos/sources/nexnix/buildrun.sh                                                    | Shell Script |        295 |         42 |         21 |        358 |
+| /home/nexos/sources/nexnix/configure.sh                                                   | Shell Script |        965 |        115 |         42 |      1,122 |
+| /home/nexos/sources/nexnix/hwcopy/hwcopy-raspi3.sh                                        | Shell Script |        119 |         32 |         16 |        167 |
+| /home/nexos/sources/nexnix/packages/NexNixSdk/sdkPackage.conf                             | Properties   |          6 |         14 |          2 |         22 |
+| /home/nexos/sources/nexnix/packages/binutils/patches/binutils.patch                       | Diff         |        257 |          2 |          1 |        260 |
+| /home/nexos/sources/nexnix/packages/gcc/patches/gcc.patch                                 | Diff         |        248 |         21 |          3 |        272 |
+| /home/nexos/sources/nexnix/packages/gnu-efi/nnpkg-pkg.conf                                | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/libc/libc.conf                                        | Properties   |          4 |         14 |          2 |         20 |
+| /home/nexos/sources/nexnix/packages/libc/libc.sh                                          | Shell Script |          7 |         14 |          2 |         23 |
+| /home/nexos/sources/nexnix/packages/libc/nnpkg-pkg.conf                                   | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/libk/libk.conf                                        | Properties   |          4 |         14 |          2 |         20 |
+| /home/nexos/sources/nexnix/packages/libk/libk.sh                                          | Shell Script |          7 |         14 |          2 |         23 |
+| /home/nexos/sources/nexnix/packages/libk/nnpkg-pkg.conf                                   | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/libnex/libnex.conf                                    | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/libnex/libnex.sh                                      | Shell Script |          6 |         14 |          2 |         22 |
+| /home/nexos/sources/nexnix/packages/libnex/nnpkg-pkg.conf                                 | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/nexboot-real/nexboot-real.sh                          | Shell Script |         29 |         20 |          3 |         52 |
+| /home/nexos/sources/nexnix/packages/nexboot-real/nexboot.conf                             | Properties   |          9 |         14 |          3 |         26 |
+| /home/nexos/sources/nexnix/packages/nexboot-real/nnpkg-pkg.conf                           | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/nexboot/nexboot-real.sh                               | Shell Script |         29 |         20 |          3 |         52 |
+| /home/nexos/sources/nexnix/packages/nexboot/nexboot.conf                                  | Properties   |          9 |         14 |          3 |         26 |
+| /home/nexos/sources/nexnix/packages/nexboot/nnpkg-pkg.conf                                | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/nexke/nexke.conf                                      | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/nexke/nexke.sh                                        | Shell Script |         28 |         14 |          3 |         45 |
+| /home/nexos/sources/nexnix/packages/nexke/nnpkg-pkg.conf                                  | Properties   |          5 |         14 |          2 |         21 |
+| /home/nexos/sources/nexnix/packages/nnbuild.conf                                          | Properties   |         50 |         22 |         12 |         84 |
+| /home/nexos/sources/nexnix/packages/templates/basetempl.sh                                | Shell Script |         18 |         16 |          2 |         36 |
+| /home/nexos/sources/nexnix/packages/templates/cmakebuild.sh                               | Shell Script |         63 |         16 |          6 |         85 |
+| /home/nexos/sources/nexnix/scripts/buildpkg.sh                                            | Shell Script |         55 |         24 |         11 |         90 |
+| /home/nexos/sources/nexnix/scripts/hostbootstrap.sh                                       | Shell Script |        778 |         64 |         13 |        855 |
+| /home/nexos/sources/nexnix/scripts/run.sh                                                 | Shell Script |        893 |         64 |         34 |        991 |
+| /home/nexos/sources/nexnix/scripts/writeiso.sh                                            | Shell Script |         43 |         18 |          4 |         65 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/CMakeLists.txt                                | CMake        |         39 |          0 |          9 |         48 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/README.md                                     | Markdown     |          2 |          0 |          1 |          3 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/GettextHelp.cmake                       | CMake        |        129 |          0 |         23 |        152 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/NexTest.cmake                           | CMake        |         45 |          0 |         12 |         57 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/Platform/NexNix.cmake                   | CMake        |         27 |          0 |         10 |         37 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SdkCompilerTest.cmake                   | CMake        |         29 |          0 |          7 |         36 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/ArchToMacro.cmake           | CMake        |         24 |          0 |          6 |         30 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/Options.cmake               | CMake        |         41 |          0 |         10 |         51 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/compiler-gnu.cmake          | CMake        |         20 |          0 |          7 |         27 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/compiler-llvm.cmake         | CMake        |         20 |          0 |          7 |         27 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/kernel/overrides-gnu.cmake  | CMake        |         37 |          0 |         10 |         47 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/kernel/overrides-llvm.cmake | CMake        |         27 |          0 |          7 |         34 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/toolchain-gnu.cmake         | CMake        |         41 |          0 |         14 |         55 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/cmake/SystemBuild/toolchain-llvm.cmake        | CMake        |         38 |          0 |         12 |         50 |
+| /home/nexos/sources/nexnix/source/NexnixSdk/include/nextest.h                             | C++          |         21 |         21 |          8 |         50 |
+| /home/nexos/sources/nexnix/source/hosttools/CMakeLists.txt                                | CMake        |         52 |          0 |         16 |         68 |
+| /home/nexos/sources/nexnix/source/hosttools/README.md                                     | Markdown     |          5 |          0 |          2 |          7 |
+| /home/nexos/sources/nexnix/source/hosttools/cmake/NexTest.cmake                           | CMake        |         53 |          0 |          7 |         60 |
+| /home/nexos/sources/nexnix/source/hosttools/cmake/SdkCompilerTest.cmake                   | CMake        |         29 |          0 |          7 |         36 |
+| /home/nexos/sources/nexnix/source/hosttools/cmake/nextest.h                               | C++          |         21 |         21 |          8 |         50 |
+| /home/nexos/sources/nexnix/source/hosttools/include/config.in.h                           | C++          |         22 |         19 |          6 |         47 |
+| /home/nexos/sources/nexnix/source/hosttools/nnbuild/CMakeLists.txt                        | CMake        |         25 |          0 |          9 |         34 |
+| /home/nexos/sources/nexnix/source/hosttools/nnbuild/build.c                               | C            |        184 |         44 |         12 |        240 |
+| /home/nexos/sources/nexnix/source/hosttools/nnbuild/main.c                                | C            |         93 |         31 |         11 |        135 |
+| /home/nexos/sources/nexnix/source/hosttools/nnbuild/nnbuild.h                             | C++          |         38 |         25 |         14 |         77 |
+| /home/nexos/sources/nexnix/source/hosttools/nnbuild/package.c                             | C            |        415 |         90 |         34 |        539 |
+| /home/nexos/sources/nexnix/source/hosttools/nnimage/CMakeLists.txt                        | CMake        |         35 |          0 |         11 |         46 |
+| /home/nexos/sources/nexnix/source/hosttools/nnimage/image.c                               | C            |        671 |        115 |         24 |        810 |
+| /home/nexos/sources/nexnix/source/hosttools/nnimage/imageList.c                           | C            |        482 |         73 |         22 |        577 |
+| /home/nexos/sources/nexnix/source/hosttools/nnimage/main.c                                | C            |         96 |         31 |         12 |        139 |
+| /home/nexos/sources/nexnix/source/hosttools/nnimage/nnimage.h                             | C++          |         83 |         41 |         29 |        153 |
+| /home/nexos/sources/nexnix/source/hosttools/nnimage/update.c                              | C            |        632 |        107 |         24 |        763 |
+| /home/nexos/sources/nexnix/source/libraries/README.md                                     | Markdown     |          2 |          0 |          1 |          3 |
+| /home/nexos/sources/nexnix/source/libraries/libc/CMakeLists.txt                           | CMake        |         97 |          0 |         17 |        114 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/armv8/arch.cmake                    | CMake        |         15 |          0 |          5 |         20 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/armv8/crt0.S                        | ARM          |         23 |          0 |          3 |         26 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/armv8/include/bits/arch.h           | C++          |         16 |         16 |          4 |         36 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/armv8/include/stdint.h              | C++          |         73 |         16 |         20 |        109 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/i386/arch.cmake                     | CMake        |         15 |          0 |          5 |         20 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/i386/crt0.asm                       | ARM          |         25 |          0 |          3 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/i386/include/bits/arch.h            | C++          |         15 |         16 |          4 |         35 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/i386/include/stdint.h               | C++          |         73 |         16 |         20 |        109 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/riscv64/include/bits/arch.h         | C++          |         16 |         16 |          4 |         36 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/riscv64/include/stdint.h            | C++          |         73 |         16 |         20 |        109 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/x86_64/arch.cmake                   | CMake        |         15 |          0 |          5 |         20 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/x86_64/crt0.asm                     | ARM          |         25 |          0 |          3 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/x86_64/include/bits/arch.h          | C++          |         15 |         16 |          4 |         35 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/x86_64/include/stdint.h             | C++          |         73 |         16 |         20 |        109 |
+| /home/nexos/sources/nexnix/source/libraries/libc/entry/cmain.c                            | C            |          4 |         16 |          2 |         22 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/assert.h                         | C++          |          8 |         16 |          4 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/bits/types.h                     | C++          |         45 |         17 |          9 |         71 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/elf.h                            | C++          |      2,769 |          4 |        539 |      3,312 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/errno.h                          | C++          |        138 |          5 |          4 |        147 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/stdarg.h                         | C++          |          8 |         16 |          4 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/stdbool.h                        | C++          |          7 |         16 |          5 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/stddef.h                         | C++          |         10 |         17 |          5 |         32 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/stdio.h                          | C++          |         33 |         17 |          8 |         58 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/stdlib.h                         | C++          |         19 |         19 |          6 |         44 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/stdnoreturn.h                    | C++          |          3 |         16 |          2 |         21 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/string.h                         | C++          |         14 |         18 |          7 |         39 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/sys/types.h                      | C++          |          6 |         16 |          4 |         26 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/time.h                           | C++          |          3 |         16 |          3 |         22 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/uchar.h                          | C++          |          8 |         16 |          5 |         29 |
+| /home/nexos/sources/nexnix/source/libraries/libc/include/unistd.h                         | C++          |         15 |         16 |          7 |         38 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdio/printf_family.h                    | C++          |         32 |         18 |          7 |         57 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdio/snprintf.c                         | C            |          9 |         16 |          3 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdio/sprintf.c                          | C            |          9 |         16 |          3 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdio/vprintf_core.c                     | C            |        538 |         59 |         18 |        615 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdio/vsnprintf.c                        | C            |         23 |         19 |          4 |         46 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdio/vsprintf.c                         | C            |          6 |         16 |          3 |         25 |
+| /home/nexos/sources/nexnix/source/libraries/libc/stdlib/exit.c                            | C            |          3 |         16 |          2 |         21 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/atoi.c                            | C            |         12 |         16 |          3 |         31 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/memcmp.c                          | C            |         16 |         16 |          3 |         35 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/memcpy.c                          | C            |         52 |         17 |          3 |         72 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/memset.c                          | C            |          9 |         16 |          3 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/strcat.c                          | C            |         11 |         16 |          3 |         30 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/strcmp.c                          | C            |         10 |         16 |          3 |         29 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/strcpy.c                          | C            |          9 |         16 |          3 |         28 |
+| /home/nexos/sources/nexnix/source/libraries/libc/string/strlen.c                          | C            |         11 |         16 |          3 |         30 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/CMakeLists.txt                        | CMake        |        116 |          0 |         25 |        141 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/README.md                             | Markdown     |          2 |          0 |          1 |          3 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/cmake/NexTest.cmake                   | CMake        |         53 |          0 |          7 |         60 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/cmake/SdkCompilerTest.cmake           | CMake        |         29 |          0 |          6 |         35 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/cmake/nextest.h                       | C++          |         21 |         21 |          8 |         50 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/include/libconf.h                     | C++          |         39 |         39 |         14 |         92 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/conf.c                            | C            |         24 |         19 |          8 |         51 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/internal.h                        | C++          |         51 |         58 |         14 |        123 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/lex.c                             | C            |        829 |        124 |         29 |        982 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/libconf_config.in.h               | C++          |         22 |         19 |          6 |         47 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/parse.c                           | C            |        334 |         66 |         20 |        420 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/tests/lex.c                       | C            |         75 |         18 |          5 |         98 |
+| /home/nexos/sources/nexnix/source/libraries/libconf/src/tests/parse.c                     | C            |        122 |         18 |          4 |        144 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/CMakeLists.txt                         | CMake        |        304 |          0 |         50 |        354 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/README.md                              | Markdown     |          2 |          0 |          1 |          3 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/cmake/GettextHelp.cmake                | CMake        |        129 |          0 |         11 |        140 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/cmake/NexTest.cmake                    | CMake        |         47 |          0 |          9 |         56 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/cmake/SdkCompilerTest.cmake            | CMake        |         29 |          0 |          6 |         35 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/cmake/nextest.h                        | C++          |         21 |         21 |          8 |         50 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/array.h                 | C++          |         47 |         84 |         21 |        152 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/base.h                  | C++          |         10 |         21 |          7 |         38 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/bits.h                  | C++          |         14 |        107 |         15 |        136 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/char32.h                | C++          |         24 |        134 |         22 |        180 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/container.h             | C++          |          4 |         18 |          5 |         27 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/crc32.h                 | C++          |         11 |         11 |          7 |         29 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/decls.h                 | C++          |         12 |         18 |          5 |         35 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/endian.h                | C++          |         28 |         94 |         19 |        141 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/error.h                 | C++          |         10 |         34 |          9 |         53 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/getopt.h                | C++          |         41 |         14 |         15 |         70 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/hash.h                  | C++          |         11 |         29 |          8 |         48 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/list.h                  | C++          |         55 |        169 |         29 |        253 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/lock.h                  | C++          |         23 |         43 |         12 |         78 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/object.h                | C++          |         28 |        103 |         19 |        150 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/progname.h              | C++          |         11 |         26 |         12 |         49 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/safemalloc.h            | C++          |         21 |         43 |         13 |         77 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/safestring.h            | C++          |         12 |         41 |         11 |         64 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/stringref.h             | C++          |         25 |         44 |         14 |         83 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/textstream.h            | C++          |         64 |        116 |         22 |        202 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/libnex/unicode.h               | C++          |         39 |        100 |         22 |        161 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/include/uchar.h                        | C++          |         21 |          1 |         11 |         33 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/array.c                            | C            |        251 |         53 |         16 |        320 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/char32.c                           | C            |        204 |         35 |         17 |        256 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/codepages/win1252toUtf32.h         | C++          |         34 |         20 |          3 |         57 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/crc32.c                            | C            |         38 |          7 |          4 |         49 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/endian.c                           | C            |         89 |         24 |         13 |        126 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/error.c                            | C            |         23 |         22 |          7 |         52 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/getopt.c                           | C            |        274 |         91 |         23 |        388 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/hash.c                             | C            |         26 |         23 |          5 |         54 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/internal.c                         | C            |         16 |         18 |          4 |         38 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/internal.h                         | C++          |         16 |         18 |          8 |         42 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/libnex_baremetal.h                 | C++          |         11 |         18 |          5 |         34 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/libnex_config.in.h                 | C++          |         42 |         21 |          8 |         71 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/libnex_hosted.h                    | C++          |         16 |         18 |          5 |         39 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/list.c                             | C            |        250 |         31 |         20 |        301 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/lock.c                             | C            |         52 |         43 |          7 |        102 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/object.c                           | C            |         58 |         73 |         12 |        143 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/progname.c                         | C            |         11 |         26 |          6 |         43 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/safemalloc.c                       | C            |         25 |         46 |          6 |         77 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/stringref.c                        | C            |         22 |         18 |          5 |         45 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/strlcat.c                          | C            |         27 |         33 |          4 |         64 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/strlcpy.c                          | C            |         22 |         32 |          4 |         58 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/textstream.c                       | C            |        571 |        109 |         24 |        704 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/uchar.c                            | C            |         85 |          3 |         12 |        100 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/unicode.c                          | C            |        217 |         51 |         24 |        292 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/unicode/utf16stateTab.h            | C++          |         19 |         26 |          9 |         54 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/src/unicode/utf8stateTab.h             | C++          |         18 |         25 |          9 |         52 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/array.c                          | C            |         74 |         19 |          9 |        102 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/bits.c                           | C            |         26 |         18 |          5 |         49 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/char32.c                         | C            |         65 |         29 |         13 |        107 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/endian.c                         | C            |         71 |         20 |         16 |        107 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/hash.c                           | C            |          7 |         18 |          5 |         30 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/list.c                           | C            |         73 |         36 |         12 |        121 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/object.c                         | C            |         24 |         17 |          3 |         44 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/stringref.c                      | C            |         26 |         18 |          4 |         48 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/strlcat.c                        | C            |         18 |         20 |          5 |         43 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/strlcpy.c                        | C            |         19 |         22 |          6 |         47 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/textstream.c                     | C            |        159 |         38 |          5 |        202 |
+| /home/nexos/sources/nexnix/source/libraries/libnex/tests/unicode.c                        | C            |         52 |         22 |         10 |         84 |
+| /home/nexos/sources/nexnix/source/nexboot/CMakeLists.txt                                  | CMake        |        113 |          0 |         20 |        133 |
+| /home/nexos/sources/nexnix/source/nexboot/README.md                                       | Markdown     |          2 |          0 |          1 |          3 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/armv8/arch.cmake                            | CMake        |         19 |          0 |          6 |         25 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/armv8/as.c                                  | C            |        184 |         56 |         21 |        261 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/armv8/cpu.S                                 | ARM          |         58 |          0 |          6 |         64 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/armv8/cpu.c                                 | C            |          8 |         16 |          4 |         28 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/i386/arch.cmake                             | CMake        |         26 |          0 |          8 |         34 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/i386/as.c                                   | C            |        109 |         43 |         13 |        165 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/i386/aspae.c                                | C            |        135 |         47 |         13 |        195 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/i386/bioscall.asm                           | ARM          |        189 |          0 |          8 |        197 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/i386/cpu.asm                                | ARM          |         31 |          0 |          3 |         34 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/i386/cpu.c                                  | C            |        119 |         21 |         23 |        163 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/riscv64/arch.cmake                          | CMake        |         19 |          0 |          6 |         25 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/riscv64/as.c                                | C            |        122 |         50 |         19 |        191 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/riscv64/cpu.S                               | ARM          |         29 |          0 |          7 |         36 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/riscv64/cpu.c                               | C            |         30 |         23 |          4 |         57 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/x86_64/arch.cmake                           | CMake        |         21 |          0 |          7 |         28 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/x86_64/as.c                                 | C            |        122 |         58 |         20 |        200 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/x86_64/bioscall.asm                         | ARM          |        252 |          0 |          8 |        260 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/x86_64/cpu.asm                              | ARM          |         27 |          0 |          5 |         32 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/x86_64/cpu.c                                | C            |        118 |         22 |         23 |        163 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/Drivers.cmake                           | CMake        |         29 |          0 |          6 |         35 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/biosdisk.c                              | C            |        470 |         54 |         28 |        552 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/bioskbd.c                               | C            |         93 |         24 |         12 |        129 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/efidisk.c                               | C            |        207 |         43 |         12 |        262 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/efigop.c                                | C            |        306 |         64 |         18 |        388 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/efikbd.c                                | C            |        110 |         26 |         12 |        148 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/efiserial.c                             | C            |        113 |         30 |         14 |        157 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/fbconsole.c                             | C            |        469 |         60 |         22 |        551 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/terminal.c                              | C            |        793 |         88 |         24 |        905 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/uart16550.c                             | C            |        152 |         42 |         22 |        216 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/vbe.c                                   | C            |        475 |         85 |         35 |        595 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/vgaconsole.c                            | C            |        197 |         44 |         25 |        266 |
+| /home/nexos/sources/nexnix/source/nexboot/drivers/volmanager.c                            | C            |        366 |         73 |         33 |        472 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/CMakeLists.txt                          | CMake        |         86 |          0 |         21 |        107 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/bios.c                                  | C            |        127 |         38 |         15 |        180 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/biosmem.c                               | C            |        254 |         69 |         14 |        337 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/boot/bootrec.cmake                      | CMake        |         25 |          0 |          5 |         30 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/boot/fdmbr.asm                          | ARM          |        277 |          0 |         13 |        290 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/boot/gptmbr.asm                         | ARM          |         99 |          0 |         10 |        109 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/boot/hdmbr.asm                          | ARM          |        184 |          0 |          8 |        192 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/boot/hdvbr.asm                          | ARM          |        269 |          0 |         17 |        286 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/boot/isombr.asm                         | ARM          |        230 |          0 |         13 |        243 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/chainload.c                             | C            |         56 |         23 |          3 |         82 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/decomp/decomp.c                         | C            |         64 |         24 |          7 |         95 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/decomp/em_inflate.c                     | C            |      1,042 |        272 |        166 |      1,480 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/decomp/em_inflate.h                     | C++          |         15 |         31 |          7 |         53 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/fw.cmake                                | CMake        |          6 |          0 |          1 |          7 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/hwdetect.c                              | C            |        251 |         48 |         15 |        314 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/include/boot/common.inc                 | C            |         31 |          0 |          2 |         33 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/include/boot/nbload.inc                 | C            |        192 |          0 |         11 |        203 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/include/boot/nbload2.inc                | C            |         16 |          0 |          2 |         18 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/bios/nbload/nbload.asm                       | ARM          |        759 |          0 |         37 |        796 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/efi/CMakeLists.txt                           | CMake        |         62 |          0 |         16 |         78 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/efi/efi.c                                    | C            |        267 |         55 |         28 |        350 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/efi/efimain.c                                | C            |         46 |         24 |          7 |         77 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/efi/efimem.c                                 | C            |         80 |         33 |          6 |        119 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/efi/fw.cmake                                 | CMake        |         27 |          0 |          8 |         35 |
+| /home/nexos/sources/nexnix/source/nexboot/fw/efi/hwdetect.c                               | C            |        121 |         38 |          7 |        166 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/bios/bios.h                     | C++          |         85 |         25 |         15 |        125 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/cpu/armv8/cpu.h                 | C            |         31 |         20 |         13 |         64 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/cpu/i386/cpu.h                  | C            |         50 |         25 |         21 |         96 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/cpu/riscv32/cpu.h               | C            |         24 |         19 |         11 |         54 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/cpu/riscv64/cpu.h               | C            |         32 |         22 |         14 |         68 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/cpu/x86_64/cpu.h                | C            |         50 |         25 |         21 |         96 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/detect.h                        | C++          |         45 |         24 |         13 |         82 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/driver.h                        | C++          |         32 |         26 |         17 |         75 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/disk.h                  | C++          |         36 |         19 |         10 |         65 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/display.h               | C++          |        104 |         23 |         19 |        146 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/ps2kbd.h                | C++          |         17 |         16 |          6 |         39 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/terminal.h              | C++          |        113 |         26 |         23 |        162 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/time.h                  | C++          |          5 |         16 |          5 |         26 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/uart16550.h             | C++          |         11 |         16 |          5 |         32 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/vgaconsole.h            | C++          |         21 |         17 |          8 |         46 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/drivers/volume.h                | C++          |         27 |         21 |         10 |         58 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/efi/efi.h                       | C++          |         28 |         34 |         22 |         84 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/fw.h                            | C++          |        101 |         45 |         34 |        180 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/nexboot.h                       | C++          |         39 |         39 |         25 |        103 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/nexnix.h                        | C++          |         60 |         31 |         11 |        102 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/object.h                        | C++          |         79 |         37 |         30 |        146 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/object_types.h                  | C++          |         21 |         16 |          5 |         42 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/os.h                            | C++          |         27 |         21 |         13 |         61 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/shell.h                         | C++          |         19 |         29 |         17 |         65 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/ui.h                            | C++          |         74 |         32 |         20 |        126 |
+| /home/nexos/sources/nexnix/source/nexboot/include/nexboot/vfs.h                           | C++          |         74 |         22 |         17 |        113 |
+| /home/nexos/sources/nexnix/source/nexboot/src/cmds/mountcmd.c                             | C            |         61 |         23 |          4 |         88 |
+| /home/nexos/sources/nexnix/source/nexboot/src/cmds/objcmd.c                               | C            |        145 |         36 |          8 |        189 |
+| /home/nexos/sources/nexnix/source/nexboot/src/cmds/shellbase.c                            | C            |        236 |         48 |         13 |        297 |
+| /home/nexos/sources/nexnix/source/nexboot/src/cmds/shellcmds.h                            | C++          |         55 |         17 |          8 |         80 |
+| /home/nexos/sources/nexnix/source/nexboot/src/conf/conf.h                                 | C++          |        104 |         34 |         21 |        159 |
+| /home/nexos/sources/nexnix/source/nexboot/src/conf/lex.c                                  | C            |        576 |         87 |         24 |        687 |
+| /home/nexos/sources/nexnix/source/nexboot/src/conf/parse.c                                | C            |        356 |         60 |         15 |        431 |
+| /home/nexos/sources/nexnix/source/nexboot/src/driver.c                                    | C            |         86 |         26 |         10 |        122 |
+| /home/nexos/sources/nexnix/source/nexboot/src/drivers.h                                   | C++          |         30 |         19 |          7 |         56 |
+| /home/nexos/sources/nexnix/source/nexboot/src/elf.c                                       | C            |        156 |         43 |          6 |        205 |
+| /home/nexos/sources/nexnix/source/nexboot/src/filesys/fat.c                               | C            |      1,038 |        191 |         52 |      1,281 |
+| /home/nexos/sources/nexnix/source/nexboot/src/filesys/fstable.h                           | C++          |         33 |         19 |          8 |         60 |
+| /home/nexos/sources/nexnix/source/nexboot/src/filesys/include/fat.h                       | C++          |         12 |         16 |          5 |         33 |
+| /home/nexos/sources/nexnix/source/nexboot/src/filesys/include/iso9660.h                   | C++          |         12 |         16 |          5 |         33 |
+| /home/nexos/sources/nexnix/source/nexboot/src/filesys/iso9660.c                           | C            |        517 |         90 |         34 |        641 |
+| /home/nexos/sources/nexnix/source/nexboot/src/log.c                                       | C            |        303 |         53 |         30 |        386 |
+| /home/nexos/sources/nexnix/source/nexboot/src/main.c                                      | C            |         78 |         41 |          7 |        126 |
+| /home/nexos/sources/nexnix/source/nexboot/src/memmgr.c                                    | C            |        380 |         77 |         22 |        479 |
+| /home/nexos/sources/nexnix/source/nexboot/src/menu.c                                      | C            |        350 |         88 |         21 |        459 |
+| /home/nexos/sources/nexnix/source/nexboot/src/nexnix.c                                    | C            |        165 |         50 |          4 |        219 |
+| /home/nexos/sources/nexnix/source/nexboot/src/object.c                                    | C            |        311 |         66 |         29 |        406 |
+| /home/nexos/sources/nexnix/source/nexboot/src/shell.c                                     | C            |        419 |        101 |         40 |        560 |
+| /home/nexos/sources/nexnix/source/nexboot/src/ui/textui.c                                 | C            |        176 |         43 |         17 |        236 |
+| /home/nexos/sources/nexnix/source/nexboot/src/ui/ui.c                                     | C            |        259 |         75 |         17 |        351 |
+| /home/nexos/sources/nexnix/source/nexboot/src/vfs.c                                       | C            |        295 |         44 |         28 |        367 |
+| /home/nexos/sources/nexnix/source/nexke/CMakeLists.txt                                    | CMake        |        110 |          0 |         25 |        135 |
+| /home/nexos/sources/nexnix/source/nexke/README.md                                         | Markdown     |          2 |          0 |          1 |          3 |
+| /home/nexos/sources/nexnix/source/nexke/core/fbcons.c                                     | C            |        270 |         50 |         23 |        343 |
+| /home/nexos/sources/nexnix/source/nexke/core/log.c                                        | C            |        118 |         40 |         14 |        172 |
+| /home/nexos/sources/nexnix/source/nexke/core/main.c                                       | C            |        105 |         46 |         11 |        162 |
+| /home/nexos/sources/nexnix/source/nexke/core/resource.c                                   | C            |        254 |         85 |         23 |        362 |
+| /home/nexos/sources/nexnix/source/nexke/core/time.c                                       | C            |        234 |         77 |         17 |        328 |
+| /home/nexos/sources/nexnix/source/nexke/core/work.c                                       | C            |        116 |         41 |         12 |        169 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/arch.cmake                              | CMake        |         25 |          0 |          7 |         32 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/cpu.S                                   | ARM          |         37 |          0 |         10 |         47 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/cpudep.c                                | C            |        134 |         38 |         13 |        185 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/cpuhelp.c                               | C            |        100 |         20 |          9 |        129 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/exec.c                                  | C            |        124 |         28 |          8 |        160 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/mul.c                                   | C            |        509 |        155 |         30 |        694 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/trap.S                                  | ARM          |        124 |          0 |         10 |        134 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/arch.cmake                               | CMake        |         35 |          0 |          9 |         44 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/cpu.asm                                  | ARM          |        141 |          0 |          9 |        150 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/cpudep.c                                 | C            |        234 |         78 |         20 |        332 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/cpuhelp.c                                | C            |        177 |         17 |         26 |        220 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/mul.c                                    | C            |        477 |        156 |         27 |        660 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/mulpae.c                                 | C            |        573 |        182 |         29 |        784 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/i386/trap.asm                                 | ARM          |         70 |          0 |          7 |         77 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/riscv64/arch.cmake                            | CMake        |         20 |          0 |          7 |         27 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/riscv64/cpudep.c                              | C            |         12 |         22 |          6 |         40 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/riscv64/mul.c                                 | C            |          3 |         16 |          1 |         20 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86/cpuid.c                                   | C            |        267 |         47 |         18 |        332 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86/exec.c                                    | C            |         63 |         24 |          7 |         94 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86/tsc.c                                     | C            |         59 |         27 |         11 |         97 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86_64/arch.cmake                             | CMake        |         30 |          0 |          9 |         39 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86_64/cpu.asm                                | ARM          |         66 |          0 |          6 |         72 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86_64/cpudep.c                               | C            |        190 |         72 |         20 |        282 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86_64/cpuhelp.c                              | C            |        179 |         17 |         28 |        224 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86_64/mul.c                                  | C            |        467 |        153 |         25 |        645 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/x86_64/trap.asm                               | ARM          |         86 |          0 |          6 |         92 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu.h                               | C            |         80 |         48 |         29 |        157 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/armv8/armv8.h                   | C++          |        266 |         45 |         62 |        373 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/armv8/mul.h                     | C++          |         93 |         35 |         26 |        154 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/i386/i386.h                     | C++          |         91 |         36 |         23 |        150 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/i386/mul.h                      | C++          |        105 |         37 |         31 |        173 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/ptab.h                          | C++          |         58 |         31 |         21 |        110 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/riscv64/riscv64.h               | C++          |          7 |         18 |          5 |         30 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/x86/x86.h                       | C++          |        210 |         62 |         55 |        327 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/x86_64/mul.h                    | C++          |         77 |         33 |         24 |        134 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/cpu/x86_64/x86_64.h                 | C++          |         55 |         27 |         17 |         99 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/list.h                              | C++          |         99 |         29 |         17 |        145 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/lock.h                              | C++          |         58 |         24 |         12 |         94 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/mm.h                                | C++          |        190 |        116 |         96 |        402 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/nexboot.h                           | C++          |         78 |         30 |         15 |        123 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/nexke.h                             | C            |        153 |         73 |         59 |        285 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform.h                          | C            |        207 |         70 |         72 |        349 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform/acpi.h                     | C++          |        240 |         40 |         38 |        318 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform/pc.h                       | C            |         20 |         32 |         20 |         72 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform/sbsa.h                     | C++          |          5 |         16 |          5 |         26 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/synch.h                             | C++          |         36 |         36 |         23 |         95 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/task.h                              | C++          |        116 |         68 |         44 |        228 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/types.h                             | C++          |         23 |         16 |          7 |         46 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/wait.h                              | C++          |         24 |         29 |         15 |         68 |
+| /home/nexos/sources/nexnix/source/nexke/mm/backends.h                                     | C++          |         11 |         17 |          7 |         35 |
+| /home/nexos/sources/nexnix/source/nexke/mm/fault.c                                        | C            |         70 |         38 |          4 |        112 |
+| /home/nexos/sources/nexnix/source/nexke/mm/kvmm.c                                         | C            |        477 |        109 |         42 |        628 |
+| /home/nexos/sources/nexnix/source/nexke/mm/malloc.c                                       | C            |         61 |         24 |         10 |         95 |
+| /home/nexos/sources/nexnix/source/nexke/mm/object.c                                       | C            |         59 |         24 |          8 |         91 |
+| /home/nexos/sources/nexnix/source/nexke/mm/page.c                                         | C            |        584 |        144 |         38 |        766 |
+| /home/nexos/sources/nexnix/source/nexke/mm/ptab.c                                         | C            |        256 |         80 |         20 |        356 |
+| /home/nexos/sources/nexnix/source/nexke/mm/slab.c                                         | C            |        337 |        104 |         31 |        472 |
+| /home/nexos/sources/nexnix/source/nexke/mm/space.c                                        | C            |        216 |         64 |         22 |        302 |
+| /home/nexos/sources/nexnix/source/nexke/platform/acpi.c                                   | C            |        640 |         99 |         30 |        769 |
+| /home/nexos/sources/nexnix/source/nexke/platform/interrupt.c                              | C            |        353 |         96 |         32 |        481 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/apic.c                                | C            |        582 |        132 |         60 |        774 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/earlycons.c                           | C            |        212 |         64 |         34 |        310 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/hpet.c                                | C            |        283 |         75 |         30 |        388 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/mps.c                                 | C            |        253 |         54 |         21 |        328 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/pcdetect.c                            | C            |        208 |         53 |         20 |        281 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/pic.c                                 | C            |        181 |         55 |         21 |        257 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/pit.c                                 | C            |        145 |         51 |         18 |        214 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/platform.cmake                        | CMake        |         21 |          0 |          5 |         26 |
+| /home/nexos/sources/nexnix/source/nexke/platform/sbsa/pl011.c                             | C            |        132 |         45 |         16 |        193 |
+| /home/nexos/sources/nexnix/source/nexke/platform/sbsa/platform.cmake                      | CMake        |         16 |          0 |          4 |         20 |
+| /home/nexos/sources/nexnix/source/nexke/platform/sbsa/sbsa.c                              | C            |        119 |         43 |         15 |        177 |
+| /home/nexos/sources/nexnix/source/nexke/task/sched.c                                      | C            |        167 |         88 |         22 |        277 |
+| /home/nexos/sources/nexnix/source/nexke/task/synch.c                                      | C            |        125 |         47 |         21 |        193 |
+| /home/nexos/sources/nexnix/source/nexke/task/thread.c                                     | C            |        206 |         76 |         21 |        303 |
+| /home/nexos/sources/nexnix/source/nexke/task/wait.c                                       | C            |        137 |         53 |         13 |        203 |
+| Total                                                                                     |              |     48,673 |     12,428 |      5,837 |     66,938 |
++-------------------------------------------------------------------------------------------+--------------+------------+------------+------------+------------+

@@ -1,0 +1,79 @@
+Date : 2024-11-25 09:47:52
+Directory : /home/nexos/sources/nexnix
+Total : 26 files,  392 codes, 133 comments, 54 blanks, all 579 lines
+
+Languages
++-----------------+------------+------------+------------+------------+------------+
+| language        | files      | code       | comment    | blank      | total      |
++-----------------+------------+------------+------------+------------+------------+
+| C               |         16 |        366 |        101 |         46 |        513 |
+| C++             |          2 |         31 |        -14 |         -2 |         15 |
+| CMake           |          4 |         17 |          0 |          7 |         24 |
+| RISC-V Assembly |          4 |        -22 |         46 |          3 |         27 |
++-----------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                      | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                         |         26 |        392 |        133 |         54 |        579 |
+| source                                                                    |         26 |        392 |        133 |         54 |        579 |
+| source/libraries                                                          |          3 |          8 |         29 |          8 |         45 |
+| source/libraries/libc                                                     |          3 |          8 |         29 |          8 |         45 |
+| source/libraries/libc/arch                                                |          3 |          8 |         29 |          8 |         45 |
+| source/libraries/libc/arch/armv8                                          |          1 |        -15 |         15 |          0 |          0 |
+| source/libraries/libc/arch/riscv64                                        |          2 |         23 |         14 |          8 |         45 |
+| source/nexboot                                                            |          1 |         -1 |          1 |          0 |          0 |
+| source/nexboot/cpu                                                        |          1 |         -1 |          1 |          0 |          0 |
+| source/nexboot/cpu/riscv64                                                |          1 |         -1 |          1 |          0 |          0 |
+| source/nexke                                                              |         22 |        385 |        103 |         46 |        534 |
+| source/nexke (Files)                                                      |          1 |         -2 |          0 |          0 |         -2 |
+| source/nexke/core                                                         |          1 |          0 |         -1 |          0 |         -1 |
+| source/nexke/cpu                                                          |          2 |         -6 |         15 |          1 |         10 |
+| source/nexke/cpu/armv8                                                    |          2 |         -6 |         15 |          1 |         10 |
+| source/nexke/include                                                      |          5 |         62 |          5 |          6 |         73 |
+| source/nexke/include/nexke                                                |          5 |         62 |          5 |          6 |         73 |
+| source/nexke/include/nexke (Files)                                        |          2 |         24 |          3 |          3 |         30 |
+| source/nexke/include/nexke/platform                                       |          3 |         38 |          2 |          3 |         43 |
+| source/nexke/platform                                                     |         13 |        331 |         84 |         39 |        454 |
+| source/nexke/platform (Files)                                             |          2 |         66 |          0 |          1 |         67 |
+| source/nexke/platform/generic                                             |          4 |        570 |        175 |         74 |        819 |
+| source/nexke/platform/generic (Files)                                     |          2 |        155 |         44 |         22 |        221 |
+| source/nexke/platform/generic/arch                                        |          2 |        415 |        131 |         52 |        598 |
+| source/nexke/platform/generic/arch/arm                                    |          2 |        415 |        131 |         52 |        598 |
+| source/nexke/platform/pc                                                  |          4 |        -38 |         -3 |         -1 |        -42 |
+| source/nexke/platform/sbsa                                                |          3 |       -267 |        -88 |        -35 |       -390 |
++---------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| filename                                                                  | language        | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/armv8/crt0.S        | RISC-V Assembly |        -15 |         15 |          0 |          0 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/riscv64/arch.cmake  | CMake           |         15 |          0 |          5 |         20 |
+| /home/nexos/sources/nexnix/source/libraries/libc/arch/riscv64/crt0.S      | RISC-V Assembly |          8 |         14 |          3 |         25 |
+| /home/nexos/sources/nexnix/source/nexboot/cpu/riscv64/cpu.S               | RISC-V Assembly |         -1 |          1 |          0 |          0 |
+| /home/nexos/sources/nexnix/source/nexke/CMakeLists.txt                    | CMake           |         -2 |          0 |          0 |         -2 |
+| /home/nexos/sources/nexnix/source/nexke/core/time.c                       | C               |          0 |         -1 |          0 |         -1 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/exec.c                  | C               |          8 |         -1 |          1 |          8 |
+| /home/nexos/sources/nexnix/source/nexke/cpu/armv8/trap.S                  | RISC-V Assembly |        -14 |         16 |          0 |          2 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/nexke.h             | C               |         10 |          2 |          2 |         14 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform.h          | C               |         14 |          1 |          1 |         16 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform/acpi.h     | C++             |         36 |          2 |          3 |         41 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform/generic.h  | C               |          7 |         16 |          5 |         28 |
+| /home/nexos/sources/nexnix/source/nexke/include/nexke/platform/sbsa.h     | C++             |         -5 |        -16 |         -5 |        -26 |
+| /home/nexos/sources/nexnix/source/nexke/platform/acpi.c                   | C               |         34 |          0 |          1 |         35 |
+| /home/nexos/sources/nexnix/source/nexke/platform/generic/arch/arm/gic.c   | C               |        283 |         86 |         36 |        405 |
+| /home/nexos/sources/nexnix/source/nexke/platform/generic/arch/arm/pl011.c | C               |        132 |         45 |         16 |        193 |
+| /home/nexos/sources/nexnix/source/nexke/platform/generic/detect.c         | C               |        135 |         44 |         16 |        195 |
+| /home/nexos/sources/nexnix/source/nexke/platform/generic/platform.cmake   | CMake           |         20 |          0 |          6 |         26 |
+| /home/nexos/sources/nexnix/source/nexke/platform/interrupt.c              | C               |         32 |          0 |          0 |         32 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/apic.c                | C               |        -24 |          1 |          2 |        -21 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/hpet.c                | C               |         -7 |         -2 |         -2 |        -11 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/pic.c                 | C               |          2 |          0 |          0 |          2 |
+| /home/nexos/sources/nexnix/source/nexke/platform/pc/pit.c                 | C               |         -9 |         -2 |         -1 |        -12 |
+| /home/nexos/sources/nexnix/source/nexke/platform/sbsa/pl011.c             | C               |       -132 |        -45 |        -16 |       -193 |
+| /home/nexos/sources/nexnix/source/nexke/platform/sbsa/platform.cmake      | CMake           |        -16 |          0 |         -4 |        -20 |
+| /home/nexos/sources/nexnix/source/nexke/platform/sbsa/sbsa.c              | C               |       -119 |        -43 |        -15 |       -177 |
+| Total                                                                     |                 |        392 |        133 |         54 |        579 |
++---------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+

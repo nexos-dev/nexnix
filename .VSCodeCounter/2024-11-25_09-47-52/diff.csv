@@ -1,0 +1,28 @@
+"filename", "language", "C", "RISC-V Assembly", "C++", "CMake", "comment", "blank", "total"
+"/home/nexos/sources/nexnix/source/libraries/libc/arch/armv8/crt0.S", "RISC-V Assembly", 0, -15, 0, 0, 15, 0, 0
+"/home/nexos/sources/nexnix/source/libraries/libc/arch/riscv64/arch.cmake", "CMake", 0, 0, 0, 15, 0, 5, 20
+"/home/nexos/sources/nexnix/source/libraries/libc/arch/riscv64/crt0.S", "RISC-V Assembly", 0, 8, 0, 0, 14, 3, 25
+"/home/nexos/sources/nexnix/source/nexboot/cpu/riscv64/cpu.S", "RISC-V Assembly", 0, -1, 0, 0, 1, 0, 0
+"/home/nexos/sources/nexnix/source/nexke/CMakeLists.txt", "CMake", 0, 0, 0, -2, 0, 0, -2
+"/home/nexos/sources/nexnix/source/nexke/core/time.c", "C", 0, 0, 0, 0, -1, 0, -1
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/exec.c", "C", 8, 0, 0, 0, -1, 1, 8
+"/home/nexos/sources/nexnix/source/nexke/cpu/armv8/trap.S", "RISC-V Assembly", 0, -14, 0, 0, 16, 0, 2
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/nexke.h", "C", 10, 0, 0, 0, 2, 2, 14
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/platform.h", "C", 14, 0, 0, 0, 1, 1, 16
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/platform/acpi.h", "C++", 0, 0, 36, 0, 2, 3, 41
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/platform/generic.h", "C", 7, 0, 0, 0, 16, 5, 28
+"/home/nexos/sources/nexnix/source/nexke/include/nexke/platform/sbsa.h", "C++", 0, 0, -5, 0, -16, -5, -26
+"/home/nexos/sources/nexnix/source/nexke/platform/acpi.c", "C", 34, 0, 0, 0, 0, 1, 35
+"/home/nexos/sources/nexnix/source/nexke/platform/generic/arch/arm/gic.c", "C", 283, 0, 0, 0, 86, 36, 405
+"/home/nexos/sources/nexnix/source/nexke/platform/generic/arch/arm/pl011.c", "C", 132, 0, 0, 0, 45, 16, 193
+"/home/nexos/sources/nexnix/source/nexke/platform/generic/detect.c", "C", 135, 0, 0, 0, 44, 16, 195
+"/home/nexos/sources/nexnix/source/nexke/platform/generic/platform.cmake", "CMake", 0, 0, 0, 20, 0, 6, 26
+"/home/nexos/sources/nexnix/source/nexke/platform/interrupt.c", "C", 32, 0, 0, 0, 0, 0, 32
+"/home/nexos/sources/nexnix/source/nexke/platform/pc/apic.c", "C", -24, 0, 0, 0, 1, 2, -21
+"/home/nexos/sources/nexnix/source/nexke/platform/pc/hpet.c", "C", -7, 0, 0, 0, -2, -2, -11
+"/home/nexos/sources/nexnix/source/nexke/platform/pc/pic.c", "C", 2, 0, 0, 0, 0, 0, 2
+"/home/nexos/sources/nexnix/source/nexke/platform/pc/pit.c", "C", -9, 0, 0, 0, -2, -1, -12
+"/home/nexos/sources/nexnix/source/nexke/platform/sbsa/pl011.c", "C", -132, 0, 0, 0, -45, -16, -193
+"/home/nexos/sources/nexnix/source/nexke/platform/sbsa/platform.cmake", "CMake", 0, 0, 0, -16, 0, -4, -20
+"/home/nexos/sources/nexnix/source/nexke/platform/sbsa/sbsa.c", "C", -119, 0, 0, 0, -43, -15, -177
+"Total", "-", 366, -22, 31, 17, 133, 54, 579
