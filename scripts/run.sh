@@ -285,7 +285,7 @@ then
         EMU_USBDRIVE=0
         EMU_SMP=0
         [ -z "$EMU_CDROMBOOT" ] && EMU_CDROMBOOT=0
-        QEMUARGS="${QEMUARGS} -no-acpi"
+        QEMUARGS="${QEMUARGS} -machine acpi=off"
     elif [ "$NNTARGETCONF" = "mp" ]
     then
         [ -z "$EMU_MEMCOUNT" ] && EMU_MEMCOUNT=1024

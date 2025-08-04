@@ -459,15 +459,13 @@ then
                 export WORKSPACE=$edk2root/edk2
                 export EDK_TOOLS_PATH="$WORKSPACE/BaseTools"
                 export PACKAGES_PATH="$edk2root/edk2:$edk2root/edk2-platforms:$edk2root/edk2-non-osi"
-                export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-\
-                export GCC5_X64_PREFIX=x86_64-linux-gnu-
-                export GCC5_IA32_PREFIX=i686-linux-gnu-
                 cd $edk2root
                 . edk2/edksetup.sh
                 make -C edk2/BaseTools -j $NNJOBCOUNT
                 # Build it
                 if [ "$NNARCH" = "i386" ]
                 then
+                    export GCC5_BIN="i686-linux-gnu-"
                     ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
                     mkdir -p $NNBUILDROOT/tools/firmware
                     build -a IA32 -t GCC5 -p OvmfPkg/OvmfPkgIa32.dsc
@@ -480,6 +478,7 @@ then
                     touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
                 elif [ "$NNARCH" = "x86_64" ]
                 then
+                    export GCC5_BIN="x86_64-linux-gnu-"
                     ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
                     mkdir -p $NNBUILDROOT/tools/firmware
                     build -a X64 -t GCC5 -p OvmfPkg/OvmfPkgX64.dsc
@@ -492,6 +491,7 @@ then
                     touch $NNBUILDROOT/tools/firmware/fw${NNARCH}done
                 elif [ "$NNARCH" = "armv8" ]
                 then
+                    export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
                     ln -sf $edk2root/edk2/Build $NNBUILDROOT/build/edk2-build
                     mkdir -p $NNBUILDROOT/tools/firmware
                     build -a AARCH64 -t GCC5 -p ArmVirtPkg/ArmVirtQemu.dsc

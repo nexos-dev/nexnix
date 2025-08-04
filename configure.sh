@@ -252,7 +252,7 @@ findprog()
             pkg=gcc-i686-linux-gnu
         elif [ "$1" = "x86_64-linux-gnu-gcc" ]
         then
-            pkg=gcc-x86_64-linux-gnu
+            pkg=gcc-x86-64-linux-gnu
         elif [ "$1" = "aarch64-linux-gnu-gcc" ]
         then
             pkg=gcc-aarch64-linux-gnu
@@ -442,7 +442,7 @@ HELPEND
         echo "Valid configurations for x86_64-pc: $confs_x86_64_pc"
         echo "Default configuration for x86_64-pc is: acpi"
         echo "Valid configurations for armv8-generic: $confs_armv8_generic"
-        echo "Default configuration for armv8-generic is: generic"
+        echo "Default configuration for armv8-generic is: sbsa"
         exit 0
         ;;
     -debug)
@@ -1108,10 +1108,18 @@ Run $0 -archs to see supported targets"
         ln -sf $olddir/packages/nnbuild.conf $output/conf/$target/$conf/nnbuild.conf
     fi
     # Check if libguestfs image needs to be decompressed
-    if [ ! -f $olddir/scripts/guestfs_root.img ]
+    if [ ! -f $olddir/scripts/guestfs/guestfs_root.img ]
     then
         echo "Decompressing libguestfs guest image..."
-        xz -dk $olddir/scripts/guestfs_root.img.xz
+        # Figure out host arch
+        hostarch=$(uname -p)
+        # Normalize it
+        if [ "$hostarch" = "aarch64" ]
+        then
+            hostarch="armv8"
+        fi
+        xz -dkc $olddir/scripts/guestfs/guestfs_root_$hostarch.img.xz > $olddir/scripts/guestfs/guestfs_root.img
+
     fi
     # Reset target configuration
     tarconf=

@@ -126,7 +126,15 @@ static bool createImage (Image_t* img, const char* action, bool overwrite, const
 {
     // Check if the user passed a name
     if (file)
-        img->file = (char*) file;
+    {
+        // We have to malloc it as we will attempt to free it at destroy time.
+        // If we don't malloc it will cause a segfault later on
+        if (img->file)
+            img->file = realloc_s (img->file, strlen (file) + 1);
+        else
+            img->file = malloc_s (strlen (file) + 1);
+        strcpy (img->file, file);
+    }
     // Was a name set in the configuration file?
     else if (!img->file)
     {
@@ -294,31 +302,24 @@ static bool formatPartition (const char* action, Image_t* img, Partition_t* part
     if (part->filesys == IMG_FILESYS_FAT12)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t fat -F 12 -R 4 '");
-        strcat (cmd, partDev);
-        strcat (cmd, "'");
+        strcpy (cmd, "mkfs -t fat -F 12 -R 4 ");
     }
     else if (part->filesys == IMG_FILESYS_FAT16)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t fat -F 16 -R 4 '");
-        strcat (cmd, partDev);
-        strcat (cmd, "'");
+        strcpy (cmd, "mkfs -t fat -F 16 -R 4 ");
     }
     else if (part->filesys == IMG_FILESYS_FAT32)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t vfat -F 32 '");
-        strcat (cmd, partDev);
-        strcat (cmd, "'");
+        strcpy (cmd, "mkfs -t vfat -F 32 ");
     }
     else if (part->filesys == IMG_FILESYS_EXT2)
     {
         // Bulid command string
-        strcpy (cmd, "mkfs -t ext2 '");
-        strcat (cmd, partDev);
-        strcat (cmd, "'");
+        strcpy (cmd, "mkfs -t ext2 ");
     }
+    strcat (cmd, partDev);
     // Format it
     if (!guestfs_sh (img->guestFs, cmd))
         return false;
@@ -433,12 +434,12 @@ bool createImages (ListHead_t* images,
     // Get path of root image
     char rootImage[256];
     // We reserve space for file name
-    if (strlcpy (rootImage, scriptRoot, 256) >= (256 - 17))
+    if (strlcpy (rootImage, scriptRoot, 256) >= (256 - 25))
     {
         error ("buffer overflow detected");
         return false;
     }
-    strcat (rootImage, "guestfs_root.img");
+    strcat (rootImage, "guestfs/guestfs_root.img");
     // Loop through every image
     ListEntry_t* imgEntry = ListFront (images);
     while (imgEntry)
@@ -561,8 +562,11 @@ bool createImages (ListHead_t* images,
         if (guestfs_launch (img->guestFs) == -1)
             goto nextImg;
         // Mount root
-        if (guestfs_mount (img->guestFs, "/dev/sda3", "/") == -1)
+        if (guestfs_mount (img->guestFs, "/dev/sda3", "/") == -1 &&
+            guestfs_mount (img->guestFs, "/dev/vda3", "/"))
+        {
             goto nextImg;
+        }
         // CHeck if a partition table needs to be created
         if (!strcmp (action, "partition") || !strcmp (action, "all"))
         {

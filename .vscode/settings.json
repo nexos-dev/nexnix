@@ -41,5 +41,7 @@
         "generic.h": "c",
         "source_location": "c",
         "regex": "c"
-    }
+    },
+    "explorer.confirmDelete": false,
+    "explorer.confirmDragAndDrop": false
 }

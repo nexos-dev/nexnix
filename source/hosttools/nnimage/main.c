@@ -74,8 +74,8 @@ Valid arguments:\n\
 \n\
 ACTION can be create, partition, update, or all. By default,\n\
 configuration is read from nnimage.conf in the current directory\n",
-                        progName,
-                        progName);
+                        getprogname(),
+                        getprogname());
                 // Make sure that we exit doing nothing
                 return 0;
             case 'f':
