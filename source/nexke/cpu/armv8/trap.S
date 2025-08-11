@@ -37,7 +37,7 @@
 #define CPU_SERR_LOWER_EL32 15
 
 CpuVectorExit:
-    add sp, sp, 32      // Skip over stuff we don't need to set
+    add sp, sp, 40      // Skip over stuff we don't need to set
     ldp x0, x30, [sp], #16
     msr SP_EL0, x0
     ldp x29, x28, [sp], #16

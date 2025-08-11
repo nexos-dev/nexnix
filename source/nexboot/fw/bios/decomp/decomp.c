@@ -27,7 +27,7 @@
 #define NEXBOOT_MAX_SIZE  0x80000
 #define NEXBOOT_MAIN_BASE 0x190000
 
-#define HALT asm("cli; hlt")
+#define HALT asm ("cli;hlt")
 
 void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uintptr_t nbSize)
 {
@@ -82,13 +82,15 @@ void NbDecompMain (NbloadDetect_t* nbDetect, uint8_t* nbBase, uintptr_t nbSize)
     NexBoot (nbDetect);
     // Freeze if we return
     for (;;)
-        asm("hlt");
+        asm ("hlt");
 }
 
 // Stub assert
-void __attribute__ ((noreturn))
-__assert_failed (const char* expr, const char* file, int line, const char* func)
+void __attribute__ ((noreturn)) __assert_failed (const char* expr,
+                                                 const char* file,
+                                                 int line,
+                                                 const char* func)
 {
-    asm("cli;hlt");
+    asm ("cli;hlt");
     __builtin_unreachable();
 }

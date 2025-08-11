@@ -326,7 +326,7 @@ static bool BiosDiskEntry (int code, void* params)
             disk->hdr.devId = curDisk;
             disk->hdr.devSubType = 0;
             NbBiosRegs_t in = {0}, out = {0};
-        checkDisk : {
+        checkDisk: {
             // If boot disk hasn't been checked, check it
             if (!bootDiskChecked)
                 curDisk = bootDisk;
@@ -476,7 +476,7 @@ static bool BiosDiskReadSectors (void* obj, void* data)
         if (biosDisk->flags & DISK_FLAG_LBA)
         {
             int res = 0;
-            if ((res = diskReadSectorLba (biosDisk, biosDisk->biosNum, buf, readInf->sector)))
+            if ((res = diskReadSectorLba (biosDisk, biosDisk->biosNum, buf, readInf->sector + i)))
             {
                 readInf->error = res;
                 return false;
@@ -486,7 +486,7 @@ static bool BiosDiskReadSectors (void* obj, void* data)
         {
             // Use non-LBA function
             int res = 0;
-            if ((res = diskReadSector (biosDisk->biosNum, biosDisk, buf, readInf->sector)))
+            if ((res = diskReadSector (biosDisk->biosNum, biosDisk, buf, readInf->sector + i)))
             {
                 readInf->error = res;
                 return false;

@@ -105,6 +105,8 @@ static pte_t* pgBase2 = NULL;
 
 static int asMaxLevel = 4;
 
+static bool isPgOn = false;
+
 // Initializes address space manager
 void NbCpuAsInit()
 {
@@ -199,10 +201,31 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     return true;
 }
 
+uintptr_t NbCpuAsGetPhys (uintptr_t virt)
+{
+    if (!isPgOn)
+        return virt;
+    // Decanonicalize
+    virt &= AS_CANONICAL_MASK;
+    // Iterate through levels
+    pte_t* curSt = pgBase;
+    for (int i = asMaxLevel; i > 1; --i)
+    {
+        // Get entry
+        pte_t* ent = cpuAsGetEntry (curSt, virt, i);
+        if (!(*ent))
+            return 0;                           // Address not actually mapped
+        curSt = (pte_t*) PT_GETFRAME (*ent);    // Get structure
+    }
+    // Grab last PML entry
+    pte_t* lastEnt = cpuAsGetEntry (curSt, virt, 1);
+    return PT_GETFRAME (*lastEnt);
+}
+
 void NbCpuAsUnmap (uintptr_t virt)
 {
-    uintptr_t ovirt = virt;
     // Decanonicalize
+    uintptr_t ovirt = virt;
     virt &= AS_CANONICAL_MASK;
     // Iterate through levels
     pte_t* curSt = pgBase;
@@ -257,4 +280,5 @@ void NbCpuEnablePaging()
     }
     NbCpuWriteMsr ("TCR_EL1", tcrEl1);
     NbCpuWriteMsr ("TTBR1_EL1", (uintptr_t) pgBase | (1 << 0));
+    isPgOn = true;
 }

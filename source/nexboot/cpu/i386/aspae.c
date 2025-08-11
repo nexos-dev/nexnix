@@ -158,6 +158,28 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     return true;
 }
 
+uintptr_t NbCpuAsGetPhys (uintptr_t virt)
+{
+    // This can be called with paging off, deal with that
+    if (!isPgOn)
+        return virt;
+    uint32_t pdptIdx = PG_ADDR_PDPT (virt);
+    uint32_t dirIdx = PG_ADDR_DIR (virt);
+    uint32_t tabIdx = PG_ADDR_TAB (virt);
+    // Check if a directory is mapped
+    pdpte_t* pdpte = &pdpt[pdptIdx];
+    if (!(*pdpte))
+        return 0;
+    pde_t* pdir = (pde_t*) PT_GETFRAME (*pdpte);
+    pde_t* pde = &pdir[dirIdx];
+    // Check if a table is mapped
+    if (!(*pde))
+        return 0;
+    pte_t* pgTab = (pte_t*) PT_GETFRAME (*pde);
+    pte_t* pte = &pgTab[tabIdx];
+    return PT_GETFRAME (*pte);
+}
+
 void NbCpuAsUnmap (uintptr_t virt)
 {
     uint32_t pdptIdx = PG_ADDR_PDPT (virt);

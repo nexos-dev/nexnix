@@ -627,7 +627,7 @@ then
         if [ "$NNTARGETCONF" = "acpi" ]
         then
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="ehci"
-            [ -z "$EMU_CPU" ] && EMU_CPU="ryzen"
+            [ -z "$EMU_CPU" ] && EMU_CPU="athlon64_clawhammer"
             [ -z "$EMU_CPUCOUNT" ] && EMU_CPUCOUNT=1
         else
             [ -z "$EMU_USBTYPE" ] && EMU_USBTYPE="uhci"

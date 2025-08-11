@@ -234,14 +234,14 @@ static void vbeGetPreferredRes (int* width, int* height)
 }
 
 // Maps frame buffer
-static void vbeMapBuffer (NbDisplayDev_t* display, uintptr_t buf)
+static void vbeMapBuffer (NbDisplayDev_t* display, uintptr_t virt, uintptr_t phys)
 {
     size_t lfbSize = display->bytesPerLine * display->height;
     size_t lfbPages = (lfbSize + (NEXBOOT_CPU_PAGE_SIZE - 1)) / NEXBOOT_CPU_PAGE_SIZE;
     for (int i = 0; i < lfbPages; ++i)
     {
-        uintptr_t pos = buf + (i * NEXBOOT_CPU_PAGE_SIZE);
-        NbCpuAsMap (pos, pos, NB_CPU_AS_RW | NB_CPU_AS_WT);
+        uintptr_t off = i * NEXBOOT_CPU_PAGE_SIZE;
+        NbCpuAsMap (virt + off, phys + off, NB_CPU_AS_RW | NB_CPU_AS_WT);
     }
 }
 
@@ -305,14 +305,16 @@ static void vbeSetupDisplay (NbDisplayDev_t* display, VbeModeInfo_t* modeInfo, u
             display->blueMask.maskShift = 0;
         }
     }
-    // Map the framebuffer
-    vbeMapBuffer (display, display->frontBuffer);
     // Map back buffer. We put it at the end of nexboot
     display->backBuffer = NEXBOOT_BIOS_BACKBUF;
     display->backBufferLoc = display->backBuffer;
-    vbeMapBuffer (display, display->backBuffer);
-    // Set size
+    vbeMapBuffer (display, display->backBuffer, display->backBuffer);
+    // Map the framebuffer
+    // Framebuffer is after back buffer, so compute that
     size_t lfbSize = display->bytesPerLine * display->height;
+    display->frontBuffer = NEXBOOT_BIOS_BACKBUF + lfbSize;
+    vbeMapBuffer (display, display->frontBuffer, modeInfo->frontBuffer);
+    // Set size
     display->lfbSize = lfbSize;
     backSize = lfbSize;
     // Set VBE mode

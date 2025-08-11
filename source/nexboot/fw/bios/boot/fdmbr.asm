@@ -47,9 +47,9 @@ start:
     cld
     cli
     xor ax, ax
-    mov ax, ds
-    mov ax, es
-    mov ax, ss
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
     ; Set CS
     jmp 0:NbloadMain
 
@@ -256,23 +256,37 @@ start2:
 ; AX = cluster number, ES:DI = buffer to read into
 NbloadReadCluster:
     pusha
+    push es
     ; First sector of cluster equals:
-    ;    (cluster - 2) + dataSector
+    ;    ((cluster - 2) * sectPerClus) + dataSector
     ; Data sector is in -8(%bp)
     sub ax, 2              ; Convert to disk cluster number
-    add ax, word [bp-6]    ; Add data sector
     ; Load sectors per cluster into CX
     mov cl, [bpbSectorsPerClus]
     xor ch, ch
-    readLoop:
-        xor dx, dx         ; Clear DX
-        call NbloadReadSector   ; Read it in
-        add ax, 1          ; Go to next sector
-    loop readLoop          ; Go to next cluster
+    mul cl                  ; Convert to sectors
+    add ax, word [bp-6]    ; Add data sector
+.readLoop:
+    xor dx, dx         ; Clear DX
+    call NbloadReadSector   ; Read it in
+    add ax, 1          ; Go to next sector
+    add di, [bpbBytesPerSector]
+    ; See if we need to move to next segment
+    cmp di, 0
+    jne .loop
+    ; Add to es
+    push ax
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+    pop ax
+.loop:
+    loop .readLoop          ; Go to next cluster
     ; Print progress dot
     mov si, progDot
     mov cx, 3
     call NbloadLogMsg
+    pop es
     popa
     ret
 

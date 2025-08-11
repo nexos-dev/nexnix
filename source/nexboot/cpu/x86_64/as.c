@@ -34,6 +34,7 @@ typedef uint64_t pmle_t;    // We use one type for all PMLs
 #define PT_RW                  (1ULL << 1)
 #define PT_WT                  (1ULL << 3)
 #define PT_G                   (1ULL << 8)
+#define PT_SZ                  (1ULL << 7)
 #define PT_FRAME               0x7FFFFFFFFFFFF000
 #define PT_GETFRAME(pt)        ((pt) & (PT_FRAME))
 #define PT_SETFRAME(pt, frame) ((pt) |= ((frame) & (PT_FRAME)))
@@ -170,6 +171,28 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags)
     // Invalidate TLB
     NbInvlpg (virt);
     return true;
+}
+
+uintptr_t NbCpuAsGetPhys (uintptr_t virt)
+{
+    // Decanonicalize
+    virt = cpuAsDecanonical (virt);
+    // Iterate through levels
+    pmle_t* curSt = pgBase;
+    for (int i = asMaxLevel; i > 1; --i)
+    {
+        // Get entry
+        pmle_t* ent = cpuAsGetEntry (curSt, virt, i);
+        if (!(*ent))
+            return 0;    // Address not actually mapped
+        // If this entry has size bit set, finish
+        if (*ent & PT_SZ)
+            return PT_GETFRAME (*ent);
+        curSt = (pmle_t*) PT_GETFRAME (*ent);    // Get structure
+    }
+    // Grab last PML entry
+    pmle_t* lastEnt = cpuAsGetEntry (curSt, virt, 1);
+    return *lastEnt;
 }
 
 void NbCpuAsUnmap (uintptr_t virt)

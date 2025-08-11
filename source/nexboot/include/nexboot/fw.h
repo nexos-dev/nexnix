@@ -146,6 +146,9 @@ bool NbCpuAsMap (uintptr_t virt, paddr_t phys, uint32_t flags);
 /// Unmaps address from address space
 void NbCpuAsUnmap (uintptr_t virt);
 
+// Gets physical address of virtual address
+uintptr_t NbCpuAsGetPhys (uintptr_t virt);
+
 /// Maps firmware-dictated regions into address sace
 void NbFwMapRegions (NbMemEntry_t* memMap, size_t mapSz);
 

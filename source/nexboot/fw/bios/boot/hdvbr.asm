@@ -250,26 +250,38 @@ fileError: db 0x0A, 0x0D, "nbload: unable to read nexboot", 0
 ; EAX = cluster number, ES:DI = buffer to read into
 NbloadReadCluster:
     pusha
+    push es
     ; First sector of cluster equals:
-    ;    (cluster - 2) + dataSector
+    ;    ((cluster - 2) * sectPerClus) + dataSector
     ; Data sector is in bp-8
     sub eax, 2              ; Convert to disk cluster number
-    add eax, [bp-8]        ; Add data sector
     ; Load sectors per cluster into CX
-    mov cl, [bpbSectorsPerClus]
-    xor ch, ch
-    readLoop:
-        push eax            ; Save AX
-        shr eax, 16         ; Move high 16 of EAX to DX
-        mov dx, ax
-        pop eax             ; And get low 16 back in AX
-        call NbloadReadSector   ; Read it in
-        add eax, 1          ; Go to next sector
-    loop readLoop           ; Go to next cluster
+    movzx cx, [bpbSectorsPerClus]
+    mul cx                  ; Multiply cluster number
+    add eax, [bp-8]         ; Add data sector
+.readLoop:
+    push eax                    ; Save AX
+    shr eax, 16                 ; Move high 16 of EAX to DX
+    mov dx, ax
+    pop eax                     ; And get low 16 back in AX
+    call NbloadReadSector       ; Read it in
+    add eax, 1                  ; Go to next sector
+    add di, [bpbBytesPerSector] ; Move buffer
+    cmp di, 0                   ; Check overflow
+    jne .loop
+    ; Adjust segment
+    push ax
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+    pop ax
+.loop:
+    loop .readLoop              ; Go to next cluster
     ; Print progress dot
     mov si, progDot
     mov cx, 3
     call NbloadLogMsg
+    pop es
     popa
     ret
 

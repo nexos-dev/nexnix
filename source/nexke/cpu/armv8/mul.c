@@ -89,6 +89,7 @@ void MmMulInit()
     memset (mulSpace, 0, sizeof (MmMulSpace_t));
     mulSpace->base = (paddr_t) ttbr0;
     mulSpace->refCount = 1;
+    NkListInit (&mulSpace->pageList);
     NkListAddFront (&mulSpace->pageList, &cachePgCtrl->link);
     // Prepare page table cache
     MmPtabInitCache (MmGetKernelSpace());

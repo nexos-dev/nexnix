@@ -15,7 +15,7 @@
     limitations under the License.
 */
 
-//#include "Tamsyn8x16r.h"
+// #include "Tamsyn8x16r.h"
 #include "font-8x16.h"
 #include <assert.h>
 #include <nexboot/driver.h>
@@ -163,9 +163,9 @@ static void fbMoveCursor (NbFbCons_t* console, int col, int row)
     int cursorY = (row * console->charHeight) + (console->charHeight - 2);
     int cursorWidth = 8;
     int cursorHeight = 2;
-    void* buf = display->backBufferLoc + (cursorY * display->bytesPerLine) +
-                (cursorX * display->bytesPerPx);
-    void* bufEnd = display->backBuffer + display->lfbSize;
+    uintptr_t buf = display->backBufferLoc + (cursorY * display->bytesPerLine) +
+                    (cursorX * display->bytesPerPx);
+    uintptr_t bufEnd = display->backBuffer + display->lfbSize;
     // Wrap if needed
     if (buf >= bufEnd)
     {
@@ -267,7 +267,7 @@ static bool FbObjClearScreen (void* objp, void* params)
     NbDisplayDev_t* display = NbObjGetData (console->display);
     // Overwrite screen
     display->backBufferLoc = display->backBuffer;
-    void* buf = display->backBuffer;
+    uintptr_t buf = display->backBuffer;
     for (int i = 0; i < display->height; ++i)
     {
         for (int j = 0; j < display->width; ++j)
@@ -335,8 +335,8 @@ static bool FbObjPutChar (void* objp, void* params)
     uint32_t offset = (pc->row * console->charHeight * display->bytesPerLine) +
                       (pc->col * console->charWidth * display->bytesPerPx);
     // Get base of buffer
-    void* buf = display->backBufferLoc + offset;
-    void* bufEnd = display->backBuffer + display->lfbSize;
+    uintptr_t buf = display->backBufferLoc + offset;
+    uintptr_t bufEnd = display->backBuffer + display->lfbSize;
     // Wrap if needed
     if (buf >= bufEnd)
     {
@@ -347,7 +347,7 @@ static bool FbObjPutChar (void* objp, void* params)
     uint32_t mask = 1 << console->charWidth;
     for (int y = 0; y < console->charHeight; ++y)
     {
-        void* lineBuf = buf;
+        uintptr_t lineBuf = buf;
         uint32_t omask = mask;
         for (int x = 0; x < (console->charWidth + 1); ++x)
         {
@@ -406,8 +406,8 @@ static bool FbObjDisableCursor (void* objp, void* params)
     NbDisplayDev_t* display = NbObjGetData (console->display);
     int cursorWidth = 8;
     int cursorHeight = 2;
-    void* buf = display->backBufferLoc + (console->cursorY * display->bytesPerLine) +
-                (console->cursorX * display->bytesPerPx);
+    uintptr_t buf = display->backBufferLoc + (console->cursorY * display->bytesPerLine) +
+                    (console->cursorX * display->bytesPerPx);
     for (int y = 0; y < cursorHeight; ++y)
     {
         for (int x = 0; x < cursorWidth; ++x)
@@ -472,9 +472,9 @@ static bool FbObjScroll (void* objp, void* params)
     NbObjCallSvc (console->display, NB_DISPLAY_INVALIDATE, &scrollRegion);
     // Clear last line
     NbDisplayDev_t* display = NbObjGetData (console->display);
-    void* lastLineBuf = display->backBufferLoc +
-                        (display->bytesPerLine * ((console->rows - 1) * console->charHeight));
-    void* bufEnd = display->backBuffer + display->lfbSize;
+    uintptr_t lastLineBuf = display->backBufferLoc +
+                            (display->bytesPerLine * ((console->rows - 1) * console->charHeight));
+    uintptr_t bufEnd = display->backBuffer + display->lfbSize;
     // Wrap if needed
     if (lastLineBuf >= bufEnd)
     {

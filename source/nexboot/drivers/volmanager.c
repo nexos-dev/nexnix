@@ -281,20 +281,8 @@ void readMbr (NbObject_t* diskObj, uint8_t* sector)
 {
     Mbr_t* mbr = (Mbr_t*) sector;
     assert (mbr->bootSig == 0xAA55);
-    // Check media byte to see if this is a floppy
-    if (sector[0x15] == 0xF9 || sector[0x15] == 0xF0)
-    {
-        NbVolume_t* vol = (NbVolume_t*) malloc (sizeof (NbVolume_t));
-        NbDiskInfo_t* diskInf = NbObjGetData (diskObj);
-        assert (vol);
-        vol->disk = NbObjRef (diskObj);
-        vol->isActive = true;
-        vol->isPartition = false;
-        vol->volFileSys = VOLUME_FS_FAT12;
-        vol->volStart = 0;
-        vol->volSize = diskInf->size;
-        addVolume (vol);
-    }
+    // Add all partitions
+    int parts = 0;
     for (int i = 0; i < MBR_MAX_PARTS; ++i)
     {
         if (mbr->parts[i].type)
@@ -314,9 +302,24 @@ void readMbr (NbObject_t* diskObj, uint8_t* sector)
             vol->volSize = mbr->parts[i].partSz;
             vol->volStart = mbr->parts[i].lbaStart;
             vol->volFileSys = mbrTypeToFs (mbr->parts[i].type);
+            ++parts;
             // Add volume to object database
             addVolume (vol);
         }
+    }
+    // If no partitions were found, must be a floppy
+    if (!parts)
+    {
+        NbVolume_t* vol = (NbVolume_t*) malloc (sizeof (NbVolume_t));
+        NbDiskInfo_t* diskInf = NbObjGetData (diskObj);
+        assert (vol);
+        vol->disk = NbObjRef (diskObj);
+        vol->isActive = true;
+        vol->isPartition = false;
+        vol->volFileSys = VOLUME_FS_FAT12;
+        vol->volStart = 0;
+        vol->volSize = diskInf->size;
+        addVolume (vol);
     }
 }
 

@@ -153,6 +153,22 @@ void NbCpuAsUnmap (uintptr_t virt)
     }
 }
 
+uintptr_t NbCpuAsGetPhys (uintptr_t virt)
+{
+    // This can be called with paging off, deal with that
+    if (!isPgOn)
+        return virt;
+    uint32_t dirIdx = PG_ADDR_DIR (virt);
+    uint32_t tabIdx = PG_ADDR_TAB (virt);
+    pde_t* pde = &pdir[dirIdx];
+    // Check if a table is mapped
+    if (!(*pde))
+        return 0;
+    pte_t* pgTab = (pte_t*) PT_GETFRAME (*pde);
+    pte_t* pte = &pgTab[tabIdx];
+    return PT_GETFRAME (*pte);
+}
+
 // Enables paging
 void NbCpuEnablePaging()
 {
